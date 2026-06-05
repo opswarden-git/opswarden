@@ -1,16 +1,17 @@
-//! Inbound HTTP handlers (Axum). They translate HTTP <-> use-cases and hold no
-//! business logic. At S0: liveness probe and the dynamic `/about.json`.
+// --- server/src/handlers/mod.rs ---
 
 use axum::{extract::State, Json};
 use serde::Serialize;
 
+pub mod auth;
+pub mod error;
+pub mod middleware;
 
 #[derive(Serialize)]
 pub struct Health {
     pub status: &'static str,
 }
 
-/// Liveness probe, used by the docker-compose healthcheck.
 pub async fn health() -> Json<Health> {
     Json(Health { status: "ok" })
 }
@@ -48,9 +49,6 @@ pub struct CatalogItem {
 
 use crate::AppState;
 
-/// Service catalog, exposed dynamically (clients never hard-code services).
-/// At S0 the catalog is empty; the rule engine (Phase 2) fills it. The
-/// SHA-256 kickoff token is always present, as required by the subject.
 pub async fn about(State(state): State<AppState>) -> Json<About> {
     let current_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

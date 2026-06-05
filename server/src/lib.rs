@@ -9,7 +9,7 @@ pub mod domain;
 pub mod handlers;
 pub mod ports;
 
-use axum::{routing::get, Router};
+use axum::{routing::{get, post}, Router};
 
 
 use std::sync::Arc;
@@ -25,8 +25,18 @@ pub struct AppState {
 }
 
 pub fn build_app(state: AppState) -> Router {
+    let protected_routes = Router::new()
+        .route("/api/me", get(handlers::auth::get_me))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            handlers::middleware::require_auth,
+        ));
+
     Router::new()
         .route("/health", get(handlers::health))
         .route("/about.json", get(handlers::about))
+        .route("/api/auth/sign-up", post(handlers::auth::sign_up))
+        .route("/api/auth/sign-in", post(handlers::auth::sign_in))
+        .merge(protected_routes)
         .with_state(state)
 }

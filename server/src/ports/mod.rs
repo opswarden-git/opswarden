@@ -12,7 +12,11 @@ pub trait UserRepo: Send + Sync {
 
 pub trait PasswordHasher: Send + Sync {
     fn hash(&self, password: &str) -> Result<String, DomainError>;
+    fn verify(&self, password: &str, hash: &str) -> Result<bool, DomainError>;
 }
 
-pub trait TokenService: Send + Sync {}
+pub trait TokenService: Send + Sync {
+    fn generate_token(&self, user_id: uuid::Uuid) -> Result<String, DomainError>;
+    fn verify_token(&self, token: &str) -> Result<uuid::Uuid, DomainError>;
+}
 pub trait Clock: Send + Sync {}

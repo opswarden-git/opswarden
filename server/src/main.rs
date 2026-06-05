@@ -1,34 +1,16 @@
 // --- server/src/main.rs ---
 
 use opswarden_server::{build_app, config::Config, AppState};
+use opswarden_server::ports::Clock;
+use opswarden_server::adapters::pg::user::PgUserRepo;
+use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
+use opswarden_server::adapters::crypto::jwt::JwtTokenService;
+
 use sqlx::postgres::PgPoolOptions;
+
 use std::sync::Arc;
-use opswarden_server::ports::{Clock, PasswordHasher, TokenService, UserRepo};
 
-use opswarden_server::domain::error::DomainError;
-use opswarden_server::domain::user::User;
-use async_trait::async_trait;
 
-struct DummyUserRepo;
-#[async_trait]
-impl UserRepo for DummyUserRepo {
-    async fn find_by_email(&self, _email: &str) -> Result<Option<User>, DomainError> {
-        Ok(None)
-    }
-    async fn save(&self, _user: &User) -> Result<(), DomainError> {
-        Ok(())
-    }
-}
-
-struct DummyHasher;
-impl PasswordHasher for DummyHasher {
-    fn hash(&self, _password: &str) -> Result<String, DomainError> {
-        Ok("dummy_hash".to_string())
-    }
-}
-
-struct DummyTokenService;
-impl TokenService for DummyTokenService {}
 
 struct DummyClock;
 impl Clock for DummyClock {}
@@ -50,9 +32,9 @@ async fn main() {
         .expect("Failed to run database migrations");
     
     let state = AppState {
-        users: Arc::new(DummyUserRepo),
-        hasher: Arc::new(DummyHasher),
-        tokens: Arc::new(DummyTokenService),
+        users: Arc::new(PgUserRepo::new(pool)),
+        hasher: Arc::new(Argon2Hasher),
+        tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
         clock: Arc::new(DummyClock),
         config,
     };

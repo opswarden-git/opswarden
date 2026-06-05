@@ -1,10 +1,9 @@
-// --- server/src/app/auth.rs ---
-
+// --- server/src/app/auth/sign_up.rs ---
 use std::sync::Arc;
-
 use crate::domain::user::{Email, User};
 use crate::domain::error::DomainError;
 use crate::ports::{PasswordHasher, UserRepo};
+
 pub struct SignUpCommand {
     pub email: String,
     pub plain_password: String,
@@ -26,10 +25,7 @@ impl SignUpUseCase {
         users: Arc<dyn UserRepo + Send + Sync>,
         hasher: Arc<dyn PasswordHasher + Send + Sync>,
     ) -> Self {
-        Self {
-            users,
-            hasher,
-        }
+        Self { users, hasher }
     }
 
     pub async fn sign_up(&self, cmd: SignUpCommand) -> Result<SignUpResult, DomainError> {
@@ -48,41 +44,11 @@ impl SignUpUseCase {
     }
 }
 
-// TEST
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
+    use crate::app::auth::tests::{MockHasher, MockUserRepo};
 
-    // --- MOCKS ---
-    struct MockUserRepo {
-        pub simulate_user_exists: bool,
-    }
-
-    #[async_trait]
-    impl UserRepo for MockUserRepo {
-        async fn find_by_email(&self, _email: &str) -> Result<Option<User>, DomainError> {
-            if self.simulate_user_exists {
-                // On fait croire que quelqu'un est déjà en base
-                let email = Email::new("existing@opswarden.com").unwrap();
-                Ok(Some(User::new(email, "old_hash")))
-            } else {
-                Ok(None)
-            }
-        }
-        async fn save(&self, _user: &User) -> Result<(), DomainError> {
-            Ok(())
-        }
-    }
-
-    struct MockHasher;
-    impl PasswordHasher for MockHasher {
-        fn hash(&self, password: &str) -> Result<String, DomainError> {
-            Ok(format!("hashed_{}", password))
-        }
-    }
-
-    // --- TESTS ---
     #[tokio::test]
     async fn sign_up_success_when_user_does_not_exist() {
         let repo = Arc::new(MockUserRepo { simulate_user_exists: false });
