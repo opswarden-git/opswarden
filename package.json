@@ -1,0 +1,5 @@
+{
+  "name": "opswarden",
+  "private": true,
+  "workspaces": ["client-web"]
+}

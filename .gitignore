@@ -1,0 +1,17 @@
+# Rust
+/target
+**/target
+# Node
+node_modules
+.next
+out
+# Env / secrets
+.env
+# Misc
+*.log
+.DS_Store
+
+# Agent brief + tooling — contexte local pour les IA, hors git.
+AGENTS.md
+.agents/
+.codex/
