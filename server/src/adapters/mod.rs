@@ -1,4 +1,4 @@
-//! Outbound adapters implementing `ports`.
-//!
-//! Populated from S1: Postgres repositories (SQLx), the WebSocket broadcaster,
-//! and the AES-GCM token vault.
+// --- server/src/adapters/mod.rs ---
+
+pub mod pg;
+pub mod crypto;
