@@ -14,13 +14,24 @@ pub mod ports;
 
 use axum::{routing::get, Router};
 
-use crate::config::Config;
+
+use std::sync::Arc;
+use crate::ports::{Clock, PasswordHasher, TokenService, UserRepo};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub users: Arc<dyn UserRepo + Send + Sync>,
+    pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
+    pub tokens: Arc<dyn TokenService + Send + Sync>,
+    pub clock: Arc<dyn Clock + Send + Sync>,
+    pub config: config::Config,
+}
 
 /// Build the HTTP application without any I/O side effect, so it can be tested
 /// without binding a socket.
-pub fn build_app(config: Config) -> Router {
+pub fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(handlers::health))
         .route("/about.json", get(handlers::about))
-        .with_state(config)
+        .with_state(state)
 }

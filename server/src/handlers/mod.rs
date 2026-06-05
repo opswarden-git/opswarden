@@ -4,7 +4,6 @@
 use axum::{extract::State, Json};
 use serde::Serialize;
 
-use crate::config::Config;
 
 #[derive(Serialize)]
 pub struct Health {
@@ -47,10 +46,12 @@ pub struct CatalogItem {
     pub description: String,
 }
 
+use crate::AppState;
+
 /// Service catalog, exposed dynamically (clients never hard-code services).
 /// At S0 the catalog is empty; the rule engine (Phase 2) fills it. The
 /// SHA-256 kickoff token is always present, as required by the subject.
-pub async fn about(State(config): State<Config>) -> Json<About> {
+pub async fn about(State(state): State<AppState>) -> Json<About> {
     let current_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -62,7 +63,7 @@ pub async fn about(State(config): State<Config>) -> Json<About> {
         },
         server: ServerInfo {
             current_time,
-            token: config.kickoff_token(),
+            token: state.config.kickoff_token(),
             services: Vec::new(),
         },
     })

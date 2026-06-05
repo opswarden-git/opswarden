@@ -2,7 +2,7 @@
 name = "opswarden-server"
 version = "0.1.0"
 edition = "2021"
-description = "OpsWarden application server (modular hexagonal monolith)"
+description = "OpsWarden application server"
 
 [dependencies]
 axum = "0.7"
@@ -11,6 +11,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 hex = "0.4"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+    "uuid",
+    "migrate",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

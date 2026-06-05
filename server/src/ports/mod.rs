@@ -1,10 +1,7 @@
-//! Hexagonal ports (traits).
-//!
-//! Adapters implement these; use-cases depend on them. Repositories and the
-//! event bus arrive from S1. Example below keeps use-cases deterministic.
+pub trait Clock: Send + Sync {}
 
-/// Abstracts the system clock so use-cases can be tested deterministically.
-pub trait Clock: Send + Sync {
-    /// Current Unix time in seconds.
-    fn now_unix(&self) -> u64;
-}
+pub trait UserRepo: Send + Sync {}
+
+pub trait PasswordHasher: Send + Sync {}
+
+pub trait TokenService: Send + Sync {}
