@@ -1,13 +1,11 @@
+// --- server/tests/health.rs ---
+
+mod common;
+use common::test_app;
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use opswarden_server::{build_app, config::Config};
-use tower::ServiceExt; // brings `oneshot`
-
-fn test_app() -> axum::Router {
-    build_app(Config {
-        kickoff_token_secret: "test-secret".to_string(),
-    })
-}
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn health_returns_ok() {

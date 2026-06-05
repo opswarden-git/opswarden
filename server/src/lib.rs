@@ -1,8 +1,5 @@
-//! OpsWarden server -- modular hexagonal monolith.
-//!
-//! Dependency rule: everything points inward toward `domain`.
-//! `handlers` (Axum) -> `app` (use-cases) -> `ports` (traits) -> `domain` (pure).
-//! `adapters` implement `ports` (Postgres, WS broadcaster, crypto vault).
+// --- server/src/lib.rs ---
+
 #![forbid(unsafe_code)]
 
 pub mod adapters;
@@ -12,15 +9,34 @@ pub mod domain;
 pub mod handlers;
 pub mod ports;
 
-use axum::{routing::get, Router};
+use axum::{routing::{get, post}, Router};
 
-use crate::config::Config;
 
-/// Build the HTTP application without any I/O side effect, so it can be tested
-/// without binding a socket.
-pub fn build_app(config: Config) -> Router {
+use std::sync::Arc;
+use crate::ports::{Clock, PasswordHasher, TokenService, UserRepo};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub users: Arc<dyn UserRepo + Send + Sync>,
+    pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
+    pub tokens: Arc<dyn TokenService + Send + Sync>,
+    pub clock: Arc<dyn Clock + Send + Sync>,
+    pub config: config::Config,
+}
+
+pub fn build_app(state: AppState) -> Router {
+    let protected_routes = Router::new()
+        .route("/api/me", get(handlers::auth::get_me))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            handlers::middleware::require_auth,
+        ));
+
     Router::new()
         .route("/health", get(handlers::health))
         .route("/about.json", get(handlers::about))
-        .with_state(config)
+        .route("/api/auth/sign-up", post(handlers::auth::sign_up))
+        .route("/api/auth/sign-in", post(handlers::auth::sign_in))
+        .merge(protected_routes)
+        .with_state(state)
 }
