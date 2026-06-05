@@ -98,6 +98,21 @@ Une PR ne merge sur `main` que si **tout** est vrai :
 - [ ] Commit conventionnel, atomique, message explicite.
 - [ ] Preuve par sortie shell brute jointe à la PR (build + test qui passent).
 
+### Rampe de couverture — le 70 % ne se rattrape pas en S5
+
+70 % de lignes **+ branches** ne se bricolent pas en fin de course : on teste **à chaque PR** (DoD ci-dessus) et on vise une cible par phase. L'archi hexagonale rend ça bon marché : `domain` + `app` se testent **sans DB ni HTTP** (ports mockés), donc la couverture vient des use-cases, pas de tests d'intégration coûteux.
+
+| Phase | Cible lignes | Où on gagne la couverture |
+|---|---|---|
+| S0 | harness en place (3 tests verts) | `health`, `about.json` (token SHA-256), `sha256_hex` |
+| S1 | ≥ 40 % | use-cases auth/teams/RBAC + invariants domaine (ports mockés) ; 403 testés |
+| S2 | ≥ 55 % | machines à états incident, présence, broadcaster (`EventBus` mocké) |
+| S3 | ≥ 65 % | hook engine (trigger/filtre/reaction), HMAC, vault (chiffré ↔ déchiffré) |
+| S4 | ≥ 70 % (et on tient) | parcours bout-en-bout, intégration handlers |
+| S5 | ≥ 70 % verrouillé + branches | rapport `cargo tarpaulin` en **artifact CI**, chemins d'erreur explicites |
+
+Outils : `cargo tarpaulin` (serveur), couverture du test runner côté client. Le rapport devient un **artifact CI sur merge `main` dès la Phase 2** (pas en S5). `test/<scope>` est un type de branche à part entière : renforcer les tests est un travail légitime, pas un reliquat.
+
 ---
 
 ## 4. Détail des sprints
@@ -256,6 +271,36 @@ DoD S6 :
 | `timeline_entry_edited`, `private_message_received`, `reaction_added`, `reaction_removed` | S5 (si rab) | extended |
 
 Note : `private_message_received` n'est envoyé qu'à l'émetteur + destinataire (pas broadcast). `member_banned.until = null` pour un ban permanent.
+
+---
+
+## 5b. Sync notation (`grading-criteria.md`) ↔ sprints
+
+> `grading-criteria.md` est la grille **héritée** des modules T-JSF-600 / T-DEV-600, avec des libellés **RTC** (*server*, *channel*, *typing*). VIGIL est noté sur **son propre** périmètre (core/extended du sujet, détaillé en §4) **plus** les achievements transverses hérités ci-dessous. Cette table mappe ces transverses au sprint où on les gagne, et retraduit les libellés chat.
+
+| Achievement (ID grading) | Sens VIGIL | Gagné en |
+|---|---|---|
+| `specs_server` / `specs_client` (`web_server`/`web_client`) | serveur Rust multi-connexion + client Next connecté | S0–S1 |
+| `versioning_basics` / `repo_versioning` | trunk-based, commits conventionnels, `.gitignore` | **S0 (dès l'init)** |
+| `coding_style` / `code_style` | clippy + fmt + ESLint + prettier au vert | **S0**, puis chaque PR |
+| `tests_automation` / `tests_sequence` | tests lancés par la CI | **S0** |
+| `tests_unit` | ≥ 70 % lignes (voir rampe §3) | S1 → S5 |
+| `tests_coverage` | rapport coverage en artifact + branches hors happy-path | S3 (artifact) → S5 (≥ 70 %) |
+| `repo_cicd` | lint/test push, build+coverage main, artifacts tag | S0 (vert) → S3 (complet) |
+| `repo_secrets` | tokens chiffrés, rien en clair | **S3 (vault)** |
+| `persistency` | Postgres, tout persisté | S1 |
+| `user_management` | RBAC 3 rôles (≠ « server roles » du chat) | S1 |
+| `code_maintainability` / `repo_doc` / `documentation` | hexagonal lisible + README « où vit quoi » | S4 (+ continu) |
+| `ui_servers` / `ui_chat` / `ui_design` / `uiux_quality` | UI teams / incidents / timeline (≠ chat) | S2 → S4 |
+| `desktop_app` / `desktop_specs` / `desktop_notifications` | Tauri + notifs OS | S4 |
+| `web_multilingual` / `desktop_multilingual` | i18n FR/EN | S5 |
+| `web_core_features` / `web_pm` / `web_reactions` | modération + édition / messages privés / réactions | S5 |
+| `presentation` / `proj_pres` / `proj_review` / `proj_answers` / `proj_orga` | keynote + board + démo | S6 |
+| `extra_small` / `extra_medium` / `extra_large` | features hors sujet → **AI SRE, releases, GitLab…** | S5 |
+
+> Les libellés purement chat (`chan_create`, `chan_delete`, `status_typing`…) n'ont **pas** d'équivalent direct : OpsWarden n'a pas de channels. Leur valeur conceptuelle (créer/lister des ressources, présence) est couverte par les features VIGIL en §4 (teams, incidents, timeline, présence).
+>
+> **Lecture clé** : la discipline notée (versioning, lint, CI, tests) se gagne **dès S0**, pas à la fin — d'où la rampe de couverture du §3.
 
 ---
 
