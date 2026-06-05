@@ -1,0 +1,39 @@
+# S0 : server + db uniquement.
+# client_web / client_desktop arrivent en Phase 3 (compose final + binaire desktop).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: opswarden
+      POSTGRES_PASSWORD: opswarden
+      POSTGRES_DB: opswarden
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opswarden"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://opswarden:opswarden@db:5432/opswarden
+      OPSWARDEN_KICKOFF_TOKEN: "Romeo Cavazza VIGIL2026"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:
