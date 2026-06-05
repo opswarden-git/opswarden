@@ -1,13 +1,31 @@
+// --- server/src/main.rs ---
+
 use opswarden_server::{build_app, config::Config, AppState};
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use opswarden_server::ports::{Clock, PasswordHasher, TokenService, UserRepo};
 
+use opswarden_server::domain::error::DomainError;
+use opswarden_server::domain::user::User;
+use async_trait::async_trait;
+
 struct DummyUserRepo;
-impl UserRepo for DummyUserRepo {}
+#[async_trait]
+impl UserRepo for DummyUserRepo {
+    async fn find_by_email(&self, _email: &str) -> Result<Option<User>, DomainError> {
+        Ok(None)
+    }
+    async fn save(&self, _user: &User) -> Result<(), DomainError> {
+        Ok(())
+    }
+}
 
 struct DummyHasher;
-impl PasswordHasher for DummyHasher {}
+impl PasswordHasher for DummyHasher {
+    fn hash(&self, _password: &str) -> Result<String, DomainError> {
+        Ok("dummy_hash".to_string())
+    }
+}
 
 struct DummyTokenService;
 impl TokenService for DummyTokenService {}

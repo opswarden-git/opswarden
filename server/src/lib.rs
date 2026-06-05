@@ -1,8 +1,5 @@
-//! OpsWarden server -- modular hexagonal monolith.
-//!
-//! Dependency rule: everything points inward toward `domain`.
-//! `handlers` (Axum) -> `app` (use-cases) -> `ports` (traits) -> `domain` (pure).
-//! `adapters` implement `ports` (Postgres, WS broadcaster, crypto vault).
+// --- server/src/lib.rs ---
+
 #![forbid(unsafe_code)]
 
 pub mod adapters;
@@ -27,8 +24,6 @@ pub struct AppState {
     pub config: config::Config,
 }
 
-/// Build the HTTP application without any I/O side effect, so it can be tested
-/// without binding a socket.
 pub fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(handlers::health))
