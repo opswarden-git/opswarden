@@ -1,0 +1,16 @@
+# cargo-tarpaulin coverage config.
+# Run: cargo tarpaulin --config tooling/tarpaulin.toml
+[report]
+# Html for humans, Lcov for editors, Xml for CI (Sonar/Codecov).
+format = ["Html", "Lcov", "Xml"]
+output_dir = "target/tarpaulin"
+
+[execution]
+workspace = true
+follow_exec = true
+
+[ignore]
+# Entry points and generated bins are not meaningful to cover.
+files = [
+    "server/src/main.rs",
+]

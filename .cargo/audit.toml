@@ -1,0 +1,6 @@
+# cargo-audit configuration (RustSec advisories). Run: cargo audit
+[advisories]
+ignore = [
+    # Add advisory IDs to ignore here, each with a justification, e.g.:
+    # "RUSTSEC-XXXX-XXXX",  # not exploitable: feature not enabled
+]

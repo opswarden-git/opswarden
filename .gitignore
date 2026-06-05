@@ -15,3 +15,13 @@ out
 AGENTS.md
 .agents/
 .codex/
+
+# Nix / direnv
+.direnv/
+result
+result-*
+
+# Generated tooling output
+/tooling/health_report.md
+/docs/modules.svg
+/docs/deps.svg
