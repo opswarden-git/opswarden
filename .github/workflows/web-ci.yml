@@ -1,0 +1,77 @@
+---
+# Web CI — client Next.js `opswarden-client-web` (npm workspace à la racine).
+#
+# Runner : ubuntu-latest par défaut (voir note dans server-ci.yml).
+# TODO lockfile : pas de package-lock.json encore → on utilise `npm install`.
+#   Dès qu'un package-lock.json est commité :
+#     - remplacer `npm install` par `npm ci`
+#     - réactiver le cache npm dans setup-node (`cache: npm`)
+name: Web CI
+
+"on":
+  push:
+    branches: ['**']   # VIGIL : lint + tests unitaires sur CHAQUE push de branche
+    paths:
+      - 'client-web/**'
+      - 'package.json'
+      - '.github/workflows/web-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client-web/**'
+      - 'package.json'
+      - '.github/workflows/web-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Quality (eslint, prettier, types)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (workspace)
+        run: npm install
+
+      - name: Lint (ESLint)
+        run: npm run lint --workspace client-web
+
+      - name: Format check (Prettier)
+        run: npm run format:check --workspace client-web
+
+      - name: Type check (tsc)
+        run: npm run typecheck --workspace client-web
+
+      - name: Security audit (npm)
+        run: npm audit --audit-level=high
+
+  build:
+    name: Build (Next.js)
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (workspace)
+        run: npm install
+
+      - name: Build
+        run: npm run build --workspace client-web
