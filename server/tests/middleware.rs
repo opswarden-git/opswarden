@@ -55,10 +55,13 @@ async fn api_me_returns_ok_with_valid_token() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["id"].as_str().unwrap(), "00000000-0000-0000-0000-000000000000");
+    assert_eq!(
+        json["id"].as_str().unwrap(),
+        "00000000-0000-0000-0000-000000000000"
+    );
 }

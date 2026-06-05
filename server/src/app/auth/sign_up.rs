@@ -1,8 +1,8 @@
 // --- server/src/app/auth/sign_up.rs ---
-use std::sync::Arc;
-use crate::domain::user::{Email, User};
 use crate::domain::error::DomainError;
+use crate::domain::user::{Email, User};
 use crate::ports::{PasswordHasher, UserRepo};
+use std::sync::Arc;
 
 pub struct SignUpCommand {
     pub email: String,
@@ -51,7 +51,9 @@ mod tests {
 
     #[tokio::test]
     async fn sign_up_success_when_user_does_not_exist() {
-        let repo = Arc::new(MockUserRepo { simulate_user_exists: false });
+        let repo = Arc::new(MockUserRepo {
+            simulate_user_exists: false,
+        });
         let hasher = Arc::new(MockHasher);
         let use_case = SignUpUseCase::new(repo, hasher);
 
@@ -68,7 +70,9 @@ mod tests {
 
     #[tokio::test]
     async fn sign_up_fails_if_user_already_exists() {
-        let repo = Arc::new(MockUserRepo { simulate_user_exists: true });
+        let repo = Arc::new(MockUserRepo {
+            simulate_user_exists: true,
+        });
         let hasher = Arc::new(MockHasher);
         let use_case = SignUpUseCase::new(repo, hasher);
 

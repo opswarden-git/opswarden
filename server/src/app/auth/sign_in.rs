@@ -1,8 +1,8 @@
 // --- server/src/app/auth/sign_in.rs ---
-use std::sync::Arc;
-use crate::domain::user::Email;
 use crate::domain::error::DomainError;
+use crate::domain::user::Email;
 use crate::ports::{PasswordHasher, TokenService, UserRepo};
+use std::sync::Arc;
 
 pub struct SignInCommand {
     pub email: String,
@@ -26,19 +26,25 @@ impl SignInUseCase {
         hasher: Arc<dyn PasswordHasher + Send + Sync>,
         tokens: Arc<dyn TokenService + Send + Sync>,
     ) -> Self {
-        Self { users, hasher, tokens }
+        Self {
+            users,
+            hasher,
+            tokens,
+        }
     }
 
     pub async fn sign_in(&self, cmd: SignInCommand) -> Result<SignInResult, DomainError> {
         let email = Email::new(cmd.email)?;
         let user = self.users.find_by_email(email.as_str()).await?;
-        
+
         let user = match user {
             Some(u) => u,
             None => return Err(DomainError::InvalidCredentials),
         };
 
-        let is_valid = self.hasher.verify(&cmd.plain_password, &user.password_hash)?;
+        let is_valid = self
+            .hasher
+            .verify(&cmd.plain_password, &user.password_hash)?;
         if !is_valid {
             return Err(DomainError::InvalidCredentials);
         }
@@ -55,7 +61,9 @@ mod tests {
 
     #[tokio::test]
     async fn sign_in_success_with_valid_credentials() {
-        let repo = Arc::new(MockUserRepo { simulate_user_exists: true });
+        let repo = Arc::new(MockUserRepo {
+            simulate_user_exists: true,
+        });
         let hasher = Arc::new(MockHasher);
         let tokens = Arc::new(MockTokenService);
         let use_case = SignInUseCase::new(repo, hasher, tokens);
@@ -73,7 +81,9 @@ mod tests {
 
     #[tokio::test]
     async fn sign_in_fails_with_invalid_password() {
-        let repo = Arc::new(MockUserRepo { simulate_user_exists: true });
+        let repo = Arc::new(MockUserRepo {
+            simulate_user_exists: true,
+        });
         let hasher = Arc::new(MockHasher);
         let tokens = Arc::new(MockTokenService);
         let use_case = SignInUseCase::new(repo, hasher, tokens);
@@ -90,7 +100,9 @@ mod tests {
 
     #[tokio::test]
     async fn sign_in_fails_if_user_does_not_exist() {
-        let repo = Arc::new(MockUserRepo { simulate_user_exists: false });
+        let repo = Arc::new(MockUserRepo {
+            simulate_user_exists: false,
+        });
         let hasher = Arc::new(MockHasher);
         let tokens = Arc::new(MockTokenService);
         let use_case = SignInUseCase::new(repo, hasher, tokens);

@@ -1,15 +1,19 @@
 // server/src/handlers/auth.rs
 
-use axum::{extract::{Extension, State}, Json, http::StatusCode};
-use serde::{Deserialize, Serialize};
-use crate::AppState;
 use crate::app::auth::{SignInCommand, SignInUseCase, SignUpCommand, SignUpUseCase};
 use crate::domain::error::DomainError;
+use crate::AppState;
+use axum::{
+    extract::{Extension, State},
+    http::StatusCode,
+    Json,
+};
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct SignUpPayload {
     pub email: String,
-    pub password: String,    
+    pub password: String,
 }
 
 #[derive(Serialize)]
@@ -22,7 +26,6 @@ pub async fn sign_up(
     State(state): State<AppState>,
     Json(payload): Json<SignUpPayload>,
 ) -> Result<(StatusCode, Json<SignUpResponse>), DomainError> {
-
     let use_case = SignUpUseCase::new(state.users.clone(), state.hasher.clone());
 
     let command = SignUpCommand {
@@ -36,11 +39,11 @@ pub async fn sign_up(
     let result = use_case.sign_up(command).await?;
 
     Ok((
-        StatusCode::CREATED, 
-        Json(SignUpResponse { 
-            email: result.email, 
-            status: "created".to_string() 
-        })
+        StatusCode::CREATED,
+        Json(SignUpResponse {
+            email: result.email,
+            status: "created".to_string(),
+        }),
     ))
 }
 
@@ -59,8 +62,11 @@ pub async fn sign_in(
     State(state): State<AppState>,
     Json(payload): Json<SignInPayload>,
 ) -> Result<(StatusCode, Json<SignInResponse>), DomainError> {
-
-    let use_case = SignInUseCase::new(state.users.clone(), state.hasher.clone(), state.tokens.clone());
+    let use_case = SignInUseCase::new(
+        state.users.clone(),
+        state.hasher.clone(),
+        state.tokens.clone(),
+    );
 
     let command = SignInCommand {
         email: payload.email,
@@ -73,7 +79,7 @@ pub async fn sign_in(
         StatusCode::OK,
         Json(SignInResponse {
             token: result.token,
-        })
+        }),
     ))
 }
 
