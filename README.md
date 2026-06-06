@@ -220,24 +220,24 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 ### S0 — Foundations & rails (Week 1)
 
-- [ ] Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
-- [ ] Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
-- [ ] `docker-compose.yml` v0: `server` (8080) + `db` Postgres healthy
-- [ ] Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
-- [ ] Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
-- [ ] `.gitignore`, protected `main`, conventional commits, PR template
+- [x] Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
+- [x] Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
+- [x] `docker-compose.yml` v0: `server` (8080) + `db` Postgres healthy
+- [x] Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
+- [x] Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
+- [x] `.gitignore`, protected `main`, conventional commits, PR template
 
 ### Phase 1 — Real-time collaborative core (S1-S2, Weeks 2-5) — `v0.1.0`
 
-- [ ] Email auth + JWT, `GET /me`, logout with token invalidation
-- [ ] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant)
-- [ ] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities
-- [ ] Real-time collaborative timeline (timestamped entries, Responder assignment)
-- [ ] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
-- [ ] Postgres persistence (SQLx) + versioned migrations
-- [ ] _Security_: server-side RBAC enforcement (401/403 tested)
-- [ ] _Tests_: coverage started, happy path + >=1 error path per feature
-- [ ] _Docs_: `WEBSOCKET_SPEC.md` started
+- [x] Email auth + JWT, `GET /me`, logout with token invalidation *(✅ API Server prête)*
+- [x] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) *(✅ API Server prête)*
+- [x] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities *(✅ API Server prête)*
+- [x] Real-time collaborative timeline (timestamped entries, Responder assignment) *(✅ API Server prête)*
+- [ ] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection *(✅ Serveur WS prêt, ⏳ Front)*
+- [x] Postgres persistence (SQLx) + versioned migrations
+- [x] _Security_: server-side RBAC enforcement (401/403 tested)
+- [x] _Tests_: coverage started, happy path + >=1 error path per feature
+- [x] _Docs_: `WEBSOCKET_SPEC.md` started
 
 ### Phase 2 — Automation & professionalization (S3, Weeks 6-7) — `v0.2.0`
 
