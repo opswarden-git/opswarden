@@ -135,9 +135,9 @@ Note critique :
 Branches : `chore/repo-scaffold`, `chore/ci-pipeline`, `chore/docker-compose-v0`, `feat/health-about`.
 
 DoD S0 :
-- [ ] `docker compose up` → serveur + db healthy.
-- [ ] Badge CI vert sur le README.
-- [ ] `GET /health` et `GET /about.json` répondent.
+- [x] `docker compose up` → serveur + db healthy.
+- [x] Badge CI vert sur le README.
+- [x] `GET /health` et `GET /about.json` répondent.
 
 ---
 
