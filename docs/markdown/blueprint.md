@@ -248,7 +248,7 @@ Forme d'une règle (déclarative, persistée) :
 
 **Extensibilité** (c'est le sujet de `HOWTOCONTRIBUTE.md`) : ajouter un service = implémenter `Action` (parsing d'event) et/ou `REAction` (exécution) derrière les traits existants, puis le déclarer dans `/about.json`. Les clients ne hardcodent jamais un service : ils lisent `/about.json`.
 
-Services au lancement : **Action** = GitHub (`workflow_run: failure`) ; **REAction** = OpsWarden (`create_incident`) + Discord. Le reste (GitLab, HTTP, Email, Timer) = extension par le même mécanisme.
+Services au lancement : **Action** = GitHub (`workflow_run: failure`) ; **REAction** = OpsWarden (`create_incident`) + Slack. Le reste (GitLab, HTTP, Email, Timer) = extension par le même mécanisme.
 
 ---
 
