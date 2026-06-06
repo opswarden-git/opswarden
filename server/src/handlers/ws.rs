@@ -31,6 +31,15 @@ struct AuthMessage {
     token: String,
 }
 
+/// Inbound commands a client may send after authenticating. Unknown frames are
+/// ignored (forward-compatible). `watch`/`unwatch` drive incident presence.
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ClientCommand {
+    Watch { incident_id: Uuid },
+    Unwatch { incident_id: Uuid },
+}
+
 async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
 
@@ -69,12 +78,19 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         }
     });
 
-    // 4. Drain inbound until the client closes or errors (PR1 has no inbound
-    //    commands yet — presence arrives in PR2).
+    // 4. Handle inbound commands (presence) until the client closes or errors.
+    //    Unparseable or unknown frames are ignored.
+    let hub = state.events.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
-            if matches!(msg, Message::Close(_)) {
-                break;
+            match msg {
+                Message::Close(_) => break,
+                Message::Text(text) => match serde_json::from_str::<ClientCommand>(text.as_str()) {
+                    Ok(ClientCommand::Watch { incident_id }) => hub.watch(conn_id, incident_id),
+                    Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
+                    Err(_) => {}
+                },
+                _ => {}
             }
         }
     });
