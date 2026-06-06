@@ -52,6 +52,7 @@ pub struct Incident {
     pub title: String,
     pub status: IncidentStatus,
     pub severity: Severity,
+    pub assignee: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -72,8 +73,17 @@ impl Incident {
             title,
             status: IncidentStatus::Open,
             severity,
+            assignee: None,
             created_at: Utc::now(),
         })
+    }
+
+    /// Assign a responder. Idempotent: returns `true` only when the assignee
+    /// actually changed, so the caller can skip a redundant persistence write.
+    pub fn assign(&mut self, user_id: Uuid) -> bool {
+        let changed = self.assignee != Some(user_id);
+        self.assignee = Some(user_id);
+        changed
     }
 
     pub fn acknowledge(&mut self) -> Result<bool, DomainError> {
@@ -175,5 +185,27 @@ mod tests {
         let result = incident.escalate();
 
         assert_eq!(result.unwrap_err(), DomainError::InvalidIncidentTransition);
+    }
+
+    #[test]
+    fn assign_sets_assignee_and_reports_change() {
+        let mut incident = Incident::new(Uuid::new_v4(), "Queue stall", Severity::Low).unwrap();
+        let responder = Uuid::new_v4();
+
+        assert!(incident.assignee.is_none());
+        assert!(incident.assign(responder));
+        assert_eq!(incident.assignee, Some(responder));
+    }
+
+    #[test]
+    fn assign_same_user_is_idempotent() {
+        let mut incident = Incident::new(Uuid::new_v4(), "Queue stall", Severity::Low).unwrap();
+        let responder = Uuid::new_v4();
+        incident.assign(responder);
+
+        let changed = incident.assign(responder);
+
+        assert!(!changed);
+        assert_eq!(incident.assignee, Some(responder));
     }
 }

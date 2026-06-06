@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::incident::{
-    AddTimelineEntryCommand, AddTimelineEntryUseCase, ChangeIncidentStatusCommand,
-    ChangeIncidentStatusUseCase, CreateIncidentCommand, CreateIncidentUseCase,
-    ListTimelineEntriesCommand, ListTimelineEntriesUseCase,
+    AddTimelineEntryCommand, AddTimelineEntryUseCase, AssignResponderCommand,
+    AssignResponderUseCase, ChangeIncidentStatusCommand, ChangeIncidentStatusUseCase,
+    CreateIncidentCommand, CreateIncidentUseCase, ListTimelineEntriesCommand,
+    ListTimelineEntriesUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::{IncidentStatus, Severity};
@@ -92,6 +93,40 @@ pub async fn change_status(
         incident_id: result.incident_id,
         status: result.status.to_string(),
         severity: result.severity.to_string(),
+        changed: result.changed,
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct AssignResponderPayload {
+    pub assignee_id: Uuid,
+}
+
+#[derive(Serialize)]
+pub struct AssignResponderResponse {
+    pub incident_id: Uuid,
+    pub assignee_id: Uuid,
+    pub changed: bool,
+}
+
+pub async fn assign_responder(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(incident_id): Path<Uuid>,
+    Json(payload): Json<AssignResponderPayload>,
+) -> Result<Json<AssignResponderResponse>, DomainError> {
+    let use_case = AssignResponderUseCase::new(state.teams.clone(), state.incidents.clone());
+    let result = use_case
+        .assign(AssignResponderCommand {
+            incident_id,
+            requester_id: session.user_id,
+            assignee_id: payload.assignee_id,
+        })
+        .await?;
+
+    Ok(Json(AssignResponderResponse {
+        incident_id: result.incident_id,
+        assignee_id: result.assignee_id,
         changed: result.changed,
     }))
 }
