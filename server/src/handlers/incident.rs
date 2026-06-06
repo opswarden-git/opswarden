@@ -229,6 +229,25 @@ pub async fn list_timeline_entries(
     }))
 }
 
+pub async fn delete_incident(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(incident_id): Path<Uuid>,
+) -> Result<StatusCode, DomainError> {
+    let use_case = crate::app::incident::DeleteIncidentUseCase::new(
+        state.incidents.clone(),
+        state.teams.clone(),
+    );
+    use_case
+        .delete_incident(crate::app::incident::DeleteIncidentCommand {
+            incident_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 fn parse_severity(value: &str) -> Result<Severity, DomainError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "low" => Ok(Severity::Low),

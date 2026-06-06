@@ -106,3 +106,51 @@ async fn transfer_manager_requires_the_requester_to_be_manager() {
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn leave_team_removes_member_when_not_manager() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let requester = Uuid::nil();
+
+    ctx.teams.seed_member(team_id, requester, Role::Responder);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/teams/{team_id}/leave"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
+async fn manager_can_delete_team() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let requester = Uuid::nil();
+
+    ctx.teams.seed_member(team_id, requester, Role::Manager);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/teams/{team_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}

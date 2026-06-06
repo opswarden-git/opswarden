@@ -38,6 +38,7 @@ struct AuthMessage {
 enum ClientCommand {
     Watch { incident_id: Uuid },
     Unwatch { incident_id: Uuid },
+    StatusTyping { incident_id: Uuid },
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState) {
@@ -81,6 +82,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     // 4. Handle inbound commands (presence) until the client closes or errors.
     //    Unparseable or unknown frames are ignored.
     let hub = state.events.clone();
+    let incidents = state.incidents.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
@@ -88,6 +90,20 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 Message::Text(text) => match serde_json::from_str::<ClientCommand>(text.as_str()) {
                     Ok(ClientCommand::Watch { incident_id }) => hub.watch(conn_id, incident_id),
                     Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
+                    Ok(ClientCommand::StatusTyping { incident_id }) => {
+                        if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
+                        {
+                            use crate::domain::event::DomainEvent;
+                            use crate::ports::EventPublisher;
+                            let _ = hub
+                                .publish(DomainEvent::UserTyping {
+                                    team_id: incident.team_id,
+                                    incident_id,
+                                    user_id,
+                                })
+                                .await;
+                        }
+                    }
                     Err(_) => {}
                 },
                 _ => {}

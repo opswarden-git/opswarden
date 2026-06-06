@@ -72,6 +72,15 @@ pub fn to_wire(event: &DomainEvent) -> String {
                 "at": at.timestamp(),
             },
         }),
+        DomainEvent::UserTyping {
+            incident_id,
+            user_id,
+            ..
+        } => json!({
+            "type": "user_typing",
+            "incident_id": incident_id,
+            "user_id": user_id,
+        }),
     };
     value.to_string()
 }
@@ -158,5 +167,19 @@ mod tests {
         let watchers = v["watchers"].as_array().unwrap();
         assert_eq!(watchers.len(), 2);
         assert_eq!(watchers[0], u1.to_string());
+    }
+
+    #[test]
+    fn user_typing_wire_shape() {
+        let incident_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let v = parse(&DomainEvent::UserTyping {
+            team_id: Uuid::new_v4(),
+            incident_id,
+            user_id,
+        });
+        assert_eq!(v["type"], "user_typing");
+        assert_eq!(v["incident_id"], incident_id.to_string());
+        assert_eq!(v["user_id"], user_id.to_string());
     }
 }
