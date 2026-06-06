@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Rust toolchain (stable + rustfmt + clippy)
         uses: dtolnay/rust-toolchain@stable
@@ -76,29 +76,47 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     needs: checks
-    # Quand SQLx/Postgres arrivera (S1), décommenter le service ci-dessous et
-    # exporter DATABASE_URL sur les étapes build/test.
-    #
-    # services:
-    #   postgres:
-    #     image: postgres:16-alpine
-    #     env:
-    #       POSTGRES_USER: opswarden
-    #       POSTGRES_PASSWORD: opswarden
-    #       POSTGRES_DB: opswarden
-    #     ports: ['5432:5432']
-    #     options: >-
-    #       --health-cmd pg_isready --health-interval 10s
-    #       --health-timeout 5s --health-retries 5
+    # S1: Postgres service for the SQLx integration tests. The query! macros
+    # compile from the committed .sqlx cache (SQLX_OFFLINE), so the database is
+    # only needed at test runtime; DATABASE_URL points the tests at this service.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opswarden
+          POSTGRES_DB: opswarden
+          # Ephemeral CI container on localhost: trust auth, no password to store.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      SQLX_OFFLINE: "true"
+      # The CI Postgres runs with trust auth (no password), so DATABASE_URL is a
+      # password-less, credential-free URI assembled at runtime from these parts.
+      POSTGRES_USER: opswarden
+      POSTGRES_DB: opswarden
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Install sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+
+      - name: Assemble DATABASE_URL
+        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+
+      - name: Run database migrations
+        run: sqlx migrate run --source server/migrations
 
       - name: Build
         run: cargo build --workspace --verbose
@@ -112,15 +130,44 @@ jobs:
     needs: build-test
     # VIGIL : rapport de couverture publié en artifact sur merge vers main.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opswarden
+          POSTGRES_DB: opswarden
+          # Ephemeral CI container on localhost: trust auth, no password to store.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      SQLX_OFFLINE: "true"
+      # The CI Postgres runs with trust auth (no password), so DATABASE_URL is a
+      # password-less, credential-free URI assembled at runtime from these parts.
+      POSTGRES_USER: opswarden
+      POSTGRES_DB: opswarden
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Install sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+
+      - name: Assemble DATABASE_URL
+        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+
+      - name: Run database migrations
+        run: sqlx migrate run --source server/migrations
 
       - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@v2
@@ -131,7 +178,7 @@ jobs:
         run: cargo tarpaulin --config tooling/tarpaulin.toml
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: target/tarpaulin/

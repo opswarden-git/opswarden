@@ -4,6 +4,9 @@
 [advisories]
 version = 2
 yanked = "deny"
+# cargo-deny is graph-aware and never sees rsa (sqlx-mysql is an optional,
+# unused driver), so RUSTSEC-2023-0071 needs no entry here. It is ignored only
+# in .cargo/audit.toml, where cargo-audit scans the lockfile blindly.
 ignore = []
 
 [bans]
@@ -27,6 +30,9 @@ allow = [
   "Unicode-3.0",
   "Zlib",
   "MPL-2.0",
+  # Mozilla CA certificate bundle (webpki-roots), pulled by sqlx via rustls.
+  # Permissive data license, no copyleft obligation on our code.
+  "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
 

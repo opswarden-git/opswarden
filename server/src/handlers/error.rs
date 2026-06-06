@@ -1,20 +1,42 @@
 // server/src/handlers/error.rs
 
+use crate::domain::error::DomainError;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
 use serde_json::json;
-use crate::domain::error::DomainError;
 
 impl IntoResponse for DomainError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             DomainError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             DomainError::InvalidEmail => (StatusCode::BAD_REQUEST, "Invalid email address"),
-            DomainError::InvalidCredentials => (StatusCode::UNAUTHORIZED, "Invalid email or password"),
+            DomainError::InvalidCredentials => {
+                (StatusCode::UNAUTHORIZED, "Invalid email or password")
+            }
             DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
+            DomainError::InvalidTeamName => (StatusCode::BAD_REQUEST, "Team name cannot be empty"),
+            DomainError::TeamNotFound => (
+                StatusCode::NOT_FOUND,
+                "No team matches this invitation code",
+            ),
+            DomainError::MemberNotFound => {
+                (StatusCode::NOT_FOUND, "User is not a member of this team")
+            }
+            DomainError::AlreadyMember => (
+                StatusCode::CONFLICT,
+                "User is already a member of this team",
+            ),
+            DomainError::AlreadyManager => {
+                (StatusCode::CONFLICT, "User is already the team manager")
+            }
+            DomainError::NotManager => (
+                StatusCode::FORBIDDEN,
+                "Only the team manager may perform this action",
+            ),
+            DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
         };
 
         let body = Json(json!({

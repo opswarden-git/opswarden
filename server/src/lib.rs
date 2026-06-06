@@ -9,11 +9,13 @@ pub mod domain;
 pub mod handlers;
 pub mod ports;
 
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
-
-use std::sync::Arc;
 use crate::ports::{Clock, PasswordHasher, TokenService, UserRepo};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AppState {

@@ -5,6 +5,7 @@ name = "opswarden-server"
 version = "0.1.0"
 edition = "2021"
 description = "OpsWarden application server"
+license = "Apache-2.0"
 
 [dependencies]
 axum = "0.7"
@@ -25,6 +26,7 @@ chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1.89"
 jsonwebtoken = "10.4.0"
 argon2 = "0.5.3"
+rand = "0.8"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
