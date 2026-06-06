@@ -87,39 +87,41 @@ Before starting take care of this section:
 
      Architecture
 
+```text
 External services (Git Hub, Git Lab, webhooks...)
          │
          │ POST /webhooks/{service}
          v
-┌──────────────────────────────────────────────────────┐
-│ Application Server │
-│ │
-│ ┌─────────────────┐ ┌──────────────────────┐ │
-│ │ Webhook Receiver│ │ Hook Engine │ │
-│ │ HMAC validation ├─────> (rule evaluation) │ │
-│ └─────────────────┘ └──────────┬───────────┘ │
-│ │ │
-│ ┌──────────────────────────────────v────────────┐ │
-│ │ WS Broadcaster │ │
-│ │ - Release / Incident state updates │ │
-│ │ - Collaborative timeline │ │
-│ │ - Presence (who is watching what) │ │
-│ │ - Live feed of triggered rules │ │
-│ └───────────────────────────────────────────────┘ │
-│ │
-│ REST API ── Business Logic ── Persistence │
-└─────────────────────────┬────────────────────────────┘
-            │ Web Socket + REST
-            ┌────────────┴────────────┐
-            v v
-┌────────────────────┐ ┌───────────────────────┐
-│ Web Client │ │ Desktop Client │
-│ (Next.js) │ │ (Tauri / Electron) │
-│ │ │ │
-│ All features │ │ All features │
-│ │ │ + Tray icon │
-│ │ │ + OS Notifications │
-└────────────────────┘ └───────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│ Application Server                                    │
+│                                                       │
+│   ┌─────────────────┐       ┌─────────────────────┐   │
+│   │ Webhook Receiver│       │ Hook Engine         │   │
+│   │ HMAC validation ├──────>│ (rule evaluation)   │   │
+│   └─────────────────┘       └──────────┬──────────┘   │
+│                                        │              │
+│   ┌────────────────────────────────────v──────────┐   │
+│   │ WS Broadcaster                                │   │
+│   │ - Release / Incident state updates            │   │
+│   │ - Collaborative timeline                      │   │
+│   │ - Presence (who is watching what)             │   │
+│   │ - Live feed of triggered rules                │   │
+│   └───────────────────────────────────────────────┘   │
+│                                                       │
+│   REST API ─── Business Logic ─── Persistence         │
+└─────────────────────────┬─────────────────────────────┘
+                          │ Web Socket + REST
+             ┌────────────┴────────────┐
+             v                         v
+┌────────────────────┐     ┌────────────────────────┐
+│ Web Client         │     │ Desktop Client         │
+│ (Next.js)          │     │ (Tauri / Electron)     │
+│                    │     │                        │
+│ All features       │     │ All features           │
+│                    │     │ + Tray icon            │
+│                    │     │ + OS Notifications     │
+└────────────────────┘     └────────────────────────┘
+```
 
      Client Parity
 
