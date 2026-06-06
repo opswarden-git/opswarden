@@ -1,7 +1,10 @@
 // server/src/handlers/auth.rs
 
-use crate::app::auth::{SignInCommand, SignInUseCase, SignUpCommand, SignUpUseCase};
+use crate::app::auth::{
+    LogoutCommand, LogoutUseCase, SignInCommand, SignInUseCase, SignUpCommand, SignUpUseCase,
+};
 use crate::domain::error::DomainError;
+use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 use axum::{
     extract::{Extension, State},
@@ -89,7 +92,25 @@ pub struct MeResponse {
 }
 
 pub async fn get_me(
-    Extension(user_id): Extension<uuid::Uuid>,
+    Extension(session): Extension<AuthenticatedSession>,
 ) -> Result<Json<MeResponse>, DomainError> {
-    Ok(Json(MeResponse { id: user_id }))
+    Ok(Json(MeResponse {
+        id: session.user_id,
+    }))
+}
+
+pub async fn logout(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+) -> Result<StatusCode, DomainError> {
+    let use_case = LogoutUseCase::new(state.token_revocations.clone());
+
+    use_case
+        .logout(LogoutCommand {
+            token: session.bearer_token,
+            expires_at: session.expires_at,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

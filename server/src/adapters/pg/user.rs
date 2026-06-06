@@ -29,7 +29,7 @@ impl UserRepo for PgUserRepo {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|_| DomainError::UserAlreadyExists)?;
+        .map_err(|_| DomainError::Storage)?;
 
         match record {
             Some(row) => {
@@ -58,7 +58,10 @@ impl UserRepo for PgUserRepo {
         )
         .execute(&self.pool)
         .await
-        .map_err(|_| DomainError::UserAlreadyExists)?;
+        .map_err(|err| match err {
+            sqlx::Error::Database(db) if db.is_unique_violation() => DomainError::UserAlreadyExists,
+            _ => DomainError::Storage,
+        })?;
 
         Ok(())
     }
