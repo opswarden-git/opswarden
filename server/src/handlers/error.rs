@@ -18,10 +18,21 @@ impl IntoResponse for DomainError {
             }
             DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
             DomainError::InvalidTeamName => (StatusCode::BAD_REQUEST, "Team name cannot be empty"),
+            DomainError::InvalidIncidentTitle => {
+                (StatusCode::BAD_REQUEST, "Incident title cannot be empty")
+            }
+            DomainError::InvalidIncidentTransition => (
+                StatusCode::BAD_REQUEST,
+                "Invalid incident lifecycle transition",
+            ),
+            DomainError::InvalidTimelineEntry => {
+                (StatusCode::BAD_REQUEST, "Timeline entry content is invalid")
+            }
             DomainError::TeamNotFound => (
                 StatusCode::NOT_FOUND,
                 "No team matches this invitation code",
             ),
+            DomainError::IncidentNotFound => (StatusCode::NOT_FOUND, "Incident was not found"),
             DomainError::MemberNotFound => {
                 (StatusCode::NOT_FOUND, "User is not a member of this team")
             }
@@ -35,6 +46,10 @@ impl IntoResponse for DomainError {
             DomainError::NotManager => (
                 StatusCode::FORBIDDEN,
                 "Only the team manager may perform this action",
+            ),
+            DomainError::Forbidden => (
+                StatusCode::FORBIDDEN,
+                "You are not allowed to perform this action",
             ),
             DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
         };

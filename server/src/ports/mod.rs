@@ -1,7 +1,9 @@
 // --- server/src/ports/mod.rs ---
 
 use crate::domain::error::DomainError;
+use crate::domain::incident::Incident;
 use crate::domain::team::{Role, Team};
+use crate::domain::timeline::TimelineEntry;
 use crate::domain::user::User;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -37,6 +39,25 @@ pub trait TeamRepo: Send + Sync {
         old_manager: Uuid,
         new_manager: Uuid,
     ) -> Result<(), DomainError>;
+}
+
+#[async_trait]
+pub trait IncidentRepo: Send + Sync {
+    async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError>;
+    async fn find_incident_by_id(&self, incident_id: Uuid)
+        -> Result<Option<Incident>, DomainError>;
+    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
+    async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
+}
+
+#[async_trait]
+pub trait TimelineRepo: Send + Sync {
+    async fn append_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError>;
+    async fn list_entries_for_incident(
+        &self,
+        incident_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<TimelineEntry>, DomainError>;
 }
 
 pub trait PasswordHasher: Send + Sync {
