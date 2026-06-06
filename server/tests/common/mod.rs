@@ -1,10 +1,13 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use opswarden_server::domain::error::DomainError;
+use opswarden_server::domain::incident::Incident;
 use opswarden_server::domain::team::{Role, Team};
+use opswarden_server::domain::timeline::TimelineEntry;
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
-    Clock, PasswordHasher, TeamRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
+    Clock, IncidentRepo, PasswordHasher, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
+    TokenService, UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -15,6 +18,8 @@ use uuid::Uuid;
 pub struct TestContext {
     pub app: axum::Router,
     pub teams: Arc<DummyTeamRepo>,
+    pub incidents: Arc<DummyIncidentRepo>,
+    pub timeline: Arc<DummyTimelineRepo>,
     pub revoked_tokens: Arc<DummyTokenRevocationRepo>,
 }
 
@@ -153,14 +158,108 @@ pub struct DummyClock;
 
 impl Clock for DummyClock {}
 
+#[derive(Default)]
+pub struct DummyIncidentRepo {
+    incidents: Mutex<HashMap<Uuid, Incident>>,
+}
+
+impl DummyIncidentRepo {
+    pub fn seed_incident(&self, incident: Incident) {
+        self.incidents.lock().unwrap().insert(incident.id, incident);
+    }
+}
+
+#[async_trait]
+impl IncidentRepo for DummyIncidentRepo {
+    async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError> {
+        self.seed_incident(incident.clone());
+        Ok(())
+    }
+
+    async fn find_incident_by_id(
+        &self,
+        incident_id: Uuid,
+    ) -> Result<Option<Incident>, DomainError> {
+        Ok(self.incidents.lock().unwrap().get(&incident_id).cloned())
+    }
+
+    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
+        self.seed_incident(incident.clone());
+        Ok(())
+    }
+
+    async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError> {
+        Ok(self
+            .incidents
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|incident| incident.team_id == team_id)
+            .cloned()
+            .collect())
+    }
+}
+
+#[derive(Default)]
+pub struct DummyTimelineRepo {
+    entries: Mutex<Vec<TimelineEntry>>,
+}
+
+#[allow(dead_code)]
+impl DummyTimelineRepo {
+    pub fn seed_entry(&self, entry: TimelineEntry) {
+        self.entries.lock().unwrap().push(entry);
+    }
+
+    pub fn entries_for_incident(&self, incident_id: Uuid) -> Vec<TimelineEntry> {
+        self.entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|entry| entry.incident_id == incident_id)
+            .cloned()
+            .collect()
+    }
+}
+
+#[async_trait]
+impl TimelineRepo for DummyTimelineRepo {
+    async fn append_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError> {
+        self.entries.lock().unwrap().push(entry.clone());
+        Ok(())
+    }
+
+    async fn list_entries_for_incident(
+        &self,
+        incident_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<TimelineEntry>, DomainError> {
+        let mut entries: Vec<_> = self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|entry| entry.incident_id == incident_id)
+            .cloned()
+            .collect();
+        entries.reverse();
+        entries.truncate(limit as usize);
+        Ok(entries)
+    }
+}
+
 pub fn test_context() -> TestContext {
     let teams = Arc::new(DummyTeamRepo::default());
+    let incidents = Arc::new(DummyIncidentRepo::default());
+    let timeline = Arc::new(DummyTimelineRepo::default());
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
     let config = Config::from_env();
 
     let app = build_app(AppState {
         users: Arc::new(DummyUserRepo),
         teams: teams.clone(),
+        incidents: incidents.clone(),
+        timeline: timeline.clone(),
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         token_revocations: revoked_tokens.clone(),
@@ -171,6 +270,8 @@ pub fn test_context() -> TestContext {
     TestContext {
         app,
         teams,
+        incidents,
+        timeline,
         revoked_tokens,
     }
 }

@@ -21,6 +21,12 @@ impl IntoResponse for DomainError {
             DomainError::InvalidIncidentTitle => {
                 (StatusCode::BAD_REQUEST, "Incident title cannot be empty")
             }
+            DomainError::InvalidIncidentStatus => {
+                (StatusCode::BAD_REQUEST, "Incident status is invalid")
+            }
+            DomainError::InvalidSeverity => {
+                (StatusCode::BAD_REQUEST, "Incident severity is invalid")
+            }
             DomainError::InvalidIncidentTransition => (
                 StatusCode::BAD_REQUEST,
                 "Invalid incident lifecycle transition",

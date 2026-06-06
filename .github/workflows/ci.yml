@@ -18,6 +18,9 @@ name: CI
 
 permissions:
   contents: read
+  # dorny/paths-filter lists changed files via the GitHub API on pull_request
+  # events; that read needs pull-requests:read (else "Resource not accessible").
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
