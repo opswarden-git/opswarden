@@ -166,13 +166,13 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service | Stack | Local address | Phase |
-|---|---|---|---|
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" /> `db` | PostgreSQL | `localhost:5432` | S0 (live) |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" /> `server` | Rust / Axum | `http://localhost:8080` | S0 (live) |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" /> `client_web` | Next.js | `http://localhost:8081` | Phase 1 |
-| <img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" /> `client_desktop` | Tauri | `:8081/client.AppImage` | Phase 3 |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" /> `investigation` | AI SRE (RAG) | internal | Phase 5 |
+| Service                                                                                                                              | Stack        | Local address             | Phase     |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | --------- |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        | S0 (live) |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` | S0 (live) |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:8081` | Phase 1   |
+| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` | Phase 3   |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  | Phase 5   |
 
 Cloud showcase (separate `opswarden-ops` repo, not graded):
 
@@ -283,9 +283,10 @@ Trunk-based workflow: short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`,
 `test/`), conventional commits, squash-merge into a protected `main`. Every PR
 follows the [PR template](.github/pull_request_template.md), whose Definition of
 Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint`
+
 + `format:check` + `typecheck` green, tests covering the happy path and at least
-one error path, business logic kept out of handlers and clients, impacted docs
-updated, and an atomic conventional commit.
+  one error path, business logic kept out of handlers and clients, impacted docs
+  updated, and an atomic conventional commit.
 
 A single **CI Gate** aggregates the path-filtered server and web jobs and is the
 only required status check, so every PR is gated consistently:

@@ -1,12 +1,14 @@
 // --- server/src/domain/mod.rs ---
 
 pub mod error;
+pub mod event;
 pub mod incident;
 pub mod team;
 pub mod timeline;
 pub mod user;
 
 pub use error::DomainError;
+pub use event::DomainEvent;
 pub use incident::{Incident, IncidentStatus, Severity};
 pub use team::{
     plan_manager_transfer, InvitationCode, ManagerTransfer, Role, RoleChange, Team, TeamMember,

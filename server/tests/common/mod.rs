@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
 use opswarden_server::domain::team::{Role, Team};
@@ -152,6 +153,17 @@ impl TeamRepo for DummyTeamRepo {
         roles.insert((team_id, new_manager), Role::Manager);
         Ok(())
     }
+
+    async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+        Ok(self
+            .roles
+            .lock()
+            .unwrap()
+            .keys()
+            .filter(|(_, u)| *u == user_id)
+            .map(|(t, _)| *t)
+            .collect())
+    }
 }
 
 pub struct DummyClock;
@@ -263,6 +275,7 @@ pub fn test_context() -> TestContext {
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         token_revocations: revoked_tokens.clone(),
+        events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),
         config,
     });
