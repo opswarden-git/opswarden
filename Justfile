@@ -97,5 +97,24 @@ health:
     @echo '```' >> tooling/health_report.md
     @echo "Report written to tooling/health_report.md"
 
-# pipeline qualité locale (façon CI)
-ci: fmt-check lint test
+# ----- CI locale (miroir de .github/workflows/server-ci.yml) -----
+
+# job "checks" : fmt + clippy (--all-features) + supply-chain, STRICT comme la CI
+# (pas de `|| true` : un échec ici = un échec en CI).
+ci-checks:
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo audit
+    cargo deny check --config tooling/deny.toml
+
+# job "build-test" : build offline (valide que le cache .sqlx colle au code) puis
+# migrations + tests sur la vraie DB. Prérequis : la DB compose tourne (`just up`).
+# Le build offline reproduit la CI (SQLX_OFFLINE) et attrape un cache .sqlx périmé
+# AVANT le push -- sinon `cargo sqlx prepare` a été oublié et la CI casse.
+ci-build-test:
+    SQLX_OFFLINE=true cargo build --workspace
+    cd server && sqlx migrate run
+    cargo test --workspace
+
+# pipeline complète : ce que GitHub exécutera sur la PR. À lancer avant chaque push.
+ci: ci-checks ci-build-test

@@ -1,10 +1,10 @@
 // --- server/src/adapters/pg/user.rs ---
 
-use async_trait::async_trait;
-use sqlx::PgPool;
 use crate::domain::error::DomainError;
 use crate::domain::user::{Email, User};
 use crate::ports::UserRepo;
+use async_trait::async_trait;
+use sqlx::PgPool;
 
 pub struct PgUserRepo {
     pool: PgPool,
@@ -29,7 +29,7 @@ impl UserRepo for PgUserRepo {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|_| DomainError::UserAlreadyExists)?; 
+        .map_err(|_| DomainError::UserAlreadyExists)?;
 
         match record {
             Some(row) => {
@@ -73,12 +73,12 @@ mod tests {
 
     #[tokio::test]
     async fn it_saves_and_finds_a_user_in_postgres() {
-
-        let database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string());
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
+        });
         let pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
         let repo = PgUserRepo::new(pool);
-        
+
         let email_str = format!("integration_{}@opswarden.com", uuid::Uuid::new_v4());
         let email = Email::new(email_str).unwrap();
         let user = User::new(email.clone(), "my_super_hash");
@@ -87,7 +87,7 @@ mod tests {
         assert!(save_result.is_ok());
 
         let found = repo.find_by_email(email.as_str()).await.unwrap();
-        
+
         assert!(found.is_some());
         let found_user = found.unwrap();
         assert_eq!(found_user.id, user.id);

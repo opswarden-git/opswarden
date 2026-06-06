@@ -1,8 +1,8 @@
 // --- server/src/domain/user.rs ---
 
+use super::error::DomainError;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use super::error::DomainError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Email(String);
@@ -49,7 +49,7 @@ mod tests {
     #[test]
     fn email_valid_is_accepted() {
         let email = Email::new("test@opswarden.com");
-        
+
         assert!(email.is_ok());
         assert_eq!(email.unwrap().as_str(), "test@opswarden.com");
     }
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn email_without_at_symbol_is_rejected() {
         let result = Email::new("invalid-email.com");
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), DomainError::InvalidEmail);
     }
