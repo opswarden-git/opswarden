@@ -6,6 +6,7 @@ use serde::Serialize;
 pub mod auth;
 pub mod error;
 pub mod middleware;
+pub mod team;
 
 #[derive(Serialize)]
 pub struct Health {

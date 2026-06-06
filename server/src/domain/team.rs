@@ -1,6 +1,7 @@
 // --- server/src/domain/team.rs ---
 
 use rand::Rng;
+use std::fmt;
 use uuid::Uuid;
 
 use super::error::DomainError;
@@ -28,6 +29,17 @@ impl Role {
     /// True when `self` is allowed to perform an action requiring `required`.
     pub fn can_act_as(self, required: Role) -> bool {
         self.rank() >= required.rank()
+    }
+}
+
+impl fmt::Display for Role {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Role::Observer => "observer",
+            Role::Responder => "responder",
+            Role::Manager => "manager",
+        };
+        f.write_str(value)
     }
 }
 

@@ -5,7 +5,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use common::test_app;
+use common::test_context;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -15,7 +15,8 @@ async fn signup_returns_created_for_new_user() {
         "password": "password123"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -37,7 +38,8 @@ async fn signup_returns_conflict_for_existing_user() {
         "password": "password123"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -59,7 +61,8 @@ async fn signup_returns_bad_request_for_invalid_email() {
         "password": "password123"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -81,7 +84,8 @@ async fn signin_returns_ok_with_token_for_valid_credentials() {
         "password": "correct_password"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -110,7 +114,8 @@ async fn signin_returns_unauthorized_for_invalid_password() {
         "password": "wrong_password"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -132,7 +137,8 @@ async fn signin_returns_unauthorized_for_unknown_user() {
         "password": "correct_password"
     });
 
-    let response = test_app()
+    let response = test_context()
+        .app
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -145,4 +151,41 @@ async fn signin_returns_unauthorized_for_unknown_user() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn logout_revokes_the_bearer_token() {
+    let ctx = test_context();
+
+    let logout = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/logout")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+    let me = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/me")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(me.status(), StatusCode::UNAUTHORIZED);
 }
