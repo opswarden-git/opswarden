@@ -1,10 +1,14 @@
 // --- server/src/app/team/mod.rs ---
 pub mod create_team;
+pub mod delete_team;
 pub mod join_team;
+pub mod leave_team;
 pub mod transfer_manager;
 
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
+pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
 pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
+pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
 
 // Shared in-memory mock for the team use-case tests (no DB in this run).
@@ -31,6 +35,8 @@ pub(crate) mod tests {
         pub saved: Mutex<Vec<Team>>,
         pub added: Mutex<Vec<(Uuid, Uuid, Role)>>,
         pub transfers: Mutex<Vec<(Uuid, Uuid, Uuid)>>,
+        pub deleted: Mutex<Vec<Uuid>>,
+        pub removed: Mutex<Vec<(Uuid, Uuid)>>,
     }
 
     impl MockTeamRepo {
@@ -97,6 +103,16 @@ pub(crate) mod tests {
                 (Some(team), true) => vec![team.id],
                 _ => vec![],
             })
+        }
+
+        async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
+            self.deleted.lock().unwrap().push(team_id);
+            Ok(())
+        }
+
+        async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+            self.removed.lock().unwrap().push((team_id, user_id));
+            Ok(())
         }
     }
 }

@@ -19,6 +19,7 @@ pub enum DomainError {
     NotManager,
     AlreadyManager,
     AssigneeNotResponder,
+    ManagerCannotLeave,
     Forbidden,
     Storage,
 }
@@ -49,6 +50,7 @@ impl std::fmt::Display for DomainError {
             DomainError::AssigneeNotResponder => {
                 write!(f, "Assignee must be a Responder or Manager of the team")
             }
+            DomainError::ManagerCannotLeave => write!(f, "The team manager cannot leave the team, transfer the role or delete the team instead"),
             DomainError::Forbidden => write!(f, "You are not allowed to perform this action"),
             DomainError::Storage => write!(f, "Storage failure"),
         }
