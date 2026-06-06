@@ -80,7 +80,11 @@ pub async fn change_status(
     Path(incident_id): Path<Uuid>,
     Json(payload): Json<ChangeIncidentStatusPayload>,
 ) -> Result<Json<ChangeIncidentStatusResponse>, DomainError> {
-    let use_case = ChangeIncidentStatusUseCase::new(state.teams.clone(), state.incidents.clone());
+    let use_case = ChangeIncidentStatusUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.events.clone(),
+    );
     let result = use_case
         .change_status(ChangeIncidentStatusCommand {
             incident_id,
@@ -115,7 +119,11 @@ pub async fn assign_responder(
     Path(incident_id): Path<Uuid>,
     Json(payload): Json<AssignResponderPayload>,
 ) -> Result<Json<AssignResponderResponse>, DomainError> {
-    let use_case = AssignResponderUseCase::new(state.teams.clone(), state.incidents.clone());
+    let use_case = AssignResponderUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.events.clone(),
+    );
     let result = use_case
         .assign(AssignResponderCommand {
             incident_id,
@@ -155,6 +163,7 @@ pub async fn add_timeline_entry(
         state.teams.clone(),
         state.incidents.clone(),
         state.timeline.clone(),
+        state.events.clone(),
     );
     let result = use_case
         .add_timeline_entry(AddTimelineEntryCommand {

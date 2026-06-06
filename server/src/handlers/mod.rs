@@ -8,6 +8,7 @@ pub mod error;
 pub mod incident;
 pub mod middleware;
 pub mod team;
+pub mod ws;
 
 #[derive(Serialize)]
 pub struct Health {
