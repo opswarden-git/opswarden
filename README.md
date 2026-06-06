@@ -287,6 +287,11 @@ Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint
 one error path, business logic kept out of handlers and clients, impacted docs
 updated, and an atomic conventional commit.
 
+A single **CI Gate** aggregates the path-filtered server and web jobs and is the
+only required status check, so every PR is gated consistently:
+
+![CI/CD pipeline: a change-detection job fans out to conditional server and web jobs, aggregated by a single required CI Gate](docs/png/ci-cd.png)
+
 The extension guide (adding a service / an Action / a REAction / a WebSocket
 event) will live in `HOWTOCONTRIBUTE.md` (Phase 2-3).
 
