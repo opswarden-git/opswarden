@@ -2,6 +2,8 @@
 
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
+use opswarden_server::adapters::pg::team::PgTeamRepo;
+use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
@@ -31,9 +33,11 @@ async fn main() {
         .expect("Failed to run database migrations");
 
     let state = AppState {
-        users: Arc::new(PgUserRepo::new(pool)),
+        users: Arc::new(PgUserRepo::new(pool.clone())),
+        teams: Arc::new(PgTeamRepo::new(pool.clone())),
         hasher: Arc::new(Argon2Hasher),
         tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
+        token_revocations: Arc::new(PgTokenRevocationRepo::new(pool)),
         clock: Arc::new(DummyClock),
         config,
     };

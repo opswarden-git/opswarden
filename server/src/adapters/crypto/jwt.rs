@@ -1,6 +1,7 @@
 // server/src/adapters/crypto/jwt.rs
 use crate::domain::error::DomainError;
-use crate::ports::TokenService;
+use crate::ports::{TokenClaims, TokenService};
+use chrono::{DateTime, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
@@ -37,10 +38,10 @@ impl TokenService for JwtTokenService {
             &claims,
             &EncodingKey::from_secret(self.secret.as_ref()),
         )
-        .map_err(|_| DomainError::InvalidCredentials) // Ideally InternalError
+        .map_err(|_| DomainError::Storage)
     }
 
-    fn verify_token(&self, token: &str) -> Result<uuid::Uuid, DomainError> {
+    fn verify_token(&self, token: &str) -> Result<TokenClaims, DomainError> {
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_ref()),
@@ -48,6 +49,14 @@ impl TokenService for JwtTokenService {
         )
         .map_err(|_| DomainError::InvalidToken)?;
 
-        uuid::Uuid::parse_str(&token_data.claims.sub).map_err(|_| DomainError::InvalidToken)
+        let user_id =
+            uuid::Uuid::parse_str(&token_data.claims.sub).map_err(|_| DomainError::InvalidToken)?;
+        let expires_at = DateTime::<Utc>::from_timestamp(token_data.claims.exp as i64, 0)
+            .ok_or(DomainError::InvalidToken)?;
+
+        Ok(TokenClaims {
+            user_id,
+            expires_at,
+        })
     }
 }
