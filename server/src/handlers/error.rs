@@ -61,6 +61,10 @@ impl IntoResponse for DomainError {
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "Assignee must be a Responder or Manager of the team",
             ),
+            DomainError::ManagerCannotLeave => (
+                StatusCode::CONFLICT,
+                "The team manager cannot leave the team, transfer the role or delete the team instead",
+            ),
             DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
         };
 
