@@ -1,7 +1,7 @@
 ---
 # Release pipeline -- DISABLED for now.
-# "On remet la CI en marche mais on commente la partie release" : server-ci.yml
-# et web-ci.yml tournent, mais ce pipeline reste off tant que :
+# "On remet la CI en marche mais on commente la partie release" : ci.yml
+# tourne, mais ce pipeline reste off tant que :
 #   (1) client-desktop existe (build AppImage Tauri, Phase 3), et
 #   (2) la publication de l'image vers ghcr.io est decidee.
 #
