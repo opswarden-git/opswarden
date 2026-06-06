@@ -2,7 +2,7 @@
 # client_web / client_desktop arrivent en Phase 3 (compose final + binaire desktop).
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: opswarden
       POSTGRES_PASSWORD: opswarden
@@ -10,7 +10,9 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # postgres:18+ stores data under /var/lib/postgresql/<version>/ and expects
+      # the mount at /var/lib/postgresql (not .../data, the pre-18 convention).
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U opswarden"]
       interval: 5s
