@@ -3,9 +3,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::incident::{IncidentStatus, Severity};
 use crate::domain::team::Role;
-use crate::ports::{IncidentRepo, TeamRepo};
+use crate::ports::{EventPublisher, IncidentRepo, TeamRepo};
 
 pub struct ChangeIncidentStatusCommand {
     pub incident_id: Uuid,
@@ -24,11 +25,20 @@ pub struct ChangeIncidentStatusResult {
 pub struct ChangeIncidentStatusUseCase {
     teams: Arc<dyn TeamRepo>,
     incidents: Arc<dyn IncidentRepo>,
+    events: Arc<dyn EventPublisher>,
 }
 
 impl ChangeIncidentStatusUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>, incidents: Arc<dyn IncidentRepo>) -> Self {
-        Self { teams, incidents }
+    pub fn new(
+        teams: Arc<dyn TeamRepo>,
+        incidents: Arc<dyn IncidentRepo>,
+        events: Arc<dyn EventPublisher>,
+    ) -> Self {
+        Self {
+            teams,
+            incidents,
+            events,
+        }
     }
 
     pub async fn change_status(
@@ -60,6 +70,24 @@ impl ChangeIncidentStatusUseCase {
 
         if changed {
             self.incidents.update_incident(&incident).await?;
+            self.events
+                .publish(DomainEvent::IncidentStateChanged {
+                    team_id: incident.team_id,
+                    incident_id: incident.id,
+                    new_status: incident.status,
+                    by: cmd.requester_id,
+                })
+                .await;
+            if incident.status == IncidentStatus::Escalated {
+                self.events
+                    .publish(DomainEvent::IncidentEscalated {
+                        team_id: incident.team_id,
+                        incident_id: incident.id,
+                        new_severity: incident.severity,
+                        by: cmd.requester_id,
+                    })
+                    .await;
+            }
         }
 
         Ok(ChangeIncidentStatusResult {
@@ -75,7 +103,8 @@ impl ChangeIncidentStatusUseCase {
 mod tests {
     use super::*;
 
-    use crate::app::incident::tests::{MockIncidentRepo, MockTeamRepo};
+    use crate::app::incident::tests::{MockEventPublisher, MockIncidentRepo, MockTeamRepo};
+    use crate::domain::event::DomainEvent;
     use crate::domain::incident::Incident;
 
     #[tokio::test]
@@ -86,7 +115,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Responder));
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
-        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone(), events.clone());
 
         let result = use_case
             .change_status(ChangeIncidentStatusCommand {
@@ -99,6 +129,49 @@ mod tests {
 
         assert_eq!(result.status, IncidentStatus::Acknowledged);
         assert_eq!(incidents.updated.lock().unwrap().len(), 1);
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [DomainEvent::IncidentStateChanged {
+                new_status: IncidentStatus::Acknowledged,
+                ..
+            }]
+        ));
+    }
+
+    #[tokio::test]
+    async fn escalation_emits_state_changed_and_escalated() {
+        let team_id = Uuid::new_v4();
+        let requester_id = Uuid::new_v4();
+        let mut incident = Incident::new(team_id, "Worker panic", Severity::Critical).unwrap();
+        incident.acknowledge().unwrap();
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Responder));
+        let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone(), events.clone());
+
+        use_case
+            .change_status(ChangeIncidentStatusCommand {
+                incident_id: incident.id,
+                requester_id,
+                new_status: IncidentStatus::Escalated,
+            })
+            .await
+            .unwrap();
+
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [
+                DomainEvent::IncidentStateChanged {
+                    new_status: IncidentStatus::Escalated,
+                    ..
+                },
+                DomainEvent::IncidentEscalated {
+                    new_severity: Severity::Critical,
+                    ..
+                }
+            ]
+        ));
     }
 
     #[tokio::test]
@@ -112,7 +185,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Manager));
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
-        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone(), events.clone());
 
         let result = use_case
             .change_status(ChangeIncidentStatusCommand {
@@ -125,6 +199,7 @@ mod tests {
 
         assert!(!result.changed);
         assert!(incidents.updated.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -135,7 +210,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Observer));
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
-        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = ChangeIncidentStatusUseCase::new(teams, incidents.clone(), events.clone());
 
         let result = use_case
             .change_status(ChangeIncidentStatusCommand {
@@ -147,5 +223,6 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), DomainError::Forbidden);
         assert!(incidents.updated.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
     }
 }

@@ -161,6 +161,22 @@ impl TeamRepo for PgTeamRepo {
         tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
     }
+
+    async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+        let records = sqlx::query!(
+            r#"
+            SELECT team_id
+            FROM team_members
+            WHERE user_id = $1
+            "#,
+            user_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(records.into_iter().map(|row| row.team_id).collect())
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---
