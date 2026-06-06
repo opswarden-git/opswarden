@@ -57,14 +57,15 @@ impl IncidentRepo for PgIncidentRepo {
     async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError> {
         sqlx::query!(
             r#"
-            INSERT INTO incidents (id, team_id, title, status, severity, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO incidents (id, team_id, title, status, severity, assignee_id, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             incident.id,
             incident.team_id,
             incident.title,
             status_to_str(incident.status),
             severity_to_str(incident.severity),
+            incident.assignee,
             incident.created_at,
         )
         .execute(&self.pool)
@@ -80,7 +81,7 @@ impl IncidentRepo for PgIncidentRepo {
     ) -> Result<Option<Incident>, DomainError> {
         let record = sqlx::query!(
             r#"
-            SELECT id, team_id, title, status, severity, created_at
+            SELECT id, team_id, title, status, severity, assignee_id, created_at
             FROM incidents
             WHERE id = $1
             "#,
@@ -96,6 +97,7 @@ impl IncidentRepo for PgIncidentRepo {
             title: row.title,
             status: status_from_str(&row.status),
             severity: severity_from_str(&row.severity),
+            assignee: row.assignee_id,
             created_at: row.created_at,
         }))
     }
@@ -104,13 +106,14 @@ impl IncidentRepo for PgIncidentRepo {
         sqlx::query!(
             r#"
             UPDATE incidents
-            SET title = $2, status = $3, severity = $4
+            SET title = $2, status = $3, severity = $4, assignee_id = $5
             WHERE id = $1
             "#,
             incident.id,
             incident.title,
             status_to_str(incident.status),
             severity_to_str(incident.severity),
+            incident.assignee,
         )
         .execute(&self.pool)
         .await
@@ -122,7 +125,7 @@ impl IncidentRepo for PgIncidentRepo {
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError> {
         let records = sqlx::query!(
             r#"
-            SELECT id, team_id, title, status, severity, created_at
+            SELECT id, team_id, title, status, severity, assignee_id, created_at
             FROM incidents
             WHERE team_id = $1
             ORDER BY created_at DESC
@@ -141,6 +144,7 @@ impl IncidentRepo for PgIncidentRepo {
                 title: row.title,
                 status: status_from_str(&row.status),
                 severity: severity_from_str(&row.severity),
+                assignee: row.assignee_id,
                 created_at: row.created_at,
             })
             .collect())

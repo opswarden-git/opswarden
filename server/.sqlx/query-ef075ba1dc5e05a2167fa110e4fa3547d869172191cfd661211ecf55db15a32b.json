@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, team_id, title, status, severity, created_at\n            FROM incidents\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT id, team_id, title, status, severity, assignee_id, created_at\n            FROM incidents\n            WHERE team_id = $1\n            ORDER BY created_at DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -30,6 +30,11 @@
       },
       {
         "ordinal": 5,
+        "name": "assignee_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
@@ -45,8 +50,9 @@
       false,
       false,
       false,
+      true,
       false
     ]
   },
-  "hash": "e3e440cc520e8b4a46a22cc255a205cd3f722ac8ea14767d628bc47ef4310a5e"
+  "hash": "ef075ba1dc5e05a2167fa110e4fa3547d869172191cfd661211ecf55db15a32b"
 }

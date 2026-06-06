@@ -18,6 +18,7 @@ pub enum DomainError {
     MemberNotFound,
     NotManager,
     AlreadyManager,
+    AssigneeNotResponder,
     Forbidden,
     Storage,
 }
@@ -45,6 +46,9 @@ impl std::fmt::Display for DomainError {
             DomainError::MemberNotFound => write!(f, "User is not a member of this team"),
             DomainError::NotManager => write!(f, "Only the team manager may perform this action"),
             DomainError::AlreadyManager => write!(f, "User is already the team manager"),
+            DomainError::AssigneeNotResponder => {
+                write!(f, "Assignee must be a Responder or Manager of the team")
+            }
             DomainError::Forbidden => write!(f, "You are not allowed to perform this action"),
             DomainError::Storage => write!(f, "Storage failure"),
         }
