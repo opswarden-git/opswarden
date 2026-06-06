@@ -5,6 +5,7 @@ use serde::Serialize;
 
 pub mod auth;
 pub mod error;
+pub mod incident;
 pub mod middleware;
 pub mod team;
 

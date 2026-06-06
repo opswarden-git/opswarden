@@ -1,6 +1,7 @@
 pub mod add_timeline_entry;
 pub mod change_incident_status;
 pub mod create_incident;
+pub mod list_timeline_entries;
 
 pub use add_timeline_entry::{
     AddTimelineEntryCommand, AddTimelineEntryResult, AddTimelineEntryUseCase,
@@ -9,6 +10,10 @@ pub use change_incident_status::{
     ChangeIncidentStatusCommand, ChangeIncidentStatusResult, ChangeIncidentStatusUseCase,
 };
 pub use create_incident::{CreateIncidentCommand, CreateIncidentResult, CreateIncidentUseCase};
+pub use list_timeline_entries::{
+    ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
+    DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
+};
 
 #[cfg(test)]
 pub(crate) mod tests {
@@ -144,15 +149,17 @@ pub(crate) mod tests {
             incident_id: Uuid,
             limit: u32,
         ) -> Result<Vec<TimelineEntry>, DomainError> {
-            Ok(self
+            let mut entries: Vec<_> = self
                 .appended
                 .lock()
                 .unwrap()
                 .iter()
                 .filter(|entry| entry.incident_id == incident_id)
-                .take(limit as usize)
                 .cloned()
-                .collect())
+                .collect();
+            entries.reverse();
+            entries.truncate(limit as usize);
+            Ok(entries)
         }
     }
 }
