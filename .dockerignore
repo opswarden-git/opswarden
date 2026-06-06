@@ -1,0 +1,7 @@
+# Keep the Docker build context small, fast, and free of local secrets.
+# The image builds release artifacts from scratch, so host build output and
+# local env files must never enter the context.
+.git/
+**/target/
+**/.env
+**/node_modules/
