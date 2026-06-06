@@ -149,6 +149,21 @@ impl IncidentRepo for PgIncidentRepo {
             })
             .collect())
     }
+
+    async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            DELETE FROM incidents
+            WHERE id = $1
+            "#,
+            incident_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

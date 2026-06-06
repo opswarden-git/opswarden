@@ -110,3 +110,35 @@ pub async fn transfer_manager(
         new_manager_id: result.new_manager_id,
     }))
 }
+
+pub async fn delete_team(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+) -> Result<StatusCode, DomainError> {
+    let use_case = crate::app::team::DeleteTeamUseCase::new(state.teams.clone());
+    use_case
+        .delete_team(crate::app::team::DeleteTeamCommand {
+            team_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn leave_team(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+) -> Result<StatusCode, DomainError> {
+    let use_case = crate::app::team::LeaveTeamUseCase::new(state.teams.clone());
+    use_case
+        .leave_team(crate::app::team::LeaveTeamCommand {
+            team_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}

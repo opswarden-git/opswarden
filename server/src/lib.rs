@@ -44,10 +44,22 @@ pub fn build_app(state: AppState) -> Router {
         .route("/api/teams", post(handlers::team::create_team))
         .route("/api/teams/join", post(handlers::team::join_team))
         .route(
+            "/api/teams/{team_id}",
+            axum::routing::delete(handlers::team::delete_team),
+        )
+        .route(
+            "/api/teams/{team_id}/leave",
+            post(handlers::team::leave_team),
+        )
+        .route(
             "/api/teams/{team_id}/manager",
             put(handlers::team::transfer_manager),
         )
         .route("/api/incidents", post(handlers::incident::create_incident))
+        .route(
+            "/api/incidents/{incident_id}",
+            axum::routing::delete(handlers::incident::delete_incident),
+        )
         .route(
             "/api/incidents/{incident_id}/status",
             put(handlers::incident::change_status),

@@ -43,6 +43,10 @@ pub trait TeamRepo: Send + Sync {
     /// Every team a user belongs to. Used by the WebSocket hub to register a
     /// connection for the right broadcast scopes at connect time.
     async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
+    /// Delete a team completely from the system.
+    async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
+    /// Remove a user from a team.
+    async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]
@@ -52,6 +56,7 @@ pub trait IncidentRepo: Send + Sync {
         -> Result<Option<Incident>, DomainError>;
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
+    async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]

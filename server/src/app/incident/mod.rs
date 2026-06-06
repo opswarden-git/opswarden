@@ -2,6 +2,7 @@ pub mod add_timeline_entry;
 pub mod assign_responder;
 pub mod change_incident_status;
 pub mod create_incident;
+pub mod delete_incident;
 pub mod list_timeline_entries;
 
 pub use add_timeline_entry::{
@@ -12,6 +13,7 @@ pub use change_incident_status::{
     ChangeIncidentStatusCommand, ChangeIncidentStatusResult, ChangeIncidentStatusUseCase,
 };
 pub use create_incident::{CreateIncidentCommand, CreateIncidentResult, CreateIncidentUseCase};
+pub use delete_incident::{DeleteIncidentCommand, DeleteIncidentUseCase};
 pub use list_timeline_entries::{
     ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
     DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
@@ -91,6 +93,14 @@ pub(crate) mod tests {
                 .map(|(t, _)| *t)
                 .collect())
         }
+
+        async fn delete_team(&self, _team_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn remove_member(&self, _team_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
+        }
     }
 
     #[derive(Default)]
@@ -110,6 +120,7 @@ pub(crate) mod tests {
         pub incident: Option<Incident>,
         pub saved: Mutex<Vec<Incident>>,
         pub updated: Mutex<Vec<Incident>>,
+        pub deleted: Mutex<Vec<Uuid>>,
     }
 
     impl MockIncidentRepo {
@@ -153,6 +164,11 @@ pub(crate) mod tests {
                 .into_iter()
                 .filter(|incident| incident.team_id == team_id)
                 .collect())
+        }
+
+        async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
+            self.deleted.lock().unwrap().push(incident_id);
+            Ok(())
         }
     }
 
