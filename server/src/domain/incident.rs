@@ -141,9 +141,9 @@ mod tests {
         let mut incident =
             Incident::new(Uuid::new_v4(), "Cache outage", Severity::Critical).unwrap();
 
-        assert_eq!(incident.acknowledge().unwrap(), true);
-        assert_eq!(incident.escalate().unwrap(), true);
-        assert_eq!(incident.resolve().unwrap(), true);
+        assert!(incident.acknowledge().unwrap());
+        assert!(incident.escalate().unwrap());
+        assert!(incident.resolve().unwrap());
         assert_eq!(incident.status, IncidentStatus::Resolved);
     }
 
