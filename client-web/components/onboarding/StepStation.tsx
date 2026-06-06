@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronLeft, Building2 } from 'lucide-react';
+import React from "react";
+import { ChevronLeft, Building2 } from "lucide-react";
 
 interface StepProps {
   data: any;
@@ -9,9 +9,9 @@ interface StepProps {
 }
 
 const ROLES = [
-  { id: 'observer', label: 'Observer', desc: 'Read-only monitoring' },
-  { id: 'responder', label: 'Responder', desc: 'Incident response' },
-  { id: 'manager', label: 'Manager', desc: 'Team & incident lead' },
+  { id: "observer", label: "Observer", desc: "Read-only monitoring" },
+  { id: "responder", label: "Responder", desc: "Incident response" },
+  { id: "manager", label: "Manager", desc: "Team & incident lead" },
 ];
 
 export function StepStation({ data, updateData, next, back }: StepProps) {
@@ -22,9 +22,9 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-sm mx-auto w-full">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gold/10 text-gold mb-4">
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
+      <div className="mb-8 text-center">
+        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
           <Building2 className="h-10 w-10" />
         </div>
         <h2 className="text-xl font-bold tracking-tight text-text">Set up your organization</h2>
@@ -33,23 +33,23 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
       <div className="space-y-4">
         <div>
           <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted pointer-events-none" />
+            <Building2 className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
             <input
               type="text"
               required
               placeholder="Organization"
-              value={data.stationName || ''}
-              onChange={e => updateData({ stationName: e.target.value })}
-              className="w-full bg-white/5 border border-transparent focus:border-gold rounded-md pl-11 pr-4 py-3 text-base text-text focus:outline-none font-sans placeholder:text-muted/40 transition-colors"
+              value={data.stationName || ""}
+              onChange={(e) => updateData({ stationName: e.target.value })}
+              className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 py-3 pl-11 pr-4 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
             />
           </div>
         </div>
 
         <div>
           <select
-            value={data.timezone || 'Europe/Paris'}
-            onChange={e => updateData({ timezone: e.target.value })}
-            className="w-full bg-white/5 border border-transparent focus:border-gold rounded-md px-4 py-3 text-base text-text focus:outline-none font-sans transition-colors cursor-pointer"
+            value={data.timezone || "Europe/Paris"}
+            onChange={(e) => updateData({ timezone: e.target.value })}
+            className="w-full cursor-pointer rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
           >
             <option value="Europe/Paris">Europe/Paris (CET)</option>
             <option value="Europe/London">Europe/London (GMT)</option>
@@ -59,25 +59,25 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
         </div>
 
         <div>
-          <label className="block text-xs uppercase tracking-wider text-muted font-sans font-bold mb-2">
+          <label className="mb-2 block font-sans text-xs font-bold uppercase tracking-wider text-muted">
             Operator Role
           </label>
           <div className="grid grid-cols-3 gap-3">
             {ROLES.map((role) => {
-              const isActive = (data.clearance || 'observer') === role.id;
+              const isActive = (data.clearance || "observer") === role.id;
               return (
                 <button
                   key={role.id}
                   type="button"
                   onClick={() => updateData({ clearance: role.id })}
-                  className={`p-3 rounded border text-left transition-all font-sans ${
+                  className={`rounded border p-3 text-left font-sans transition-all ${
                     isActive
-                      ? 'border-gold bg-gold/5 text-gold'
-                      : 'border-transparent bg-white/5 text-muted hover:bg-white/10'
+                      ? "bg-gold/5 border-gold text-gold"
+                      : "border-transparent bg-white/5 text-muted hover:bg-white/10"
                   }`}
                 >
                   <div className="text-sm font-bold">{role.label}</div>
-                  <div className="text-xs opacity-80 mt-1">{role.desc}</div>
+                  <div className="mt-1 text-xs opacity-80">{role.desc}</div>
                 </button>
               );
             })}
@@ -89,13 +89,13 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
         <button
           type="button"
           onClick={back}
-          className="flex items-center justify-center text-muted hover:text-text transition-colors shrink-0"
+          className="flex shrink-0 items-center justify-center text-muted transition-colors hover:text-text"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
           type="submit"
-          className="px-6 py-2 bg-gold text-bg font-bold rounded-md hover:bg-gold-hover transition-colors font-sans text-sm uppercase tracking-wider"
+          className="hover:bg-gold-hover rounded-md bg-gold px-6 py-2 font-sans text-sm font-bold uppercase tracking-wider text-bg transition-colors"
         >
           Next
         </button>

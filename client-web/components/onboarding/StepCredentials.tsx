@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { UserRoundPlus, Eye, EyeOff } from 'lucide-react';
-import { Link } from '@/i18n/routing';
+import React, { useState } from "react";
+import { UserRoundPlus, Eye, EyeOff } from "lucide-react";
+import { Link } from "@/i18n/routing";
 
 interface StepProps {
   data: any;
@@ -15,9 +15,9 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: any = {};
-    if (!data.email) newErrors.email = 'Required';
-    if (!data.password || data.password.length < 6) newErrors.password = 'Must be at least 6 chars';
-    if (!data.operatorName) newErrors.operatorName = 'Required';
+    if (!data.email) newErrors.email = "Required";
+    if (!data.password || data.password.length < 6) newErrors.password = "Must be at least 6 chars";
+    if (!data.operatorName) newErrors.operatorName = "Required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -27,9 +27,9 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-sm mx-auto w-full">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gold/10 text-gold mb-4">
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
+      <div className="mb-8 text-center">
+        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
           <UserRoundPlus className="h-10 w-10" />
         </div>
         <h2 className="text-xl font-bold tracking-tight text-text">Create your account</h2>
@@ -40,55 +40,62 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
           <input
             type="text"
             placeholder="Operator Name"
-            value={data.operatorName || ''}
-            onChange={e => updateData({ operatorName: e.target.value })}
-            className="w-full bg-white/5 border border-transparent focus:border-gold rounded-md px-4 py-3 text-base text-text focus:outline-none font-sans placeholder:text-muted/40 transition-colors"
+            value={data.operatorName || ""}
+            onChange={(e) => updateData({ operatorName: e.target.value })}
+            className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
           />
-          {errors.operatorName && <p className="text-red-500 text-xs mt-1 font-sans">{errors.operatorName}</p>}
+          {errors.operatorName && (
+            <p className="mt-1 font-sans text-xs text-red-500">{errors.operatorName}</p>
+          )}
         </div>
 
         <div>
           <input
             type="email"
             placeholder="Email Address"
-            value={data.email || ''}
-            onChange={e => updateData({ email: e.target.value })}
-            className="w-full bg-white/5 border border-transparent focus:border-gold rounded-md px-4 py-3 text-base text-text focus:outline-none font-sans placeholder:text-muted/40 transition-colors"
+            value={data.email || ""}
+            onChange={(e) => updateData({ email: e.target.value })}
+            className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
           />
-          {errors.email && <p className="text-red-500 text-xs mt-1 font-sans">{errors.email}</p>}
+          {errors.email && <p className="mt-1 font-sans text-xs text-red-500">{errors.email}</p>}
         </div>
 
         <div>
           <div className="relative">
             <input
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
-              value={data.password || ''}
-              onChange={e => updateData({ password: e.target.value })}
-              className="w-full bg-white/5 border border-transparent focus:border-gold rounded-md px-4 py-3 text-base text-text focus:outline-none font-sans placeholder:text-muted/40 transition-colors pr-10"
+              value={data.password || ""}
+              onChange={(e) => updateData({ password: e.target.value })}
+              className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-text"
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
-          {errors.password && <p className="text-red-500 text-xs mt-1 font-sans">{errors.password}</p>}
+          {errors.password && (
+            <p className="mt-1 font-sans text-xs text-red-500">{errors.password}</p>
+          )}
         </div>
       </div>
 
       <div className="space-y-3 pt-4">
         <button
           type="submit"
-          className="w-full py-3 bg-gold text-bg font-bold rounded-md hover:bg-gold-hover transition-colors font-sans text-base uppercase tracking-wider"
+          className="hover:bg-gold-hover w-full rounded-md bg-gold py-3 font-sans text-base font-bold uppercase tracking-wider text-bg transition-colors"
         >
           Sign Up
         </button>
 
         <div className="text-center">
-          <Link href="/login" className="text-xs text-muted hover:text-gold transition-colors font-sans uppercase">
+          <Link
+            href="/login"
+            className="font-sans text-xs uppercase text-muted transition-colors hover:text-gold"
+          >
             Log in
           </Link>
         </div>

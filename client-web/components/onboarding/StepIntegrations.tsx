@@ -1,6 +1,6 @@
-import React from 'react';
-import { Workflow, ChevronLeft } from 'lucide-react';
-import Image from 'next/image';
+import React from "react";
+import { Workflow, ChevronLeft } from "lucide-react";
+import Image from "next/image";
 
 interface StepProps {
   data: any;
@@ -10,12 +10,42 @@ interface StepProps {
 }
 
 const AVAILABLE_INTEGRATIONS = [
-  { id: 'github', name: 'GitHub', desc: 'Link actions & deployment flows', icon: '/assets/github-patched.webp' },
-  { id: 'gitlab', name: 'GitLab', desc: 'Sync pipelines and issue boards', icon: '/assets/gitlab.webp' },
-  { id: 'k8s', name: 'Kubernetes', desc: 'Deploy container metrics monitor', icon: '/assets/kubernetes.webp' },
-  { id: 'sentry', name: 'Sentry', desc: 'Track application exceptions & crashes', icon: '/assets/sentry.webp' },
-  { id: 'datadog', name: 'Datadog', desc: 'Sync system APM telemetry data', icon: '/assets/datadog.webp' },
-  { id: 'pagerduty', name: 'PagerDuty', desc: 'Sync incident & rotation escalations', icon: '/assets/pagerduty.webp' },
+  {
+    id: "github",
+    name: "GitHub",
+    desc: "Link actions & deployment flows",
+    icon: "/assets/github-patched.webp",
+  },
+  {
+    id: "gitlab",
+    name: "GitLab",
+    desc: "Sync pipelines and issue boards",
+    icon: "/assets/gitlab.webp",
+  },
+  {
+    id: "k8s",
+    name: "Kubernetes",
+    desc: "Deploy container metrics monitor",
+    icon: "/assets/kubernetes.webp",
+  },
+  {
+    id: "sentry",
+    name: "Sentry",
+    desc: "Track application exceptions & crashes",
+    icon: "/assets/sentry.webp",
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    desc: "Sync system APM telemetry data",
+    icon: "/assets/datadog.webp",
+  },
+  {
+    id: "pagerduty",
+    name: "PagerDuty",
+    desc: "Sync incident & rotation escalations",
+    icon: "/assets/pagerduty.webp",
+  },
 ];
 
 export function StepIntegrations({ data, updateData, next, back }: StepProps) {
@@ -30,9 +60,9 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
   };
 
   return (
-    <div className="space-y-6 max-w-sm mx-auto w-full">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gold/10 text-gold mb-4">
+    <div className="mx-auto w-full max-w-sm space-y-6">
+      <div className="mb-8 text-center">
+        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
           <Workflow className="h-10 w-10" />
         </div>
         <h2 className="text-xl font-bold tracking-tight text-text">Connect your integrations</h2>
@@ -44,32 +74,38 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
           return (
             <div
               key={integ.id}
-              className="p-4 rounded-lg flex items-center justify-between transition-colors hover:bg-white/5"
+              className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-white/5"
             >
-              <div className="flex items-center gap-4 min-w-0 pr-4">
-                <div className="shrink-0 flex items-center justify-center">
-                  <Image src={integ.icon} alt={integ.name} width={24} height={24} className="h-6 w-6 object-contain" />
+              <div className="flex min-w-0 items-center gap-4 pr-4">
+                <div className="flex shrink-0 items-center justify-center">
+                  <Image
+                    src={integ.icon}
+                    alt={integ.name}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 object-contain"
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-sans text-sm font-bold text-text truncate">
+                    <span className="truncate font-sans text-sm font-bold text-text">
                       {integ.name}
                     </span>
                   </div>
-                  <p className="text-xs text-muted mt-0.5 truncate">{integ.desc}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted">{integ.desc}</p>
                 </div>
               </div>
-              
+
               <button
                 type="button"
                 onClick={() => toggle(integ.id)}
-                className={`px-4 py-2 text-xs font-sans font-bold uppercase rounded transition-all shrink-0 ${
+                className={`shrink-0 rounded px-4 py-2 font-sans text-xs font-bold uppercase transition-all ${
                   isActive
-                    ? 'bg-white/5 text-muted hover:text-text hover:bg-white/10'
-                    : 'bg-gold text-bg hover:bg-gold-hover'
+                    ? "bg-white/5 text-muted hover:bg-white/10 hover:text-text"
+                    : "hover:bg-gold-hover bg-gold text-bg"
                 }`}
               >
-                {isActive ? 'Connected' : 'Connect'}
+                {isActive ? "Connected" : "Connect"}
               </button>
             </div>
           );
@@ -80,14 +116,14 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
         <button
           type="button"
           onClick={back}
-          className="flex items-center justify-center text-muted hover:text-text transition-colors shrink-0"
+          className="flex shrink-0 items-center justify-center text-muted transition-colors hover:text-text"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
           type="button"
           onClick={next}
-          className="px-6 py-2 bg-gold text-bg font-bold rounded-md hover:bg-gold-hover transition-colors font-sans text-sm uppercase tracking-wider"
+          className="hover:bg-gold-hover rounded-md bg-gold px-6 py-2 font-sans text-sm font-bold uppercase tracking-wider text-bg transition-colors"
         >
           Next
         </button>

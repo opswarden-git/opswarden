@@ -1,25 +1,64 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { LogOut, Trash2, UserRound, Settings, Sliders, Workflow, Languages, PencilLine } from 'lucide-react';
-import Image from 'next/image';
-import { useRouter as useIntlRouter, usePathname } from '../../../i18n/routing';
+import React, { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  LogOut,
+  Trash2,
+  UserRound,
+  Settings,
+  Sliders,
+  Workflow,
+  Languages,
+  PencilLine,
+} from "lucide-react";
+import Image from "next/image";
+import { useRouter as useIntlRouter, usePathname } from "../../../i18n/routing";
 
 const AVAILABLE_INTEGRATIONS = [
-  { id: 'github', name: 'GitHub', desc: 'Link actions & deployment flows', icon: '/assets/github-patched.webp' },
-  { id: 'gitlab', name: 'GitLab', desc: 'Sync pipelines and issue boards', icon: '/assets/gitlab.webp' },
-  { id: 'k8s', name: 'Kubernetes', desc: 'Deploy container metrics monitor', icon: '/assets/kubernetes.webp' },
-  { id: 'sentry', name: 'Sentry', desc: 'Track application exceptions & crashes', icon: '/assets/sentry.webp' },
-  { id: 'datadog', name: 'Datadog', desc: 'Sync system APM telemetry data', icon: '/assets/datadog.webp' },
-  { id: 'pagerduty', name: 'PagerDuty', desc: 'Sync incident & rotation escalations', icon: '/assets/pagerduty.webp' },
+  {
+    id: "github",
+    name: "GitHub",
+    desc: "Link actions & deployment flows",
+    icon: "/assets/github-patched.webp",
+  },
+  {
+    id: "gitlab",
+    name: "GitLab",
+    desc: "Sync pipelines and issue boards",
+    icon: "/assets/gitlab.webp",
+  },
+  {
+    id: "k8s",
+    name: "Kubernetes",
+    desc: "Deploy container metrics monitor",
+    icon: "/assets/kubernetes.webp",
+  },
+  {
+    id: "sentry",
+    name: "Sentry",
+    desc: "Track application exceptions & crashes",
+    icon: "/assets/sentry.webp",
+  },
+  {
+    id: "datadog",
+    name: "Datadog",
+    desc: "Sync system APM telemetry data",
+    icon: "/assets/datadog.webp",
+  },
+  {
+    id: "pagerduty",
+    name: "PagerDuty",
+    desc: "Sync incident & rotation escalations",
+    icon: "/assets/pagerduty.webp",
+  },
 ];
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations'>('profile');
-  const [connectedList, setConnectedList] = useState<string[]>(['github', 'k8s']);
-  
+  const [activeTab, setActiveTab] = useState<"profile" | "integrations">("profile");
+  const [connectedList, setConnectedList] = useState<string[]>(["github", "k8s"]);
+
   const intlRouter = useIntlRouter();
   const pathname = usePathname();
   const params = useParams();
@@ -30,89 +69,89 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-    router.push('/login');
+    router.push("/login");
   };
 
   const handleDeleteAccount = () => {
-    if (confirm("WARNING: Are you sure you want to permanently delete this operator account? This action is irreversible.")) {
-      router.push('/signup');
+    if (
+      confirm(
+        "WARNING: Are you sure you want to permanently delete this operator account? This action is irreversible.",
+      )
+    ) {
+      router.push("/signup");
     }
   };
 
   const toggleIntegration = (id: string) => {
     if (connectedList.includes(id)) {
-      setConnectedList(prev => prev.filter(x => x !== id));
+      setConnectedList((prev) => prev.filter((x) => x !== id));
     } else {
-      setConnectedList(prev => [...prev, id]);
+      setConnectedList((prev) => [...prev, id]);
     }
   };
 
   return (
     <div className="w-full max-w-7xl pl-[3px]">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         {/* Left Column: Title & Navigation */}
         <div className="space-y-8">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight text-text flex items-center gap-4">
+            <h1 className="flex items-center gap-4 text-4xl font-bold tracking-tight text-text">
               Settings
             </h1>
           </div>
 
           <div className="space-y-4 font-mono text-base">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`w-full text-left py-2 transition-colors flex items-center gap-4 ${
-              activeTab === 'profile'
-                ? 'text-gold font-bold'
-                : 'text-muted hover:text-text'
-            }`}
-          >
-            <Sliders className="h-5 w-5" />
-            General
-          </button>
-          <button
-            onClick={() => setActiveTab('integrations')}
-            className={`w-full text-left py-2 transition-colors flex items-center gap-4 ${
-              activeTab === 'integrations'
-                ? 'text-gold font-bold'
-                : 'text-muted hover:text-text'
-            }`}
-          >
-            <Workflow className="h-5 w-5" />
-            Connectors
-          </button>
-        </div>
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`flex w-full items-center gap-4 py-2 text-left transition-colors ${
+                activeTab === "profile" ? "font-bold text-gold" : "text-muted hover:text-text"
+              }`}
+            >
+              <Sliders className="h-5 w-5" />
+              General
+            </button>
+            <button
+              onClick={() => setActiveTab("integrations")}
+              className={`flex w-full items-center gap-4 py-2 text-left transition-colors ${
+                activeTab === "integrations" ? "font-bold text-gold" : "text-muted hover:text-text"
+              }`}
+            >
+              <Workflow className="h-5 w-5" />
+              Connectors
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}
-        <div className="md:col-span-3 space-y-6">
-          {activeTab === 'profile' && (
+        <div className="space-y-6 md:col-span-3">
+          {activeTab === "profile" && (
             <>
               {/* Mock Operator Profile Section */}
-              <div className="glass rounded-lg p-8 space-y-4">
-                <h2 className="text-xl font-bold font-mono text-text flex items-center gap-2 border-b border-white/5 pb-3">
+              <div className="glass space-y-4 rounded-lg p-8">
+                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
                   <UserRound className="h-6 w-6 text-muted" />
                   User
                 </h2>
-                <div className="grid grid-cols-2 gap-4 text-base font-mono">
+                <div className="grid grid-cols-2 gap-4 font-mono text-base">
                   <div>
-                    <span className="text-muted block text-sm uppercase mb-1">Operator Alias</span>
-                    <span className="text-text font-bold">Operator Alpha</span>
+                    <span className="mb-1 block text-sm uppercase text-muted">Operator Alias</span>
+                    <span className="font-bold text-text">Operator Alpha</span>
                   </div>
                   <div>
-                    <span className="text-muted block text-sm uppercase mb-1">Clearance Level</span>
-                    <span className="text-text font-bold">Level 1 NOC</span>
+                    <span className="mb-1 block text-sm uppercase text-muted">Clearance Level</span>
+                    <span className="font-bold text-text">Level 1 NOC</span>
                   </div>
                   <div className="col-span-2">
-                    <span className="text-muted block text-sm uppercase mb-1">Active Station</span>
+                    <span className="mb-1 block text-sm uppercase text-muted">Active Station</span>
                     <span className="text-text">Core NOC Paris</span>
                   </div>
                 </div>
               </div>
 
               {/* Regional Preferences Section */}
-              <div className="glass rounded-lg p-8 space-y-4">
-                <h2 className="text-xl font-bold font-mono text-text flex items-center gap-2 border-b border-white/5 pb-3">
+              <div className="glass space-y-4 rounded-lg p-8">
+                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
                   <Languages className="h-6 w-6 text-muted" />
                   Language
                 </h2>
@@ -120,23 +159,23 @@ export default function SettingsPage() {
                   <div className="min-w-0">
                     <h3 className="text-base font-bold text-text">Interface Language</h3>
                   </div>
-                  <div className="flex gap-4 shrink-0">
+                  <div className="flex shrink-0 gap-4">
                     <button
-                      onClick={() => switchLocale('en')}
+                      onClick={() => switchLocale("en")}
                       className={`font-mono text-sm transition-colors ${
-                        currentLocale === 'en'
-                          ? 'text-gold font-bold'
-                          : 'text-muted hover:text-text'
+                        currentLocale === "en"
+                          ? "font-bold text-gold"
+                          : "text-muted hover:text-text"
                       }`}
                     >
                       EN
                     </button>
                     <button
-                      onClick={() => switchLocale('fr')}
+                      onClick={() => switchLocale("fr")}
                       className={`font-mono text-sm transition-colors ${
-                        currentLocale === 'fr'
-                          ? 'text-gold font-bold'
-                          : 'text-muted hover:text-text'
+                        currentLocale === "fr"
+                          ? "font-bold text-gold"
+                          : "text-muted hover:text-text"
                       }`}
                     >
                       FR
@@ -146,12 +185,12 @@ export default function SettingsPage() {
               </div>
 
               {/* Account Actions Section */}
-              <div className="glass rounded-lg p-8 space-y-6">
-                <h2 className="text-xl font-bold font-mono text-text flex items-center gap-2 border-b border-white/5 pb-3">
+              <div className="glass space-y-6 rounded-lg p-8">
+                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
                   <PencilLine className="h-6 w-6 text-muted" />
                   Account Actions
                 </h2>
-                
+
                 <div className="space-y-0 font-mono">
                   {/* Log Out Option */}
                   <div className="flex items-center justify-between gap-4 p-4">
@@ -160,7 +199,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="px-4 py-2.5 rounded bg-red-600 text-white hover:bg-red-700 transition-all text-sm font-bold uppercase tracking-wider flex items-center gap-2 shrink-0 border-none"
+                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-red-700"
                     >
                       <LogOut className="h-5 w-5" />
                       Log Out
@@ -174,7 +213,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={handleDeleteAccount}
-                      className="px-4 py-2.5 rounded bg-red-600 text-white hover:bg-red-700 transition-all text-sm font-bold uppercase tracking-wider flex items-center gap-2 shrink-0 border-none"
+                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-red-700"
                     >
                       <Trash2 className="h-5 w-5" />
                       Delete Account
@@ -185,9 +224,9 @@ export default function SettingsPage() {
             </>
           )}
 
-          {activeTab === 'integrations' && (
-            <div className="glass rounded-lg p-8 space-y-6">
-              <h2 className="text-xl font-bold font-mono text-text border-b border-white/5 pb-3 flex items-center gap-2">
+          {activeTab === "integrations" && (
+            <div className="glass space-y-6 rounded-lg p-8">
+              <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
                 <Workflow className="h-6 w-6 text-muted" />
                 Connectors
               </h2>
@@ -198,30 +237,36 @@ export default function SettingsPage() {
                   return (
                     <div
                       key={integ.id}
-                      className="p-4 rounded-lg flex items-center justify-between transition-colors hover:bg-white/5"
+                      className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-white/5"
                     >
-                      <div className="flex items-center gap-4 min-w-0 pr-4">
-                        <div className="shrink-0 flex items-center justify-center">
-                          <Image src={integ.icon} alt={integ.name} width={24} height={24} className="h-8 w-8 object-contain" />
+                      <div className="flex min-w-0 items-center gap-4 pr-4">
+                        <div className="flex shrink-0 items-center justify-center">
+                          <Image
+                            src={integ.icon}
+                            alt={integ.name}
+                            width={24}
+                            height={24}
+                            className="h-8 w-8 object-contain"
+                          />
                         </div>
                         <div className="min-w-0 pr-4">
-                          <span className="font-mono text-base font-bold text-text block truncate">
+                          <span className="block truncate font-mono text-base font-bold text-text">
                             {integ.name}
                           </span>
-                          <p className="text-sm text-muted mt-0.5 truncate">{integ.desc}</p>
+                          <p className="mt-0.5 truncate text-sm text-muted">{integ.desc}</p>
                         </div>
                       </div>
-                      
+
                       <button
                         type="button"
                         onClick={() => toggleIntegration(integ.id)}
-                        className={`px-4 py-2 text-sm font-mono font-bold uppercase rounded transition-all shrink-0 ${
+                        className={`shrink-0 rounded px-4 py-2 font-mono text-sm font-bold uppercase transition-all ${
                           isActive
-                            ? 'bg-white/5 text-muted hover:text-text hover:bg-white/10'
-                            : 'bg-gold text-bg hover:bg-gold-hover'
+                            ? "bg-white/5 text-muted hover:bg-white/10 hover:text-text"
+                            : "hover:bg-gold-hover bg-gold text-bg"
                         }`}
                       >
-                        {isActive ? 'Connected' : 'Connect'}
+                        {isActive ? "Connected" : "Connect"}
                       </button>
                     </div>
                   );

@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-inter: "Inter", "IBM Plex Sans", "Segoe UI", Arial, Helvetica, sans-serif;
+    --font-plex-mono: "IBM Plex Mono", "SFMono-Regular", "SF Mono", ui-monospace, monospace;
     --bg: #15161a;
     --bg-2: #121317;
     --panel: #0e0e12;
@@ -13,15 +15,15 @@
     --text: #e7e7ea;
     --muted: #8e9197;
     --muted-2: #5e5f64;
-    --gold: #F1CF13;
-    --gold-dim: #F1CF13;
+    --gold: #f1cf13;
+    --gold-dim: #f1cf13;
 
     /* severities */
     --sev-low: #3b82f6;
     --sev-medium: #f59e0b;
     --sev-high: #fb7d3c;
     --sev-critical: #ef4444;
-    
+
     /* states */
     --st-open: #ef4444;
     --st-ack: #3b82f6;
@@ -63,10 +65,14 @@
 
 @layer base {
   body {
-    @apply text-text font-sans antialiased;
+    @apply font-sans text-text antialiased;
     min-height: 100vh;
     background-color: #15161a;
-    background-image: radial-gradient(1100px 700px at 50% -15%, rgba(255, 255, 255, 0.035), transparent 60%);
+    background-image: radial-gradient(
+      1100px 700px at 50% -15%,
+      rgba(255, 255, 255, 0.035),
+      transparent 60%
+    );
     background-attachment: fixed;
   }
 }
@@ -79,14 +85,14 @@
     background-color: rgba(255, 255, 255, 0.045);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.10);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
   }
 }
 
 /* Autofill override to preserve background and text color */
 input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text) !important;
   transition: background-color 5000s ease-in-out 0s;
