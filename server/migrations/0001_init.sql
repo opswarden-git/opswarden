@@ -64,6 +64,8 @@ create table if not exists incidents (
     title text not null,
     status text not null check (status in ('open', 'acknowledged', 'escalated', 'resolved')),
     severity text not null check (severity in ('low', 'medium', 'high', 'critical')),
+    -- Responder assigned by a Manager; nullable (unassigned), kept on user delete.
+    assignee_id uuid references users (id) on delete set null,
     created_at timestamptz not null
 );
 

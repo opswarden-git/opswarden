@@ -57,6 +57,10 @@ impl IntoResponse for DomainError {
                 StatusCode::FORBIDDEN,
                 "You are not allowed to perform this action",
             ),
+            DomainError::AssigneeNotResponder => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "Assignee must be a Responder or Manager of the team",
+            ),
             DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
         };
 
