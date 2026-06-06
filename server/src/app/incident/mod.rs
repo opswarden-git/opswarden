@@ -93,6 +93,14 @@ pub(crate) mod tests {
                 .map(|(t, _)| *t)
                 .collect())
         }
+
+        async fn delete_team(&self, _team_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn remove_member(&self, _team_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
+        }
     }
 
     #[derive(Default)]

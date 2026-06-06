@@ -58,7 +58,8 @@ mod tests {
         let incident_id = incident.id;
 
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident));
-        let teams = Arc::new(MockTeamRepo::default().with_member(team_id, manager_id, Role::Manager));
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, manager_id, Role::Manager));
         let use_case = DeleteIncidentUseCase::new(incidents.clone(), teams);
 
         use_case
@@ -80,7 +81,8 @@ mod tests {
         let incident = Incident::new(team_id, "Test", Severity::Low).unwrap();
 
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
-        let teams = Arc::new(MockTeamRepo::default().with_member(team_id, responder_id, Role::Responder));
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, responder_id, Role::Responder));
         let use_case = DeleteIncidentUseCase::new(incidents, teams);
 
         let result = use_case

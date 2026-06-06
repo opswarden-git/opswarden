@@ -91,14 +91,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(ClientCommand::Watch { incident_id }) => hub.watch(conn_id, incident_id),
                     Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
                     Ok(ClientCommand::StatusTyping { incident_id }) => {
-                        if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await {
+                        if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
+                        {
                             use crate::domain::event::DomainEvent;
                             use crate::ports::EventPublisher;
-                            let _ = hub.publish(DomainEvent::UserTyping {
-                                team_id: incident.team_id,
-                                incident_id,
-                                user_id,
-                            }).await;
+                            let _ = hub
+                                .publish(DomainEvent::UserTyping {
+                                    team_id: incident.team_id,
+                                    incident_id,
+                                    user_id,
+                                })
+                                .await;
                         }
                     }
                     Err(_) => {}
