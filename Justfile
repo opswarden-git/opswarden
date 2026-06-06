@@ -97,7 +97,7 @@ health:
     @echo '```' >> tooling/health_report.md
     @echo "Report written to tooling/health_report.md"
 
-# ----- CI locale (miroir de .github/workflows/server-ci.yml) -----
+# ----- CI locale (miroir de .github/workflows/ci.yml) -----
 
 # job "checks" : fmt + clippy (--all-features) + supply-chain, STRICT comme la CI
 # (pas de `|| true` : un échec ici = un échec en CI).
