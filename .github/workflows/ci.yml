@@ -1,0 +1,242 @@
+---
+# Unified CI — server (Rust) + web (Next.js).
+#
+# A single "CI Gate" job is the ONLY required status check. The workflow runs on
+# every PR (no path filter at the workflow level); a `changes` job detects which
+# area changed and the server/web jobs run conditionally. Because the gate always
+# runs, branch protection never blocks a PR for a required check that "didn't run"
+# — the failure mode of per-area, path-filtered required checks in a monorepo.
+#
+# Runner : ubuntu-latest (GitHub-hosted). Self-hosted later = swap `runs-on`.
+name: CI
+
+"on":
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Path filter
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'server/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'tooling/**'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'client-web/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+
+  server-quality:
+    name: Quality & Security (fmt, clippy, audit, deny)
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Rust toolchain (stable + rustfmt + clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy (warnings = erreurs)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: Security audit
+        run: cargo audit
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: License & supply-chain policy (cargo-deny)
+        run: cargo deny check --config tooling/deny.toml
+
+  server-build-test:
+    name: Build & Test
+    needs: [changes, server-quality]
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    # Postgres service for the SQLx integration tests. query! macros compile from
+    # the committed .sqlx cache (SQLX_OFFLINE); the DB is only needed at runtime.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opswarden
+          POSTGRES_DB: opswarden
+          # Ephemeral CI container on localhost: trust auth, no password to store.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      SQLX_OFFLINE: "true"
+      POSTGRES_USER: opswarden
+      POSTGRES_DB: opswarden
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+      - name: Assemble DATABASE_URL
+        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+      - name: Run database migrations
+        run: sqlx migrate run --source server/migrations
+      - name: Build
+        run: cargo build --workspace --verbose
+      - name: Test
+        run: cargo test --workspace --verbose
+
+  server-coverage:
+    name: Coverage (tarpaulin → artifact)
+    needs: [changes, server-build-test]
+    # VIGIL : coverage artifact published on merge to main only.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opswarden
+          POSTGRES_DB: opswarden
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      SQLX_OFFLINE: "true"
+      POSTGRES_USER: opswarden
+      POSTGRES_DB: opswarden
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+      - name: Assemble DATABASE_URL
+        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+      - name: Run database migrations
+        run: sqlx migrate run --source server/migrations
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+      - name: Run coverage
+        run: cargo tarpaulin --config tooling/tarpaulin.toml
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: target/tarpaulin/
+          if-no-files-found: error
+
+  web-quality:
+    name: Web Quality (eslint, prettier, types)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies (workspace)
+        run: npm ci
+      - name: Lint (ESLint)
+        run: npm run lint --workspace client-web
+      - name: Format check (Prettier)
+        run: npm run format:check --workspace client-web
+      - name: Type check (tsc)
+        run: npm run typecheck --workspace client-web
+      - name: Security audit (npm)
+        run: npm audit --audit-level=high
+
+  web-build:
+    name: Web Build (Next.js)
+    needs: [changes, web-quality]
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies (workspace)
+        run: npm ci
+      - name: Build
+        run: npm run build --workspace client-web
+
+  gate:
+    name: CI Gate
+    needs: [changes, server-quality, server-build-test, web-quality, web-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every triggered job to pass
+        env:
+          RESULTS: >-
+            ${{ needs.changes.result }}
+            ${{ needs.server-quality.result }}
+            ${{ needs.server-build-test.result }}
+            ${{ needs.web-quality.result }}
+            ${{ needs.web-build.result }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::A required CI job did not pass: '$r'"; exit 1 ;;
+            esac
+          done
+          echo "CI Gate: all triggered jobs passed (skipped jobs are allowed)."
