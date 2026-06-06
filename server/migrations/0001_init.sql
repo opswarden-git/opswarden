@@ -54,3 +54,32 @@ create table if not exists revoked_tokens (
 
 create index if not exists revoked_tokens_expires_at_idx
     on revoked_tokens (expires_at);
+
+-- ============================================================================
+-- Incidents — lifecycle state tracked inside a team workspace.
+-- ============================================================================
+create table if not exists incidents (
+    id uuid primary key,
+    team_id uuid not null references teams (id) on delete cascade,
+    title text not null,
+    status text not null check (status in ('open', 'acknowledged', 'escalated', 'resolved')),
+    severity text not null check (severity in ('low', 'medium', 'high', 'critical')),
+    created_at timestamptz not null
+);
+
+create index if not exists incidents_team_created_idx
+    on incidents (team_id, created_at desc);
+
+-- ============================================================================
+-- Incident timeline — timestamped entries authored by team members.
+-- ============================================================================
+create table if not exists timeline_entries (
+    id uuid primary key,
+    incident_id uuid not null references incidents (id) on delete cascade,
+    author_id uuid not null references users (id) on delete restrict,
+    content text not null,
+    created_at timestamptz not null
+);
+
+create index if not exists timeline_entries_incident_created_idx
+    on timeline_entries (incident_id, created_at desc);

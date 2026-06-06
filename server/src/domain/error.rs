@@ -8,6 +8,8 @@ pub enum DomainError {
     InvalidToken,
     InvalidTeamName,
     InvalidIncidentTitle,
+    InvalidIncidentStatus,
+    InvalidSeverity,
     InvalidIncidentTransition,
     InvalidTimelineEntry,
     TeamNotFound,
@@ -29,6 +31,8 @@ impl std::fmt::Display for DomainError {
             DomainError::InvalidToken => write!(f, "Invalid or expired token"),
             DomainError::InvalidTeamName => write!(f, "Team name cannot be empty"),
             DomainError::InvalidIncidentTitle => write!(f, "Incident title cannot be empty"),
+            DomainError::InvalidIncidentStatus => write!(f, "Incident status is invalid"),
+            DomainError::InvalidSeverity => write!(f, "Incident severity is invalid"),
             DomainError::InvalidIncidentTransition => {
                 write!(f, "Invalid incident lifecycle transition")
             }
