@@ -38,6 +38,11 @@ pub enum DomainEvent {
         author: Uuid,
         at: DateTime<Utc>,
     },
+    UserTyping {
+        team_id: Uuid,
+        incident_id: Uuid,
+        user_id: Uuid,
+    },
 }
 
 impl DomainEvent {
@@ -47,7 +52,8 @@ impl DomainEvent {
             DomainEvent::IncidentStateChanged { team_id, .. }
             | DomainEvent::IncidentEscalated { team_id, .. }
             | DomainEvent::IncidentAssigned { team_id, .. }
-            | DomainEvent::TimelineEntryAdded { team_id, .. } => *team_id,
+            | DomainEvent::TimelineEntryAdded { team_id, .. }
+            | DomainEvent::UserTyping { team_id, .. } => *team_id,
         }
     }
 }
