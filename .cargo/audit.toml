@@ -1,6 +1,9 @@
 # cargo-audit configuration (RustSec advisories). Run: cargo audit
 [advisories]
 ignore = [
-    # Add advisory IDs to ignore here, each with a justification, e.g.:
-    # "RUSTSEC-XXXX-XXXX",  # not exploitable: feature not enabled
+    # rsa is reachable only through sqlx-mysql, an optional driver we never
+    # enable (Postgres-only build -> `cargo tree -i rsa` prints nothing). The
+    # vulnerable code is never compiled into our binary, and no upstream fix
+    # exists. Re-evaluate if we ever add the MySQL driver.
+    "RUSTSEC-2023-0071", # Marvin timing sidechannel in rsa, via unused sqlx-mysql
 ]
