@@ -48,7 +48,6 @@ impl TokenService for JwtTokenService {
         )
         .map_err(|_| DomainError::InvalidToken)?;
 
-        uuid::Uuid::parse_str(&token_data.claims.sub)
-            .map_err(|_| DomainError::InvalidToken)
+        uuid::Uuid::parse_str(&token_data.claims.sub).map_err(|_| DomainError::InvalidToken)
     }
 }

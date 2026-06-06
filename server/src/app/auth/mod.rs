@@ -1,9 +1,9 @@
 // --- server/src/app/auth/mod.rs ---
-pub mod sign_up;
 pub mod sign_in;
+pub mod sign_up;
 
-pub use sign_up::{SignUpCommand, SignUpResult, SignUpUseCase};
 pub use sign_in::{SignInCommand, SignInResult, SignInUseCase};
+pub use sign_up::{SignUpCommand, SignUpResult, SignUpUseCase};
 
 // Shared mocks for tests in this module
 #[cfg(test)]

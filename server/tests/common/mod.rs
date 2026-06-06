@@ -1,11 +1,11 @@
 // server/tests/common/mod.rs
 
-use opswarden_server::{build_app, AppState, config::Config};
-use opswarden_server::ports::{Clock, PasswordHasher, TokenService, UserRepo};
-use std::sync::Arc;
+use async_trait::async_trait;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::user::User;
-use async_trait::async_trait;
+use opswarden_server::ports::{Clock, PasswordHasher, TokenService, UserRepo};
+use opswarden_server::{build_app, config::Config, AppState};
+use std::sync::Arc;
 
 pub struct DummyUserRepo;
 #[async_trait]

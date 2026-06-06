@@ -1,8 +1,11 @@
 // server/tests/auth.rs
 
 mod common;
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
 use common::test_app;
-use axum::{body::Body, http::{Request, StatusCode}};
 use tower::ServiceExt;
 
 #[tokio::test]

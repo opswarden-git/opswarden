@@ -1014,6 +1014,7 @@ dependencies = [
  "chrono",
  "hex",
  "jsonwebtoken",
+ "rand",
  "serde",
  "serde_json",
  "sha2",

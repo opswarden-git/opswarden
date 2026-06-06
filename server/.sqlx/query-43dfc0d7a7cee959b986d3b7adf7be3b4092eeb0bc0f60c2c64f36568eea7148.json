@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE team_members SET role = 'responder'\n            WHERE team_id = $1 AND user_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "43dfc0d7a7cee959b986d3b7adf7be3b4092eeb0bc0f60c2c64f36568eea7148"
+}

@@ -12,7 +12,7 @@ impl Config {
     pub fn from_env() -> Self {
         let kickoff_token_secret = std::env::var("OPSWARDEN_KICKOFF_TOKEN")
             .unwrap_or_else(|_| "Romeo Cavazza VIGIL2026".to_string());
-        
+
         let jwt_secret = std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "my_super_secret_dev_key_12345".to_string());
 
