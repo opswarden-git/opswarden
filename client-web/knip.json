@@ -4,9 +4,5 @@
     "app/**/{page,layout,loading,error,not-found,template,route}.{ts,tsx}",
     "next.config.mjs"
   ],
-  "project": [
-    "app/**/*.{ts,tsx}",
-    "components/**/*.{ts,tsx}",
-    "lib/**/*.{ts,tsx}"
-  ]
+  "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"]
 }

@@ -2,10 +2,7 @@
 # Web CI — client Next.js `opswarden-client-web` (npm workspace à la racine).
 #
 # Runner : ubuntu-latest par défaut (voir note dans server-ci.yml).
-# TODO lockfile : pas de package-lock.json encore → on utilise `npm install`.
-#   Dès qu'un package-lock.json est commité :
-#     - remplacer `npm install` par `npm ci`
-#     - réactiver le cache npm dans setup-node (`cache: npm`)
+# Reproducible installs : package-lock.json est commité → `npm ci` + cache npm.
 name: Web CI
 
 "on":
@@ -14,12 +11,14 @@ name: Web CI
     paths:
       - 'client-web/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/web-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'client-web/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/web-ci.yml'
 
 permissions:
@@ -35,15 +34,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
+          cache: npm
 
       - name: Install dependencies (workspace)
-        run: npm install
+        run: npm ci
 
       - name: Lint (ESLint)
         run: npm run lint --workspace client-web
@@ -63,15 +63,16 @@ jobs:
     needs: checks
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
+          cache: npm
 
       - name: Install dependencies (workspace)
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build --workspace client-web

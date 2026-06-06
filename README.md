@@ -81,13 +81,13 @@ on the graded path.
 
 - GitHub OAuth2; Releases + automatic blocking by a linked incident; moderation
   (kick / temp ban / perm ban); timeline editing, reactions, private messages
-- GitLab as an Action; additional REActions (Discord / HTTP / Email)
+- GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
 **Long-term vision — portfolio (promised, not built yet)**
 
 - **AI SRE**: RAG microservice (FastAPI, `@ask` / `@search`, pgvector, LLM/SLM)
   correlating logs + commit diff + past incidents to propose a root cause + runbook
-- **Integrations**: Slack / Discord, Jira / Confluence
+- **Integrations**: Slack, Jira / Confluence
 - **Observability**: OpenTelemetry + Prometheus + Grafana + Loki + Promtail
 - **IaC showcase** (repo `opswarden-ops`): Minikube &rarr; k8s &rarr; Terraform &rarr;
   DigitalOcean (DOKS) + Traefik + cAdvisor + Argo/Flux; Redis + async workers
@@ -244,7 +244,7 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 - [ ] Webhook receiver `POST /webhooks/{service}` + HMAC validation
 - [ ] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- [ ] 1 external Action (GitHub) + 1 REAction beyond VIGIL (Discord / HTTP / Email)
+- [ ] 1 external Action (GitHub) + 1 REAction beyond VIGIL (Slack / HTTP / Email)
 - [ ] `/about.json` reflects the real catalog (nothing hard-coded client-side)
 - [ ] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
 - [ ] WebSockets `rule_triggered`, `rule_failed`

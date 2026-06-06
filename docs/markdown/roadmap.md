@@ -185,13 +185,13 @@ DoD S2 :
 Scope :
 - Webhook receiver `POST /webhooks/{service}` + **validation HMAC**.
 - Hook engine : évaluation de règle (trigger + filtres → reaction).
-- **1 service Action** : GitHub (`workflow_run: failure`). **1 REAction** au-delà de VIGIL : Discord (ou HTTP/Email). VIGIL REAction : `create_incident`.
+- **1 service Action** : GitHub (`workflow_run: failure`). **1 REAction** au-delà de VIGIL : Slack (ou HTTP/Email). VIGIL REAction : `create_incident`.
 - **1 règle complète démontrable** : CI GitHub échoue → Incident `high` créé automatiquement.
 - `/about.json` : catalogue de services **dynamique** + token SHA-256 (valeur kickoff).
 - **Vault** : stockage chiffré côté serveur des tokens OAuth2/perso (AES-GCM, clé via env/secret ; jamais en clair).
 - WS : `rule_triggered`, `rule_failed`.
 
-Branches : `feat/webhook-receiver-hmac`, `feat/hook-engine`, `feat/action-github`, `feat/reaction-vigil-discord`, `feat/about-json-dynamic`, `feat/token-vault`, `feat/ws-rule-events`.
+Branches : `feat/webhook-receiver-hmac`, `feat/hook-engine`, `feat/action-github`, `feat/reaction-vigil-slack`, `feat/about-json-dynamic`, `feat/token-vault`, `feat/ws-rule-events`.
 
 DoD S3 :
 - [ ] Démo live : push qui casse la CI GitHub → Incident apparaît tout seul dans OpsWarden.
