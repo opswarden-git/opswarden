@@ -153,9 +153,9 @@ Scope :
 Branches : `feat/auth-jwt`, `feat/me-logout`, `feat/teams-crud`, `feat/rbac-roles`, `feat/manager-transfer`.
 
 DoD S1 :
-- [ ] Parcours signup → login → `/me` → logout (token mort après).
-- [ ] Un Observer se voit refuser une action Responder (403 testé).
-- [ ] Transfert Manager fonctionnel + invariant « 1 Manager » testé.
+- [x] Parcours signup → login → `/me` → logout (token mort après). *(✅ API Server prête)*
+- [x] Un Observer se voit refuser une action Responder (403 testé).
+- [x] Transfert Manager fonctionnel + invariant « 1 Manager » testé.
 
 ---
 
@@ -172,9 +172,9 @@ Scope :
 Branches : `feat/incident-lifecycle`, `feat/incident-severity`, `feat/timeline`, `feat/ws-broadcaster`, `feat/presence`, `feat/ws-reconnect`.
 
 DoD S2 :
-- [ ] Deux navigateurs : une action sur l'un se reflète en < 1s sur l'autre via WS.
-- [ ] Coupure réseau → reconnexion auto, état resynchronisé.
-- [ ] Tous les events core émis et documentés (début de `WEBSOCKET_SPEC.md`).
+- [ ] Deux navigateurs : une action sur l'un se reflète en < 1s sur l'autre via WS. *(✅ Serveur WS prêt, ⏳ Front)*
+- [ ] Coupure réseau → reconnexion auto, état resynchronisé. *(⏳ Front)*
+- [x] Tous les events core émis et documentés (début de `WEBSOCKET_SPEC.md`).
 - [ ] **Tag `v0.1.0`** — Phase 1 core complète.
 
 ---
