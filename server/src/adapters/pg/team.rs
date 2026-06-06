@@ -177,6 +177,37 @@ impl TeamRepo for PgTeamRepo {
 
         Ok(records.into_iter().map(|row| row.team_id).collect())
     }
+
+    async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            DELETE FROM teams
+            WHERE id = $1
+            "#,
+            team_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
+
+    async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            DELETE FROM team_members
+            WHERE team_id = $1 AND user_id = $2
+            "#,
+            team_id,
+            user_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---
