@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
@@ -19,6 +20,7 @@ pub struct AddTimelineEntryResult {
     pub incident_id: Uuid,
     pub author_id: Uuid,
     pub content: String,
+    pub created_at: DateTime<Utc>,
 }
 
 pub struct AddTimelineEntryUseCase {
@@ -68,6 +70,7 @@ impl AddTimelineEntryUseCase {
             incident_id: entry.incident_id,
             author_id: entry.author_id,
             content: entry.content,
+            created_at: entry.created_at,
         })
     }
 }
