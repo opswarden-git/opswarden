@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/heroicon.png" alt="OpsWarden" width="130" />
+  <img src="docs/png/heroicon.png" alt="OpsWarden" width="130" />
 </p>
 
 <h1 align="center">OpsWarden</h1>
@@ -141,7 +141,7 @@ opswarden/
 ├── investigation/        # AI SRE agent (RAG / pgvector) -- extracted (Phase 5)
 ├── docs/
 │   ├── markdown/         # blueprint, roadmap, VIGIL brief, grading
-│   └── brand/            # brand kit (logo, palette, typography)
+│   └── png/              # brand kit (logo, palette, typography)
 ├── .github/workflows/    # server + web + release CI (dormant, see Roadmap)
 ├── docker-compose.yml    # jury contract: server + db (final: +web +desktop)
 ├── Cargo.toml            # cargo workspace
