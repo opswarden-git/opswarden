@@ -261,3 +261,29 @@ async fn posting_timeline_to_unknown_incident_returns_not_found() {
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn manager_can_delete_incident() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "Incident to delete", Severity::High).unwrap();
+    let requester = Uuid::nil();
+
+    ctx.teams.seed_member(team_id, requester, Role::Manager);
+    ctx.incidents.seed_incident(incident.clone());
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/incidents/{}", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}

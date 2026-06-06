@@ -164,6 +164,20 @@ impl TeamRepo for DummyTeamRepo {
             .map(|(t, _)| *t)
             .collect())
     }
+
+    async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
+        self.teams_by_code
+            .lock()
+            .unwrap()
+            .retain(|_, team| team.id != team_id);
+        self.roles.lock().unwrap().retain(|(t, _), _| *t != team_id);
+        Ok(())
+    }
+
+    async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+        self.roles.lock().unwrap().remove(&(team_id, user_id));
+        Ok(())
+    }
 }
 
 pub struct DummyClock;
@@ -209,6 +223,11 @@ impl IncidentRepo for DummyIncidentRepo {
             .filter(|incident| incident.team_id == team_id)
             .cloned()
             .collect())
+    }
+
+    async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
+        self.incidents.lock().unwrap().remove(&incident_id);
+        Ok(())
     }
 }
 
