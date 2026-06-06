@@ -49,6 +49,10 @@ pub fn build_app(state: AppState) -> Router {
             put(handlers::incident::change_status),
         )
         .route(
+            "/api/incidents/{incident_id}/assign",
+            put(handlers::incident::assign_responder),
+        )
+        .route(
             "/api/incidents/{incident_id}/timeline",
             post(handlers::incident::add_timeline_entry)
                 .get(handlers::incident::list_timeline_entries),

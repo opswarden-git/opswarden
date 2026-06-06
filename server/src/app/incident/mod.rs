@@ -1,4 +1,5 @@
 pub mod add_timeline_entry;
+pub mod assign_responder;
 pub mod change_incident_status;
 pub mod create_incident;
 pub mod list_timeline_entries;
@@ -6,6 +7,7 @@ pub mod list_timeline_entries;
 pub use add_timeline_entry::{
     AddTimelineEntryCommand, AddTimelineEntryResult, AddTimelineEntryUseCase,
 };
+pub use assign_responder::{AssignResponderCommand, AssignResponderResult, AssignResponderUseCase};
 pub use change_incident_status::{
     ChangeIncidentStatusCommand, ChangeIncidentStatusResult, ChangeIncidentStatusUseCase,
 };
