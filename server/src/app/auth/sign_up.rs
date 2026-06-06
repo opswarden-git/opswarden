@@ -12,7 +12,6 @@ pub struct SignUpCommand {
 #[derive(Debug, PartialEq)]
 pub struct SignUpResult {
     pub email: String,
-    pub plain_password: String,
 }
 
 pub struct SignUpUseCase {
@@ -39,7 +38,6 @@ impl SignUpUseCase {
         self.users.save(&user).await?;
         Ok(SignUpResult {
             email: user.email.as_str().to_string(),
-            plain_password: cmd.plain_password,
         })
     }
 }

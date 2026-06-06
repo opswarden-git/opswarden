@@ -6,6 +6,15 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
+
+#[derive(Debug, Clone)]
+pub struct AuthenticatedSession {
+    pub user_id: Uuid,
+    pub bearer_token: String,
+    pub expires_at: DateTime<Utc>,
+}
 
 pub async fn require_auth(
     State(state): State<AppState>,
@@ -18,17 +27,31 @@ pub async fn require_auth(
         .and_then(|value| value.to_str().ok());
 
     let token = match auth_header {
-        Some(header) if header.starts_with("Bearer ") => header.trim_start_matches("Bearer "),
+        Some(header) if header.starts_with("Bearer ") => {
+            header.trim_start_matches("Bearer ").to_string()
+        }
         _ => return Err(StatusCode::UNAUTHORIZED),
     };
 
-    let user_id = state
+    let claims = state
         .tokens
-        .verify_token(token)
+        .verify_token(&token)
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    // Insert the parsed user_id into the request extensions so handlers can access it
-    req.extensions_mut().insert(user_id);
+    if state
+        .token_revocations
+        .is_revoked(&token)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    req.extensions_mut().insert(AuthenticatedSession {
+        user_id: claims.user_id,
+        bearer_token: token,
+        expires_at: claims.expires_at,
+    });
 
     Ok(next.run(req).await)
 }
