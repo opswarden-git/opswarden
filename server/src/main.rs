@@ -7,6 +7,7 @@ use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::timeline::PgTimelineRepo;
 use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
+use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
 
@@ -42,6 +43,7 @@ async fn main() {
         hasher: Arc::new(Argon2Hasher),
         tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
         token_revocations: Arc::new(PgTokenRevocationRepo::new(pool)),
+        events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),
         config,
     };

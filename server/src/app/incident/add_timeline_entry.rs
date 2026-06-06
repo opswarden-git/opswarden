@@ -4,9 +4,10 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::team::Role;
 use crate::domain::timeline::TimelineEntry;
-use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo};
+use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
 
 pub struct AddTimelineEntryCommand {
     pub incident_id: Uuid,
@@ -27,6 +28,7 @@ pub struct AddTimelineEntryUseCase {
     teams: Arc<dyn TeamRepo>,
     incidents: Arc<dyn IncidentRepo>,
     timeline: Arc<dyn TimelineRepo>,
+    events: Arc<dyn EventPublisher>,
 }
 
 impl AddTimelineEntryUseCase {
@@ -34,11 +36,13 @@ impl AddTimelineEntryUseCase {
         teams: Arc<dyn TeamRepo>,
         incidents: Arc<dyn IncidentRepo>,
         timeline: Arc<dyn TimelineRepo>,
+        events: Arc<dyn EventPublisher>,
     ) -> Self {
         Self {
             teams,
             incidents,
             timeline,
+            events,
         }
     }
 
@@ -65,6 +69,17 @@ impl AddTimelineEntryUseCase {
         let entry = TimelineEntry::new(cmd.incident_id, cmd.author_id, cmd.content)?;
         self.timeline.append_entry(&entry).await?;
 
+        self.events
+            .publish(DomainEvent::TimelineEntryAdded {
+                team_id: incident.team_id,
+                incident_id: entry.incident_id,
+                entry_id: entry.id,
+                content: entry.content.clone(),
+                author: entry.author_id,
+                at: entry.created_at,
+            })
+            .await;
+
         Ok(AddTimelineEntryResult {
             entry_id: entry.id,
             incident_id: entry.incident_id,
@@ -79,7 +94,9 @@ impl AddTimelineEntryUseCase {
 mod tests {
     use super::*;
 
-    use crate::app::incident::tests::{MockIncidentRepo, MockTeamRepo, MockTimelineRepo};
+    use crate::app::incident::tests::{
+        MockEventPublisher, MockIncidentRepo, MockTeamRepo, MockTimelineRepo,
+    };
     use crate::domain::incident::{Incident, Severity};
 
     #[tokio::test]
@@ -91,7 +108,9 @@ mod tests {
             Arc::new(MockTeamRepo::default().with_member(team_id, author_id, Role::Responder));
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
         let timeline = Arc::new(MockTimelineRepo::default());
-        let use_case = AddTimelineEntryUseCase::new(teams, incidents, timeline.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case =
+            AddTimelineEntryUseCase::new(teams, incidents, timeline.clone(), events.clone());
 
         let result = use_case
             .add_timeline_entry(AddTimelineEntryCommand {
@@ -104,6 +123,10 @@ mod tests {
 
         assert_eq!(result.incident_id, incident.id);
         assert_eq!(timeline.appended.lock().unwrap().len(), 1);
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [DomainEvent::TimelineEntryAdded { .. }]
+        ));
     }
 
     #[tokio::test]
@@ -115,7 +138,9 @@ mod tests {
             Arc::new(MockTeamRepo::default().with_member(team_id, author_id, Role::Observer));
         let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
         let timeline = Arc::new(MockTimelineRepo::default());
-        let use_case = AddTimelineEntryUseCase::new(teams, incidents, timeline.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case =
+            AddTimelineEntryUseCase::new(teams, incidents, timeline.clone(), events.clone());
 
         let result = use_case
             .add_timeline_entry(AddTimelineEntryCommand {
@@ -127,5 +152,6 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), DomainError::Forbidden);
         assert!(timeline.appended.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
     }
 }

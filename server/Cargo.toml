@@ -8,8 +8,8 @@ description = "OpsWarden application server"
 license = "Apache-2.0"
 
 [dependencies]
-axum = "0.8"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -24,6 +24,7 @@ sqlx = { version = "0.8", features = [
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1.89"
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
 argon2 = "0.5.3"
 rand = "0.8"

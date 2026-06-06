@@ -26,10 +26,11 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
+    use crate::domain::event::DomainEvent;
     use crate::domain::incident::Incident;
     use crate::domain::team::Role;
     use crate::domain::timeline::TimelineEntry;
-    use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo};
+    use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
 
     #[derive(Default)]
     pub struct MockTeamRepo {
@@ -80,6 +81,27 @@ pub(crate) mod tests {
             _new_manager: Uuid,
         ) -> Result<(), DomainError> {
             Ok(())
+        }
+
+        async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+            Ok(self
+                .roles
+                .keys()
+                .filter(|(_, u)| *u == user_id)
+                .map(|(t, _)| *t)
+                .collect())
+        }
+    }
+
+    #[derive(Default)]
+    pub struct MockEventPublisher {
+        pub published: Mutex<Vec<DomainEvent>>,
+    }
+
+    #[async_trait]
+    impl EventPublisher for MockEventPublisher {
+        async fn publish(&self, event: DomainEvent) {
+            self.published.lock().unwrap().push(event);
         }
     }
 

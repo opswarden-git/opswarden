@@ -14,6 +14,7 @@ use axum::{
     Router,
 };
 
+use crate::adapters::ws::WsHub;
 use crate::ports::{
     Clock, IncidentRepo, PasswordHasher, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService,
     UserRepo,
@@ -29,6 +30,9 @@ pub struct AppState {
     pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
     pub tokens: Arc<dyn TokenService + Send + Sync>,
     pub token_revocations: Arc<dyn TokenRevocationRepo + Send + Sync>,
+    /// Concrete WebSocket hub: used as `dyn EventPublisher` by the use cases and
+    /// directly by the `/ws` handler to register/unregister connections.
+    pub events: Arc<WsHub>,
     pub clock: Arc<dyn Clock + Send + Sync>,
     pub config: config::Config,
 }
@@ -67,6 +71,8 @@ pub fn build_app(state: AppState) -> Router {
         .route("/about.json", get(handlers::about))
         .route("/api/auth/sign-up", post(handlers::auth::sign_up))
         .route("/api/auth/sign-in", post(handlers::auth::sign_in))
+        // Public upgrade: the WS authenticates in-band via its first message.
+        .route("/ws", get(handlers::ws::ws_handler))
         .merge(protected_routes)
         .with_state(state)
 }

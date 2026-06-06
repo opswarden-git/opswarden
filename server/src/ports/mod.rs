@@ -1,6 +1,7 @@
 // --- server/src/ports/mod.rs ---
 
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
 use crate::domain::team::{Role, Team};
 use crate::domain::timeline::TimelineEntry;
@@ -39,6 +40,9 @@ pub trait TeamRepo: Send + Sync {
         old_manager: Uuid,
         new_manager: Uuid,
     ) -> Result<(), DomainError>;
+    /// Every team a user belongs to. Used by the WebSocket hub to register a
+    /// connection for the right broadcast scopes at connect time.
+    async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
 }
 
 #[async_trait]
@@ -58,6 +62,14 @@ pub trait TimelineRepo: Send + Sync {
         incident_id: Uuid,
         limit: u32,
     ) -> Result<Vec<TimelineEntry>, DomainError>;
+}
+
+#[async_trait]
+pub trait EventPublisher: Send + Sync {
+    /// Broadcast a domain event to interested clients. Fire-and-forget: a
+    /// delivery failure must never fail or roll back the business operation that
+    /// produced the event.
+    async fn publish(&self, event: DomainEvent);
 }
 
 pub trait PasswordHasher: Send + Sync {

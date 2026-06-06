@@ -2,3 +2,4 @@
 
 pub mod crypto;
 pub mod pg;
+pub mod ws;

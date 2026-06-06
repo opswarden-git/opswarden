@@ -91,5 +91,12 @@ pub(crate) mod tests {
                 .push((team_id, old_manager, new_manager));
             Ok(())
         }
+
+        async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+            Ok(match (&self.team, self.roles.contains_key(&user_id)) {
+                (Some(team), true) => vec![team.id],
+                _ => vec![],
+            })
+        }
     }
 }
