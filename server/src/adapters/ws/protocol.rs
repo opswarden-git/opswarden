@@ -1,8 +1,21 @@
 // --- server/src/adapters/ws/protocol.rs ---
 
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::domain::event::DomainEvent;
+
+/// Serialize a `presence_update` frame: who is currently watching `incident_id`.
+/// Presence is ephemeral transport state (it lives in the hub, never the domain),
+/// so its wire shape is defined here alongside the domain-event serialization.
+pub fn presence_wire(incident_id: Uuid, watchers: &[Uuid]) -> String {
+    json!({
+        "type": "presence_update",
+        "incident_id": incident_id,
+        "watchers": watchers,
+    })
+    .to_string()
+}
 
 /// Serialize a domain event to its on-the-wire JSON, per the WebSocket contract
 /// documented in `WEBSOCKET_SPEC.md`. The wire format is a transport concern and
@@ -133,4 +146,17 @@ mod tests {
     }
 
     use chrono::Utc;
+
+    #[test]
+    fn presence_update_wire_shape() {
+        let incident_id = Uuid::new_v4();
+        let u1 = Uuid::new_v4();
+        let u2 = Uuid::new_v4();
+        let v: Value = serde_json::from_str(&presence_wire(incident_id, &[u1, u2])).unwrap();
+        assert_eq!(v["type"], "presence_update");
+        assert_eq!(v["incident_id"], incident_id.to_string());
+        let watchers = v["watchers"].as_array().unwrap();
+        assert_eq!(watchers.len(), 2);
+        assert_eq!(watchers[0], u1.to_string());
+    }
 }
