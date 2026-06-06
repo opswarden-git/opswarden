@@ -42,5 +42,12 @@ curl -s -X POST $BASE/api/incidents/$INC_ID/timeline -H "Authorization: Bearer $
 
 # 4) self-assign (manager>=responder) -> incident_assigned
 curl -s -X PUT $BASE/api/incidents/$INC_ID/assign -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "{\"assignee_id\":\"$USER_ID\"}"
+
+--- PRESENCE (needs a 2nd wscat in another terminal, same token) ---
+# In EACH wscat, after the auth line, send the watch command:
+{"type":"watch","incident_id":"$INC_ID"}
+# Each client then receives a presence_update listing the current watchers.
+# Closing one wscat (or sending unwatch) re-broadcasts an updated list:
+{"type":"unwatch","incident_id":"$INC_ID"}
 =================================================
 OUT

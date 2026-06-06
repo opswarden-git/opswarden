@@ -3,6 +3,9 @@
 # ---- build ----
 FROM rust:1-bookworm AS builder
 WORKDIR /app
+# Compile sqlx's `query!` macros against the committed offline cache
+# (server/.sqlx) instead of a live database — there is no DB at image-build time.
+ENV SQLX_OFFLINE=true
 COPY Cargo.toml ./
 COPY server ./server
 RUN cargo build --release -p opswarden-server
