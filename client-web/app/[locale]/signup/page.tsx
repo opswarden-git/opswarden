@@ -32,7 +32,7 @@ export default function SignupPage() {
       {/* Logo in top-left linking to landing */}
       <a
         href="http://localhost:3002"
-        className="absolute left-8 top-8 flex select-none items-center gap-3 transition-opacity hover:opacity-80 md:left-12 md:top-12"
+        className="absolute top-8 left-8 flex items-center gap-3 transition-opacity select-none hover:opacity-80 md:top-12 md:left-12"
       >
         <Image
           src="/assets/logo-icon.png"

@@ -8,7 +8,7 @@
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml/badge.svg" alt="Release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
-  <img src="https://img.shields.io/badge/status-scaffolding-2F2F2F?style=flat-square" alt="Status: scaffolding" />
+  <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
 </p>
 
 <p align="center">
@@ -51,8 +51,10 @@ rather than yet another re-skinned real-time chat. All business logic lives on t
 server (Rust/Axum, hexagonal architecture); the web and desktop clients display
 and relay, with no business logic.
 
-> Status: this repository is at the **scaffolding** stage (S0). Business code is
-> not written yet. This page describes the target and how to get there.
+> Status: the **core backend** is implemented and tested — email/JWT auth (with
+> logout/revocation), teams + 3-role RBAC, the incident lifecycle and real-time
+> timeline, all on PostgreSQL (SQLx). The real-time front-end and later phases are
+> in progress; this page describes the full target and how to get there.
 
 ## Scope
 
@@ -160,7 +162,7 @@ cargo fmt                                    # format
 
 # Web client (Next.js, from the root via npm workspaces)
 npm install
-npm run dev --workspace client-web          # http://localhost:8081
+npm run dev --workspace client-web          # http://localhost:4242 (compose exposes 8081)
 npm run build --workspace client-web
 ```
 
@@ -170,7 +172,7 @@ npm run build --workspace client-web
 | ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | --------- |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        | S0 (live) |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` | S0 (live) |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:8081` | Phase 1   |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` | Phase 1   |
 | `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` | Phase 3   |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  | Phase 5   |
 

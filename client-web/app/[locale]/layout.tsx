@@ -1,9 +1,18 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 import { AppShell } from "@/components/layout/AppShell";
+
+export const metadata: Metadata = {
+  title: {
+    default: "OpsWarden",
+    template: "%s | OpsWarden",
+  },
+  description: "Real-time incident management and operational coordination.",
+};
 
 export default async function LocaleLayout({
   children,

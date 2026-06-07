@@ -59,7 +59,7 @@ export function Sidebar({ className }: { className?: string }) {
               href={link.href}
               className={cn(
                 "group flex items-center gap-4 px-4 py-3 text-lg transition-colors",
-                isActive ? "font-medium text-gold" : "text-muted hover:text-gold",
+                isActive ? "text-gold font-medium" : "text-muted hover:text-gold",
               )}
             >
               <link.icon className="h-6 w-6" />
