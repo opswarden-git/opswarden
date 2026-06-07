@@ -24,23 +24,23 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
       <div className="mb-8 text-center">
-        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
+        <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
           <Building2 className="h-10 w-10" />
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-text">Set up your organization</h2>
+        <h2 className="text-text text-xl font-bold tracking-tight">Set up your organization</h2>
       </div>
 
       <div className="space-y-4">
         <div>
           <div className="relative">
-            <Building2 className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
+            <Building2 className="text-muted pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
             <input
               type="text"
               required
               placeholder="Organization"
               value={data.stationName || ""}
               onChange={(e) => updateData({ stationName: e.target.value })}
-              className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 py-3 pl-11 pr-4 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+              className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 py-3 pr-4 pl-11 font-sans text-base transition-colors focus:outline-none"
             />
           </div>
         </div>
@@ -49,7 +49,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
           <select
             value={data.timezone || "Europe/Paris"}
             onChange={(e) => updateData({ timezone: e.target.value })}
-            className="w-full cursor-pointer rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+            className="text-text focus:border-gold w-full cursor-pointer rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
           >
             <option value="Europe/Paris">Europe/Paris (CET)</option>
             <option value="Europe/London">Europe/London (GMT)</option>
@@ -59,7 +59,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
         </div>
 
         <div>
-          <label className="mb-2 block font-sans text-xs font-bold uppercase tracking-wider text-muted">
+          <label className="text-muted mb-2 block font-sans text-xs font-bold tracking-wider uppercase">
             Operator Role
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -73,7 +73,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
                   className={`rounded border p-3 text-left font-sans transition-all ${
                     isActive
                       ? "bg-gold/5 border-gold text-gold"
-                      : "border-transparent bg-white/5 text-muted hover:bg-white/10"
+                      : "text-muted border-transparent bg-white/5 hover:bg-white/10"
                   }`}
                 >
                   <div className="text-sm font-bold">{role.label}</div>
@@ -89,13 +89,13 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
         <button
           type="button"
           onClick={back}
-          className="flex shrink-0 items-center justify-center text-muted transition-colors hover:text-text"
+          className="text-muted hover:text-text flex shrink-0 items-center justify-center transition-colors"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
           type="submit"
-          className="hover:bg-gold-hover rounded-md bg-gold px-6 py-2 font-sans text-sm font-bold uppercase tracking-wider text-bg transition-colors"
+          className="hover:bg-gold-hover bg-gold text-bg rounded-md px-6 py-2 font-sans text-sm font-bold tracking-wider uppercase transition-colors"
         >
           Next
         </button>

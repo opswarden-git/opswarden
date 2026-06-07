@@ -29,10 +29,10 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
       <div className="mb-8 text-center">
-        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
+        <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
           <UserRoundPlus className="h-10 w-10" />
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-text">Create your account</h2>
+        <h2 className="text-text text-xl font-bold tracking-tight">Create your account</h2>
       </div>
 
       <div className="space-y-4">
@@ -42,7 +42,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             placeholder="Operator Name"
             value={data.operatorName || ""}
             onChange={(e) => updateData({ operatorName: e.target.value })}
-            className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+            className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
           />
           {errors.operatorName && (
             <p className="mt-1 font-sans text-xs text-red-500">{errors.operatorName}</p>
@@ -55,7 +55,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             placeholder="Email Address"
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
-            className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+            className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
           />
           {errors.email && <p className="mt-1 font-sans text-xs text-red-500">{errors.email}</p>}
         </div>
@@ -67,12 +67,12 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
               placeholder="Password"
               value={data.password || ""}
               onChange={(e) => updateData({ password: e.target.value })}
-              className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+              className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base transition-colors focus:outline-none"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-text"
+              className="text-muted hover:text-text absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
@@ -86,7 +86,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
       <div className="space-y-3 pt-4">
         <button
           type="submit"
-          className="hover:bg-gold-hover w-full rounded-md bg-gold py-3 font-sans text-base font-bold uppercase tracking-wider text-bg transition-colors"
+          className="hover:bg-gold-hover bg-gold text-bg w-full rounded-md py-3 font-sans text-base font-bold tracking-wider uppercase transition-colors"
         >
           Sign Up
         </button>
@@ -94,7 +94,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
         <div className="text-center">
           <Link
             href="/login"
-            className="font-sans text-xs uppercase text-muted transition-colors hover:text-gold"
+            className="text-muted hover:text-gold font-sans text-xs uppercase transition-colors"
           >
             Log in
           </Link>

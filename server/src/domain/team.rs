@@ -1,6 +1,6 @@
 // --- server/src/domain/team.rs ---
 
-use rand::Rng;
+use rand::RngExt;
 use std::fmt;
 use uuid::Uuid;
 
@@ -54,9 +54,9 @@ const CODE_LEN: usize = 6;
 impl InvitationCode {
     /// Generate a fresh random code, e.g. `OPS-A7B9X2`.
     pub fn generate() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let suffix: String = (0..CODE_LEN)
-            .map(|_| CODE_ALPHABET[rng.gen_range(0..CODE_ALPHABET.len())] as char)
+            .map(|_| CODE_ALPHABET[rng.random_range(0..CODE_ALPHABET.len())] as char)
             .collect();
         Self(format!("OPS-{suffix}"))
     }

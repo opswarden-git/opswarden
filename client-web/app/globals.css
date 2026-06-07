@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.ts";
 
 @layer base {
   :root {
@@ -65,7 +64,7 @@
 
 @layer base {
   body {
-    @apply font-sans text-text antialiased;
+    @apply text-text font-sans antialiased;
     min-height: 100vh;
     background-color: #15161a;
     background-image: radial-gradient(

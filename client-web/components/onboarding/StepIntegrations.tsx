@@ -62,10 +62,10 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
   return (
     <div className="mx-auto w-full max-w-sm space-y-6">
       <div className="mb-8 text-center">
-        <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
+        <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
           <Workflow className="h-10 w-10" />
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-text">Connect your integrations</h2>
+        <h2 className="text-text text-xl font-bold tracking-tight">Connect your integrations</h2>
       </div>
 
       <div className="space-y-4">
@@ -88,11 +88,11 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-sans text-sm font-bold text-text">
+                    <span className="text-text truncate font-sans text-sm font-bold">
                       {integ.name}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted">{integ.desc}</p>
+                  <p className="text-muted mt-0.5 truncate text-xs">{integ.desc}</p>
                 </div>
               </div>
 
@@ -101,7 +101,7 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
                 onClick={() => toggle(integ.id)}
                 className={`shrink-0 rounded px-4 py-2 font-sans text-xs font-bold uppercase transition-all ${
                   isActive
-                    ? "bg-white/5 text-muted hover:bg-white/10 hover:text-text"
+                    ? "text-muted hover:text-text bg-white/5 hover:bg-white/10"
                     : "hover:bg-gold-hover bg-gold text-bg"
                 }`}
               >
@@ -116,14 +116,14 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
         <button
           type="button"
           onClick={back}
-          className="flex shrink-0 items-center justify-center text-muted transition-colors hover:text-text"
+          className="text-muted hover:text-text flex shrink-0 items-center justify-center transition-colors"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
         <button
           type="button"
           onClick={next}
-          className="hover:bg-gold-hover rounded-md bg-gold px-6 py-2 font-sans text-sm font-bold uppercase tracking-wider text-bg transition-colors"
+          className="hover:bg-gold-hover bg-gold text-bg rounded-md px-6 py-2 font-sans text-sm font-bold tracking-wider uppercase transition-colors"
         >
           Next
         </button>

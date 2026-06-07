@@ -10,11 +10,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname?.includes("/login") || pathname?.includes("/signup");
 
   if (isAuthPage) {
-    return <div className="relative min-h-screen text-text">{children}</div>;
+    return <div className="text-text relative min-h-screen">{children}</div>;
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-text md:flex-row">
+    <div className="text-text flex min-h-screen flex-col md:flex-row">
       {/* Sidebar - hidden on mobile, visible on medium screens and up */}
       <Sidebar className="hidden md:flex" />
 

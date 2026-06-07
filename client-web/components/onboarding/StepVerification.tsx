@@ -52,7 +52,7 @@ export function StepVerification({ data }: StepProps) {
     <div className="mx-auto w-full max-w-sm space-y-6">
       <div
         ref={containerRef}
-        className="scrollbar-thin scrollbar-thumb-muted/10 h-64 w-full space-y-1.5 overflow-y-auto rounded-md border border-white/5 bg-black/60 p-4 font-mono text-xs text-green-500"
+        className="scrollbar-thumb-muted/10 h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md border border-white/5 bg-black/60 p-4 font-mono text-xs text-green-500"
       >
         <div>SYSTEM BOOT LOADER v1.2.0-STABLE</div>
         <div>OPERATOR: {data.operatorName || "UNKNOWN"}</div>

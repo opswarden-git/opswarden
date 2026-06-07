@@ -96,7 +96,7 @@ export default function SettingsPage() {
         {/* Left Column: Title & Navigation */}
         <div className="space-y-8">
           <div>
-            <h1 className="flex items-center gap-4 text-4xl font-bold tracking-tight text-text">
+            <h1 className="text-text flex items-center gap-4 text-4xl font-bold tracking-tight">
               Settings
             </h1>
           </div>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
             <button
               onClick={() => setActiveTab("profile")}
               className={`flex w-full items-center gap-4 py-2 text-left transition-colors ${
-                activeTab === "profile" ? "font-bold text-gold" : "text-muted hover:text-text"
+                activeTab === "profile" ? "text-gold font-bold" : "text-muted hover:text-text"
               }`}
             >
               <Sliders className="h-5 w-5" />
@@ -114,7 +114,7 @@ export default function SettingsPage() {
             <button
               onClick={() => setActiveTab("integrations")}
               className={`flex w-full items-center gap-4 py-2 text-left transition-colors ${
-                activeTab === "integrations" ? "font-bold text-gold" : "text-muted hover:text-text"
+                activeTab === "integrations" ? "text-gold font-bold" : "text-muted hover:text-text"
               }`}
             >
               <Workflow className="h-5 w-5" />
@@ -129,21 +129,21 @@ export default function SettingsPage() {
             <>
               {/* Mock Operator Profile Section */}
               <div className="glass space-y-4 rounded-lg p-8">
-                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
-                  <UserRound className="h-6 w-6 text-muted" />
+                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold">
+                  <UserRound className="text-muted h-6 w-6" />
                   User
                 </h2>
                 <div className="grid grid-cols-2 gap-4 font-mono text-base">
                   <div>
-                    <span className="mb-1 block text-sm uppercase text-muted">Operator Alias</span>
-                    <span className="font-bold text-text">Operator Alpha</span>
+                    <span className="text-muted mb-1 block text-sm uppercase">Operator Alias</span>
+                    <span className="text-text font-bold">Operator Alpha</span>
                   </div>
                   <div>
-                    <span className="mb-1 block text-sm uppercase text-muted">Clearance Level</span>
-                    <span className="font-bold text-text">Level 1 NOC</span>
+                    <span className="text-muted mb-1 block text-sm uppercase">Clearance Level</span>
+                    <span className="text-text font-bold">Level 1 NOC</span>
                   </div>
                   <div className="col-span-2">
-                    <span className="mb-1 block text-sm uppercase text-muted">Active Station</span>
+                    <span className="text-muted mb-1 block text-sm uppercase">Active Station</span>
                     <span className="text-text">Core NOC Paris</span>
                   </div>
                 </div>
@@ -151,20 +151,20 @@ export default function SettingsPage() {
 
               {/* Regional Preferences Section */}
               <div className="glass space-y-4 rounded-lg p-8">
-                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
-                  <Languages className="h-6 w-6 text-muted" />
+                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold">
+                  <Languages className="text-muted h-6 w-6" />
                   Language
                 </h2>
                 <div className="flex items-center justify-between gap-4 p-4">
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-text">Interface Language</h3>
+                    <h3 className="text-text text-base font-bold">Interface Language</h3>
                   </div>
                   <div className="flex shrink-0 gap-4">
                     <button
                       onClick={() => switchLocale("en")}
                       className={`font-mono text-sm transition-colors ${
                         currentLocale === "en"
-                          ? "font-bold text-gold"
+                          ? "text-gold font-bold"
                           : "text-muted hover:text-text"
                       }`}
                     >
@@ -174,7 +174,7 @@ export default function SettingsPage() {
                       onClick={() => switchLocale("fr")}
                       className={`font-mono text-sm transition-colors ${
                         currentLocale === "fr"
-                          ? "font-bold text-gold"
+                          ? "text-gold font-bold"
                           : "text-muted hover:text-text"
                       }`}
                     >
@@ -186,8 +186,8 @@ export default function SettingsPage() {
 
               {/* Account Actions Section */}
               <div className="glass space-y-6 rounded-lg p-8">
-                <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
-                  <PencilLine className="h-6 w-6 text-muted" />
+                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold">
+                  <PencilLine className="text-muted h-6 w-6" />
                   Account Actions
                 </h2>
 
@@ -199,7 +199,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-red-700"
+                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold tracking-wider text-white uppercase transition-all hover:bg-red-700"
                     >
                       <LogOut className="h-5 w-5" />
                       Log Out
@@ -213,7 +213,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={handleDeleteAccount}
-                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-red-700"
+                      className="flex shrink-0 items-center gap-2 rounded border-none bg-red-600 px-4 py-2.5 text-sm font-bold tracking-wider text-white uppercase transition-all hover:bg-red-700"
                     >
                       <Trash2 className="h-5 w-5" />
                       Delete Account
@@ -226,8 +226,8 @@ export default function SettingsPage() {
 
           {activeTab === "integrations" && (
             <div className="glass space-y-6 rounded-lg p-8">
-              <h2 className="flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold text-text">
-                <Workflow className="h-6 w-6 text-muted" />
+              <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 font-mono text-xl font-bold">
+                <Workflow className="text-muted h-6 w-6" />
                 Connectors
               </h2>
 
@@ -250,10 +250,10 @@ export default function SettingsPage() {
                           />
                         </div>
                         <div className="min-w-0 pr-4">
-                          <span className="block truncate font-mono text-base font-bold text-text">
+                          <span className="text-text block truncate font-mono text-base font-bold">
                             {integ.name}
                           </span>
-                          <p className="mt-0.5 truncate text-sm text-muted">{integ.desc}</p>
+                          <p className="text-muted mt-0.5 truncate text-sm">{integ.desc}</p>
                         </div>
                       </div>
 
@@ -262,7 +262,7 @@ export default function SettingsPage() {
                         onClick={() => toggleIntegration(integ.id)}
                         className={`shrink-0 rounded px-4 py-2 font-mono text-sm font-bold uppercase transition-all ${
                           isActive
-                            ? "bg-white/5 text-muted hover:bg-white/10 hover:text-text"
+                            ? "text-muted hover:text-text bg-white/5 hover:bg-white/10"
                             : "hover:bg-gold-hover bg-gold text-bg"
                         }`}
                       >
