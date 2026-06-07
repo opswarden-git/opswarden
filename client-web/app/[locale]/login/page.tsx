@@ -23,7 +23,7 @@ export default function LoginPage() {
       {/* Logo in top-left linking to landing */}
       <a
         href="http://localhost:3002"
-        className="absolute left-8 top-8 flex select-none items-center gap-3 transition-opacity hover:opacity-80 md:left-12 md:top-12"
+        className="absolute top-8 left-8 flex items-center gap-3 transition-opacity select-none hover:opacity-80 md:top-12 md:left-12"
       >
         <Image
           src="/assets/logo-icon.png"
@@ -48,10 +48,10 @@ export default function LoginPage() {
         <div className="glass relative flex min-h-[460px] w-full flex-col overflow-hidden rounded-xl p-10 md:p-12">
           <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
             <div className="mb-8 text-center">
-              <div className="bg-gold/10 mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full text-gold">
+              <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
                 <KeyRound className="h-10 w-10" />
               </div>
-              <h2 className="text-xl font-bold tracking-tight text-text">Log in to your account</h2>
+              <h2 className="text-text text-xl font-bold tracking-tight">Log in to your account</h2>
             </div>
 
             <div className="space-y-4">
@@ -62,7 +62,7 @@ export default function LoginPage() {
                   placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+                  className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
                 />
               </div>
 
@@ -74,12 +74,12 @@ export default function LoginPage() {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="placeholder:text-muted/40 w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base text-text transition-colors focus:border-gold focus:outline-none"
+                    className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base transition-colors focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-text"
+                    className="text-muted hover:text-text absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -90,7 +90,7 @@ export default function LoginPage() {
             <div className="space-y-3 pt-4">
               <button
                 type="submit"
-                className="hover:bg-gold-hover w-full rounded-md bg-gold py-3 font-sans text-base font-bold uppercase tracking-wider text-bg transition-colors"
+                className="hover:bg-gold-hover bg-gold text-bg w-full rounded-md py-3 font-sans text-base font-bold tracking-wider uppercase transition-colors"
               >
                 Log in
               </button>
@@ -98,7 +98,7 @@ export default function LoginPage() {
               <div className="text-center">
                 <Link
                   href="/signup"
-                  className="font-sans text-xs uppercase text-muted transition-colors hover:text-gold"
+                  className="text-muted hover:text-gold font-sans text-xs uppercase transition-colors"
                 >
                   Sign Up
                 </Link>

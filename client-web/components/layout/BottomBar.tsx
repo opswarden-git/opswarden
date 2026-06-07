@@ -19,7 +19,7 @@ export function BottomBar({ className }: { className?: string }) {
   return (
     <nav
       className={cn(
-        "glass fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around px-2",
+        "glass fixed right-0 bottom-0 left-0 z-50 flex h-16 items-center justify-around px-2",
         className,
       )}
     >
