@@ -43,6 +43,22 @@ pub enum DomainEvent {
         incident_id: Uuid,
         user_id: Uuid,
     },
+    /// An automation rule fired and its reaction succeeded (Phase 2). Carries the
+    /// opened incident when the reaction created one (`CreateIncident`), `None`
+    /// for side-effect reactions like `Notify`.
+    RuleTriggered {
+        team_id: Uuid,
+        service: String,
+        rule: String,
+        incident_id: Option<Uuid>,
+    },
+    /// An automation rule matched but its reaction failed (Phase 2).
+    RuleFailed {
+        team_id: Uuid,
+        service: String,
+        rule: String,
+        reason: String,
+    },
 }
 
 impl DomainEvent {
@@ -53,7 +69,9 @@ impl DomainEvent {
             | DomainEvent::IncidentEscalated { team_id, .. }
             | DomainEvent::IncidentAssigned { team_id, .. }
             | DomainEvent::TimelineEntryAdded { team_id, .. }
-            | DomainEvent::UserTyping { team_id, .. } => *team_id,
+            | DomainEvent::UserTyping { team_id, .. }
+            | DomainEvent::RuleTriggered { team_id, .. }
+            | DomainEvent::RuleFailed { team_id, .. } => *team_id,
         }
     }
 }

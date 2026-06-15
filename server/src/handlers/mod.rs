@@ -8,6 +8,7 @@ pub mod error;
 pub mod incident;
 pub mod middleware;
 pub mod team;
+pub mod webhook;
 pub mod ws;
 
 #[derive(Serialize)]
@@ -65,7 +66,26 @@ pub async fn about(State(state): State<AppState>) -> Json<About> {
         server: ServerInfo {
             current_time,
             token: state.config.kickoff_token(),
-            services: Vec::new(),
+            services: automation_catalog(),
         },
     })
+}
+
+/// The Action -> REAction catalog the engine actually supports, surfaced on
+/// `/about.json` so the contract is server-driven (nothing hard-coded client
+/// side). Grows as services/Actions/REActions are added in `adapters/webhook`
+/// and the rule engine.
+fn automation_catalog() -> Vec<ServiceCatalog> {
+    vec![ServiceCatalog {
+        name: "github".to_string(),
+        actions: vec![CatalogItem {
+            name: "ci_failed".to_string(),
+            description: "A GitHub Actions workflow run completed with a failing conclusion"
+                .to_string(),
+        }],
+        reactions: vec![CatalogItem {
+            name: "create_incident".to_string(),
+            description: "Open a high-severity incident in the configured team".to_string(),
+        }],
+    }]
 }

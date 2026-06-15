@@ -81,6 +81,28 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "incident_id": incident_id,
             "user_id": user_id,
         }),
+        DomainEvent::RuleTriggered {
+            service,
+            rule,
+            incident_id,
+            ..
+        } => json!({
+            "type": "rule_triggered",
+            "service": service,
+            "rule": rule,
+            "incident_id": incident_id,
+        }),
+        DomainEvent::RuleFailed {
+            service,
+            rule,
+            reason,
+            ..
+        } => json!({
+            "type": "rule_failed",
+            "service": service,
+            "rule": rule,
+            "reason": reason,
+        }),
     };
     value.to_string()
 }
@@ -181,5 +203,33 @@ mod tests {
         assert_eq!(v["type"], "user_typing");
         assert_eq!(v["incident_id"], incident_id.to_string());
         assert_eq!(v["user_id"], user_id.to_string());
+    }
+
+    #[test]
+    fn rule_triggered_wire_shape() {
+        let incident_id = Uuid::new_v4();
+        let v = parse(&DomainEvent::RuleTriggered {
+            team_id: Uuid::new_v4(),
+            service: "github".to_string(),
+            rule: "github-ci-failed-to-incident".to_string(),
+            incident_id: Some(incident_id),
+        });
+        assert_eq!(v["type"], "rule_triggered");
+        assert_eq!(v["service"], "github");
+        assert_eq!(v["rule"], "github-ci-failed-to-incident");
+        assert_eq!(v["incident_id"], incident_id.to_string());
+    }
+
+    #[test]
+    fn rule_failed_wire_shape() {
+        let v = parse(&DomainEvent::RuleFailed {
+            team_id: Uuid::new_v4(),
+            service: "github".to_string(),
+            rule: "github-ci-failed-to-incident".to_string(),
+            reason: "Incident title cannot be empty".to_string(),
+        });
+        assert_eq!(v["type"], "rule_failed");
+        assert_eq!(v["service"], "github");
+        assert_eq!(v["reason"], "Incident title cannot be empty");
     }
 }

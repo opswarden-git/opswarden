@@ -16,8 +16,8 @@ use axum::{
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    Clock, IncidentRepo, PasswordHasher, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService,
-    UserRepo,
+    Clock, IncidentRepo, Notifier, PasswordHasher, RuleRepo, SecretVault, TeamRepo, TimelineRepo,
+    TokenRevocationRepo, TokenService, UserRepo, WebhookParser, WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -34,6 +34,13 @@ pub struct AppState {
     /// directly by the `/ws` handler to register/unregister connections.
     pub events: Arc<WsHub>,
     pub clock: Arc<dyn Clock + Send + Sync>,
+    /// Phase 2 automation: encrypted secret vault, webhook auth + decoding, and
+    /// the configured Action -> REAction rules.
+    pub vault: Arc<dyn SecretVault + Send + Sync>,
+    pub webhook_verifier: Arc<dyn WebhookVerifier + Send + Sync>,
+    pub webhook_parser: Arc<dyn WebhookParser + Send + Sync>,
+    pub rules: Arc<dyn RuleRepo + Send + Sync>,
+    pub notifier: Arc<dyn Notifier + Send + Sync>,
     pub config: config::Config,
 }
 
@@ -85,6 +92,8 @@ pub fn build_app(state: AppState) -> Router {
         .route("/api/auth/sign-in", post(handlers::auth::sign_in))
         // Public upgrade: the WS authenticates in-band via its first message.
         .route("/ws", get(handlers::ws::ws_handler))
+        // Public: authenticated by the request's HMAC signature, not a JWT.
+        .route("/webhooks/{service}", post(handlers::webhook::receive))
         .merge(protected_routes)
         .with_state(state)
 }

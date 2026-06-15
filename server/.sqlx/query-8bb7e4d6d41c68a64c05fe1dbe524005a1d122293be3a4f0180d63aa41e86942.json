@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO external_secrets (service, nonce, ciphertext, updated_at)\n            VALUES ($1, $2, $3, now())\n            ON CONFLICT (service)\n            DO UPDATE SET nonce = EXCLUDED.nonce,\n                          ciphertext = EXCLUDED.ciphertext,\n                          updated_at = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8bb7e4d6d41c68a64c05fe1dbe524005a1d122293be3a4f0180d63aa41e86942"
+}
