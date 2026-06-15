@@ -1,5 +1,6 @@
 // --- server/src/ports/mod.rs ---
 
+use crate::domain::automation::{ExternalEvent, Rule};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
@@ -99,3 +100,43 @@ pub trait TokenRevocationRepo: Send + Sync {
     async fn is_revoked(&self, token: &str) -> Result<bool, DomainError>;
 }
 pub trait Clock: Send + Sync {}
+
+// --- Phase 2: automation & secrets -----------------------------------------
+
+/// Encrypted storage for third-party secrets (webhook HMAC keys, outbound API
+/// tokens). The persisted form is ciphertext only — a raw `SELECT` reveals
+/// nothing. The cipher (AES-GCM) and the storage backend are adapter concerns.
+#[async_trait]
+pub trait SecretVault: Send + Sync {
+    /// Encrypt and persist the secret for `service` (idempotent upsert).
+    async fn store(&self, service: &str, secret: &str) -> Result<(), DomainError>;
+    /// Decrypt and return the secret for `service`, or `None` if none is stored.
+    async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError>;
+}
+
+/// Verifies that an inbound webhook body carries a valid signature for a given
+/// shared secret. Implementations are constant-time (HMAC-SHA256 for GitHub).
+pub trait WebhookVerifier: Send + Sync {
+    fn verify(&self, secret: &str, body: &[u8], signature: &str) -> bool;
+}
+
+/// Decodes a raw provider payload into a normalized domain `ExternalEvent`.
+/// Returns `None` for payloads we don't act on (so they're acknowledged, not
+/// rejected). Provider-specific JSON shapes live in the adapter, never the app.
+pub trait WebhookParser: Send + Sync {
+    fn parse(&self, service: &str, body: &[u8]) -> Option<ExternalEvent>;
+}
+
+/// Supplies the configured automation rules to the hook engine.
+#[async_trait]
+pub trait RuleRepo: Send + Sync {
+    async fn list_rules(&self) -> Result<Vec<Rule>, DomainError>;
+}
+
+/// Outbound notification REAction: POST a `message` to a `url`. One generic
+/// connector — a Slack incoming webhook, Discord, Teams or any HTTP endpoint is
+/// just a URL. The transport (reqwest, payload shape) is an adapter concern.
+#[async_trait]
+pub trait Notifier: Send + Sync {
+    async fn notify(&self, url: &str, message: &str) -> Result<(), DomainError>;
+}

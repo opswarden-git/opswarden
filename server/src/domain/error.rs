@@ -21,6 +21,14 @@ pub enum DomainError {
     AssigneeNotResponder,
     ManagerCannotLeave,
     Forbidden,
+    /// Webhook HMAC signature missing or invalid (Phase 2).
+    InvalidSignature,
+    /// No secret/config registered for the targeted webhook service (Phase 2).
+    UnknownService,
+    /// Encryption/decryption failure in the secret vault (Phase 2).
+    Crypto,
+    /// A rule's outbound reaction (e.g. an HTTP/Slack notification) failed (Phase 2).
+    ReactionFailed,
     Storage,
 }
 
@@ -52,6 +60,10 @@ impl std::fmt::Display for DomainError {
             }
             DomainError::ManagerCannotLeave => write!(f, "The team manager cannot leave the team, transfer the role or delete the team instead"),
             DomainError::Forbidden => write!(f, "You are not allowed to perform this action"),
+            DomainError::InvalidSignature => write!(f, "Invalid webhook signature"),
+            DomainError::UnknownService => write!(f, "Unknown webhook service"),
+            DomainError::Crypto => write!(f, "Cryptographic failure"),
+            DomainError::ReactionFailed => write!(f, "Automation reaction failed"),
             DomainError::Storage => write!(f, "Storage failure"),
         }
     }
