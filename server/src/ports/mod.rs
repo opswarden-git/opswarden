@@ -44,6 +44,9 @@ pub trait TeamRepo: Send + Sync {
     /// Every team a user belongs to. Used by the WebSocket hub to register a
     /// connection for the right broadcast scopes at connect time.
     async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
+    /// Every team a user belongs to, paired with the role they hold there.
+    /// Powers the dashboard's team list and lets the client gate actions by role.
+    async fn list_teams_for_user(&self, user_id: Uuid) -> Result<Vec<(Team, Role)>, DomainError>;
     /// Delete a team completely from the system.
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
     /// Remove a user from a team.

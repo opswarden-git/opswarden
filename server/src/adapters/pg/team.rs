@@ -178,6 +178,36 @@ impl TeamRepo for PgTeamRepo {
         Ok(records.into_iter().map(|row| row.team_id).collect())
     }
 
+    async fn list_teams_for_user(&self, user_id: Uuid) -> Result<Vec<(Team, Role)>, DomainError> {
+        let records = sqlx::query!(
+            r#"
+            SELECT t.id, t.name, t.invitation_code, m.role
+            FROM team_members m
+            JOIN teams t ON t.id = m.team_id
+            WHERE m.user_id = $1
+            ORDER BY m.joined_at
+            "#,
+            user_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(records
+            .into_iter()
+            .map(|row| {
+                (
+                    Team {
+                        id: row.id,
+                        name: row.name,
+                        invitation_code: InvitationCode::from_existing(row.invitation_code),
+                    },
+                    role_from_str(&row.role),
+                )
+            })
+            .collect())
+    }
+
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
         sqlx::query!(
             r#"

@@ -287,3 +287,119 @@ async fn manager_can_delete_incident() {
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
+
+#[tokio::test]
+async fn list_incidents_returns_team_incidents_for_a_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "DB latency", Severity::High).unwrap();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Observer);
+    ctx.incidents.seed_incident(incident.clone());
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents?team_id={team_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let incidents = json.as_array().unwrap();
+    assert_eq!(incidents.len(), 1);
+    assert_eq!(incidents[0]["title"], "DB latency");
+    assert_eq!(incidents[0]["severity"], "high");
+    assert_eq!(incidents[0]["status"], "open");
+}
+
+#[tokio::test]
+async fn list_incidents_is_forbidden_for_a_non_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    // No membership seeded for the mock user (Uuid::nil()).
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents?team_id={team_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn get_incident_returns_detail_for_a_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "Cache outage", Severity::Critical).unwrap();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Responder);
+    ctx.incidents.seed_incident(incident.clone());
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents/{}", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["incident_id"], incident.id.to_string());
+    assert_eq!(json["severity"], "critical");
+    assert_eq!(json["status"], "open");
+}
+
+#[tokio::test]
+async fn get_incident_is_forbidden_for_a_non_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "Cache outage", Severity::Critical).unwrap();
+    ctx.incidents.seed_incident(incident.clone());
+    // mock user is not a member of the incident's team.
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents/{}", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
