@@ -3,12 +3,14 @@ pub mod create_team;
 pub mod delete_team;
 pub mod join_team;
 pub mod leave_team;
+pub mod list_teams;
 pub mod transfer_manager;
 
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
 pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
 pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
+pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
 
 // Shared in-memory mock for the team use-case tests (no DB in this run).
@@ -101,6 +103,16 @@ pub(crate) mod tests {
         async fn list_team_ids_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
             Ok(match (&self.team, self.roles.contains_key(&user_id)) {
                 (Some(team), true) => vec![team.id],
+                _ => vec![],
+            })
+        }
+
+        async fn list_teams_for_user(
+            &self,
+            user_id: Uuid,
+        ) -> Result<Vec<(Team, Role)>, DomainError> {
+            Ok(match (&self.team, self.roles.get(&user_id)) {
+                (Some(team), Some(role)) => vec![(team.clone(), *role)],
                 _ => vec![],
             })
         }

@@ -7,12 +7,45 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::team::{
-    CreateTeamCommand, CreateTeamUseCase, JoinTeamCommand, JoinTeamUseCase, TransferManagerCommand,
-    TransferManagerUseCase,
+    CreateTeamCommand, CreateTeamUseCase, JoinTeamCommand, JoinTeamUseCase, ListTeamsCommand,
+    ListTeamsUseCase, TransferManagerCommand, TransferManagerUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
+
+#[derive(Serialize)]
+pub struct TeamSummaryResponse {
+    pub team_id: Uuid,
+    pub name: String,
+    pub invitation_code: String,
+    pub role: String,
+}
+
+pub async fn list_teams(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+) -> Result<Json<Vec<TeamSummaryResponse>>, DomainError> {
+    let use_case = ListTeamsUseCase::new(state.teams.clone());
+    let result = use_case
+        .list_teams(ListTeamsCommand {
+            user_id: session.user_id,
+        })
+        .await?;
+
+    Ok(Json(
+        result
+            .teams
+            .into_iter()
+            .map(|team| TeamSummaryResponse {
+                team_id: team.team_id,
+                name: team.name,
+                invitation_code: team.invitation_code,
+                role: team.role.to_string(),
+            })
+            .collect(),
+    ))
+}
 
 #[derive(Deserialize)]
 pub struct CreateTeamPayload {

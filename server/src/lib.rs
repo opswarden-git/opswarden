@@ -48,7 +48,10 @@ pub fn build_app(state: AppState) -> Router {
     let protected_routes = Router::new()
         .route("/api/me", get(handlers::auth::get_me))
         .route("/api/auth/logout", post(handlers::auth::logout))
-        .route("/api/teams", post(handlers::team::create_team))
+        .route(
+            "/api/teams",
+            post(handlers::team::create_team).get(handlers::team::list_teams),
+        )
         .route("/api/teams/join", post(handlers::team::join_team))
         .route(
             "/api/teams/{team_id}",
@@ -62,10 +65,14 @@ pub fn build_app(state: AppState) -> Router {
             "/api/teams/{team_id}/manager",
             put(handlers::team::transfer_manager),
         )
-        .route("/api/incidents", post(handlers::incident::create_incident))
+        .route(
+            "/api/incidents",
+            post(handlers::incident::create_incident).get(handlers::incident::list_incidents),
+        )
         .route(
             "/api/incidents/{incident_id}",
-            axum::routing::delete(handlers::incident::delete_incident),
+            axum::routing::delete(handlers::incident::delete_incident)
+                .get(handlers::incident::get_incident),
         )
         .route(
             "/api/incidents/{incident_id}/status",
