@@ -57,6 +57,12 @@ impl IntoResponse for DomainError {
                 StatusCode::FORBIDDEN,
                 "You are not allowed to perform this action",
             ),
+            DomainError::InvalidSignature => {
+                (StatusCode::UNAUTHORIZED, "Invalid webhook signature")
+            }
+            DomainError::UnknownService => (StatusCode::NOT_FOUND, "Unknown webhook service"),
+            DomainError::Crypto => (StatusCode::INTERNAL_SERVER_ERROR, "Cryptographic failure"),
+            DomainError::ReactionFailed => (StatusCode::BAD_GATEWAY, "Automation reaction failed"),
             DomainError::AssigneeNotResponder => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "Assignee must be a Responder or Manager of the team",

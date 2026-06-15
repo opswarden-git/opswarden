@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use opswarden_server::adapters::automation::StaticRuleRepo;
+use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
+use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
@@ -7,8 +10,8 @@ use opswarden_server::domain::team::{Role, Team};
 use opswarden_server::domain::timeline::TimelineEntry;
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
-    Clock, IncidentRepo, PasswordHasher, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
-    TokenService, UserRepo,
+    Clock, IncidentRepo, Notifier, PasswordHasher, RuleRepo, SecretVault, TeamRepo, TimelineRepo,
+    TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -22,6 +25,47 @@ pub struct TestContext {
     pub incidents: Arc<DummyIncidentRepo>,
     pub timeline: Arc<DummyTimelineRepo>,
     pub revoked_tokens: Arc<DummyTokenRevocationRepo>,
+    pub vault: Arc<DummyVault>,
+}
+
+/// In-memory secret vault for tests: stores plaintext keyed by service, so a
+/// webhook test can seed a known secret and then sign a body with it.
+#[derive(Default)]
+pub struct DummyVault {
+    secrets: Mutex<HashMap<String, String>>,
+}
+
+#[allow(dead_code)]
+impl DummyVault {
+    pub fn seed(&self, service: &str, secret: &str) {
+        self.secrets
+            .lock()
+            .unwrap()
+            .insert(service.to_string(), secret.to_string());
+    }
+}
+
+#[async_trait]
+impl SecretVault for DummyVault {
+    async fn store(&self, service: &str, secret: &str) -> Result<(), DomainError> {
+        self.seed(service, secret);
+        Ok(())
+    }
+
+    async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError> {
+        Ok(self.secrets.lock().unwrap().get(service).cloned())
+    }
+}
+
+/// No-op notifier for tests: the Notify REAction is unit-tested in the use-case
+/// with a recording mock; here we only need the wiring to compile and succeed.
+pub struct DummyNotifier;
+
+#[async_trait]
+impl Notifier for DummyNotifier {
+    async fn notify(&self, _url: &str, _message: &str) -> Result<(), DomainError> {
+        Ok(())
+    }
 }
 
 pub struct DummyUserRepo;
@@ -280,10 +324,22 @@ impl TimelineRepo for DummyTimelineRepo {
 }
 
 pub fn test_context() -> TestContext {
+    build_context(Arc::new(StaticRuleRepo::empty()))
+}
+
+/// A context whose hook engine has the Phase-2 GitHub rule wired to `team_id`.
+/// Seed the matching secret with `ctx.vault.seed("github", secret)`.
+#[allow(dead_code)]
+pub fn test_context_with_github_rule(team_id: Uuid) -> TestContext {
+    build_context(Arc::new(StaticRuleRepo::github_ci_to_incident(team_id)))
+}
+
+fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
     let teams = Arc::new(DummyTeamRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
     let timeline = Arc::new(DummyTimelineRepo::default());
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
+    let vault = Arc::new(DummyVault::default());
     let config = Config::from_env();
 
     let app = build_app(AppState {
@@ -296,6 +352,11 @@ pub fn test_context() -> TestContext {
         token_revocations: revoked_tokens.clone(),
         events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),
+        vault: vault.clone(),
+        webhook_verifier: Arc::new(HmacSha256Verifier),
+        webhook_parser: Arc::new(GithubParser),
+        rules,
+        notifier: Arc::new(DummyNotifier),
         config,
     });
 
@@ -305,6 +366,7 @@ pub fn test_context() -> TestContext {
         incidents,
         timeline,
         revoked_tokens,
+        vault,
     }
 }
 
