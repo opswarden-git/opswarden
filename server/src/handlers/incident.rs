@@ -10,13 +10,84 @@ use uuid::Uuid;
 use crate::app::incident::{
     AddTimelineEntryCommand, AddTimelineEntryUseCase, AssignResponderCommand,
     AssignResponderUseCase, ChangeIncidentStatusCommand, ChangeIncidentStatusUseCase,
-    CreateIncidentCommand, CreateIncidentUseCase, ListTimelineEntriesCommand,
+    CreateIncidentCommand, CreateIncidentUseCase, GetIncidentCommand, GetIncidentUseCase,
+    ListIncidentsCommand, ListIncidentsUseCase, ListTimelineEntriesCommand,
     ListTimelineEntriesUseCase,
 };
 use crate::domain::error::DomainError;
-use crate::domain::incident::{IncidentStatus, Severity};
+use crate::domain::incident::{Incident, IncidentStatus, Severity};
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
+
+/// Read-side view of an incident (list + detail), richer than the create
+/// response: includes the assignee and creation time the dashboard needs.
+#[derive(Serialize)]
+pub struct IncidentView {
+    pub incident_id: Uuid,
+    pub team_id: Uuid,
+    pub title: String,
+    pub status: String,
+    pub severity: String,
+    pub assignee_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<Incident> for IncidentView {
+    fn from(incident: Incident) -> Self {
+        Self {
+            incident_id: incident.id,
+            team_id: incident.team_id,
+            title: incident.title,
+            status: incident.status.to_string(),
+            severity: incident.severity.to_string(),
+            assignee_id: incident.assignee,
+            created_at: incident.created_at,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ListIncidentsQuery {
+    pub team_id: Uuid,
+}
+
+pub async fn list_incidents(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Query(query): Query<ListIncidentsQuery>,
+) -> Result<Json<Vec<IncidentView>>, DomainError> {
+    let use_case = ListIncidentsUseCase::new(state.teams.clone(), state.incidents.clone());
+    let result = use_case
+        .list_incidents(ListIncidentsCommand {
+            team_id: query.team_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(Json(
+        result
+            .incidents
+            .into_iter()
+            .map(IncidentView::from)
+            .collect(),
+    ))
+}
+
+pub async fn get_incident(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(incident_id): Path<Uuid>,
+) -> Result<Json<IncidentView>, DomainError> {
+    let use_case = GetIncidentUseCase::new(state.teams.clone(), state.incidents.clone());
+    let result = use_case
+        .get_incident(GetIncidentCommand {
+            incident_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(Json(IncidentView::from(result.incident)))
+}
 
 #[derive(Deserialize)]
 pub struct CreateIncidentPayload {

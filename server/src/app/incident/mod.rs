@@ -3,6 +3,8 @@ pub mod assign_responder;
 pub mod change_incident_status;
 pub mod create_incident;
 pub mod delete_incident;
+pub mod get_incident;
+pub mod list_incidents;
 pub mod list_timeline_entries;
 
 pub use add_timeline_entry::{
@@ -14,6 +16,8 @@ pub use change_incident_status::{
 };
 pub use create_incident::{CreateIncidentCommand, CreateIncidentResult, CreateIncidentUseCase};
 pub use delete_incident::{DeleteIncidentCommand, DeleteIncidentUseCase};
+pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
+pub use list_incidents::{ListIncidentsCommand, ListIncidentsResult, ListIncidentsUseCase};
 pub use list_timeline_entries::{
     ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
     DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
@@ -91,6 +95,28 @@ pub(crate) mod tests {
                 .keys()
                 .filter(|(_, u)| *u == user_id)
                 .map(|(t, _)| *t)
+                .collect())
+        }
+
+        async fn list_teams_for_user(
+            &self,
+            user_id: Uuid,
+        ) -> Result<Vec<(crate::domain::team::Team, Role)>, DomainError> {
+            use crate::domain::team::{InvitationCode, Team};
+            Ok(self
+                .roles
+                .iter()
+                .filter(|((_, u), _)| *u == user_id)
+                .map(|((t, _), role)| {
+                    (
+                        Team {
+                            id: *t,
+                            name: format!("team-{t}"),
+                            invitation_code: InvitationCode::from_existing("OPS-TEST00"),
+                        },
+                        *role,
+                    )
+                })
                 .collect())
         }
 

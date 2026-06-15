@@ -154,3 +154,37 @@ async fn manager_can_delete_team() {
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 }
+
+#[tokio::test]
+async fn list_teams_returns_the_users_teams_with_roles() {
+    let ctx = test_context();
+    let team = Team::new("SRE Core").unwrap();
+    ctx.teams.seed_team(team.clone());
+    ctx.teams.seed_member(team.id, Uuid::nil(), Role::Manager);
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/teams")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let teams = json.as_array().unwrap();
+    assert_eq!(teams.len(), 1);
+    assert_eq!(teams[0]["name"], "SRE Core");
+    assert_eq!(teams[0]["role"], "manager");
+    assert_eq!(teams[0]["invitation_code"], team.invitation_code.as_str());
+}

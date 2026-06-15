@@ -209,6 +209,21 @@ impl TeamRepo for DummyTeamRepo {
             .collect())
     }
 
+    async fn list_teams_for_user(&self, user_id: Uuid) -> Result<Vec<(Team, Role)>, DomainError> {
+        let roles = self.roles.lock().unwrap();
+        let teams = self.teams_by_code.lock().unwrap();
+        Ok(roles
+            .iter()
+            .filter(|((_, u), _)| *u == user_id)
+            .filter_map(|((team_id, _), role)| {
+                teams
+                    .values()
+                    .find(|team| team.id == *team_id)
+                    .map(|team| (team.clone(), *role))
+            })
+            .collect())
+    }
+
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
         self.teams_by_code
             .lock()
