@@ -41,9 +41,9 @@ After authenticating, a client may send commands. Unknown or malformed frames ar
 ignored (forward-compatible). Presence is **ephemeral**: it is never persisted and
 is forgotten when the connection closes.
 
-| `type` | Effect | Payload |
-|---|---|---|
-| `watch` | start watching an incident; co-watchers receive a `presence_update` | `{ "type": "watch", "incident_id": "…" }` |
+| `type`    | Effect                                                                       | Payload                                     |
+| --------- | ---------------------------------------------------------------------------- | ------------------------------------------- |
+| `watch`   | start watching an incident; co-watchers receive a `presence_update`          | `{ "type": "watch", "incident_id": "…" }`   |
 | `unwatch` | stop watching an incident; remaining co-watchers receive a `presence_update` | `{ "type": "unwatch", "incident_id": "…" }` |
 
 A client typically sends `watch` when an incident view opens and `unwatch` when it
@@ -56,13 +56,13 @@ team. `presence_update` is delivered only to the **co-watchers** of the incident
 (the clients currently watching it). `by` / `author` are user ids; `at` is a Unix
 timestamp (seconds).
 
-| `type` | Emitted when | Payload |
-|---|---|---|
-| `incident_state_changed` | an incident transitions state | `{ "type", "incident_id", "new_state", "by" }` |
-| `incident_escalated` | an incident transitions to `escalated` | `{ "type", "incident_id", "new_severity", "by" }` |
-| `incident_assigned` | a Manager assigns a responder | `{ "type", "incident_id", "assigned_to", "by" }` |
-| `timeline_entry_added` | a timeline entry is posted | `{ "type", "incident_id", "entry": { "entry_id", "content", "author", "at" } }` |
-| `presence_update` | the watcher set of an incident changes | `{ "type", "incident_id", "watchers": ["…"] }` |
+| `type`                   | Emitted when                           | Payload                                                                         |
+| ------------------------ | -------------------------------------- | ------------------------------------------------------------------------------- |
+| `incident_state_changed` | an incident transitions state          | `{ "type", "incident_id", "new_state", "by" }`                                  |
+| `incident_escalated`     | an incident transitions to `escalated` | `{ "type", "incident_id", "new_severity", "by" }`                               |
+| `incident_assigned`      | a Manager assigns a responder          | `{ "type", "incident_id", "assigned_to", "by" }`                                |
+| `timeline_entry_added`   | a timeline entry is posted             | `{ "type", "incident_id", "entry": { "entry_id", "content", "author", "at" } }` |
+| `presence_update`        | the watcher set of an incident changes | `{ "type", "incident_id", "watchers": ["…"] }`                                  |
 
 Note: escalating an incident emits **both** `incident_state_changed`
 (`new_state: "escalated"`) and `incident_escalated` (with the current severity).

@@ -12,7 +12,7 @@ name: CI
 
 "on":
   push:
-    branches: ['**']
+    branches: ["**"]
   pull_request:
     branches: [main]
 
@@ -99,7 +99,7 @@ jobs:
           POSTGRES_DB: opswarden
           # Ephemeral CI container on localhost: trust auth, no password to store.
           POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
@@ -142,7 +142,7 @@ jobs:
           POSTGRES_USER: opswarden
           POSTGRES_DB: opswarden
           POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
@@ -189,7 +189,7 @@ jobs:
       - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - name: Install dependencies (workspace)
         run: npm ci
@@ -213,7 +213,7 @@ jobs:
       - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - name: Install dependencies (workspace)
         run: npm ci

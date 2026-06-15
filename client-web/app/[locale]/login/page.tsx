@@ -12,10 +12,48 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simply redirect to dashboard for this visual mockup onboarding
-    router.push("/");
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Invalid email or password");
+      }
+
+      const { token } = await res.json();
+
+      // We import dynamically or rely on global scope to avoid breaking SSR if needed
+      // but since it's "use client", we can just import useAuthStore at the top.
+      const { useAuthStore } = await import("@/store/auth");
+      const { apiFetch } = await import("@/lib/api");
+
+      useAuthStore.getState().setToken(token);
+
+      // Fetch /me
+      const meRes = await apiFetch("/api/me");
+      if (meRes.ok) {
+        const user = await meRes.json();
+        useAuthStore.getState().setUser(user);
+        router.push("/");
+      } else {
+        throw new Error("Failed to fetch user profile");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,11 +126,17 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-3 pt-4">
+              {error && (
+                <div className="rounded-md bg-red-500/10 p-3 text-center text-sm text-red-500">
+                  {error}
+                </div>
+              )}
               <button
                 type="submit"
-                className="hover:bg-gold-hover bg-gold text-bg w-full rounded-md py-3 font-sans text-base font-bold tracking-wider uppercase transition-colors"
+                disabled={loading}
+                className="hover:bg-gold-hover bg-gold text-bg w-full rounded-md py-3 font-sans text-base font-bold tracking-wider uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Log in
+                {loading ? "Logging in..." : "Log in"}
               </button>
 
               <div className="text-center">

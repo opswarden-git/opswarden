@@ -21,9 +21,77 @@ export function StepVerification({ data }: StepProps) {
   const [logs, setLogs] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     let currentIdx = 0;
-    const interval = setInterval(() => {
+    let isCancelled = false;
+    let interval: NodeJS.Timeout;
+
+    const performAuth = async () => {
+      try {
+        // 1. Sign up
+        const signupRes = await fetch("/api/auth/sign-up", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email, password: data.password }),
+        });
+
+        if (!signupRes.ok) {
+          throw new Error("Failed to create account (email might be taken)");
+        }
+
+        // 2. Sign in
+        const signinRes = await fetch("/api/auth/sign-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email, password: data.password }),
+        });
+
+        if (!signinRes.ok) {
+          throw new Error("Login failed after signup");
+        }
+
+        const { token } = await signinRes.json();
+
+        const { useAuthStore } = await import("@/store/auth");
+        const { apiFetch } = await import("@/lib/api");
+
+        useAuthStore.getState().setToken(token);
+
+        // 3. Fetch /me
+        const meRes = await apiFetch("/api/me");
+        if (meRes.ok) {
+          const user = await meRes.json();
+          useAuthStore.getState().setUser(user);
+
+          // 4. Create the Team (stationName)
+          if (data.stationName) {
+            await apiFetch("/api/teams", {
+              method: "POST",
+              body: JSON.stringify({ name: data.stationName }),
+            });
+          }
+
+          if (!isCancelled) {
+            // Delay redirection slightly so user sees system online
+            setTimeout(() => {
+              router.push("/");
+            }, 1200);
+          }
+        } else {
+          throw new Error("Failed to load user profile");
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          setError(err.message || "An error occurred");
+          clearInterval(interval);
+          setLogs((prev) => [...prev, `[ERROR] ${err.message}`]);
+        }
+      }
+    };
+
+    interval = setInterval(() => {
       if (currentIdx < CONSOLE_LOGS.length) {
         setLogs((prev) => [
           ...prev,
@@ -32,15 +100,16 @@ export function StepVerification({ data }: StepProps) {
         currentIdx++;
       } else {
         clearInterval(interval);
-        // Delay redirection slightly so user sees system online
-        setTimeout(() => {
-          router.push("/");
-        }, 1200);
       }
     }, 450);
 
-    return () => clearInterval(interval);
-  }, [router]);
+    performAuth();
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [router, data]);
 
   useEffect(() => {
     if (containerRef.current) {

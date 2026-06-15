@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description: "Real-time incident management and operational coordination.",
 };
 
+import { Providers } from "@/app/providers";
+import { AuthGuard } from "@/components/AuthGuard";
+
 export default async function LocaleLayout({
   children,
   params,
@@ -36,7 +39,11 @@ export default async function LocaleLayout({
     <html lang={locale} className="dark">
       <body className="dark font-sans">
         <NextIntlClientProvider messages={messages}>
-          <AppShell>{children}</AppShell>
+          <Providers>
+            <AuthGuard>
+              <AppShell>{children}</AppShell>
+            </AuthGuard>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

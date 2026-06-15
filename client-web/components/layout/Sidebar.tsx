@@ -9,6 +9,7 @@ import {
   Settings,
   BotMessageSquare,
   CircleUser,
+  LogOut,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -69,12 +70,12 @@ export function Sidebar({ className }: { className?: string }) {
         })}
       </nav>
 
-      <div className="mt-auto shrink-0 p-6">
+      <div className="mt-auto flex shrink-0 items-center justify-between p-6">
         <Link
           href="/settings"
           title="Settings"
           className={cn(
-            "flex items-center gap-4 px-2 transition-colors",
+            "flex min-w-0 flex-1 items-center gap-4 px-2 transition-colors",
             isSettingsActive ? "text-gold" : "text-text hover:text-gold",
           )}
         >
@@ -85,6 +86,20 @@ export function Sidebar({ className }: { className?: string }) {
           </div>
           <Settings className="h-5 w-5 shrink-0" />
         </Link>
+        <button
+          onClick={async () => {
+            const { useAuthStore } = await import("@/store/auth");
+            const { apiFetch } = await import("@/lib/api");
+            // 1. Try to tell the server (don't await or care if it fails)
+            apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+            // 2. Clear store and let AuthGuard do the redirect
+            useAuthStore.getState().logout();
+          }}
+          className="text-muted ml-4 rounded-md p-2 transition-colors hover:text-red-500"
+          title="Log out"
+        >
+          <LogOut className="h-5 w-5" />
+        </button>
       </div>
     </aside>
   );
