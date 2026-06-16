@@ -34,7 +34,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
               placeholder={t("organizationPlaceholder")}
               value={data.stationName || ""}
               onChange={(e) => updateData({ stationName: e.target.value })}
-              className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] py-2 pr-3 pl-10 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+              className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-border py-2 pr-3 pl-10 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
             />
           </div>
         </div>
@@ -47,7 +47,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
             id="station-timezone"
             value={data.timezone || "Europe/Paris"}
             onChange={(e) => updateData({ timezone: e.target.value })}
-            className="bg-bg text-text focus-visible:ring-gold flex h-10 w-full cursor-pointer appearance-none rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            className="bg-bg text-text focus-visible:ring-gold flex h-10 w-full cursor-pointer appearance-none rounded-md border border-border px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           >
             <option value="Europe/Paris">Europe/Paris (CET)</option>
             <option value="Europe/London">Europe/London (GMT)</option>

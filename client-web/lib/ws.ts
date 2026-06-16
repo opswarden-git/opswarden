@@ -6,11 +6,37 @@ import { create } from "zustand";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
 
+/** Commands the client sends to the server (see docs/markdown/WEBSOCKET_SPEC.md). */
+export type WsClientCommand =
+  | { type: "auth"; token: string }
+  | { type: "watch"; incident_id: string }
+  | { type: "unwatch"; incident_id: string };
+
+/** Events the server pushes to the client (see docs/markdown/WEBSOCKET_SPEC.md). */
+export type WsServerEvent =
+  | { type: "incident_state_changed"; incident_id: string; new_state: string; by: string }
+  | { type: "incident_escalated"; incident_id: string; new_severity: string; by: string }
+  | { type: "incident_assigned"; incident_id: string; assigned_to: string; by: string }
+  | {
+      type: "timeline_entry_added";
+      incident_id: string;
+      entry: { entry_id: string; content: string; author: string; at: number };
+    }
+  | { type: "presence_update"; incident_id: string; watchers: string[] }
+  | {
+      type: "rule_triggered";
+      team_id: string;
+      service: string;
+      rule: string;
+      incident_id?: string;
+    }
+  | { type: "rule_failed"; team_id: string; service: string; rule: string; reason: string };
+
 interface WsState {
   watchers: string[];
   setWatchers: (watchers: string[]) => void;
-  sendJson: (msg: any) => void;
-  setSendJson: (fn: (msg: any) => void) => void;
+  sendJson: (msg: WsClientCommand) => void;
+  setSendJson: (fn: (msg: WsClientCommand) => void) => void;
 }
 
 export const useWsStore = create<WsState>((set) => ({
@@ -44,7 +70,7 @@ export function useRealtime() {
   useEffect(() => {
     if (!lastJsonMessage) return;
 
-    const event = lastJsonMessage as any;
+    const event = lastJsonMessage as WsServerEvent;
 
     switch (event.type) {
       case "incident_state_changed":

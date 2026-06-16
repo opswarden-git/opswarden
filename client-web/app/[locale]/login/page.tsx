@@ -97,7 +97,7 @@ export default function LoginPage() {
 
   return (
     <section className="bg-bg-2 flex min-h-screen items-center justify-center p-4">
-      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md border border-[#26262b] px-6 py-12 shadow-sm">
+      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md border border-border px-6 py-12 shadow-sm">
         <div className="flex flex-col items-center gap-y-2">
           <div className="flex items-center gap-1 lg:justify-start">
             <Link href="/" className="flex items-center justify-center gap-3">
@@ -132,7 +132,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                  className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-border px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -147,7 +147,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`bg-bg border-[#26262b] ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
+                    className={`bg-bg border-border ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
                   />
                   <button
                     type="button"
@@ -178,7 +178,7 @@ export default function LoginPage() {
                     const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
                     window.location.href = `/api/auth/google/start?locale=${locale}`;
                   }}
-                  className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-[#26262b] text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                  className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-border text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
                   <FcGoogle className="mr-2 size-5" />
                   {t("loginWithGoogle")}

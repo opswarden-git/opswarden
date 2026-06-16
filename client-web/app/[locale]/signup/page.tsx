@@ -31,7 +31,7 @@ export default function SignupPage() {
 
   return (
     <section className="bg-bg-2 flex min-h-screen items-center justify-center p-4">
-      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md border border-[#26262b] px-6 py-12 shadow-sm">
+      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md border border-border px-6 py-12 shadow-sm">
         <div className="flex flex-col items-center gap-y-2">
           <div className="flex items-center gap-1 lg:justify-start">
             <Link href="/" className="flex items-center justify-center gap-3">
@@ -78,7 +78,7 @@ export default function SignupPage() {
             <div
               key={s}
               className={`h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
-                s <= step ? "bg-gold" : "bg-[#26262b]"
+                s <= step ? "bg-gold" : "bg-border"
               }`}
             />
           ))}

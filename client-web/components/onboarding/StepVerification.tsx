@@ -121,12 +121,12 @@ export function StepVerification({ data }: StepProps) {
     <div className="mx-auto w-full space-y-6">
       <div
         ref={containerRef}
-        className="scrollbar-thumb-muted/10 h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md border border-[#26262b] bg-[#0e0e12] p-4 font-mono text-[10px] text-green-500 shadow-inner"
+        className="scrollbar-thumb-muted/10 h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md border border-border bg-[#0e0e12] p-4 font-mono text-[10px] text-green-500 shadow-inner"
       >
         <div>SYSTEM BOOT LOADER v1.2.0-STABLE</div>
         <div>OPERATOR: {data.operatorName || "UNKNOWN"}</div>
         <div>STATION: {data.stationName || "UNKNOWN"}</div>
-        <div className="my-2 border-t border-[#26262b]"></div>
+        <div className="my-2 border-t border-border"></div>
         {logs.map((log, i) => (
           <div key={i} className="animate-fade-in">
             {log}

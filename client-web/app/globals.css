@@ -26,37 +26,6 @@
     --st-ack: #3b82f6;
     --st-esc: #c084fc;
     --st-res: #22c55e;
-
-    /* Shadcn Overrides to match OpsWarden theme */
-    --background: 221 26% 8%; /* #0c0f14 approx */
-    --foreground: 216 33% 93%; /* #e7ecf3 */
-
-    --card: 222 25% 11%; /* #151a23 */
-    --card-foreground: 216 33% 93%;
-
-    --popover: 222 25% 11%;
-    --popover-foreground: 216 33% 93%;
-
-    --primary: 51 89% 51%; /* #F1CF13 */
-    --primary-foreground: 41 80% 6%; /* #1a1405 */
-
-    --secondary: 217 26% 14%; /* #1a212c */
-    --secondary-foreground: 216 33% 93%;
-
-    --muted: 217 26% 14%;
-    --muted-foreground: 215 20% 60%; /* #8a97a8 */
-
-    --accent: 217 26% 14%;
-    --accent-foreground: 216 33% 93%;
-
-    --destructive: 0 84% 60%; /* #ef4444 */
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214 23% 18%; /* #232c38 */
-    --input: 214 23% 18%;
-    --ring: 51 89% 51%;
-
-    --radius: 0.5rem;
   }
 }
 
@@ -64,7 +33,7 @@
   body {
     @apply text-text font-sans antialiased;
     min-height: 100vh;
-    background-color: #15161a;
+    background-color: var(--bg);
     background-image: radial-gradient(
       1100px 700px at 50% -15%,
       rgba(255, 255, 255, 0.035),
@@ -93,5 +62,5 @@ input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text) !important;
   transition: background-color 5000s ease-in-out 0s;
-  box-shadow: inset 0 0 20px 20px #15161a !important;
+  box-shadow: inset 0 0 20px 20px var(--bg) !important;
 }
