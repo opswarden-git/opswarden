@@ -47,6 +47,7 @@ pub struct AppState {
 
 pub fn build_app(state: AppState) -> Router {
     let protected_routes = Router::new()
+
         .route(
             "/api/me",
             get(handlers::auth::get_me).delete(handlers::auth::delete_me),
