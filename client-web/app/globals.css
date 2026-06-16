@@ -3,17 +3,15 @@
 
 @layer base {
   :root {
-    --font-inter: "Inter", "IBM Plex Sans", "Segoe UI", Arial, Helvetica, sans-serif;
-    --font-plex-mono: "IBM Plex Mono", "SFMono-Regular", "SF Mono", ui-monospace, monospace;
     --bg: #15161a;
     --bg-2: #121317;
     --panel: #0e0e12;
     --panel-2: #1b1b20;
-    --border: #26262b;
-    --border-2: #303036;
+    --ow-border: #26262b;
+    --ow-border-2: #303036;
     --text: #e7e7ea;
-    --muted: #8e9197;
-    --muted-2: #5e5f64;
+    --ow-muted: #8e9197;
+    --ow-muted-2: #5e5f64;
     --gold: #f1cf13;
     --gold-dim: #f1cf13;
 
@@ -95,5 +93,5 @@ input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text) !important;
   transition: background-color 5000s ease-in-out 0s;
-  box-shadow: inset 0 0 20px 20px #151a23 !important;
+  box-shadow: inset 0 0 20px 20px #15161a !important;
 }

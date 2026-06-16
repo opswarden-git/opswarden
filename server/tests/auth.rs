@@ -3,7 +3,7 @@
 mod common;
 use axum::{
     body::Body,
-    http::{Request, StatusCode},
+    http::{header, Request, StatusCode},
 };
 use common::test_context;
 use tower::ServiceExt;
@@ -188,4 +188,76 @@ async fn logout_revokes_the_bearer_token() {
         .unwrap();
 
     assert_eq!(me.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn delete_me_removes_the_authenticated_account() {
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/me")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
+async fn google_start_redirects_and_sets_state_cookie() {
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/auth/google/start")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    let location = response
+        .headers()
+        .get(header::LOCATION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(location.starts_with("https://accounts.google.test/auth?state="));
+    assert!(response.headers().get(header::SET_COOKIE).is_some());
+}
+
+#[tokio::test]
+async fn google_callback_exchanges_code_and_redirects_with_token() {
+    let state = "oauth-test-state";
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/auth/google/callback?code=ok&state={state}"))
+                .header(header::COOKIE, format!("opswarden_oauth_state={state}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    let location = response
+        .headers()
+        .get(header::LOCATION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert_eq!(
+        location,
+        "http://localhost:4242/en/login#oauth_token=mock_jwt_token"
+    );
 }

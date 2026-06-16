@@ -1,7 +1,9 @@
 {
   "name": "opswarden",
   "private": true,
-  "workspaces": ["client-web"],
+  "workspaces": [
+    "client-web"
+  ],
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",

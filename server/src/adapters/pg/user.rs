@@ -18,6 +18,32 @@ impl PgUserRepo {
 
 #[async_trait]
 impl UserRepo for PgUserRepo {
+    async fn find_by_id(&self, user_id: uuid::Uuid) -> Result<Option<User>, DomainError> {
+        let record = sqlx::query!(
+            r#"
+            SELECT id, email, password_hash, created_at
+            FROM users
+            WHERE id = $1
+            "#,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        record
+            .map(|row| {
+                let email = Email::new(row.email)?;
+                Ok(User {
+                    id: row.id,
+                    email,
+                    password_hash: row.password_hash,
+                    created_at: row.created_at,
+                })
+            })
+            .transpose()
+    }
+
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError> {
         let record = sqlx::query!(
             r#"
@@ -65,6 +91,45 @@ impl UserRepo for PgUserRepo {
 
         Ok(())
     }
+
+    async fn delete_account(&self, user_id: uuid::Uuid) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+
+        // Teams are deliberately NOT deleted here: the use-case refuses account
+        // deletion while the user still manages a team, so we never orphan a team
+        // or destroy other members' data. Memberships cascade and incident
+        // assignments are set null by the FKs; only the user's timeline entries
+        // (FK is ON DELETE RESTRICT) must be removed explicitly, first.
+        sqlx::query!(
+            r#"
+            DELETE FROM timeline_entries
+            WHERE author_id = $1
+            "#,
+            user_id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        let deleted = sqlx::query!(
+            r#"
+            DELETE FROM users
+            WHERE id = $1
+            "#,
+            user_id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        tx.commit().await.map_err(|_| DomainError::Storage)?;
+
+        if deleted.rows_affected() == 0 {
+            return Err(DomainError::InvalidToken);
+        }
+
+        Ok(())
+    }
 }
 
 // --- TESTS ---
@@ -72,6 +137,13 @@ impl UserRepo for PgUserRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::pg::incident::PgIncidentRepo;
+    use crate::adapters::pg::team::PgTeamRepo;
+    use crate::adapters::pg::timeline::PgTimelineRepo;
+    use crate::domain::incident::{Incident, Severity};
+    use crate::domain::team::{Role, Team};
+    use crate::domain::timeline::TimelineEntry;
+    use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo};
     use sqlx::postgres::PgPoolOptions;
 
     #[tokio::test]
@@ -96,5 +168,57 @@ mod tests {
         assert_eq!(found_user.id, user.id);
         assert_eq!(found_user.email.as_str(), user.email.as_str());
         assert_eq!(found_user.password_hash, "my_super_hash");
+    }
+
+    #[tokio::test]
+    async fn delete_account_removes_user_and_timeline_but_keeps_the_team_in_postgres() {
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
+        });
+        let pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
+        let users = PgUserRepo::new(pool.clone());
+        let teams = PgTeamRepo::new(pool.clone());
+        let incidents = PgIncidentRepo::new(pool.clone());
+        let timeline = PgTimelineRepo::new(pool);
+
+        let email = Email::new(format!("delete_{}@opswarden.com", uuid::Uuid::new_v4())).unwrap();
+        let user = User::new(email.clone(), "hash_to_delete");
+        users.save(&user).await.unwrap();
+
+        // A plain member (Manager-gating lives in the use-case): deleting the
+        // account removes the user, their timeline entries and their membership
+        // (FK cascade) — but never the team or its incidents.
+        let team = Team::new(format!("Delete {}", uuid::Uuid::new_v4())).unwrap();
+        teams.save_team(&team).await.unwrap();
+        teams
+            .add_member(team.id, user.id, Role::Observer)
+            .await
+            .unwrap();
+
+        let incident = Incident::new(team.id, "delete account cascade", Severity::High).unwrap();
+        incidents.save_incident(&incident).await.unwrap();
+        let entry = TimelineEntry::new(incident.id, user.id, "owned by deleted user").unwrap();
+        timeline.append_entry(&entry).await.unwrap();
+
+        users.delete_account(user.id).await.unwrap();
+
+        assert!(users.find_by_email(email.as_str()).await.unwrap().is_none());
+        // Membership gone (FK cascade)...
+        assert!(teams
+            .list_team_ids_for_user(user.id)
+            .await
+            .unwrap()
+            .is_empty());
+        // ...but the team and its incident survive (no collateral destruction).
+        assert!(teams
+            .find_by_invitation_code(team.invitation_code.as_str())
+            .await
+            .unwrap()
+            .is_some());
+        assert!(incidents
+            .find_incident_by_id(incident.id)
+            .await
+            .unwrap()
+            .is_some());
     }
 }

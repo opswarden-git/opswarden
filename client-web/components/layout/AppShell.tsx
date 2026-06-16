@@ -4,10 +4,14 @@ import React from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomBar } from "./BottomBar";
 import { usePathname } from "next/navigation";
+import { useRealtime } from "@/lib/ws";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname?.includes("/login") || pathname?.includes("/signup");
+
+  // Global websocket hook (only active when not on auth pages and user is logged in)
+  useRealtime();
 
   if (isAuthPage) {
     return <div className="text-text relative min-h-screen">{children}</div>;

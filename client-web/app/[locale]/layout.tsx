@@ -3,7 +3,11 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "../globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -13,6 +17,9 @@ export const metadata: Metadata = {
   },
   description: "Real-time incident management and operational coordination.",
 };
+
+import { Providers } from "@/app/providers";
+import { AuthGuard } from "@/components/AuthGuard";
 
 export default async function LocaleLayout({
   children,
@@ -34,9 +41,13 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className="dark">
-      <body className="dark font-sans">
+      <body className={`dark font-sans ${inter.variable} ${jetbrainsMono.variable}`}>
         <NextIntlClientProvider messages={messages}>
-          <AppShell>{children}</AppShell>
+          <Providers>
+            <AuthGuard>
+              <AppShell>{children}</AppShell>
+            </AuthGuard>
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

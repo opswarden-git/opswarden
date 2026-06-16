@@ -10,6 +10,7 @@ use serde_json::json;
 
 impl IntoResponse for DomainError {
     fn into_response(self) -> Response {
+        let code = self.code();
         let (status, error_message) = match self {
             DomainError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             DomainError::InvalidEmail => (StatusCode::BAD_REQUEST, "Invalid email address"),
@@ -63,6 +64,11 @@ impl IntoResponse for DomainError {
             DomainError::UnknownService => (StatusCode::NOT_FOUND, "Unknown webhook service"),
             DomainError::Crypto => (StatusCode::INTERNAL_SERVER_ERROR, "Cryptographic failure"),
             DomainError::ReactionFailed => (StatusCode::BAD_GATEWAY, "Automation reaction failed"),
+            DomainError::OAuthNotConfigured => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "OAuth provider is not configured",
+            ),
+            DomainError::OAuthFailed => (StatusCode::BAD_GATEWAY, "OAuth authentication failed"),
             DomainError::AssigneeNotResponder => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "Assignee must be a Responder or Manager of the team",
@@ -71,11 +77,16 @@ impl IntoResponse for DomainError {
                 StatusCode::CONFLICT,
                 "The team manager cannot leave the team, transfer the role or delete the team instead",
             ),
+            DomainError::MustTransferManagerFirst => (
+                StatusCode::CONFLICT,
+                "Transfer the Manager role (or delete the station) before deleting your account",
+            ),
             DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
         };
 
         let body = Json(json!({
             "error": error_message,
+            "code": code,
         }));
 
         (status, body).into_response()

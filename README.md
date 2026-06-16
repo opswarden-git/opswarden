@@ -168,13 +168,13 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service                                                                                                                              | Stack        | Local address             | Phase     |
-| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | --------- |
+| Service                                                                                                                          | Stack        | Local address           | Phase     |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------- | --------- |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        | S0 (live) |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` | S0 (live) |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` | Phase 1   |
 | `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` | Phase 3   |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  | Phase 5   |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                | Phase 5   |
 
 Cloud showcase (separate `opswarden-ops` repo, not graded):
 
@@ -231,11 +231,11 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 ### Phase 1 — Real-time collaborative core (S1-S2, Weeks 2-5) — `v0.1.0`
 
-- [x] Email auth + JWT, `GET /me`, logout with token invalidation *(✅ API Server prête)*
-- [x] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) *(✅ API Server prête)*
-- [x] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities *(✅ API Server prête)*
-- [x] Real-time collaborative timeline (timestamped entries, Responder assignment) *(✅ API Server prête)*
-- [ ] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection *(✅ Serveur WS prêt, ⏳ Front)*
+- [x] Email auth + JWT, `GET /me`, logout with token invalidation _(✅ API Server prête)_
+- [x] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) _(✅ API Server prête)_
+- [x] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities _(✅ API Server prête)_
+- [x] Real-time collaborative timeline (timestamped entries, Responder assignment) _(✅ API Server prête)_
+- [x] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
 - [x] Postgres persistence (SQLx) + versioned migrations
 - [x] _Security_: server-side RBAC enforcement (401/403 tested)
 - [x] _Tests_: coverage started, happy path + >=1 error path per feature
@@ -243,14 +243,14 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 ### Phase 2 — Automation & professionalization (S3, Weeks 6-7) — `v0.2.0`
 
-- [ ] Webhook receiver `POST /webhooks/{service}` + HMAC validation
-- [ ] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- [ ] 1 external Action (GitHub) + 1 REAction beyond VIGIL (Slack / HTTP / Email)
-- [ ] `/about.json` reflects the real catalog (nothing hard-coded client-side)
-- [ ] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
-- [ ] WebSockets `rule_triggered`, `rule_failed`
-- [ ] _CI/CD_: lint+test on every push, build + integration + **coverage artifact** on merge to `main`, artifacts on tag `v*.*.*`
-- [ ] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
+- [x] Webhook receiver `POST /webhooks/{service}` + HMAC validation
+- [x] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
+- [x] 1 external Action (GitHub) + 1 REAction beyond VIGIL (generic HTTP `Notify`, covers Slack)
+- [x] `/about.json` reflects the real catalog (nothing hard-coded client-side)
+- [x] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
+- [x] WebSockets `rule_triggered`, `rule_failed`
+- [x] _CI/CD_: lint+test on every push + **coverage artifact** on merge to `main` are live; build/artifacts on tag `v*.*.*` (`release.yml`) are active
+- [x] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
 
 ### Phase 3 — Desktop & delivery (S4, Weeks 8-9) — `v1.0.0` (project passes)
 
@@ -286,7 +286,7 @@ Trunk-based workflow: short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`,
 follows the [PR template](.github/pull_request_template.md), whose Definition of
 Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint`
 
-+ `format:check` + `typecheck` green, tests covering the happy path and at least
+- `format:check` + `typecheck` green, tests covering the happy path and at least
   one error path, business logic kept out of handlers and clients, impacted docs
   updated, and an atomic conventional commit.
 
