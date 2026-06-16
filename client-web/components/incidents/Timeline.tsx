@@ -35,18 +35,18 @@ export function Timeline({ incidentId }: { incidentId: string }) {
   };
 
   if (isLoading) return <div className="text-muted animate-pulse p-4 text-sm">Loading logs...</div>;
-  if (error) return <div className="p-4 text-red-500 text-sm">Failed to load logs.</div>;
+  if (error) return <div className="text-sev-critical p-4 text-sm">Failed to load logs.</div>;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-white/5 bg-white/5 p-4">
-        <h2 className="text-text flex items-center gap-2 font-bold text-sm">
+      <div className="surface-subtle border-border border-b p-4">
+        <h2 className="text-text flex items-center gap-2 text-sm font-bold">
           <Terminal className="text-gold h-4 w-4" />
           Operator Log
         </h2>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 flex flex-col-reverse">
+      <div className="flex flex-1 flex-col-reverse space-y-4 overflow-y-auto p-4">
         {/* We reverse the flex direction to keep the latest messages at the bottom if we mapped it backwards, 
             but the original was top-down. Let's just use regular flex and scroll down, or display them normally.
             Usually logs are top-to-bottom so the newest is at the bottom. 
@@ -57,14 +57,18 @@ export function Timeline({ incidentId }: { incidentId: string }) {
             <div className="text-muted p-4 text-center text-sm">No entries yet.</div>
           ) : (
             data?.entries.map((entry) => (
-              <div key={entry.id} className="rounded-lg border border-white/5 bg-white/5 p-4">
+              <div key={entry.id} className="surface-subtle border-border rounded-md border p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-text font-medium text-xs">{entry.author_id.split("-")[0]}</span>
+                  <span className="text-text text-xs font-medium">
+                    {entry.author_id.split("-")[0]}
+                  </span>
                   <span className="text-muted/60 text-[10px]">
                     {new Date(entry.created_at).toLocaleTimeString()}
                   </span>
                 </div>
-                <p className="text-text text-sm whitespace-pre-wrap leading-relaxed">{entry.content}</p>
+                <p className="text-text text-sm leading-relaxed whitespace-pre-wrap">
+                  {entry.content}
+                </p>
               </div>
             ))
           )}
@@ -72,26 +76,26 @@ export function Timeline({ incidentId }: { incidentId: string }) {
       </div>
 
       {typingUsers.length > 0 && (
-        <div className="px-4 py-1 text-gold/80 text-xs animate-pulse">
-          {typingUsers.length === 1 
-            ? `${typingUsers[0].split("-")[0]} is typing...` 
+        <div className="text-gold/80 animate-pulse px-4 py-1 text-xs">
+          {typingUsers.length === 1
+            ? `${typingUsers[0].split("-")[0]} is typing...`
             : `${typingUsers.length} operators are typing...`}
         </div>
       )}
 
-      <div className="border-t border-white/5 bg-white/5 p-4">
+      <div className="surface-subtle border-border border-t p-4">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={content}
             onChange={handleContentChange}
             placeholder="Type command or log entry..."
-            className="bg-black/20 focus:border-gold flex-1 rounded-lg border border-white/10 px-4 py-2 text-sm text-text focus:outline-none placeholder:text-muted/50 transition-colors"
+            className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
           />
           <button
             type="submit"
             disabled={addEntry.isPending || !content.trim()}
-            className="bg-gold hover:bg-gold-hover text-[#1a1405] disabled:bg-gold/50 disabled:text-[#1a1405]/50 flex items-center justify-center rounded-lg px-4 py-2 transition-colors font-bold text-sm"
+            className="ow-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
           </button>

@@ -9,28 +9,28 @@ export function SeverityChip({ severity }: { severity: IncidentSeverity }) {
   switch (severity) {
     case "low":
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-400 capitalize">
+        <span className="text-sev-low inline-flex items-center gap-1 text-xs font-medium capitalize">
           <AlertCircle className="h-3.5 w-3.5" />
           {t("severityLow")}
         </span>
       );
     case "medium":
       return (
-        <span className="text-gold inline-flex items-center gap-1 text-xs font-medium capitalize">
+        <span className="text-sev-medium inline-flex items-center gap-1 text-xs font-medium capitalize">
           <AlertTriangle className="h-3.5 w-3.5" />
           {t("severityMedium")}
         </span>
       );
     case "high":
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-400 capitalize">
+        <span className="text-sev-high inline-flex items-center gap-1 text-xs font-medium capitalize">
           <AlertOctagon className="h-3.5 w-3.5" />
           {t("severityHigh")}
         </span>
       );
     case "critical":
       return (
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-red-500 uppercase">
+        <span className="text-sev-critical inline-flex items-center gap-1 text-xs font-bold uppercase">
           <Flame className="h-3.5 w-3.5 animate-pulse" />
           {t("severityCritical")}
         </span>

@@ -10,7 +10,8 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
 export type WsClientCommand =
   | { type: "auth"; token: string }
   | { type: "watch"; incident_id: string }
-  | { type: "unwatch"; incident_id: string };
+  | { type: "unwatch"; incident_id: string }
+  | { type: "status_typing"; incident_id: string };
 
 /** Events the server pushes to the client (see docs/markdown/WEBSOCKET_SPEC.md). */
 export type WsServerEvent =
@@ -23,6 +24,7 @@ export type WsServerEvent =
       entry: { entry_id: string; content: string; author: string; at: number };
     }
   | { type: "presence_update"; incident_id: string; watchers: string[] }
+  | { type: "user_typing"; incident_id: string; user_id: string }
   | {
       type: "rule_triggered";
       team_id: string;
@@ -35,6 +37,8 @@ export type WsServerEvent =
 interface WsState {
   watchers: string[];
   setWatchers: (watchers: string[]) => void;
+  typingUsers: string[];
+  addTypingUser: (user_id: string) => void;
   sendJson: (msg: WsClientCommand) => void;
   setSendJson: (fn: (msg: WsClientCommand) => void) => void;
 }
@@ -42,6 +46,17 @@ interface WsState {
 export const useWsStore = create<WsState>((set) => ({
   watchers: [],
   setWatchers: (watchers) => set({ watchers }),
+  typingUsers: [],
+  addTypingUser: (user_id) => {
+    set((state) => ({
+      typingUsers: state.typingUsers.includes(user_id)
+        ? state.typingUsers
+        : [...state.typingUsers, user_id],
+    }));
+    setTimeout(() => {
+      set((state) => ({ typingUsers: state.typingUsers.filter((u) => u !== user_id) }));
+    }, 3000);
+  },
   sendJson: () => {},
   setSendJson: (fn) => set({ sendJson: fn }),
 }));
@@ -84,6 +99,17 @@ export function useRealtime() {
         break;
       case "presence_update":
         setWatchers(event.watchers || []);
+        break;
+      case "user_typing":
+        useWsStore.getState().addTypingUser(event.user_id);
+        break;
+      case "rule_triggered":
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
+        break;
+      case "rule_failed":
+        console.error(
+          `[Automation] Rule failed for ${event.service}: ${event.rule} - ${event.reason}`,
+        );
         break;
     }
   }, [lastJsonMessage, queryClient, setWatchers]);

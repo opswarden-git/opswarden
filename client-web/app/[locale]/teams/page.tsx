@@ -23,7 +23,7 @@ export default function TeamsPage() {
       case "manager":
         return <ShieldAlert className="text-gold h-4 w-4" />;
       case "responder":
-        return <ShieldCheck className="h-4 w-4 text-blue-400" />;
+        return <ShieldCheck className="text-st-ack h-4 w-4" />;
       default:
         return <Shield className="text-muted h-4 w-4" />;
     }
@@ -34,7 +34,6 @@ export default function TeamsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-text text-2xl font-bold tracking-tight">{t("title")}</h1>
-
         </div>
         <div className="flex items-center gap-3">
           <JoinTeamDialog />
@@ -45,31 +44,31 @@ export default function TeamsPage() {
       {isLoading ? (
         <div className="text-muted animate-pulse py-10 text-center text-sm">{t("loading")}</div>
       ) : error ? (
-        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
-          {t("failedToLoad")}
-        </div>
+        <div className="ow-danger rounded-md p-4 text-sm">{t("failedToLoad")}</div>
       ) : teams && teams.length === 0 ? (
-        <div className="rounded-xl border border-white/5 bg-white/5 p-12 text-center">
+        <div className="surface rounded-md p-12 text-center">
           <Shield className="text-muted/50 mx-auto mb-4 h-12 w-12" />
           <h3 className="text-text text-lg font-medium">{t("noTeamsYet")}</h3>
           <p className="text-muted mt-2 mb-6 text-sm">{t("noTeamsDesc")}</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/5 bg-black/40">
+        <div className="surface overflow-hidden rounded-md">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-white/5 bg-white/5 text-xs uppercase">
+            <thead className="surface-subtle border-border border-b text-xs uppercase">
               <tr>
                 <th className="text-muted px-6 py-4 font-medium">{t("colStationName")}</th>
                 <th className="text-muted px-6 py-4 font-medium">{t("colRole")}</th>
-                <th className="text-muted px-6 py-4 text-right font-medium">{t("colInvitationCode")}</th>
+                <th className="text-muted px-6 py-4 text-right font-medium">
+                  {t("colInvitationCode")}
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-border divide-y">
               {teams?.map((team) => (
-                <tr key={team.team_id} className="transition-colors hover:bg-white/5">
+                <tr key={team.team_id} className="transition-colors hover:bg-white/[0.04]">
                   <td className="text-text px-6 py-4 font-medium">{team.name}</td>
                   <td className="px-6 py-4">
-                    <div className="text-text inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium capitalize">
+                    <div className="surface-subtle text-text border-border inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium capitalize">
                       {getRoleIcon(team.role)}
                       {team.role}
                     </div>
@@ -83,7 +82,7 @@ export default function TeamsPage() {
                       >
                         {team.invitation_code}
                         {copiedCode === team.invitation_code ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="text-st-res h-4 w-4" />
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
