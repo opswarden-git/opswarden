@@ -18,6 +18,7 @@ export default function IncidentsPage() {
 
   const { data: incidents, isLoading: isLoadingIncidents, error } = useIncidents(activeTeamId);
 
+  if (isLoadingTeams)
     return <div className="text-muted animate-pulse p-10 text-center">{t("loading")}</div>;
 
   if (teams && teams.length === 0) {

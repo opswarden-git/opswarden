@@ -344,7 +344,7 @@ export default function SettingsPage() {
                         onClick={() => toggleIntegration(integ.id)}
                         className={`inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 ${
                           isActive
-                            ? "text-text bg-[#1b1b20] hover:bg-[#26262b]"
+                            ? "text-text bg-[#1b1b20] hover:bg-border"
                             : "bg-gold hover:bg-gold/90 text-[#1a1405]"
                         }`}
                       >

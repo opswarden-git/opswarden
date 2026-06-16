@@ -39,7 +39,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             placeholder="Kevin Mitnick"
             value={data.operatorName || ""}
             onChange={(e) => updateData({ operatorName: e.target.value })}
-            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-border px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           />
           {errors.operatorName && (
             <p className="mt-1 font-sans text-xs text-red-500">{errors.operatorName}</p>
@@ -56,7 +56,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             placeholder="name@example.com"
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
-            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-border px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           />
           {errors.email && <p className="mt-1 font-sans text-xs text-red-500">{errors.email}</p>}
         </div>
@@ -72,7 +72,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
               placeholder="••••••••"
               value={data.password || ""}
               onChange={(e) => updateData({ password: e.target.value })}
-              className={`bg-bg border-[#26262b] ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
+              className={`bg-bg border-border ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
             />
             <button
               type="button"
@@ -102,7 +102,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
             window.location.href = `/api/auth/google/start?locale=${locale}`;
           }}
-          className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-[#26262b] text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-border text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         >
           <FcGoogle className="mr-2 size-5" />
           Sign up with Google

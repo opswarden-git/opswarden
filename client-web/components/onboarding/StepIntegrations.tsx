@@ -60,7 +60,7 @@ export function StepIntegrations({ next, back }: StepProps) {
           return (
             <div
               key={integ.id}
-              className="bg-bg hover:bg-panel-2 flex items-center justify-between rounded-md border border-[#26262b] p-3 transition-colors"
+              className="bg-bg hover:bg-panel-2 flex items-center justify-between rounded-md border border-border p-3 transition-colors"
             >
               <div className="flex min-w-0 items-center gap-4 pr-4">
                 <div className="flex shrink-0 items-center justify-center">
@@ -83,7 +83,7 @@ export function StepIntegrations({ next, back }: StepProps) {
               <button
                 type="button"
                 disabled
-                className="text-muted bg-panel-2 shrink-0 cursor-not-allowed rounded-md border border-[#26262b] px-3 py-1.5 text-xs font-medium"
+                className="text-muted bg-panel-2 shrink-0 cursor-not-allowed rounded-md border border-border px-3 py-1.5 text-xs font-medium"
               >
                 Configure later
               </button>
