@@ -96,8 +96,8 @@ export default function LoginPage() {
   };
 
   return (
-    <section className="bg-bg-2 flex min-h-screen items-center justify-center p-4">
-      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md border border-[#26262b] px-6 py-12 shadow-sm">
+    <section className="flex min-h-screen items-center justify-center p-4">
+      <div className="glass flex w-full max-w-sm flex-col items-center gap-y-8 rounded-md px-6 py-12 shadow-sm">
         <div className="flex flex-col items-center gap-y-2">
           <div className="flex items-center gap-1 lg:justify-start">
             <Link href="/" className="flex items-center justify-center gap-3">
@@ -107,6 +107,8 @@ export default function LoginPage() {
                 width={40}
                 height={40}
                 className="h-10 w-auto object-contain"
+                style={{ width: "auto" }}
+                priority
               />
               <Image
                 src="/assets/logo-text-light.png"
@@ -114,6 +116,8 @@ export default function LoginPage() {
                 width={240}
                 height={48}
                 className="h-8 w-auto object-contain"
+                style={{ width: "auto" }}
+                priority
               />
             </Link>
           </div>
@@ -132,7 +136,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                  className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -147,7 +151,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`bg-bg border-[#26262b] ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
+                    className={`ow-input ${showPassword ? "text-text" : "text-muted-2"} caret-gold placeholder:text-muted-2 flex h-10 w-full rounded-md px-3 py-2 pr-10 text-sm transition-colors`}
                   />
                   <button
                     type="button"
@@ -159,16 +163,12 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              {error && (
-                <div className="rounded-md bg-red-500/10 p-3 text-center text-sm text-red-500">
-                  {error}
-                </div>
-              )}
+              {error && <div className="ow-danger rounded-md p-3 text-center text-sm">{error}</div>}
               <div className="mt-2 flex flex-col gap-4">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-gold hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap text-[#1a1405] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                  className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
                   {loading ? t("loggingIn") : t("login")}
                 </button>
@@ -178,7 +178,7 @@ export default function LoginPage() {
                     const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
                     window.location.href = `/api/auth/google/start?locale=${locale}`;
                   }}
-                  className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-[#26262b] text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                  className="ow-secondary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
                   <FcGoogle className="mr-2 size-5" />
                   {t("loginWithGoogle")}

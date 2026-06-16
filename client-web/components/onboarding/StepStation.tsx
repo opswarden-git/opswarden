@@ -34,7 +34,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
               placeholder={t("organizationPlaceholder")}
               value={data.stationName || ""}
               onChange={(e) => updateData({ stationName: e.target.value })}
-              className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] py-2 pr-3 pl-10 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+              className="ow-input flex h-10 w-full rounded-md py-2 pr-3 pl-10 text-sm transition-colors"
             />
           </div>
         </div>
@@ -47,7 +47,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
             id="station-timezone"
             value={data.timezone || "Europe/Paris"}
             onChange={(e) => updateData({ timezone: e.target.value })}
-            className="bg-bg text-text focus-visible:ring-gold flex h-10 w-full cursor-pointer appearance-none rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
+            className="ow-input flex h-10 w-full cursor-pointer appearance-none rounded-md px-3 py-2 text-sm transition-colors"
           >
             <option value="Europe/Paris">Europe/Paris (CET)</option>
             <option value="Europe/London">Europe/London (GMT)</option>
@@ -68,7 +68,7 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
         </button>
         <button
           type="submit"
-          className="bg-gold hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap text-[#1a1405] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none"
+          className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {t("next")}
         </button>

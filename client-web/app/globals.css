@@ -4,16 +4,18 @@
 @layer base {
   :root {
     --bg: #15161a;
-    --bg-2: #121317;
-    --panel: #0e0e12;
-    --panel-2: #1b1b20;
-    --ow-border: #26262b;
-    --ow-border-2: #303036;
+    --bg-2: #15161a;
+    --panel: #1b1c20;
+    --panel-2: #212228;
+    --ow-border: rgba(255, 255, 255, 0.08);
+    --ow-border-2: rgba(255, 255, 255, 0.12);
     --text: #e7e7ea;
-    --ow-muted: #8e9197;
-    --ow-muted-2: #5e5f64;
-    --gold: #f1cf13;
-    --gold-dim: #f1cf13;
+    --ow-muted: #989ba1;
+    --ow-muted-2: #6f737a;
+    --gold: #fbc02d;
+    --gold-hover: #f9a825;
+    --gold-dim: #fbc02d;
+    --gold-ink: #1a1405;
 
     /* severities */
     --sev-low: #3b82f6;
@@ -26,37 +28,6 @@
     --st-ack: #3b82f6;
     --st-esc: #c084fc;
     --st-res: #22c55e;
-
-    /* Shadcn Overrides to match OpsWarden theme */
-    --background: 221 26% 8%; /* #0c0f14 approx */
-    --foreground: 216 33% 93%; /* #e7ecf3 */
-
-    --card: 222 25% 11%; /* #151a23 */
-    --card-foreground: 216 33% 93%;
-
-    --popover: 222 25% 11%;
-    --popover-foreground: 216 33% 93%;
-
-    --primary: 51 89% 51%; /* #F1CF13 */
-    --primary-foreground: 41 80% 6%; /* #1a1405 */
-
-    --secondary: 217 26% 14%; /* #1a212c */
-    --secondary-foreground: 216 33% 93%;
-
-    --muted: 217 26% 14%;
-    --muted-foreground: 215 20% 60%; /* #8a97a8 */
-
-    --accent: 217 26% 14%;
-    --accent-foreground: 216 33% 93%;
-
-    --destructive: 0 84% 60%; /* #ef4444 */
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214 23% 18%; /* #232c38 */
-    --input: 214 23% 18%;
-    --ring: 51 89% 51%;
-
-    --radius: 0.5rem;
   }
 }
 
@@ -64,25 +35,81 @@
   body {
     @apply text-text font-sans antialiased;
     min-height: 100vh;
-    background-color: #15161a;
-    background-image: radial-gradient(
-      1100px 700px at 50% -15%,
-      rgba(255, 255, 255, 0.035),
-      transparent 60%
-    );
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(1100px 700px at 50% -15%, rgba(255, 255, 255, 0.035), transparent 60%),
+      radial-gradient(rgba(255, 255, 255, 0.032) 1px, transparent 1px);
+    background-size:
+      auto,
+      30px 30px;
     background-attachment: fixed;
   }
 }
 
-/* Liquid glass surface — used for chrome (sidebar, panels, cards, bottom bar) */
+/* Product surfaces are intentionally opaque for readability over the shared dotted background. */
 @layer components {
   .glass {
     position: relative;
     overflow: hidden;
-    background-color: rgba(255, 255, 255, 0.045);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    background-color: var(--panel);
+    border: 1px solid var(--ow-border);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.055);
+  }
+
+  .surface {
+    background-color: var(--panel);
+    border: 1px solid var(--ow-border);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.055);
+  }
+
+  .surface-subtle {
+    background-color: var(--panel-2);
+  }
+
+  .ow-input {
+    background-color: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--ow-border);
+  }
+
+  .ow-input::placeholder {
+    color: var(--ow-muted-2);
+  }
+
+  .ow-input:focus-visible {
+    border-color: color-mix(in srgb, var(--gold) 70%, transparent);
+    outline: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+  }
+
+  .ow-primary {
+    background-color: var(--gold);
+    color: var(--gold-ink);
+  }
+
+  .ow-primary:hover {
+    background-color: var(--gold-hover);
+  }
+
+  .ow-secondary {
+    background-color: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--ow-border);
+  }
+
+  .ow-secondary:hover {
+    background-color: var(--panel-2);
+  }
+
+  .ow-danger {
+    background-color: #ff2d2d !important;
+    color: #ffffff !important;
+    border: 1px solid #ff2d2d !important;
+  }
+
+  .ow-danger:hover {
+    background-color: #e91919 !important;
+    border-color: #e91919 !important;
   }
 }
 
@@ -93,5 +120,5 @@ input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text) !important;
   transition: background-color 5000s ease-in-out 0s;
-  box-shadow: inset 0 0 20px 20px #15161a !important;
+  box-shadow: inset 0 0 20px 20px var(--bg) !important;
 }

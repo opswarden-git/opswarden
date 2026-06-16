@@ -60,7 +60,7 @@ export function StepIntegrations({ next, back }: StepProps) {
           return (
             <div
               key={integ.id}
-              className="bg-bg hover:bg-panel-2 flex items-center justify-between rounded-md border border-[#26262b] p-3 transition-colors"
+              className="surface-subtle border-border flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-white/[0.055]"
             >
               <div className="flex min-w-0 items-center gap-4 pr-4">
                 <div className="flex shrink-0 items-center justify-center">
@@ -83,7 +83,7 @@ export function StepIntegrations({ next, back }: StepProps) {
               <button
                 type="button"
                 disabled
-                className="text-muted bg-panel-2 shrink-0 cursor-not-allowed rounded-md border border-[#26262b] px-3 py-1.5 text-xs font-medium"
+                className="text-muted surface-subtle border-border shrink-0 cursor-not-allowed rounded-md border px-3 py-1.5 text-xs font-medium"
               >
                 Configure later
               </button>
@@ -104,7 +104,7 @@ export function StepIntegrations({ next, back }: StepProps) {
         <button
           type="button"
           onClick={next}
-          className="bg-gold hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap text-[#1a1405] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none"
+          className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Skip for now
         </button>
