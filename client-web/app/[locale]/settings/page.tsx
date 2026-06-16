@@ -137,231 +137,231 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl pl-[3px]">
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-        <div className="space-y-8">
-          <div>
-            <h1 className="text-text flex items-center gap-4 text-4xl font-bold tracking-tight">
-              {t("title")}
-            </h1>
-          </div>
-
-          <div className="space-y-4 text-sm font-medium">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`flex w-full items-center gap-4 py-2 text-left capitalize transition-colors ${
-                activeTab === "profile" ? "text-gold font-bold" : "text-muted hover:text-text"
-              }`}
-            >
-              <Sliders className="h-5 w-5" />
-              {t("general")}
-            </button>
-            <button
-              onClick={() => setActiveTab("integrations")}
-              className={`flex w-full items-center gap-4 py-2 text-left capitalize transition-colors ${
-                activeTab === "integrations" ? "text-gold font-bold" : "text-muted hover:text-text"
-              }`}
-            >
-              <Workflow className="h-5 w-5" />
-              {t("connectors")}
-            </button>
-          </div>
+    <div className="mx-auto max-w-5xl space-y-8 p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h1 className="text-text text-2xl font-bold tracking-tight">
+          {t("title")}
+        </h1>
+        
+        {/* Horizontal Pill Tabs */}
+        <div className="flex items-center gap-1 rounded-lg border border-white/5 bg-white/5 p-1">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "profile" 
+                ? "bg-white/10 text-text shadow-sm" 
+                : "text-muted hover:text-text hover:bg-white/5"
+            }`}
+          >
+            <Sliders className="h-4 w-4" />
+            {t("general")}
+          </button>
+          <button
+            onClick={() => setActiveTab("integrations")}
+            className={`flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === "integrations" 
+                ? "bg-white/10 text-text shadow-sm" 
+                : "text-muted hover:text-text hover:bg-white/5"
+            }`}
+          >
+            <Workflow className="h-4 w-4" />
+            {t("connectors")}
+          </button>
         </div>
+      </div>
 
-        <div className="space-y-6 md:col-span-3">
-          {activeTab === "profile" && (
-            <>
-              {needsStationSetup && (
-                <div className="border-gold/30 bg-gold/5 space-y-4 rounded-lg border p-6">
-                  <div className="flex items-start gap-3">
-                    <ShieldAlert className="text-gold mt-0.5 h-5 w-5 shrink-0" />
-                    <div>
-                      <h2 className="text-text text-lg font-semibold tracking-tight">
-                        {t("setupTitle")}
-                      </h2>
-                      <p className="text-muted mt-1 text-sm">{t("setupDesc")}</p>
-                    </div>
-                  </div>
-                  <form onSubmit={handleCreateStation} className="flex flex-col gap-3 sm:flex-row">
-                    <input
-                      type="text"
-                      value={stationName}
-                      onChange={(e) => setStationName(e.target.value)}
-                      placeholder={t("organization")}
-                      className="bg-bg border-border text-text placeholder:text-muted-2 focus-visible:ring-gold h-10 min-w-0 flex-1 rounded-md border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={createTeam.isPending || !stationName.trim()}
-                      className="bg-gold text-bg hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:opacity-50"
-                    >
-                      {createTeam.isPending ? t("creating") : t("createOrganization")}
-                    </button>
-                  </form>
-                  {createTeam.isError && (
-                    <p className="text-sm text-red-500">{createTeam.error.message}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="glass space-y-4 rounded-lg p-8">
-                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 text-xl font-semibold tracking-tight">
-                  <UserRound className="text-muted h-6 w-6" />
-                  {t("user")}
-                </h2>
-                <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+      <div className="space-y-6">
+        {activeTab === "profile" && (
+          <>
+            {needsStationSetup && (
+              <div className="rounded-xl border border-gold/20 bg-gold/5 p-6 shadow-[inset_0_0_20px_rgba(241,207,19,0.05)]">
+                <div className="flex items-start gap-3 mb-4">
+                  <ShieldAlert className="text-gold mt-0.5 h-5 w-5 shrink-0" />
                   <div>
-                    <span className="text-muted mb-1 block text-xs font-medium">
-                      {t("emailLabel")}
-                    </span>
-                    <span className="text-text font-semibold">{user?.email ?? t("unknown")}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted mb-1 block text-xs font-medium">{t("userId")}</span>
-                    <span className="text-text font-mono text-xs">{user?.id ?? t("unknown")}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted mb-1 block text-xs font-medium">{t("role")}</span>
-                    <span className="text-text font-semibold capitalize">
-                      {teamsLoading ? t("loading") : (primaryTeam?.role ?? t("noStationYet"))}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted mb-1 block text-xs font-medium">
-                      {t("organization")}
-                    </span>
-                    <span className="text-text font-semibold">
-                      {teamsLoading ? t("loading") : (primaryTeam?.name ?? t("notConfigured"))}
-                    </span>
+                    <h2 className="text-text text-lg font-semibold tracking-tight">
+                      {t("setupTitle")}
+                    </h2>
+                    <p className="text-gold/70 mt-1 text-sm">{t("setupDesc")}</p>
                   </div>
                 </div>
+                <form onSubmit={handleCreateStation} className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    value={stationName}
+                    onChange={(e) => setStationName(e.target.value)}
+                    placeholder={t("organization")}
+                    className="bg-black/40 border-white/10 text-text placeholder:text-muted/50 focus:border-gold h-10 min-w-0 flex-1 rounded-lg border px-4 text-sm focus:outline-none transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    disabled={createTeam.isPending || !stationName.trim()}
+                    className="bg-gold hover:bg-gold-hover text-[#1a1405] h-10 items-center justify-center rounded-lg px-6 text-sm font-bold transition-colors disabled:opacity-50"
+                  >
+                    {createTeam.isPending ? t("creating") : t("createOrganization")}
+                  </button>
+                </form>
+                {createTeam.isError && (
+                  <p className="mt-2 text-sm text-red-400">{createTeam.error.message}</p>
+                )}
               </div>
+            )}
 
-              <div className="glass space-y-4 rounded-lg p-8">
-                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 text-xl font-semibold tracking-tight">
-                  <Languages className="text-muted h-6 w-6" />
-                  {t("language")}
-                </h2>
-                <div className="flex items-center justify-between gap-4 p-4">
-                  <div className="min-w-0">
-                    <h3 className="text-text text-sm font-medium">{t("interfaceLanguage")}</h3>
-                  </div>
-                  <div className="flex shrink-0 gap-4">
-                    <button
-                      onClick={() => switchLocale("en")}
-                      className={`overflow-hidden rounded-full transition-all ${
-                        currentLocale === "en" ? "opacity-100 grayscale-0" : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
-                      }`}
-                    >
-                      <Image src="/assets/en.webp" alt="English" width={24} height={24} className="block object-cover" />
-                    </button>
-                    <button
-                      onClick={() => switchLocale("fr")}
-                      className={`overflow-hidden rounded-full transition-all ${
-                        currentLocale === "fr" ? "opacity-100 grayscale-0" : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
-                      }`}
-                    >
-                      <Image src="/assets/fr.webp" alt="Français" width={24} height={24} className="block object-cover" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass space-y-6 rounded-lg p-8">
-                <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 text-xl font-semibold tracking-tight">
-                  <PencilLine className="text-muted h-6 w-6" />
-                  {t("accountActions")}
-                </h2>
-
-                <div className="space-y-0">
-                  <div className="flex items-center justify-between gap-4 p-4">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-medium text-red-500">{t("logOutSession")}</h3>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {t("logOut")}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4 p-4">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-medium text-red-500">
-                        {t("deleteAccountTitle")}
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setDeleteOpen(true)}
-                      className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t("deleteAccount")}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === "integrations" && (
-            <div className="glass space-y-6 rounded-lg p-8">
-              <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-3 text-xl font-semibold tracking-tight">
-                <Workflow className="text-muted h-6 w-6" />
-                {t("connectors")}
+            <div className="rounded-xl border border-white/5 bg-white/5 p-6">
+              <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-4 text-lg font-semibold tracking-tight">
+                <UserRound className="text-muted h-5 w-5" />
+                {t("user")}
               </h2>
-
-              <div className="space-y-4">
-                {AVAILABLE_INTEGRATIONS.map((integ) => {
-                  const isActive = connectedList.includes(integ.id);
-                  return (
-                    <div
-                      key={integ.id}
-                      className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-white/5"
-                    >
-                      <div className="flex min-w-0 items-center gap-4 pr-4">
-                        <div className="flex shrink-0 items-center justify-center">
-                          <Image
-                            src={integ.icon}
-                            alt={integ.name}
-                            width={24}
-                            height={24}
-                            className="h-8 w-8 object-contain"
-                          />
-                        </div>
-                        <div className="min-w-0 pr-4">
-                          <span className="text-text block truncate text-sm font-medium">
-                            {integ.name}
-                          </span>
-                          <p className="text-muted mt-0.5 truncate text-xs">{integ.desc}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleIntegration(integ.id)}
-                        className={`inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 ${
-                          isActive
-                            ? "text-text bg-[#1b1b20] hover:bg-border"
-                            : "bg-gold hover:bg-gold/90 text-[#1a1405]"
-                        }`}
-                      >
-                        {isActive ? t("connected") : t("connect")}
-                      </button>
-                    </div>
-                  );
-                })}
+              <div className="mt-4 grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-muted/70 mb-1 block text-xs font-medium uppercase tracking-wider">
+                    {t("emailLabel")}
+                  </span>
+                  <span className="text-text font-medium">{user?.email ?? t("unknown")}</span>
+                </div>
+                <div>
+                  <span className="text-muted/70 mb-1 block text-xs font-medium uppercase tracking-wider">{t("userId")}</span>
+                  <span className="text-text font-mono text-xs">{user?.id ?? t("unknown")}</span>
+                </div>
+                <div>
+                  <span className="text-muted/70 mb-1 block text-xs font-medium uppercase tracking-wider">{t("role")}</span>
+                  <span className="text-text font-medium capitalize">
+                    {teamsLoading ? t("loading") : (primaryTeam?.role ?? t("noStationYet"))}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted/70 mb-1 block text-xs font-medium uppercase tracking-wider">
+                    {t("organization")}
+                  </span>
+                  <span className="text-text font-medium">
+                    {teamsLoading ? t("loading") : (primaryTeam?.name ?? t("notConfigured"))}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="rounded-xl border border-white/5 bg-white/5 p-6">
+              <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-4 text-lg font-semibold tracking-tight">
+                <Languages className="text-muted h-5 w-5" />
+                {t("language")}
+              </h2>
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-text text-sm font-medium">{t("interfaceLanguage")}</h3>
+                </div>
+                <div className="flex shrink-0 gap-4">
+                  <button
+                    onClick={() => switchLocale("en")}
+                    className={`overflow-hidden rounded-full transition-all ring-offset-2 ring-offset-bg ${
+                      currentLocale === "en" ? "ring-2 ring-gold opacity-100 grayscale-0" : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
+                    }`}
+                  >
+                    <Image src="/assets/en.webp" alt="English" width={24} height={24} className="block object-cover" />
+                  </button>
+                  <button
+                    onClick={() => switchLocale("fr")}
+                    className={`overflow-hidden rounded-full transition-all ring-offset-2 ring-offset-bg ${
+                      currentLocale === "fr" ? "ring-2 ring-gold opacity-100 grayscale-0" : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
+                    }`}
+                  >
+                    <Image src="/assets/fr.webp" alt="Français" width={24} height={24} className="block object-cover" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/5 bg-white/5 p-6">
+              <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-4 text-lg font-semibold tracking-tight">
+                <PencilLine className="text-muted h-5 w-5" />
+                {t("accountActions")}
+              </h2>
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-medium text-red-400">{t("logOutSession")}</h3>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t("logOut")}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-medium text-red-400">
+                      {t("deleteAccountTitle")}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setDeleteOpen(true)}
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t("deleteAccount")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "integrations" && (
+          <div className="rounded-xl border border-white/5 bg-white/5 p-6">
+            <h2 className="text-text flex items-center gap-2 border-b border-white/5 pb-4 text-lg font-semibold tracking-tight">
+              <Workflow className="text-muted h-5 w-5" />
+              {t("connectors")}
+            </h2>
+
+            <div className="mt-4 space-y-2">
+              {AVAILABLE_INTEGRATIONS.map((integ) => {
+                const isActive = connectedList.includes(integ.id);
+                return (
+                  <div
+                    key={integ.id}
+                    className="flex items-center justify-between rounded-lg p-4"
+                  >
+                    <div className="flex min-w-0 items-center gap-4 pr-4">
+                      <div className="flex shrink-0 items-center justify-center rounded-lg bg-white/5 p-2">
+                        <Image
+                          src={integ.icon}
+                          alt={integ.name}
+                          width={24}
+                          height={24}
+                          className="h-8 w-8 object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0 pr-4">
+                        <span className="text-text block truncate font-medium">
+                          {integ.name}
+                        </span>
+                        <p className="text-muted/70 mt-0.5 truncate text-sm">{integ.desc}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleIntegration(integ.id)}
+                      className={`inline-flex h-9 shrink-0 items-center justify-center rounded-lg px-4 py-2 text-sm font-bold whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+                        isActive
+                          ? "border border-white/10 bg-transparent text-text hover:bg-white/5 font-medium"
+                          : "bg-gold hover:bg-gold-hover text-[#1a1405]"
+                      }`}
+                    >
+                      {isActive ? t("connected") : t("connect")}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {deleteOpen && (
         <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="glass w-full max-w-md space-y-5 rounded-lg border border-red-500/20 p-6">
+          <div className="glass w-full max-w-md space-y-5 rounded-xl border border-red-500/20 p-6 shadow-2xl">
             <div className="flex gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
               <div>
@@ -374,11 +374,11 @@ export default function SettingsPage() {
             <input
               value={deleteConfirm}
               onChange={(e) => setDeleteConfirm(e.target.value)}
-              className="bg-bg border-border text-text placeholder:text-muted-2 focus-visible:ring-gold h-10 w-full rounded-md border px-3 text-sm focus-visible:ring-1 focus-visible:outline-none"
+              className="bg-black/40 border-white/10 text-text placeholder:text-muted/50 focus:border-red-500/50 h-10 w-full rounded-lg border px-4 text-sm focus:outline-none transition-colors"
               placeholder="DELETE"
             />
-            {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
-            <div className="flex justify-end gap-3">
+            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -386,7 +386,7 @@ export default function SettingsPage() {
                   setDeleteConfirm("");
                   setDeleteError(null);
                 }}
-                className="text-muted hover:text-text h-9 rounded-md px-4 text-sm font-medium transition-colors"
+                className="text-muted hover:text-text h-9 rounded-lg px-4 text-sm font-medium transition-colors hover:bg-white/5"
               >
                 {t("cancel")}
               </button>
@@ -394,7 +394,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={deletePending || deleteConfirm !== "DELETE"}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
               >
                 <Trash2 className="h-4 w-4" />
                 {deletePending ? t("deleting") : t("deleteAccount")}
