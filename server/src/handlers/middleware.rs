@@ -47,6 +47,16 @@ pub async fn require_auth(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    if state
+        .users
+        .find_by_id(claims.user_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .is_none()
+    {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
     req.extensions_mut().insert(AuthenticatedSession {
         user_id: claims.user_id,
         bearer_token: token,

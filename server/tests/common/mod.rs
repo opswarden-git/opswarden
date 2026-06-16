@@ -10,8 +10,8 @@ use opswarden_server::domain::team::{Role, Team};
 use opswarden_server::domain::timeline::TimelineEntry;
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
-    Clock, IncidentRepo, Notifier, PasswordHasher, RuleRepo, SecretVault, TeamRepo, TimelineRepo,
-    TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
+    Clock, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, RuleRepo,
+    SecretVault, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -72,6 +72,20 @@ pub struct DummyUserRepo;
 
 #[async_trait]
 impl UserRepo for DummyUserRepo {
+    async fn find_by_id(&self, user_id: Uuid) -> Result<Option<User>, DomainError> {
+        if user_id == Uuid::nil() {
+            let email = opswarden_server::domain::user::Email::new("existing@test.com").unwrap();
+            Ok(Some(User {
+                id: user_id,
+                email,
+                password_hash: "hash".to_string(),
+                created_at: Utc::now(),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError> {
         if email == "existing@test.com" {
             let e = opswarden_server::domain::user::Email::new(email.to_string()).unwrap();
@@ -83,6 +97,14 @@ impl UserRepo for DummyUserRepo {
 
     async fn save(&self, _user: &User) -> Result<(), DomainError> {
         Ok(())
+    }
+
+    async fn delete_account(&self, user_id: Uuid) -> Result<(), DomainError> {
+        if user_id == Uuid::nil() {
+            Ok(())
+        } else {
+            Err(DomainError::InvalidToken)
+        }
     }
 }
 
@@ -114,6 +136,25 @@ impl TokenService for DummyTokenService {
         } else {
             Err(DomainError::InvalidToken)
         }
+    }
+}
+
+pub struct DummyOAuthClient;
+
+#[async_trait]
+impl OAuthClient for DummyOAuthClient {
+    fn is_configured(&self) -> bool {
+        true
+    }
+
+    fn authorization_url(&self, state: &str) -> Result<String, DomainError> {
+        Ok(format!("https://accounts.google.test/auth?state={state}"))
+    }
+
+    async fn exchange_code(&self, _code: &str) -> Result<OAuthProfile, DomainError> {
+        Ok(OAuthProfile {
+            email: "google@test.com".to_string(),
+        })
     }
 }
 
@@ -236,6 +277,16 @@ impl TeamRepo for DummyTeamRepo {
     async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
         self.roles.lock().unwrap().remove(&(team_id, user_id));
         Ok(())
+    }
+
+    async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
+        Ok(self
+            .roles
+            .lock()
+            .unwrap()
+            .keys()
+            .filter(|(t, _)| *t == team_id)
+            .count() as u64)
     }
 }
 
@@ -364,6 +415,7 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         timeline: timeline.clone(),
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
+        oauth: Arc::new(DummyOAuthClient),
         token_revocations: revoked_tokens.clone(),
         events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),

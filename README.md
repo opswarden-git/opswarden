@@ -235,7 +235,7 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 - [x] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) _(✅ API Server prête)_
 - [x] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities _(✅ API Server prête)_
 - [x] Real-time collaborative timeline (timestamped entries, Responder assignment) _(✅ API Server prête)_
-- [ ] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection _(✅ Serveur WS prêt, ⏳ Front)_
+- [x] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
 - [x] Postgres persistence (SQLx) + versioned migrations
 - [x] _Security_: server-side RBAC enforcement (401/403 tested)
 - [x] _Tests_: coverage started, happy path + >=1 error path per feature
@@ -243,14 +243,14 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 ### Phase 2 — Automation & professionalization (S3, Weeks 6-7) — `v0.2.0`
 
-- [ ] Webhook receiver `POST /webhooks/{service}` + HMAC validation
-- [ ] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- [ ] 1 external Action (GitHub) + 1 REAction beyond VIGIL (Slack / HTTP / Email)
-- [ ] `/about.json` reflects the real catalog (nothing hard-coded client-side)
-- [ ] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
-- [ ] WebSockets `rule_triggered`, `rule_failed`
-- [ ] _CI/CD_: lint+test on every push, build + integration + **coverage artifact** on merge to `main`, artifacts on tag `v*.*.*`
-- [ ] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
+- [x] Webhook receiver `POST /webhooks/{service}` + HMAC validation
+- [x] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
+- [x] 1 external Action (GitHub) + 1 REAction beyond VIGIL (generic HTTP `Notify`, covers Slack)
+- [x] `/about.json` reflects the real catalog (nothing hard-coded client-side)
+- [x] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
+- [x] WebSockets `rule_triggered`, `rule_failed`
+- [x] _CI/CD_: lint+test on every push + **coverage artifact** on merge to `main` are live; build/artifacts on tag `v*.*.*` (`release.yml`) are active
+- [x] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
 
 ### Phase 3 — Desktop & delivery (S4, Weeks 8-9) — `v1.0.0` (project passes)
 

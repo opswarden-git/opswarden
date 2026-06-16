@@ -3,7 +3,11 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "../globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
@@ -37,7 +41,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className="dark">
-      <body className="dark font-sans">
+      <body className={`dark font-sans ${inter.variable} ${jetbrainsMono.variable}`}>
         <NextIntlClientProvider messages={messages}>
           <Providers>
             <AuthGuard>

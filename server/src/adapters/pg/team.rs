@@ -238,6 +238,22 @@ impl TeamRepo for PgTeamRepo {
 
         Ok(())
     }
+
+    async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
+        let record = sqlx::query!(
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM team_members
+            WHERE team_id = $1
+            "#,
+            team_id,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(record.count as u64)
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---

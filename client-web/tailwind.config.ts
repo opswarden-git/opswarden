@@ -28,13 +28,13 @@ const config = {
           2: "var(--panel-2)",
         },
         border: {
-          DEFAULT: "var(--border)",
-          2: "var(--border-2)",
+          DEFAULT: "var(--ow-border)",
+          2: "var(--ow-border-2)",
         },
         text: "var(--text)",
         muted: {
-          DEFAULT: "var(--muted)",
-          2: "var(--muted-2)",
+          DEFAULT: "var(--ow-muted)",
+          2: "var(--ow-muted-2)",
         },
         gold: {
           DEFAULT: "var(--gold)",
@@ -79,10 +79,12 @@ const config = {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
         },
+        input: "var(--input)",
+        ring: "var(--ring)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["var(--font-plex-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       keyframes: {
         "accordion-down": {
@@ -100,7 +102,7 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 } satisfies Config;
 
 export default config;

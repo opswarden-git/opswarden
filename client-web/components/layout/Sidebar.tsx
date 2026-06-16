@@ -13,15 +13,22 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
+import { useTeams } from "@/lib/queries/teams";
+import { useTranslations } from "next-intl";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
+  const t = useTranslations("Sidebar");
+  const user = useAuthStore((state) => state.user);
+  const { data: teams } = useTeams();
+  const primaryTeam = teams?.[0];
 
   const links = [
-    { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/incidents", icon: ShieldAlert, label: "Incidents" },
-    { href: "/teams", icon: Users, label: "Teams" },
-    { href: "/ai", icon: BotMessageSquare, label: "Warden AI" },
+    { href: "/", icon: LayoutDashboard, label: t("dashboard") },
+    { href: "/incidents", icon: ShieldAlert, label: t("incidents") },
+    { href: "/teams", icon: Users, label: t("teams") },
+    { href: "/ai", icon: BotMessageSquare, label: t("ai") },
   ];
 
   const isSettingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
@@ -73,7 +80,7 @@ export function Sidebar({ className }: { className?: string }) {
       <div className="mt-auto flex shrink-0 items-center justify-between p-6">
         <Link
           href="/settings"
-          title="Settings"
+          title={t("settings")}
           className={cn(
             "flex min-w-0 flex-1 items-center gap-4 px-2 transition-colors",
             isSettingsActive ? "text-gold" : "text-text hover:text-gold",
@@ -81,8 +88,12 @@ export function Sidebar({ className }: { className?: string }) {
         >
           <CircleUser className="h-9 w-9 shrink-0" strokeWidth={1.5} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-lg font-medium">Operator</span>
-            <span className="truncate text-base">Level 1 NOC</span>
+            <span className="truncate text-lg font-medium capitalize">
+              {user?.email?.split("@")[0] || t("operator")}
+            </span>
+            <span className="truncate text-base capitalize">
+              {primaryTeam?.role || t("noStation")}
+            </span>
           </div>
           <Settings className="h-5 w-5 shrink-0" />
         </Link>
@@ -96,7 +107,7 @@ export function Sidebar({ className }: { className?: string }) {
             useAuthStore.getState().logout();
           }}
           className="text-muted ml-4 rounded-md p-2 transition-colors hover:text-red-500"
-          title="Log out"
+          title={t("logout")}
         >
           <LogOut className="h-5 w-5" />
         </button>

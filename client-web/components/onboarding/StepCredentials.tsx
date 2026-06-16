@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { UserRoundPlus, Eye, EyeOff } from "lucide-react";
-import { Link } from "@/i18n/routing";
+import { Eye, EyeOff } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 
 interface StepProps {
   data: any;
@@ -27,54 +27,60 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-sm space-y-6">
-      <div className="mb-8 text-center">
-        <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
-          <UserRoundPlus className="h-10 w-10" />
-        </div>
-        <h2 className="text-text text-xl font-bold tracking-tight">Create your account</h2>
-      </div>
-
-      <div className="space-y-4">
-        <div>
+    <form onSubmit={handleSubmit} className="mx-auto w-full space-y-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="reg-operator" className="text-muted text-xs font-medium">
+            Name
+          </label>
           <input
+            id="reg-operator"
             type="text"
-            placeholder="Operator Name"
+            placeholder="Kevin Mitnick"
             value={data.operatorName || ""}
             onChange={(e) => updateData({ operatorName: e.target.value })}
-            className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
+            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           />
           {errors.operatorName && (
             <p className="mt-1 font-sans text-xs text-red-500">{errors.operatorName}</p>
           )}
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="reg-email" className="text-muted text-xs font-medium">
+            Email
+          </label>
           <input
+            id="reg-email"
             type="email"
-            placeholder="Email Address"
+            placeholder="name@example.com"
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
-            className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 font-sans text-base transition-colors focus:outline-none"
+            className="bg-bg text-text placeholder:text-muted-2 focus-visible:ring-gold flex h-10 w-full rounded-md border border-[#26262b] px-3 py-2 text-sm transition-colors focus-visible:ring-1 focus-visible:outline-none"
           />
           {errors.email && <p className="mt-1 font-sans text-xs text-red-500">{errors.email}</p>}
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="reg-password" className="text-muted text-xs font-medium">
+            Password
+          </label>
           <div className="relative">
             <input
+              id="reg-password"
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              placeholder="••••••••"
               value={data.password || ""}
               onChange={(e) => updateData({ password: e.target.value })}
-              className="placeholder:text-muted/40 text-text focus:border-gold w-full rounded-md border border-transparent bg-white/5 px-4 py-3 pr-10 font-sans text-base transition-colors focus:outline-none"
+              className={`bg-bg border-[#26262b] ${showPassword ? "text-text" : "text-[#303036]"} caret-gold focus-visible:ring-gold flex h-10 w-full rounded-md border px-3 py-2 pr-10 text-sm transition-colors placeholder:text-[#303036] focus-visible:ring-1 focus-visible:outline-none`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="text-muted hover:text-text absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
             >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
           {errors.password && (
@@ -83,22 +89,24 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
         </div>
       </div>
 
-      <div className="space-y-3 pt-4">
+      <div className="mt-2 flex flex-col gap-4">
         <button
           type="submit"
-          className="hover:bg-gold-hover bg-gold text-bg w-full rounded-md py-3 font-sans text-base font-bold tracking-wider uppercase transition-colors"
+          className="bg-gold hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap text-[#1a1405] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none"
         >
           Sign Up
         </button>
-
-        <div className="text-center">
-          <Link
-            href="/login"
-            className="text-muted hover:text-gold font-sans text-xs uppercase transition-colors"
-          >
-            Log in
-          </Link>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
+            window.location.href = `/api/auth/google/start?locale=${locale}`;
+          }}
+          className="bg-bg hover:bg-panel-2 text-text focus-visible:ring-gold inline-flex h-10 w-full items-center justify-center rounded-md border border-[#26262b] text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+        >
+          <FcGoogle className="mr-2 size-5" />
+          Sign up with Google
+        </button>
       </div>
     </form>
   );

@@ -10,14 +10,14 @@ pub mod handlers;
 pub mod ports;
 
 use axum::{
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    Clock, IncidentRepo, Notifier, PasswordHasher, RuleRepo, SecretVault, TeamRepo, TimelineRepo,
-    TokenRevocationRepo, TokenService, UserRepo, WebhookParser, WebhookVerifier,
+    Clock, IncidentRepo, Notifier, OAuthClient, PasswordHasher, RuleRepo, SecretVault, TeamRepo,
+    TimelineRepo, TokenRevocationRepo, TokenService, UserRepo, WebhookParser, WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -29,6 +29,7 @@ pub struct AppState {
     pub timeline: Arc<dyn TimelineRepo + Send + Sync>,
     pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
     pub tokens: Arc<dyn TokenService + Send + Sync>,
+    pub oauth: Arc<dyn OAuthClient + Send + Sync>,
     pub token_revocations: Arc<dyn TokenRevocationRepo + Send + Sync>,
     /// Concrete WebSocket hub: used as `dyn EventPublisher` by the use cases and
     /// directly by the `/ws` handler to register/unregister connections.
@@ -46,17 +47,17 @@ pub struct AppState {
 
 pub fn build_app(state: AppState) -> Router {
     let protected_routes = Router::new()
-        .route("/api/me", get(handlers::auth::get_me))
+        .route(
+            "/api/me",
+            get(handlers::auth::get_me).delete(handlers::auth::delete_me),
+        )
         .route("/api/auth/logout", post(handlers::auth::logout))
         .route(
             "/api/teams",
             post(handlers::team::create_team).get(handlers::team::list_teams),
         )
         .route("/api/teams/join", post(handlers::team::join_team))
-        .route(
-            "/api/teams/{team_id}",
-            axum::routing::delete(handlers::team::delete_team),
-        )
+        .route("/api/teams/{team_id}", delete(handlers::team::delete_team))
         .route(
             "/api/teams/{team_id}/leave",
             post(handlers::team::leave_team),
@@ -71,8 +72,7 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/api/incidents/{incident_id}",
-            axum::routing::delete(handlers::incident::delete_incident)
-                .get(handlers::incident::get_incident),
+            delete(handlers::incident::delete_incident).get(handlers::incident::get_incident),
         )
         .route(
             "/api/incidents/{incident_id}/status",
@@ -97,6 +97,11 @@ pub fn build_app(state: AppState) -> Router {
         .route("/about.json", get(handlers::about))
         .route("/api/auth/sign-up", post(handlers::auth::sign_up))
         .route("/api/auth/sign-in", post(handlers::auth::sign_in))
+        .route("/api/auth/google/start", get(handlers::auth::google_start))
+        .route(
+            "/api/auth/google/callback",
+            get(handlers::auth::google_callback),
+        )
         // Public upgrade: the WS authenticates in-band via its first message.
         .route("/ws", get(handlers::ws::ws_handler))
         // Public: authenticated by the request's HMAC signature, not a JWT.

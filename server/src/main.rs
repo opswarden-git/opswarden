@@ -5,6 +5,7 @@ use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
 use opswarden_server::adapters::notify::HttpNotifier;
+use opswarden_server::adapters::oauth::GoogleOAuthClient;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::timeline::PgTimelineRepo;
@@ -67,6 +68,11 @@ async fn main() {
         timeline: Arc::new(PgTimelineRepo::new(pool.clone())),
         hasher: Arc::new(Argon2Hasher),
         tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
+        oauth: Arc::new(GoogleOAuthClient::new(
+            config.google_oauth_client_id.clone(),
+            config.google_oauth_client_secret.clone(),
+            config.google_oauth_redirect_uri.clone(),
+        )),
         token_revocations: Arc::new(PgTokenRevocationRepo::new(pool)),
         events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),

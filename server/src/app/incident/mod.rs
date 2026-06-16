@@ -127,6 +127,10 @@ pub(crate) mod tests {
         async fn remove_member(&self, _team_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
             Ok(())
         }
+
+        async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
+            Ok(self.roles.keys().filter(|(t, _)| *t == team_id).count() as u64)
+        }
     }
 
     #[derive(Default)]

@@ -13,8 +13,10 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {
+    async fn find_by_id(&self, user_id: Uuid) -> Result<Option<User>, DomainError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError>;
     async fn save(&self, user: &User) -> Result<(), DomainError>;
+    async fn delete_account(&self, user_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]
@@ -51,6 +53,8 @@ pub trait TeamRepo: Send + Sync {
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
     /// Remove a user from a team.
     async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
+    /// Count how many members a team has.
+    async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError>;
 }
 
 #[async_trait]
@@ -95,6 +99,18 @@ pub struct TokenClaims {
 pub trait TokenService: Send + Sync {
     fn generate_token(&self, user_id: uuid::Uuid) -> Result<String, DomainError>;
     fn verify_token(&self, token: &str) -> Result<TokenClaims, DomainError>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OAuthProfile {
+    pub email: String,
+}
+
+#[async_trait]
+pub trait OAuthClient: Send + Sync {
+    fn is_configured(&self) -> bool;
+    fn authorization_url(&self, state: &str) -> Result<String, DomainError>;
+    async fn exchange_code(&self, code: &str) -> Result<OAuthProfile, DomainError>;
 }
 
 #[async_trait]

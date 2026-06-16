@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 
 interface StepProps {
   data: any;
@@ -118,15 +118,15 @@ export function StepVerification({ data }: StepProps) {
   }, [logs]);
 
   return (
-    <div className="mx-auto w-full max-w-sm space-y-6">
+    <div className="mx-auto w-full space-y-6">
       <div
         ref={containerRef}
-        className="scrollbar-thumb-muted/10 h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md border border-white/5 bg-black/60 p-4 font-mono text-xs text-green-500"
+        className="scrollbar-thumb-muted/10 h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md border border-[#26262b] bg-[#0e0e12] p-4 font-mono text-[10px] text-green-500 shadow-inner"
       >
         <div>SYSTEM BOOT LOADER v1.2.0-STABLE</div>
         <div>OPERATOR: {data.operatorName || "UNKNOWN"}</div>
         <div>STATION: {data.stationName || "UNKNOWN"}</div>
-        <div className="my-2 border-t border-white/5"></div>
+        <div className="my-2 border-t border-[#26262b]"></div>
         {logs.map((log, i) => (
           <div key={i} className="animate-fade-in">
             {log}
