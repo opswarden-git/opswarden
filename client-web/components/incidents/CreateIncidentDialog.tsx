@@ -30,7 +30,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
       <button
         onClick={() => setOpen(true)}
         disabled={!teamId}
-        className="text-bg disabled:text-bg/50 flex items-center gap-2 rounded-md bg-red-500 px-4 py-2 font-sans text-sm font-bold transition-colors hover:bg-red-600 disabled:bg-red-500/50"
+        className="text-white disabled:text-white/50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold transition-colors hover:bg-red-700 disabled:bg-red-600/50"
       >
         <AlertCircle className="h-4 w-4" />
         {t("declareIncident")}
@@ -102,7 +102,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
                 <button
                   type="submit"
                   disabled={createIncident.isPending || !title.trim()}
-                  className="text-bg rounded-md bg-red-500 px-4 py-2 font-sans text-sm font-bold transition-colors hover:bg-red-600 disabled:bg-red-500/50 disabled:opacity-50"
+                  className="text-white rounded-lg bg-red-600 px-4 py-2 text-sm font-bold transition-colors hover:bg-red-700 disabled:bg-red-600/50 disabled:opacity-50"
                 >
                   {createIncident.isPending ? t("declaring") : t("declare")}
                 </button>
