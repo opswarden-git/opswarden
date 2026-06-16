@@ -27,13 +27,13 @@ OpsWarden uses a strict dark theme. Colors are never used randomly; they carry s
 
 | Color                      | Hex       | Usage                                                                                                                    |
 | -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Background Base**        | `#0c0f14` | The main application background (deepest charcoal).                                                                      |
-| **Panel / Surface**        | `#151a23` | Cards, sidebars, and elevated containers.                                                                                |
-| **Panel Hover**            | `#1a212c` | Hover states for clickable rows and secondary buttons.                                                                   |
-| **Border**                 | `#232c38` | Dividers and default card borders.                                                                                       |
-| **Text Primary**           | `#e7ecf3` | Standard text and headings.                                                                                              |
-| **Text Muted**             | `#8a97a8` | Subtitles, secondary information, empty states.                                                                          |
-| **Brand / Primary Action** | `#f4c430` | The "Gold" accent. Used for primary buttons, active tabs, and highlights. It contrasts heavily with the dark background. |
+| **Background Base**        | `#15161a` | The main application background (deepest charcoal).                                                                      |
+| **Panel / Surface**        | `#0e0e12` | Cards, sidebars, and elevated containers.                                                                                |
+| **Panel Hover**            | `#1b1b20` | Hover states for clickable rows and secondary buttons.                                                                   |
+| **Border**                 | `#26262b` | Dividers and default card borders.                                                                                       |
+| **Text Primary**           | `#e7e7ea` | Standard text and headings.                                                                                              |
+| **Text Muted**             | `#8e9197` | Subtitles, secondary information, empty states.                                                                          |
+| **Brand / Primary Action** | `#f1cf13` | The "Gold" accent. Used for primary buttons, active tabs, and highlights. It contrasts heavily with the dark background. |
 
 ### Severity Colors (Incidents)
 
