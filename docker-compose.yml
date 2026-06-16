@@ -26,6 +26,7 @@ services:
     environment:
       DATABASE_URL: postgres://opswarden:opswarden@db:5432/opswarden
       OPSWARDEN_KICKOFF_TOKEN: "Romeo Cavazza VIGIL2026"
+      JWT_SECRET: ${JWT_SECRET:-super_secret_dev_key}
     ports:
       - "8080:8080"
     depends_on:

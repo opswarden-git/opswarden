@@ -31,24 +31,24 @@ Conséquence produit : OpsWarden se positionne comme un **mini incident.io / Roo
 
 Organisé par briques d'une vraie IMP. `[core]` = bloquant pour la notation, `[ext]` = grade-boosting, `[cherry]` = portfolio.
 
-| Brique | Features | Statut |
-|---|---|---|
-| **Auth & identité** | signup email/pwd, login JWT, `/me`, logout (invalidation token) | `[core]` |
-| | OAuth2 GitHub | `[ext]` |
-| **Teams & RBAC** | teams, code d'invitation, 3 rôles (Observer/Responder/Manager), transfert Manager | `[core]` |
-| | modération (kick / ban temp / ban perm) | `[ext]` |
-| **Incident lifecycle** | états open→ack→escalated→resolved, sévérité low→critical, assignation | `[core]` |
-| **Collaboration temps réel** | timeline horodatée, présence (qui regarde quoi), reconnexion auto | `[core]` |
-| | édition d'entrée, réactions emoji, messages privés 1-1 | `[ext]` |
-| **Automatisation (Action→REAction)** | webhook receiver + HMAC, hook engine, ≥1 règle end-to-end, `/about.json` dynamique + token | `[core]` |
-| | services additionnels (GitLab, HTTP, Email, Timer, Generic Webhook) | `[ext]` |
-| **Releases** | cycle created→in_progress→completed/cancelled, steps séquentiels, **blocage auto** par incident lié | `[ext]` |
-| **AI SRE / investigation** | agent RAG, `@ask` / `@search`, hypothèse de cause racine + runbook dans la timeline | `[cherry]` |
-| **Clients** | web (Next.js) + desktop natif (Tauri) avec notifs OS + tray | `[core]` |
-| **i18n** | FR/EN (labels, états, sévérités), persisté serveur | `[core/ext]*` |
-| **Vitrine cloud** | k8s / terraform / Traefik / OTel | `[cherry]` |
+| Brique                               | Features                                                                                            | Statut        |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------- |
+| **Auth & identité**                  | signup email/pwd, login JWT, `/me`, logout (invalidation token)                                     | `[core]`      |
+|                                      | OAuth2 GitHub                                                                                       | `[ext]`       |
+| **Teams & RBAC**                     | teams, code d'invitation, 3 rôles (Observer/Responder/Manager), transfert Manager                   | `[core]`      |
+|                                      | modération (kick / ban temp / ban perm)                                                             | `[ext]`       |
+| **Incident lifecycle**               | états open→ack→escalated→resolved, sévérité low→critical, assignation                               | `[core]`      |
+| **Collaboration temps réel**         | timeline horodatée, présence (qui regarde quoi), reconnexion auto                                   | `[core]`      |
+|                                      | édition d'entrée, réactions emoji, messages privés 1-1                                              | `[ext]`       |
+| **Automatisation (Action→REAction)** | webhook receiver + HMAC, hook engine, ≥1 règle end-to-end, `/about.json` dynamique + token          | `[core]`      |
+|                                      | services additionnels (GitLab, HTTP, Email, Timer, Generic Webhook)                                 | `[ext]`       |
+| **Releases**                         | cycle created→in_progress→completed/cancelled, steps séquentiels, **blocage auto** par incident lié | `[ext]`       |
+| **AI SRE / investigation**           | agent RAG, `@ask` / `@search`, hypothèse de cause racine + runbook dans la timeline                 | `[cherry]`    |
+| **Clients**                          | web (Next.js) + desktop natif (Tauri) avec notifs OS + tray                                         | `[core]`      |
+| **i18n**                             | FR/EN (labels, états, sévérités), persisté serveur                                                  | `[core/ext]*` |
+| **Vitrine cloud**                    | k8s / terraform / Traefik / OTel                                                                    | `[cherry]`    |
 
-*\*core ou ext selon ton exemption T-DEV-600.*
+_\*core ou ext selon ton exemption T-DEV-600._
 
 ---
 
@@ -91,6 +91,7 @@ flowchart TB
 ```
 
 Points clés :
+
 - **Aucune logique métier dans les clients.** Ils affichent et relaient (REST + WS).
 - L'agent est **isolé derrière un port** : si l'agent tombe, les incidents fonctionnent quand même (dégradation gracieuse → `rule_failed`).
 - **pgvector dans Postgres** pour le RAG = pas d'infra vectorielle supplémentaire (quickwin). Redis/workers = nice-to-have pour l'asynchrone.
@@ -135,6 +136,7 @@ flowchart LR
 **Bénéfice testabilité** : on teste les use-cases et le domaine **sans DB ni HTTP** (ports mockés). C'est exactement ce que le jury récompense (`code_maintainability`, separation of concerns) et ce qui te donne tes 70% de couverture sans douleur.
 
 Ports principaux (traits) :
+
 - `IncidentRepo`, `ReleaseRepo`, `TeamRepo`, `UserRepo` — persistance
 - `EventBus` — diffusion temps réel
 - `TokenVault` — chiffrement/déchiffrement des tokens tiers
@@ -235,14 +237,20 @@ sequenceDiagram
 ```
 
 Forme d'une règle (déclarative, persistée) :
+
 ```json
 {
   "name": "CI failure → Incident",
   "enabled": true,
-  "trigger": { "service": "github", "event": "workflow_run",
-               "filters": { "conclusion": "failure", "repository": "org/repo" } },
-  "reaction": { "type": "opswarden_create_incident",
-                "payload": { "title": "CI cassée sur {{repository.name}}", "severity": "high" } }
+  "trigger": {
+    "service": "github",
+    "event": "workflow_run",
+    "filters": { "conclusion": "failure", "repository": "org/repo" }
+  },
+  "reaction": {
+    "type": "opswarden_create_incident",
+    "payload": { "title": "CI cassée sur {{repository.name}}", "severity": "high" }
+  }
 }
 ```
 
@@ -282,28 +290,28 @@ flowchart LR
 
 Taxonomie (détaillée dans `WEBSOCKET_SPEC.md`) :
 
-| Catégorie | Events |
-|---|---|
-| Incident `[core]` | `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` |
-| Automatisation `[core]` | `rule_triggered`, `rule_failed` |
-| Release `[ext]` | `release_step_validated`, `release_state_changed` |
-| Modération `[ext]` | `member_kicked`, `member_banned` (`until=null` si permanent) |
-| Collaboration `[ext]` | `timeline_entry_edited`, `private_message_received`, `reaction_added`, `reaction_removed` |
+| Catégorie               | Events                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Incident `[core]`       | `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` |
+| Automatisation `[core]` | `rule_triggered`, `rule_failed`                                                                                |
+| Release `[ext]`         | `release_step_validated`, `release_state_changed`                                                              |
+| Modération `[ext]`      | `member_kicked`, `member_banned` (`until=null` si permanent)                                                   |
+| Collaboration `[ext]`   | `timeline_entry_edited`, `private_message_received`, `reaction_added`, `reaction_removed`                      |
 
 ---
 
 ## 9. Surface API REST (résumé)
 
-| Domaine | Endpoints clés |
-|---|---|
-| Auth | `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /me` |
-| Teams | `POST /teams`, `POST /teams/:id/join`, `PUT /teams/:id/members/:uid`, transfert Manager |
-| Incidents | `POST /incidents`, transitions d'état, `POST /incidents/:id/assign` |
-| Timeline | `POST /incidents/:id/timeline`, `GET /incidents/:id/timeline` |
-| Releases `[ext]` | `POST /releases`, `POST /releases/:id/steps/:s/validate` |
-| Rules | `POST /rules`, `GET /rules`, `POST /webhooks/:service` |
-| Services | connexion tiers (token → vault), `GET /reactions/available` |
-| Système | `GET /about.json` (catalogue + token SHA-256), `GET /health` |
+| Domaine          | Endpoints clés                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| Auth             | `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /me`                 |
+| Teams            | `POST /teams`, `POST /teams/:id/join`, `PUT /teams/:id/members/:uid`, transfert Manager |
+| Incidents        | `POST /incidents`, transitions d'état, `POST /incidents/:id/assign`                     |
+| Timeline         | `POST /incidents/:id/timeline`, `GET /incidents/:id/timeline`                           |
+| Releases `[ext]` | `POST /releases`, `POST /releases/:id/steps/:s/validate`                                |
+| Rules            | `POST /rules`, `GET /rules`, `POST /webhooks/:service`                                  |
+| Services         | connexion tiers (token → vault), `GET /reactions/available`                             |
+| Système          | `GET /about.json` (catalogue + token SHA-256), `GET /health`                            |
 
 Toutes les routes protégées renvoient 401/403/404 cohérents.
 
@@ -311,17 +319,17 @@ Toutes les routes protégées renvoient 401/403/404 cohérents.
 
 ## 10. Stack technique & justifications
 
-| Composant | Choix | Justification (1 ligne, défendable au jury) |
-|---|---|---|
-| Serveur | **Rust + Axum + Tokio** | typage fort + enums d'erreur = robustesse ; maîtrise existante de l'hexagonal en Rust |
-| Persistance | **PostgreSQL + SQLx** | concurrence multi-connexion temps réel + migrations + pgvector pour le RAG |
-| Temps réel | **WebSockets** | exigé ; un broadcaster en adapter |
-| Client web | **Next.js + Tailwind** | exigé ; i18n via next-intl |
-| Client desktop | **Tauri** | binaire léger (AppImage), recommandé avec backend Rust, notifs OS natives propres |
-| Conteneurs | **Docker Compose** | exigé ; contrat de notation |
-| CI/CD | **GitHub Actions** | exigé ; lint+test+coverage+release par tag |
-| Agent | **service extrait (pgvector)** | isolé par port, dégradation gracieuse, zéro infra vectorielle en plus |
-| Cloud (vitrine) | **opswarden-ops séparé** | hors notation ; ne casse jamais la démo |
+| Composant       | Choix                          | Justification (1 ligne, défendable au jury)                                           |
+| --------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
+| Serveur         | **Rust + Axum + Tokio**        | typage fort + enums d'erreur = robustesse ; maîtrise existante de l'hexagonal en Rust |
+| Persistance     | **PostgreSQL + SQLx**          | concurrence multi-connexion temps réel + migrations + pgvector pour le RAG            |
+| Temps réel      | **WebSockets**                 | exigé ; un broadcaster en adapter                                                     |
+| Client web      | **Next.js + Tailwind**         | exigé ; i18n via next-intl                                                            |
+| Client desktop  | **Tauri**                      | binaire léger (AppImage), recommandé avec backend Rust, notifs OS natives propres     |
+| Conteneurs      | **Docker Compose**             | exigé ; contrat de notation                                                           |
+| CI/CD           | **GitHub Actions**             | exigé ; lint+test+coverage+release par tag                                            |
+| Agent           | **service extrait (pgvector)** | isolé par port, dégradation gracieuse, zéro infra vectorielle en plus                 |
+| Cloud (vitrine) | **opswarden-ops séparé**       | hors notation ; ne casse jamais la démo                                               |
 
 ### Arbitrages d'architecture
 
@@ -353,6 +361,7 @@ flowchart TB
 - Binaire desktop téléchargeable : `GET http://localhost:8081/client.AppImage` (cible Linux, documentée README).
 
 ### Vitrine — repo `opswarden-ops` (hors notation)
+
 `terraform/` (DOKS) · `k8s/` (Traefik, Postgres, Redis, ingress, cAdvisor) · `bootstrap/` (Minikube) · OTel/Grafana/Loki. **Jamais un prérequis pour faire tourner OpsWarden.**
 
 ---
@@ -386,4 +395,4 @@ opswarden/
 
 ---
 
-*Blueprint v1 — vit en parallèle de la roadmap. Mis à jour si une décision d'archi change.*
+_Blueprint v1 — vit en parallèle de la roadmap. Mis à jour si une décision d'archi change._

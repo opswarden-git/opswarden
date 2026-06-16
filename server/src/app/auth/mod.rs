@@ -1,9 +1,13 @@
 // --- server/src/app/auth/mod.rs ---
+pub mod delete_account;
 pub mod logout;
+pub mod oauth_sign_in;
 pub mod sign_in;
 pub mod sign_up;
 
+pub use delete_account::{DeleteAccountCommand, DeleteAccountUseCase};
 pub use logout::{LogoutCommand, LogoutUseCase};
+pub use oauth_sign_in::{OAuthSignInCommand, OAuthSignInUseCase};
 pub use sign_in::{SignInCommand, SignInResult, SignInUseCase};
 pub use sign_up::{SignUpCommand, SignUpResult, SignUpUseCase};
 
@@ -23,6 +27,15 @@ pub(crate) mod tests {
 
     #[async_trait]
     impl UserRepo for MockUserRepo {
+        async fn find_by_id(&self, _user_id: uuid::Uuid) -> Result<Option<User>, DomainError> {
+            if self.simulate_user_exists {
+                let email = Email::new("existing@opswarden.com").unwrap();
+                Ok(Some(User::new(email, "old_hash")))
+            } else {
+                Ok(None)
+            }
+        }
+
         async fn find_by_email(&self, _email: &str) -> Result<Option<User>, DomainError> {
             if self.simulate_user_exists {
                 let email = Email::new("existing@opswarden.com").unwrap();
@@ -32,6 +45,10 @@ pub(crate) mod tests {
             }
         }
         async fn save(&self, _user: &User) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn delete_account(&self, _user_id: uuid::Uuid) -> Result<(), DomainError> {
             Ok(())
         }
     }

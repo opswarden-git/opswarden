@@ -126,5 +126,9 @@ pub(crate) mod tests {
             self.removed.lock().unwrap().push((team_id, user_id));
             Ok(())
         }
+
+        async fn count_members(&self, _team_id: Uuid) -> Result<u64, DomainError> {
+            Ok(self.roles.len() as u64)
+        }
     }
 }

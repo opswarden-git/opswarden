@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM teams\n            WHERE id IN (\n                SELECT team_id\n                FROM team_members\n                WHERE user_id = $1 AND role = 'manager'\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2531edfa3f3ac8f4aa36d206c318756da625203e129668e2f25a780096f1f938"
+}

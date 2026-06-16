@@ -9,7 +9,7 @@ pub struct Email(String);
 
 impl Email {
     pub fn new(value: impl Into<String>) -> Result<Self, DomainError> {
-        let s = value.into();
+        let s = value.into().to_lowercase();
         if s.contains('@') {
             Ok(Self(s))
         } else {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Workflow, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 
 interface StepProps {
@@ -48,33 +48,19 @@ const AVAILABLE_INTEGRATIONS = [
   },
 ];
 
-export function StepIntegrations({ data, updateData, next, back }: StepProps) {
-  const selected = data.integrations || [];
-
-  const toggle = (id: string) => {
-    if (selected.includes(id)) {
-      updateData({ integrations: selected.filter((x: string) => x !== id) });
-    } else {
-      updateData({ integrations: [...selected, id] });
-    }
-  };
-
+export function StepIntegrations({ next, back }: StepProps) {
   return (
-    <div className="mx-auto w-full max-w-sm space-y-6">
-      <div className="mb-8 text-center">
-        <div className="bg-gold/10 text-gold mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full">
-          <Workflow className="h-10 w-10" />
-        </div>
-        <h2 className="text-text text-xl font-bold tracking-tight">Connect your integrations</h2>
-      </div>
-
-      <div className="space-y-4">
+    <div className="mx-auto w-full space-y-6">
+      <p className="text-muted text-xs leading-relaxed">
+        Workspace creation is live now. Service tokens are configured after onboarding through the
+        server-side vault, so this step is only a connector preview.
+      </p>
+      <div className="flex flex-col gap-2">
         {AVAILABLE_INTEGRATIONS.map((integ) => {
-          const isActive = selected.includes(integ.id);
           return (
             <div
               key={integ.id}
-              className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-white/5"
+              className="bg-bg hover:bg-panel-2 flex items-center justify-between rounded-md border border-[#26262b] p-3 transition-colors"
             >
               <div className="flex min-w-0 items-center gap-4 pr-4">
                 <div className="flex shrink-0 items-center justify-center">
@@ -83,14 +69,12 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
                     alt={integ.name}
                     width={24}
                     height={24}
-                    className="h-6 w-6 object-contain"
+                    className="size-5 object-contain"
                   />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-text truncate font-sans text-sm font-bold">
-                      {integ.name}
-                    </span>
+                    <span className="text-text truncate text-sm font-medium">{integ.name}</span>
                   </div>
                   <p className="text-muted mt-0.5 truncate text-xs">{integ.desc}</p>
                 </div>
@@ -98,34 +82,31 @@ export function StepIntegrations({ data, updateData, next, back }: StepProps) {
 
               <button
                 type="button"
-                onClick={() => toggle(integ.id)}
-                className={`shrink-0 rounded px-4 py-2 font-sans text-xs font-bold uppercase transition-all ${
-                  isActive
-                    ? "text-muted hover:text-text bg-white/5 hover:bg-white/10"
-                    : "hover:bg-gold-hover bg-gold text-bg"
-                }`}
+                disabled
+                className="text-muted bg-panel-2 shrink-0 cursor-not-allowed rounded-md border border-[#26262b] px-3 py-1.5 text-xs font-medium"
               >
-                {isActive ? "Connected" : "Connect"}
+                Configure later
               </button>
             </div>
           );
         })}
       </div>
 
-      <div className="flex items-center justify-between pt-4">
+      <div className="mt-2 flex items-center justify-between pt-4">
         <button
           type="button"
           onClick={back}
-          className="text-muted hover:text-text flex shrink-0 items-center justify-center transition-colors"
+          className="text-muted hover:text-text focus-visible:ring-gold flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="mr-1 size-4" />
+          Back
         </button>
         <button
           type="button"
           onClick={next}
-          className="hover:bg-gold-hover bg-gold text-bg rounded-md px-6 py-2 font-sans text-sm font-bold tracking-wider uppercase transition-colors"
+          className="bg-gold hover:bg-gold/90 focus-visible:ring-gold inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap text-[#1a1405] transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121317] focus-visible:outline-none"
         >
-          Next
+          Skip for now
         </button>
       </div>
     </div>

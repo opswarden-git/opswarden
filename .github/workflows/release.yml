@@ -1,116 +1,90 @@
----
-# Release pipeline -- DISABLED for now.
-# "On remet la CI en marche mais on commente la partie release" : ci.yml
-# tourne, mais ce pipeline reste off tant que :
-#   (1) client-desktop existe (build AppImage Tauri, Phase 3), et
-#   (2) la publication de l'image vers ghcr.io est decidee.
-#
-# Etat actuel : trigger manuel uniquement (`workflow_dispatch`) + job no-op, donc
-# aucun tag ne declenche de publish par accident. Le vrai pipeline (GitHub
-# release + push image ghcr.io + AppImage) est conserve en commentaire dessous.
-# Reactiver = restaurer `on.push.tags`, les `permissions`, et decommenter les jobs.
 name: Release
 
-"on":
+on:
+  push:
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # creer la GitHub Release
+  packages: write   # pousser l'image vers ghcr.io
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  disabled:
-    name: Release pipeline is disabled
+  create-release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Release disabled until Phase 3 (desktop) + ghcr publish decision."
+      - name: Checkout (historique complet pour le changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create release with auto-generated notes
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
 
-# =============================================================================
-# VRAI PIPELINE -- commente jusqu'a reactivation
-# =============================================================================
-# "on":
-#   push:
-#     tags:
-#       - 'v*.*.*'
-#
-# permissions:
-#   contents: write   # creer la GitHub Release
-#   packages: write   # pousser l'image vers ghcr.io
-#
-# concurrency:
-#   group: release-${{ github.ref }}
-#   cancel-in-progress: false
-#
-# jobs:
-#   create-release:
-#     name: Create GitHub Release
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout (historique complet pour le changelog)
-#         uses: actions/checkout@v6
-#         with:
-#           fetch-depth: 0
-#       - name: Create release with auto-generated notes
-#         uses: softprops/action-gh-release@v2
-#         with:
-#           generate_release_notes: true
-#
-#   docker-image:
-#     name: Build & Push server image (ghcr.io)
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v6
-#       - name: Log in to GitHub Container Registry
-#         uses: docker/login-action@v3
-#         with:
-#           registry: ghcr.io
-#           username: ${{ github.actor }}
-#           password: ${{ secrets.GITHUB_TOKEN }}
-#       - name: Docker metadata (tags + labels, owner mis en minuscules)
-#         id: meta
-#         uses: docker/metadata-action@v5
-#         with:
-#           images: ghcr.io/${{ github.repository_owner }}/opswarden-server
-#           tags: |
-#             type=semver,pattern={{version}}
-#             type=raw,value=latest
-#       - name: Set up Buildx
-#         uses: docker/setup-buildx-action@v3
-#       - name: Build & push
-#         uses: docker/build-push-action@v6
-#         with:
-#           context: .
-#           file: server/Dockerfile
-#           push: true
-#           tags: ${{ steps.meta.outputs.tags }}
-#           labels: ${{ steps.meta.outputs.labels }}
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
-#
-#   # Phase 3 -- binaire desktop Tauri (cible Linux / AppImage, cf. blueprint).
-#   # Le client_web l'expose ensuite sur GET :8081/client.AppImage (contrat compose).
-#   desktop-appimage:
-#     name: Build desktop AppImage (Tauri)
-#     runs-on: ubuntu-22.04
-#     needs: create-release
-#     steps:
-#       - uses: actions/checkout@v6
-#       - uses: actions/setup-node@v6
-#         with:
-#           node-version: 20
-#       - uses: dtolnay/rust-toolchain@stable
-#       - name: Deps systeme Tauri (Linux)
-#         run: |
-#           sudo apt-get update
-#           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev \
-#             libappindicator3-dev librsvg2-dev patchelf
-#       - name: Install deps
-#         run: npm install
-#       - uses: tauri-apps/tauri-action@v0
-#         env:
-#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#         with:
-#           projectPath: ./client-desktop
-#           tagName: ${{ github.ref_name }}
-#           releaseName: OpsWarden ${{ github.ref_name }}
-#           args: --bundles appimage
+  docker-image:
+    name: Build & Push server image (ghcr.io)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata (tags + labels, owner mis en minuscules)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/opswarden-server
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build & push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Phase 3 -- binaire desktop Tauri (cible Linux / AppImage, cf. blueprint).
+  # Le client_web l'expose ensuite sur GET :8081/client.AppImage (contrat compose).
+  # desktop-appimage:
+  #   name: Build desktop AppImage (Tauri)
+  #   runs-on: ubuntu-22.04
+  #   needs: create-release
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #     - uses: dtolnay/rust-toolchain@stable
+  #     - name: Deps systeme Tauri (Linux)
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev \
+  #           libappindicator3-dev librsvg2-dev patchelf
+  #     - name: Install deps
+  #       run: npm install
+  #     - uses: tauri-apps/tauri-action@v0
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         projectPath: ./client-desktop
+  #         tagName: ${{ github.ref_name }}
+  #         releaseName: OpsWarden ${{ github.ref_name }}
+  #         args: --bundles appimage

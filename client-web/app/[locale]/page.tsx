@@ -11,7 +11,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <div className="w-full max-w-7xl">
       <h1 className="text-text text-4xl font-bold tracking-tight">{t("title")}</h1>
-      <p className="text-muted mt-4 font-mono">En construction…</p>
+      <p className="text-muted mt-4 font-sans">En construction…</p>
     </div>
   );
 }

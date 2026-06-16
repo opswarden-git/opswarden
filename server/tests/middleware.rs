@@ -64,4 +64,5 @@ async fn api_me_returns_ok_with_valid_token() {
         json["id"].as_str().unwrap(),
         "00000000-0000-0000-0000-000000000000"
     );
+    assert_eq!(json["email"].as_str().unwrap(), "existing@test.com");
 }
