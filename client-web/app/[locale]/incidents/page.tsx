@@ -27,16 +27,15 @@ export default function IncidentsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-text text-2xl font-bold tracking-tight">{t("title")}</h1>
-
           </div>
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/5 p-12 text-center">
+        <div className="surface rounded-md p-12 text-center">
           <Shield className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-          <h3 className="text-text text-lg font-medium">{t("noStation")}</h3>
-          <p className="text-muted mt-2 mb-6 text-sm">{t("noStationDesc")}</p>
+          <h3 className="text-text text-lg font-medium">{t("noTeamsYet")}</h3>
+          <p className="text-muted mt-2 mb-6 text-sm">{t("noTeamsDesc")}</p>
           <Link
             href="/teams"
-            className="bg-gold text-bg hover:bg-gold-hover inline-flex items-center rounded-md px-4 py-2 font-sans text-sm font-bold transition-colors"
+            className="ow-primary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
           >
             {t("goToTeams")}
           </Link>
@@ -50,19 +49,15 @@ export default function IncidentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-text text-2xl font-bold tracking-tight">{t("title")}</h1>
-
         </div>
         <div className="flex items-center gap-4">
           <select
             value={activeTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="focus:border-gold rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:outline-none"
+            className="ow-input flex h-10 rounded-md px-3 py-2 text-sm transition-colors"
           >
-            <option value="" disabled>
-              {t("selectStation")}
-            </option>
             {teams?.map((team) => (
-              <option key={team.team_id} value={team.team_id}>
+              <option key={team.team_id} value={team.team_id} className="bg-bg text-text">
                 {team.name}
               </option>
             ))}
@@ -72,23 +67,19 @@ export default function IncidentsPage() {
       </div>
 
       {isLoadingIncidents ? (
-        <div className="text-muted animate-pulse py-10 text-center text-sm">
-          {t("loading")}
-        </div>
+        <div className="text-muted animate-pulse py-10 text-center text-sm">{t("loading")}</div>
       ) : error ? (
-        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
-          {t("failedToLoad")}
-        </div>
+        <div className="ow-danger rounded-md p-4 text-sm">{t("failedToLoad")}</div>
       ) : incidents && incidents.length === 0 ? (
-        <div className="rounded-xl border border-white/5 bg-white/5 p-12 text-center">
+        <div className="surface rounded-md p-12 text-center">
           <AlertCircle className="text-muted/50 mx-auto mb-4 h-12 w-12" />
           <h3 className="text-text text-lg font-medium">{t("noIncidentsYet")}</h3>
           <p className="text-muted mt-2 text-sm">{t("noIncidentsDesc")}</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/5 bg-black/40">
+        <div className="surface overflow-hidden rounded-md">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-white/5 bg-white/5 text-xs uppercase">
+            <thead className="surface-subtle border-border border-b text-xs uppercase">
               <tr>
                 <th className="text-muted px-4 py-3 font-medium">{t("colStatus")}</th>
                 <th className="text-muted px-4 py-3 font-medium">{t("colTitleId")}</th>
@@ -97,7 +88,7 @@ export default function IncidentsPage() {
                 <th className="text-muted px-4 py-3 text-right font-medium">{t("colAction")}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-border divide-y">
               {incidents?.map((incident) => (
                 <IncidentRow key={incident.id} incident={incident} />
               ))}

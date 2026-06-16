@@ -30,7 +30,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
       <button
         onClick={() => setOpen(true)}
         disabled={!teamId}
-        className="text-white disabled:text-white/50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold transition-colors hover:bg-red-700 disabled:bg-red-600/50"
+        className="ow-danger flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
       >
         <AlertCircle className="h-4 w-4" />
         {t("declareIncident")}
@@ -38,7 +38,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
 
       {open && (
         <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="glass relative w-full max-w-lg rounded-xl border border-red-500/20 p-6 shadow-2xl">
+          <div className="surface relative w-full max-w-lg rounded-md p-6 shadow-2xl">
             <button
               onClick={() => setOpen(false)}
               className="text-muted hover:text-text absolute top-4 right-4"
@@ -47,14 +47,12 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
               <X className="h-5 w-5" />
             </button>
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-500">
+              <div className="bg-sev-critical/15 text-sev-critical flex h-10 w-10 items-center justify-center rounded-full">
                 <AlertCircle className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-text font-sans text-lg font-bold">{t("declareTitle")}</h2>
-                <p className="text-muted text-xs">
-                  {t("declareWarning")}
-                </p>
+                <p className="text-muted text-xs">{t("declareWarning")}</p>
               </div>
             </div>
 
@@ -69,7 +67,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
                   autoFocus
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-red-500/50 focus:outline-none"
+                  className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
                   placeholder={t("titlePlaceholder")}
                 />
               </div>
@@ -82,12 +80,20 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
                   id="inc-sev"
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
-                  className="w-full rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:border-red-500/50 focus:outline-none"
+                  className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
                 >
-                  <option value="low">{t("sevLowDesc")}</option>
-                  <option value="medium">{t("sevMediumDesc")}</option>
-                  <option value="high">{t("sevHighDesc")}</option>
-                  <option value="critical">{t("sevCriticalDesc")}</option>
+                  <option value="low" className="bg-bg text-text">
+                    {t("sevLowDesc")}
+                  </option>
+                  <option value="medium" className="bg-bg text-text">
+                    {t("sevMediumDesc")}
+                  </option>
+                  <option value="high" className="bg-bg text-text">
+                    {t("sevHighDesc")}
+                  </option>
+                  <option value="critical" className="bg-bg text-text">
+                    {t("sevCriticalDesc")}
+                  </option>
                 </select>
               </div>
 
@@ -95,20 +101,20 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-muted hover:text-text px-4 py-2 text-sm font-medium transition-colors"
+                  className="ow-secondary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
                 >
                   {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={createIncident.isPending || !title.trim()}
-                  className="text-white rounded-lg bg-red-600 px-4 py-2 text-sm font-bold transition-colors hover:bg-red-700 disabled:bg-red-600/50 disabled:opacity-50"
+                  className="ow-danger inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {createIncident.isPending ? t("declaring") : t("declare")}
                 </button>
               </div>
               {createIncident.isError && (
-                <p className="mt-2 text-sm text-red-500">{createIncident.error.message}</p>
+                <p className="text-sev-critical mt-2 text-sm">{createIncident.error.message}</p>
               )}
             </form>
           </div>

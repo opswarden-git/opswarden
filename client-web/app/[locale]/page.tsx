@@ -10,6 +10,7 @@ import { Link } from "@/i18n/routing";
 
 export default function HomePage() {
   const t = useTranslations("Index");
+  const tSidebar = useTranslations("Sidebar");
   const { data: teams, isLoading: isLoadingTeams } = useTeams();
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
 
@@ -30,21 +31,16 @@ export default function HomePage() {
     <div className="mx-auto max-w-5xl space-y-8 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-text text-2xl font-bold tracking-tight">
-            {t("title") || "OpsWarden Cockpit"}
-          </h1>
-          <p className="text-muted mt-1 text-sm">
-            Station Overview
-          </p>
+          <h1 className="text-text text-2xl font-bold tracking-tight">{tSidebar("dashboard")}</h1>
         </div>
         {teams && teams.length > 0 && (
           <select
             value={activeTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="focus:border-gold rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-text focus:outline-none transition-colors"
+            className="ow-input flex h-10 rounded-md px-3 py-2 text-sm transition-colors"
           >
             {teams.map((team) => (
-              <option key={team.team_id} value={team.team_id} className="bg-bg">
+              <option key={team.team_id} value={team.team_id} className="bg-bg text-text">
                 {team.name}
               </option>
             ))}
@@ -55,58 +51,64 @@ export default function HomePage() {
       {isLoadingTeams || isLoadingIncidents ? (
         <div className="text-muted animate-pulse text-sm">Loading telemetry...</div>
       ) : !activeTeamId ? (
-        <div className="rounded-xl border border-white/5 bg-white/5 p-12 text-center">
+        <div className="surface rounded-md p-12 text-center">
           <p className="text-muted mb-4">No active station found.</p>
-          <Link href="/teams" className="text-gold hover:underline">Configure Team</Link>
+          <Link href="/teams" className="text-gold hover:underline">
+            Configure Team
+          </Link>
         </div>
       ) : (
         <div className="space-y-8">
           {/* KPI GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="surface flex flex-col justify-between rounded-md p-4">
+              <div className="flex items-start justify-between">
                 <span className="text-muted text-xs font-medium">Open Incidents</span>
-                <AlertTriangle className="h-4 w-4 text-st-open" />
+                <AlertTriangle className="text-st-open h-4 w-4" />
               </div>
-              <div className="text-3xl font-bold text-text mt-4">{openCount}</div>
+              <div className="text-text mt-4 font-mono text-3xl font-bold">{openCount}</div>
             </div>
-            
-            <div className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
+
+            <div className="surface flex flex-col justify-between rounded-md p-4">
+              <div className="flex items-start justify-between">
                 <span className="text-muted text-xs font-medium">Acknowledged</span>
-                <Activity className="h-4 w-4 text-st-ack" />
+                <Activity className="text-st-ack h-4 w-4" />
               </div>
-              <div className="text-3xl font-bold text-text mt-4">{ackCount}</div>
+              <div className="text-text mt-4 font-mono text-3xl font-bold">{ackCount}</div>
             </div>
 
-            <div className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-between">
-              <div className="flex justify-between items-start">
+            <div className="surface flex flex-col justify-between rounded-md p-4">
+              <div className="flex items-start justify-between">
                 <span className="text-muted text-xs font-medium">Escalated</span>
-                <Zap className="h-4 w-4 text-st-esc" />
+                <Zap className="text-st-esc h-4 w-4" />
               </div>
-              <div className="text-3xl font-bold text-text mt-4">{escCount}</div>
+              <div className="text-text mt-4 font-mono text-3xl font-bold">{escCount}</div>
             </div>
 
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 flex flex-col justify-between shadow-[inset_0_0_20px_rgba(239,68,68,0.05)]">
-              <div className="flex justify-between items-start">
-                <span className="text-red-400 text-xs font-medium">Critical Sev</span>
-                <ShieldAlert className="h-4 w-4 text-sev-critical" />
+            <div className="surface border-sev-critical/30 flex flex-col justify-between rounded-md p-4 shadow-[inset_0_0_20px_rgba(239,68,68,0.05)]">
+              <div className="flex items-start justify-between">
+                <span className="text-xs font-medium text-red-400">Critical Sev</span>
+                <ShieldAlert className="text-sev-critical h-4 w-4" />
               </div>
-              <div className="text-3xl font-bold text-red-500 mt-4">{criticalCount}</div>
+              <div className="text-sev-critical mt-4 font-mono text-3xl font-bold">
+                {criticalCount}
+              </div>
             </div>
           </div>
 
           {/* RECENT INCIDENTS */}
           <div>
-            <div className="flex justify-between items-end mb-4">
-              <h2 className="text-text font-bold text-lg">Active & Recent Streams</h2>
-              <Link href="/incidents" className="text-gold text-sm hover:underline">View All</Link>
+            <div className="mb-4 flex items-end justify-between">
+              <h2 className="text-text text-lg font-bold">{tSidebar("incidents")}</h2>
+              <Link href="/incidents" className="text-gold text-sm hover:underline">
+                View All
+              </Link>
             </div>
-            
+
             {recentIncidents && recentIncidents.length > 0 ? (
-              <div className="overflow-hidden rounded-xl border border-white/5 bg-black/40">
+              <div className="surface overflow-hidden rounded-md">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-white/5 bg-white/5 text-xs uppercase">
+                  <thead className="surface-subtle border-border border-b text-xs uppercase">
                     <tr>
                       <th className="text-muted px-6 py-4 font-medium">Status</th>
                       <th className="text-muted px-6 py-4 font-medium">Identifier & Title</th>
@@ -115,7 +117,7 @@ export default function HomePage() {
                       <th className="text-muted px-6 py-4 text-right font-medium">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-border divide-y">
                     {recentIncidents.map((incident) => (
                       <IncidentRow key={incident.id} incident={incident} />
                     ))}
@@ -123,7 +125,7 @@ export default function HomePage() {
                 </table>
               </div>
             ) : (
-              <div className="rounded-xl border border-white/5 bg-white/5 p-12 text-center">
+              <div className="surface rounded-md p-12 text-center">
                 <ShieldAlert className="text-muted/50 mx-auto mb-4 h-12 w-12" />
                 <p className="text-muted text-sm">No recent incidents detected</p>
               </div>

@@ -24,7 +24,7 @@ export function JoinTeamDialog() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-gold hover:text-gold-hover flex items-center gap-2 font-sans text-sm font-bold transition-colors"
+        className="ow-secondary flex inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors"
       >
         <Users className="h-4 w-4" />
         {t("joinTeam")}
@@ -32,7 +32,7 @@ export function JoinTeamDialog() {
 
       {open && (
         <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="glass relative w-full max-w-md rounded-xl p-6 shadow-2xl">
+          <div className="surface relative w-full max-w-md rounded-md p-6 shadow-2xl">
             <button
               onClick={() => setOpen(false)}
               className="text-muted hover:text-text absolute top-4 right-4"
@@ -52,7 +52,7 @@ export function JoinTeamDialog() {
                   autoFocus
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  className="focus:border-gold w-full rounded-md border border-white/10 bg-black/50 px-3 py-2 font-mono text-sm tracking-widest text-white uppercase focus:outline-none"
+                  className="ow-input flex h-10 w-full rounded-md px-3 py-2 font-mono text-sm tracking-widest uppercase transition-colors"
                   placeholder="OPS-XXXXXX"
                 />
               </div>
@@ -60,20 +60,20 @@ export function JoinTeamDialog() {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-muted hover:text-text px-4 py-2 text-sm font-medium transition-colors"
+                  className="ow-secondary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
                 >
                   {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={joinTeam.isPending || !code.trim()}
-                  className="bg-gold hover:bg-gold-hover text-bg rounded-md px-4 py-2 font-sans text-sm font-bold transition-colors disabled:opacity-50"
+                  className="ow-primary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {joinTeam.isPending ? t("joining") : t("join")}
                 </button>
               </div>
               {joinTeam.isError && (
-                <p className="mt-2 text-sm text-red-500">{joinTeam.error.message}</p>
+                <p className="text-sev-critical mt-2 text-sm">{joinTeam.error.message}</p>
               )}
             </form>
           </div>

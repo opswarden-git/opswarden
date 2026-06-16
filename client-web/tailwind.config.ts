@@ -38,7 +38,9 @@ const config = {
         },
         gold: {
           DEFAULT: "var(--gold)",
+          hover: "var(--gold-hover)",
           dim: "var(--gold-dim)",
+          ink: "var(--gold-ink)",
         },
         sev: {
           low: "var(--sev-low)",

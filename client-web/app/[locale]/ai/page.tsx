@@ -1,8 +1,13 @@
 export default function AIPage() {
   return (
-    <div className="w-full max-w-7xl">
-      <h1 className="text-text text-4xl font-bold tracking-tight">Warden AI</h1>
-      <p className="text-muted mt-4 font-sans">En construction…</p>
+    <div className="mx-auto max-w-5xl space-y-8 p-6">
+      <div>
+        <h1 className="text-text text-2xl font-bold tracking-tight">Warden AI</h1>
+      </div>
+
+      <div className="surface rounded-md p-12 text-center">
+        <p className="text-muted text-sm">En construction...</p>
+      </div>
     </div>
   );
 }

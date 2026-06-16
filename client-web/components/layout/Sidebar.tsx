@@ -106,7 +106,7 @@ export function Sidebar({ className }: { className?: string }) {
             // 2. Clear store and let AuthGuard do the redirect
             useAuthStore.getState().logout();
           }}
-          className="text-muted ml-4 rounded-md p-2 transition-colors hover:text-red-500"
+          className="text-muted hover:text-sev-critical ml-4 rounded-md p-2 transition-colors"
           title={t("logout")}
         >
           <LogOut className="h-5 w-5" />

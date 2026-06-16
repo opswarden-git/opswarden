@@ -7,7 +7,7 @@ import { useWsStore } from "@/lib/ws";
 import { StateChip } from "@/components/incidents/StateChip";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { Timeline } from "@/components/incidents/Timeline";
-import { ArrowLeft, Clock, ShieldAlert, CheckCircle2, UserPlus, Eye } from "lucide-react";
+import { ArrowLeft, Clock, ShieldAlert, CheckCircle2, UserPlus } from "lucide-react";
 import { Link } from "@/i18n/routing";
 
 export default function WarRoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +38,7 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
   if (error || !incident) {
     return (
       <div className="mx-auto max-w-5xl p-6 text-center">
-        <p className="text-red-500">Failed to load incident details.</p>
+        <p className="text-sev-critical">Failed to load incident details.</p>
         <Link href="/incidents" className="text-gold mt-4 inline-block hover:underline">
           Return to Incidents
         </Link>
@@ -51,7 +51,7 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
       <div className="flex items-center gap-4">
         <Link
           href="/incidents"
-          className="text-muted hover:text-text rounded-md bg-panel p-2 border border-border transition-colors hover:border-gold"
+          className="ow-secondary text-muted hover:text-text hover:border-gold rounded-md p-2 transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -65,24 +65,24 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
               T-Minus: {new Date(incident.created_at).toLocaleString()}
             </span>
             {incident.assignee ? (
-              <span className="text-text inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium">
-                <UserPlus className="h-3 w-3 text-gold" />
+              <span className="surface-subtle text-text border-border inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
+                <UserPlus className="text-gold h-3 w-3" />
                 {incident.assignee.split("-")[0]}
               </span>
             ) : (
-              <span className="text-muted/50 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-medium">
+              <span className="surface-subtle text-muted/60 border-border inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
                 Unassigned
               </span>
             )}
-            <div className="ml-auto flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+            <div className="surface-subtle border-border ml-auto flex items-center gap-2 rounded-full border px-3 py-1">
               <span className="relative flex h-2 w-2">
                 {watchers.length > 0 ? (
                   <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    <span className="bg-st-res absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>
+                    <span className="bg-st-res relative inline-flex h-2 w-2 rounded-full"></span>
                   </>
                 ) : (
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-muted/50"></span>
+                  <span className="bg-muted/50 relative inline-flex h-2 w-2 rounded-full"></span>
                 )}
               </span>
               <span className="text-text text-xs font-medium">{watchers.length} Watchers</span>
@@ -92,13 +92,13 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-3 gap-6">
-        <div className="col-span-2 flex flex-col overflow-hidden rounded-xl border border-white/5 bg-black/40">
+        <div className="surface col-span-2 flex flex-col overflow-hidden rounded-md">
           <Timeline incidentId={incident.id} />
         </div>
 
         <div className="col-span-1 flex flex-col space-y-4">
-          <div className="rounded-xl border border-white/5 bg-white/5 p-6">
-            <h3 className="text-text font-bold mb-4">Command Actions</h3>
+          <div className="surface rounded-md p-6">
+            <h3 className="text-text mb-4 font-bold">Command Actions</h3>
             <div className="space-y-3">
               <button
                 onClick={() => {
@@ -107,7 +107,7 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
                   }
                 }}
                 disabled={!user?.id || incident.assignee === user.id || assignIncident.isPending}
-                className="bg-gold hover:bg-gold-hover text-[#1a1405] flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="ow-primary flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
                 <UserPlus className="h-4 w-4" />
                 Assume Lead
@@ -118,9 +118,9 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
                   updateStatus.mutate({ incidentId: incident.id, status: "acknowledged" })
                 }
                 disabled={incident.status !== "open" || updateStatus.isPending}
-                className="text-text hover:border-st-ack/50 hover:bg-st-ack/10 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="ow-secondary text-text hover:border-st-ack/50 hover:bg-st-ack/10 flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
-                <Clock className="h-4 w-4 text-st-ack" />
+                <Clock className="text-st-ack h-4 w-4" />
                 Acknowledge
               </button>
 
@@ -129,7 +129,7 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
                   updateStatus.mutate({ incidentId: incident.id, status: "escalated" })
                 }
                 disabled={incident.status !== "acknowledged" || updateStatus.isPending}
-                className="bg-red-600 hover:bg-red-700 text-white flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="border-st-esc/25 bg-st-esc/10 text-st-esc hover:bg-st-esc/20 flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
                 <ShieldAlert className="h-4 w-4" />
                 Escalate
@@ -142,27 +142,30 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
                   incident.status === "open" ||
                   updateStatus.isPending
                 }
-                className="text-text hover:border-st-res/50 hover:bg-st-res/10 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="ow-secondary text-text hover:border-st-res/50 hover:bg-st-res/10 flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
-                <CheckCircle2 className="h-4 w-4 text-st-res" />
+                <CheckCircle2 className="text-st-res h-4 w-4" />
                 Resolve
               </button>
             </div>
             {updateStatus.isError && (
-              <p className="mt-4 text-center text-xs text-red-500">{updateStatus.error.message}</p>
+              <p className="text-sev-critical mt-4 text-center text-xs">
+                {updateStatus.error.message}
+              </p>
             )}
             {assignIncident.isError && (
-              <p className="mt-4 text-center text-xs text-red-500">
+              <p className="text-sev-critical mt-4 text-center text-xs">
                 {assignIncident.error.message}
               </p>
             )}
           </div>
 
-          <div className="flex-1 rounded-xl border border-white/5 bg-white/5 p-6">
-            <h3 className="text-text font-bold mb-4">Payload Details</h3>
+          <div className="surface flex-1 rounded-md p-6">
+            <h3 className="text-text mb-4 font-bold">Payload Details</h3>
             <p className="text-muted text-sm whitespace-pre-wrap">
               <span className="text-text">Title:</span> {incident.title}
-              <br /><br />
+              <br />
+              <br />
               <span className="text-text">Severity Level:</span> {incident.severity.toUpperCase()}
             </p>
           </div>
