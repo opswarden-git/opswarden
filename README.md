@@ -5,6 +5,7 @@
 
 <p align="center">
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
   <a href="https://github.com/RomeoCavazza/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v0.2.0-F4C430?style=flat-square" alt="Release v0.2.0" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
