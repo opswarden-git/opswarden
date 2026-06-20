@@ -47,41 +47,48 @@ Local checks run on 2026-06-19:
 
 Known caveat: coverage percentage was not measured in this audit.
 
+2026-06-20 update: realtime hardening (WS cross-team authz on `watch`/`status_typing`,
+per-incident presence/typing store, timeline polling removed) was merged and the live
+2-browser + cross-team scenario was proven; `v0.1.0` is tagged on `main` (`9d18c55`).
+Re-verified this session: `tsc`, ESLint, Prettier, `cargo test -p opswarden-server`,
+`clippy -D warnings`, `cargo fmt --check`. The full `--workspace` test/build suite from
+the table above was not re-run.
+
 ## RTC 1 Rubric
 
-| ID                    | Criterion                                                          | Status  | Evidence / gap                                                                     |
-| --------------------- | ------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------- |
-| `specs_server`        | Server uses NodeJS or Rust and allows simultaneous connections     | OK      | Rust/Axum server, `/ws`, async handlers                                            |
-| `specs_client`        | Client uses ReactJS or NextJS and is connected to the server       | OK      | Next.js client builds and calls `/api/*`                                           |
-| `user_list`           | Users can see who joined the server                                | KO      | No team member list endpoint/UI yet                                                |
-| `chan_list`           | Users can list all channels inside a server                        | OK      | mapped to incident list per team                                                   |
-| `server_create`       | Users can create a server                                          | OK      | mapped to team creation, API + UI                                                  |
-| `server_delete`       | Users can delete a server                                          | PARTIAL | backend team delete exists, no final UI flow/confirmation                          |
-| `server_join`         | Users can join a server                                            | OK      | invitation-code join, API + UI                                                     |
-| `server_multiple`     | Users can join multiple servers simultaneously                     | OK      | membership model and team list support multiple teams                              |
-| `server_quit`         | Users can leave a server                                           | PARTIAL | backend leave exists, no final UI flow                                             |
-| `chan_create`         | Users can create a channel inside a server                         | OK      | mapped to incident creation, API + UI                                              |
-| `chan_delete`         | Users can delete a channel                                         | PARTIAL | backend incident delete exists, no final UI flow/confirmation                      |
-| `chan_message`        | Users can send a message to all users in a channel using WebSocket | OK      | Timeline WS events broadcast to and update all co-watchers in real-time            |
-| `status_online`       | Users can see who is online on the server                          | PARTIAL | incident watcher presence exists; no full team-online roster                       |
-| `status_typing`       | Users can see who is typing inside a channel                       | OK      | status_typing sends typing state broadcasted to co-watchers, with security checks  |
-| `user_management`     | Different roles allow different permissions inside a server        | PARTIAL | RBAC + Manager transfer exist; general member role management UI absent            |
-| `persistency`         | Servers, channels and messages are persisted                       | OK      | Postgres users/teams/incidents/timeline/vault                                      |
-| `functional-delivery` | Delivery is functional, most previous achievements obtained        | PARTIAL | backend and web build pass; cumulative feature scope incomplete                    |
-| `ui_servers`          | Server management interface is clear and intuitive                 | PARTIAL | Teams screen exists; delete/leave/member management missing                        |
-| `ui_chat`             | Chat interface inside a channel is clear and intuitive             | PARTIAL | Timeline UI exists; accessibility gap on placeholder-only input                    |
-| `ui_design`           | Interface design is elaborated and advanced                        | PARTIAL | visual system exists; screenshots/final polish missing                             |
-| `uiux_quality`        | Delivery offers high-quality UX/UI                                 | PARTIAL | usable foundation, known accessibility and parity gaps                             |
-| `versioning_basics`   | Proper versioning workflow, branching, commits, `.gitignore`       | OK      | repo initialized, `.gitignore`, PR template/workflows present                      |
-| `coding_style`        | Code respects a common coding style                                | OK      | fmt, clippy, ESLint, Prettier pass                                                 |
-| `tests_unit`          | At least 70% of source code tested                                 | PARTIAL | many tests pass; 70% coverage not measured yet                                     |
-| `tests_automation`    | Tests are easily runnable                                          | OK      | `cargo test --workspace`, npm checks, CI workflow                                  |
-| `tests_coverage`      | Branches tested beyond main flow                                   | PARTIAL | many error-path tests exist; coverage report not audited                           |
-| `documentation`       | README and newcomer docs delivered                                 | PARTIAL | README exists but has stale/promissory sections                                    |
-| `presentation`        | Professional presentation support/demo                             | KO      | not present in repo                                                                |
-| `extra_small`         | At least 1 feature outside RTC features                            | PARTIAL | automation/OAuth exist, but do not count before core is stable                     |
-| `extra_medium`        | At least 3 extra features outside RTC features                     | PARTIAL | same caveat                                                                        |
-| `extra_large`         | More than 4 extra features outside RTC features                    | KO      | defer until mandatory criteria are green                                           |
+| ID                    | Criterion                                                          | Status  | Evidence / gap                                                                                                        |
+| --------------------- | ------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| `specs_server`        | Server uses NodeJS or Rust and allows simultaneous connections     | OK      | Rust/Axum server, `/ws`, async handlers                                                                               |
+| `specs_client`        | Client uses ReactJS or NextJS and is connected to the server       | OK      | Next.js client builds and calls `/api/*`                                                                              |
+| `user_list`           | Users can see who joined the server                                | KO      | No team member list endpoint/UI yet                                                                                   |
+| `chan_list`           | Users can list all channels inside a server                        | OK      | mapped to incident list per team                                                                                      |
+| `server_create`       | Users can create a server                                          | OK      | mapped to team creation, API + UI                                                                                     |
+| `server_delete`       | Users can delete a server                                          | PARTIAL | backend team delete exists, no final UI flow/confirmation                                                             |
+| `server_join`         | Users can join a server                                            | OK      | invitation-code join, API + UI                                                                                        |
+| `server_multiple`     | Users can join multiple servers simultaneously                     | OK      | membership model and team list support multiple teams                                                                 |
+| `server_quit`         | Users can leave a server                                           | PARTIAL | backend leave exists, no final UI flow                                                                                |
+| `chan_create`         | Users can create a channel inside a server                         | OK      | mapped to incident creation, API + UI                                                                                 |
+| `chan_delete`         | Users can delete a channel                                         | PARTIAL | backend incident delete exists, no final UI flow/confirmation                                                         |
+| `chan_message`        | Users can send a message to all users in a channel using WebSocket | OK      | Timeline WS events broadcast to and update all co-watchers in real-time                                               |
+| `status_online`       | Users can see who is online on the server                          | PARTIAL | incident watcher presence exists; no full team-online roster                                                          |
+| `status_typing`       | Users can see who is typing inside a channel                       | OK      | typing broadcast to the incident's team, guarded by a membership check; strict co-watcher scoping not yet implemented |
+| `user_management`     | Different roles allow different permissions inside a server        | PARTIAL | RBAC + Manager transfer exist; general member role management UI absent                                               |
+| `persistency`         | Servers, channels and messages are persisted                       | OK      | Postgres users/teams/incidents/timeline/vault                                                                         |
+| `functional-delivery` | Delivery is functional, most previous achievements obtained        | PARTIAL | backend and web build pass; cumulative feature scope incomplete                                                       |
+| `ui_servers`          | Server management interface is clear and intuitive                 | PARTIAL | Teams screen exists; delete/leave/member management missing                                                           |
+| `ui_chat`             | Chat interface inside a channel is clear and intuitive             | PARTIAL | Timeline UI exists; accessibility gap on placeholder-only input                                                       |
+| `ui_design`           | Interface design is elaborated and advanced                        | PARTIAL | visual system exists; screenshots/final polish missing                                                                |
+| `uiux_quality`        | Delivery offers high-quality UX/UI                                 | PARTIAL | usable foundation, known accessibility and parity gaps                                                                |
+| `versioning_basics`   | Proper versioning workflow, branching, commits, `.gitignore`       | OK      | repo initialized, `.gitignore`, PR template/workflows present                                                         |
+| `coding_style`        | Code respects a common coding style                                | OK      | fmt, clippy, ESLint, Prettier pass                                                                                    |
+| `tests_unit`          | At least 70% of source code tested                                 | PARTIAL | many tests pass; 70% coverage not measured yet                                                                        |
+| `tests_automation`    | Tests are easily runnable                                          | OK      | `cargo test --workspace`, npm checks, CI workflow                                                                     |
+| `tests_coverage`      | Branches tested beyond main flow                                   | PARTIAL | many error-path tests exist; coverage report not audited                                                              |
+| `documentation`       | README and newcomer docs delivered                                 | PARTIAL | README exists but has stale/promissory sections                                                                       |
+| `presentation`        | Professional presentation support/demo                             | KO      | not present in repo                                                                                                   |
+| `extra_small`         | At least 1 feature outside RTC features                            | PARTIAL | automation/OAuth exist, but do not count before core is stable                                                        |
+| `extra_medium`        | At least 3 extra features outside RTC features                     | PARTIAL | same caveat                                                                                                           |
+| `extra_large`         | More than 4 extra features outside RTC features                    | KO      | defer until mandatory criteria are green                                                                              |
 
 ## RTC 2 Rubric
 
@@ -123,14 +130,14 @@ Known caveat: coverage percentage was not measured in this audit.
 
 ### Phase 1 — Core
 
-| Criterion                                                                | Status  | Evidence / gap                                                         |
-| ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------- |
-| Email/password auth, `GET /me`, sign out with token invalidation         | OK      | API + tests                                                            |
-| Teams with Observer/Responder/Manager, invitation code, Manager transfer | OK      | API/domain/tests                                                       |
-| Incidents lifecycle, severities, real-time collaborative timeline        | OK      | Lifecycle, severities, and timeline are fully functional with two-browser updates |
-| Persistence of all data                                                  | PARTIAL | implemented data is persisted; releases/PM/reactions/moderation absent |
-| WebSockets core events                                                   | OK      | server protocol + client hook for incident/timeline/presence           |
-| Automatic client-side reconnection                                       | OK      | `react-use-websocket` reconnect config                                 |
+| Criterion                                                                | Status  | Evidence / gap                                                                                                    |
+| ------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| Email/password auth, `GET /me`, sign out with token invalidation         | OK      | API + tests                                                                                                       |
+| Teams with Observer/Responder/Manager, invitation code, Manager transfer | OK      | API/domain/tests                                                                                                  |
+| Incidents lifecycle, severities, real-time collaborative timeline        | OK      | Lifecycle, severities, and timeline are fully functional with two-browser updates                                 |
+| Persistence of all data                                                  | PARTIAL | implemented data is persisted; releases/PM/reactions/moderation absent                                            |
+| WebSockets core events                                                   | OK      | server protocol + client hook for incident/timeline/presence                                                      |
+| Automatic client-side reconnection                                       | OK      | `react-use-websocket` reconnect + re-auth; full state resync-on-reopen tracked in S2.5 (timeline polling removed) |
 
 ### Phase 1 — Extended / Final Jury Value
 
