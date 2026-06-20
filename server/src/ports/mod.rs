@@ -131,6 +131,9 @@ pub trait SecretVault: Send + Sync {
     async fn store(&self, service: &str, secret: &str) -> Result<(), DomainError>;
     /// Decrypt and return the secret for `service`, or `None` if none is stored.
     async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError>;
+    /// Remove the stored secret for `service` (idempotent: deleting a missing
+    /// service is not an error).
+    async fn delete(&self, service: &str) -> Result<(), DomainError>;
 }
 
 /// Verifies that an inbound webhook body carries a valid signature for a given

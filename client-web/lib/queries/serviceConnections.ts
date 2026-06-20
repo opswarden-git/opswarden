@@ -41,3 +41,21 @@ export function useConnectGithub() {
     },
   });
 }
+
+/** Remove the stored GitHub webhook signing secret (disconnect the integration). */
+export function useDisconnectGithub() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch("/api/service-connections/github", { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "github_disconnect_failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-connections"] });
+    },
+  });
+}

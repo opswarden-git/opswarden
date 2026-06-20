@@ -93,7 +93,8 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/api/service-connections/github",
-            put(handlers::service_connection::connect_github),
+            put(handlers::service_connection::connect_github)
+                .delete(handlers::service_connection::disconnect_github),
         )
         .route_layer(axum::middleware::from_fn_with_state(
             state.clone(),

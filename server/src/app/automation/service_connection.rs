@@ -38,6 +38,11 @@ impl ServiceConnectionUseCase {
     pub async fn github_connected(&self) -> Result<bool, DomainError> {
         Ok(self.vault.reveal(GITHUB_SERVICE).await?.is_some())
     }
+
+    /// Remove the GitHub secret from the vault (idempotent), disconnecting it.
+    pub async fn disconnect_github(&self) -> Result<(), DomainError> {
+        self.vault.delete(GITHUB_SERVICE).await
+    }
 }
 
 #[cfg(test)]
@@ -64,6 +69,10 @@ mod tests {
         async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError> {
             Ok(self.secrets.lock().unwrap().get(service).cloned())
         }
+        async fn delete(&self, service: &str) -> Result<(), DomainError> {
+            self.secrets.lock().unwrap().remove(service);
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -88,5 +97,19 @@ mod tests {
         let err = uc.connect_github("   ").await.unwrap_err();
         assert_eq!(err, DomainError::InvalidServiceSecret);
         assert!(!uc.github_connected().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn disconnect_removes_the_github_secret() {
+        let vault = Arc::new(MockVault::default());
+        let uc = ServiceConnectionUseCase::new(vault.clone());
+
+        uc.connect_github("hmac-secret").await.unwrap();
+        assert!(uc.github_connected().await.unwrap());
+
+        uc.disconnect_github().await.unwrap();
+        assert!(!uc.github_connected().await.unwrap());
+        // Idempotent: disconnecting again is fine.
+        uc.disconnect_github().await.unwrap();
     }
 }

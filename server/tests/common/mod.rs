@@ -55,6 +55,11 @@ impl SecretVault for DummyVault {
     async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError> {
         Ok(self.secrets.lock().unwrap().get(service).cloned())
     }
+
+    async fn delete(&self, service: &str) -> Result<(), DomainError> {
+        self.secrets.lock().unwrap().remove(service);
+        Ok(())
+    }
 }
 
 /// No-op notifier for tests: the Notify REAction is unit-tested in the use-case

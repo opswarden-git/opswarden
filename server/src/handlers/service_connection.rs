@@ -45,6 +45,18 @@ pub async fn connect_github(
     Ok(Json(ServiceStatus { connected: true }))
 }
 
+/// `DELETE /api/service-connections/github` — remove the stored secret so the
+/// integration reports disconnected. Idempotent; never returns the secret.
+pub async fn disconnect_github(
+    State(state): State<AppState>,
+    Extension(_session): Extension<AuthenticatedSession>,
+) -> Result<Json<ServiceStatus>, DomainError> {
+    ServiceConnectionUseCase::new(state.vault.clone())
+        .disconnect_github()
+        .await?;
+    Ok(Json(ServiceStatus { connected: false }))
+}
+
 /// `GET /api/service-connections` — per-service connection status. No secrets.
 pub async fn list_service_connections(
     State(state): State<AppState>,

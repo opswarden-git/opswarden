@@ -69,6 +69,14 @@ impl SecretVault for PgAesVault {
         let secret = String::from_utf8(plaintext).map_err(|_| DomainError::Crypto)?;
         Ok(Some(secret))
     }
+
+    async fn delete(&self, service: &str) -> Result<(), DomainError> {
+        sqlx::query!("DELETE FROM external_secrets WHERE service = $1", service)
+            .execute(&self.pool)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(())
+    }
 }
 
 // --- TESTS ---
@@ -120,5 +128,18 @@ mod tests {
             .unwrap();
         let ciphertext: Vec<u8> = row.get("ciphertext");
         assert_ne!(ciphertext.as_slice(), b"ghp_top_secret");
+    }
+
+    #[tokio::test]
+    async fn delete_removes_the_secret_idempotently() {
+        let vault = PgAesVault::new(pool().await, KEY);
+        let service = format!("svc_{}", uuid::Uuid::new_v4());
+        vault.store(&service, "to-be-deleted").await.unwrap();
+        assert!(vault.reveal(&service).await.unwrap().is_some());
+
+        vault.delete(&service).await.unwrap();
+        assert!(vault.reveal(&service).await.unwrap().is_none());
+        // Deleting a missing service is not an error.
+        vault.delete(&service).await.unwrap();
     }
 }

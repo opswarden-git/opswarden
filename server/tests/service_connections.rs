@@ -122,3 +122,65 @@ async fn empty_secret_is_rejected_and_stores_nothing() {
     assert_eq!(res.status(), StatusCode::BAD_REQUEST);
     assert!(ctx.vault.reveal("github").await.unwrap().is_none());
 }
+
+#[tokio::test]
+async fn disconnect_github_requires_authentication() {
+    let ctx = test_context();
+    let res = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/service-connections/github")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn disconnect_github_clears_connection_without_leaking_secret() {
+    let ctx = test_context();
+    ctx.vault.seed("github", SECRET);
+
+    let res = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/service-connections/github")
+                .header("Authorization", AUTH)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let del_body = body_string(res).await;
+    assert!(!del_body.contains(SECRET));
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&del_body).unwrap()["connected"],
+        false
+    );
+
+    // The secret is gone from the vault and GET now reports disconnected.
+    assert!(ctx.vault.reveal("github").await.unwrap().is_none());
+    let res = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/service-connections")
+                .header("Authorization", AUTH)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_str(&body_string(res).await).unwrap();
+    assert_eq!(body["github"]["connected"], false);
+}

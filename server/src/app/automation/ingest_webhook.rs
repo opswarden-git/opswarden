@@ -167,6 +167,9 @@ mod tests {
         async fn reveal(&self, _service: &str) -> Result<Option<String>, DomainError> {
             Ok(self.secret.clone())
         }
+        async fn delete(&self, _service: &str) -> Result<(), DomainError> {
+            Ok(())
+        }
     }
 
     #[derive(Default)]
