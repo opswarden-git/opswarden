@@ -30,13 +30,18 @@ impl Config {
     pub fn from_env() -> Self {
         load_local_env();
 
-        let kickoff_token_secret = std::env::var("OPSWARDEN_KICKOFF_TOKEN")
-            .unwrap_or_else(|_| "Romeo Cavazza VIGIL2026".to_string());
+        // Every optional var goes through `optional_env`, which treats a blank or
+        // whitespace-only value as unset. This matters for the compose demo path:
+        // `${VAR:-}` passes an empty string when the host hasn't set it, and an
+        // empty HMAC secret / OAuth id / notify URL must mean "not configured",
+        // never a meaningless `Some("")`.
+        let kickoff_token_secret = optional_env("OPSWARDEN_KICKOFF_TOKEN")
+            .unwrap_or_else(|| "Romeo Cavazza VIGIL2026".to_string());
 
-        // Fail-fast in release builds: a missing JWT_SECRET in production would
-        // silently fall back to a publicly-known key, letting anyone forge tokens.
-        // Debug builds keep a dev default for zero-config local work.
-        let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| {
+        // Fail-fast in release builds: a missing (or blank) JWT_SECRET in
+        // production would silently fall back to a publicly-known key, letting
+        // anyone forge tokens. Debug builds keep a dev default for zero-config work.
+        let jwt_secret = optional_env("JWT_SECRET").unwrap_or_else(|| {
             if cfg!(debug_assertions) {
                 eprintln!(
                     "WARNING: JWT_SECRET is unset — using an insecure development default \
@@ -51,24 +56,24 @@ impl Config {
             }
         });
 
-        let vault_key = std::env::var("OPSWARDEN_VAULT_KEY")
-            .ok()
+        // A blank OPSWARDEN_VAULT_KEY falls back to the dev key (unchanged behavior).
+        let vault_key = optional_env("OPSWARDEN_VAULT_KEY")
             .and_then(|hex_key| decode_key(&hex_key))
             .unwrap_or(DEV_VAULT_KEY);
 
-        let github_webhook_secret = std::env::var("GITHUB_WEBHOOK_SECRET").ok();
+        let github_webhook_secret = optional_env("GITHUB_WEBHOOK_SECRET");
 
-        let automation_team_id = std::env::var("OPSWARDEN_AUTOMATION_TEAM_ID")
-            .ok()
-            .and_then(|raw| Uuid::parse_str(&raw).ok());
+        // Blank or unparseable => None: rules stay inert rather than crashing.
+        let automation_team_id = optional_env("OPSWARDEN_AUTOMATION_TEAM_ID")
+            .and_then(|raw| Uuid::parse_str(raw.trim()).ok());
 
-        let automation_notify_url = std::env::var("OPSWARDEN_AUTOMATION_NOTIFY_URL").ok();
-        let google_oauth_client_id = std::env::var("GOOGLE_OAUTH_CLIENT_ID").ok();
-        let google_oauth_client_secret = std::env::var("GOOGLE_OAUTH_CLIENT_SECRET").ok();
-        let google_oauth_redirect_uri = std::env::var("GOOGLE_OAUTH_REDIRECT_URI")
-            .unwrap_or_else(|_| "http://localhost:8080/api/auth/google/callback".to_string());
-        let web_origin = std::env::var("OPSWARDEN_WEB_ORIGIN")
-            .unwrap_or_else(|_| "http://localhost:4242".to_string());
+        let automation_notify_url = optional_env("OPSWARDEN_AUTOMATION_NOTIFY_URL");
+        let google_oauth_client_id = optional_env("GOOGLE_OAUTH_CLIENT_ID");
+        let google_oauth_client_secret = optional_env("GOOGLE_OAUTH_CLIENT_SECRET");
+        let google_oauth_redirect_uri = optional_env("GOOGLE_OAUTH_REDIRECT_URI")
+            .unwrap_or_else(|| "http://localhost:8080/api/auth/google/callback".to_string());
+        let web_origin = optional_env("OPSWARDEN_WEB_ORIGIN")
+            .unwrap_or_else(|| "http://localhost:4242".to_string());
 
         Self {
             kickoff_token_secret,
@@ -92,6 +97,19 @@ impl Config {
 /// Decode a 64-hex-char string into a 32-byte AES key, or `None` if malformed.
 fn decode_key(hex_key: &str) -> Option<[u8; 32]> {
     hex::decode(hex_key).ok()?.try_into().ok()
+}
+
+/// `None` if the value is absent, empty, or whitespace-only; otherwise the value
+/// returned **unchanged** (secrets are preserved exactly, never trimmed). Keeps a
+/// blank env var — common when a compose `${VAR:-}` is left unset — from becoming
+/// a meaningless `Some("")` such as an empty HMAC secret or `""` OAuth client id.
+fn nonblank(value: Option<String>) -> Option<String> {
+    value.filter(|v| !v.trim().is_empty())
+}
+
+/// Read an optional environment variable, treating blank/whitespace as unset.
+fn optional_env(key: &str) -> Option<String> {
+    nonblank(std::env::var(key).ok())
 }
 
 pub fn sha256_hex(input: &str) -> String {
@@ -146,7 +164,24 @@ fn is_env_key(key: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_env_key, sha256_hex};
+    use super::{is_env_key, nonblank, sha256_hex};
+
+    #[test]
+    fn nonblank_treats_empty_and_whitespace_as_none() {
+        assert_eq!(nonblank(None), None);
+        assert_eq!(nonblank(Some(String::new())), None);
+        assert_eq!(nonblank(Some("   ".to_string())), None);
+        assert_eq!(nonblank(Some("\n\t ".to_string())), None);
+        // A real value is kept exactly, never trimmed (secrets stay intact).
+        assert_eq!(
+            nonblank(Some("hmac-secret".to_string())).as_deref(),
+            Some("hmac-secret")
+        );
+        assert_eq!(
+            nonblank(Some("  pad  ".to_string())).as_deref(),
+            Some("  pad  ")
+        );
+    }
 
     #[test]
     fn sha256_is_64_hex_chars_and_deterministic() {
