@@ -67,9 +67,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         Err(_) => return,
     };
 
-    // 3. Register with the hub and pump events to the socket.
+    // 3. Register with the hub and pump events to the socket. The team set is
+    //    also kept locally to authorize presence/typing commands (step 4).
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-    let conn_id = state.events.register(user_id, teams, tx);
+    let conn_id = state.events.register(user_id, teams.clone(), tx);
 
     let mut send_task = tokio::spawn(async move {
         while let Some(payload) = rx.recv().await {
@@ -88,20 +89,37 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             match msg {
                 Message::Close(_) => break,
                 Message::Text(text) => match serde_json::from_str::<ClientCommand>(text.as_str()) {
-                    Ok(ClientCommand::Watch { incident_id }) => hub.watch(conn_id, incident_id),
+                    // Presence and typing are authorized in-band: a client may only
+                    // watch or signal typing on an incident in a team it belongs to.
+                    // Otherwise any authenticated socket could join the watcher
+                    // roster of — and leak presence/typing for — a foreign team's
+                    // incident, since the REST plane enforces this but the WS plane
+                    // historically did not.
+                    Ok(ClientCommand::Watch { incident_id }) => {
+                        if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
+                        {
+                            if teams.contains(&incident.team_id) {
+                                hub.watch(conn_id, incident_id);
+                            }
+                        }
+                    }
+                    // Unwatch only ever removes this connection from a watcher set,
+                    // so it is harmless even for an incident the user cannot see.
                     Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
                     Ok(ClientCommand::StatusTyping { incident_id }) => {
                         if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
                         {
-                            use crate::domain::event::DomainEvent;
-                            use crate::ports::EventPublisher;
-                            let _ = hub
-                                .publish(DomainEvent::UserTyping {
-                                    team_id: incident.team_id,
-                                    incident_id,
-                                    user_id,
-                                })
-                                .await;
+                            if teams.contains(&incident.team_id) {
+                                use crate::domain::event::DomainEvent;
+                                use crate::ports::EventPublisher;
+                                let _ = hub
+                                    .publish(DomainEvent::UserTyping {
+                                        team_id: incident.team_id,
+                                        incident_id,
+                                        user_id,
+                                    })
+                                    .await;
+                            }
                         }
                     }
                     Err(_) => {}
