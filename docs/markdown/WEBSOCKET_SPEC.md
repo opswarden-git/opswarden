@@ -49,18 +49,22 @@ The web client uses `react-use-websocket` with:
 - `reconnectInterval: 3000`
 
 When the socket opens and a token exists, the client sends the auth frame again.
-Events missed while disconnected are not replayed by the server.
+The server does not replay events missed while disconnected, so on every (re)open
+the client resynchronizes: it refetches the active REST views (the incident list,
+plus the current incident and its timeline) and re-sends `watch` for every incident
+it intends to watch, because a closed socket drops its presence registration
+server-side. This replaces the former timeline polling fallback.
 
 ## Inbound Commands
 
 After authentication, the server accepts these commands. Unknown or malformed
 text frames are ignored.
 
-| Type            | Payload                                              | Current behavior                                                                                                |
-| --------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `watch`         | `{ "type": "watch", "incident_id": "uuid" }`         | If the user belongs to the incident's team, marks connection as watching and sends `presence_update`.            |
-| `unwatch`       | `{ "type": "unwatch", "incident_id": "uuid" }`       | Removes this connection from the watcher set and sends `presence_update` to remaining watchers.                 |
-| `status_typing` | `{ "type": "status_typing", "incident_id": "uuid" }` | If the user belongs to the incident's team, publishes a `user_typing` event for that incident's team.           |
+| Type            | Payload                                              | Current behavior                                                                                      |
+| --------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `watch`         | `{ "type": "watch", "incident_id": "uuid" }`         | If the user belongs to the incident's team, marks connection as watching and sends `presence_update`. |
+| `unwatch`       | `{ "type": "unwatch", "incident_id": "uuid" }`       | Removes this connection from the watcher set and sends `presence_update` to remaining watchers.       |
+| `status_typing` | `{ "type": "status_typing", "incident_id": "uuid" }` | If the user belongs to the incident's team, publishes a `user_typing` event for that incident's team. |
 
 Presence is ephemeral and stored only in `WsHub`; it is not persisted.
 

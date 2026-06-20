@@ -43,11 +43,17 @@ interface WsState {
   /** Transient "is typing" user ids, keyed by incident id. Each entry self-expires. */
   typingByIncident: Record<string, string[]>;
   addTypingUser: (incidentId: string, userId: string) => void;
+  /** Incidents this client intends to watch. Kept so a WS reopen can replay the
+   *  watch commands (the server drops presence when the socket closes) and so a
+   *  socket that opens after a war room mounts still establishes presence. */
+  activeWatches: string[];
+  watch: (incidentId: string) => void;
+  unwatch: (incidentId: string) => void;
   sendJson: (msg: WsClientCommand) => void;
   setSendJson: (fn: (msg: WsClientCommand) => void) => void;
 }
 
-export const useWsStore = create<WsState>((set) => ({
+export const useWsStore = create<WsState>((set, get) => ({
   watchersByIncident: {},
   setWatchers: (incidentId, watchers) =>
     set((state) => ({
@@ -74,6 +80,21 @@ export const useWsStore = create<WsState>((set) => ({
         };
       });
     }, 3000);
+  },
+  activeWatches: [],
+  watch: (incidentId) => {
+    set((state) =>
+      state.activeWatches.includes(incidentId)
+        ? state
+        : { activeWatches: [...state.activeWatches, incidentId] },
+    );
+    get().sendJson({ type: "watch", incident_id: incidentId });
+  },
+  unwatch: (incidentId) => {
+    set((state) => ({
+      activeWatches: state.activeWatches.filter((id) => id !== incidentId),
+    }));
+    get().sendJson({ type: "unwatch", incident_id: incidentId });
   },
   sendJson: () => {},
   setSendJson: (fn) => set({ sendJson: fn }),
@@ -102,15 +123,30 @@ export function useRealtime() {
     reconnectInterval: 3000,
   });
 
+  // Store a non-queueing sender (`keep: false`): commands sent while the socket
+  // is closed are dropped, never queued. Otherwise react-use-websocket flushes a
+  // pre-open `watch` *before* the OPEN effect sends `auth`, making the first
+  // server frame a non-auth command — which the server closes the socket on. The
+  // OPEN effect stays the single place that authenticates, then replays watches.
   useEffect(() => {
-    setSendJson(sendJsonMessage);
+    setSendJson((msg) => sendJsonMessage(msg, false));
   }, [sendJsonMessage, setSendJson]);
 
+  // On every (re)open: authenticate, then resync. The server replays nothing it
+  // missed while we were disconnected and there is no timeline polling fallback
+  // anymore, so we refetch the active REST views and re-send `watch` for every
+  // incident we intend to watch (a closed socket dropped its presence server-side).
   useEffect(() => {
-    if (readyState === ReadyState.OPEN && token) {
-      sendJsonMessage({ type: "auth", token });
+    if (readyState !== ReadyState.OPEN || !token) return;
+    sendJsonMessage({ type: "auth", token });
+    const { activeWatches } = useWsStore.getState();
+    queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    for (const incidentId of activeWatches) {
+      queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["timeline", incidentId] });
+      sendJsonMessage({ type: "watch", incident_id: incidentId });
     }
-  }, [readyState, token, sendJsonMessage]);
+  }, [readyState, token, sendJsonMessage, queryClient]);
 
   useEffect(() => {
     if (!lastJsonMessage) return;
