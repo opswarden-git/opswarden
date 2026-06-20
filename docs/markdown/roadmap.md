@@ -27,13 +27,15 @@ Règle d'or scope : **le produit (monorepo) ne dépend jamais de la vitrine (clo
 
 ---
 
-## 0b. Audit courant (2026-06-19)
+## 0b. État code courant (2026-06-20)
 
-Résumé de `grading-criteria.md` après audit code + PDF :
+Résumé après clôture Phase 1 (`v0.1.0` sur `9d18c55`, release CI verte) :
 
-- **Solide** : backend Rust/Axum, architecture hexagonale, auth/JWT/logout, teams/RBAC/invitation/Manager transfer, incidents/timeline, WebSocket hub, vault AES-GCM, GitHub webhook, CI, web Next.js FR/EN.
-- **Partiel** : front temps réel à prouver en live, `/about.json` catalogue incomplet, service connection utilisateur absent, README/HOWTO incomplets, coverage non mesurée, UI finale non screenshotée.
-- **Bloquant restant** : releases, desktop Tauri + notifications, Compose final `server/client_web/client_desktop/db`, moderation kick/ban, timeline editing, PM, reactions, GIF/API externe RTC2 ou substitution validée, i18n persistée serveur, docs jury complètes.
+- **Phase 0 — fermée** : repo, CI, style, tests, Docker Compose v0 `db + server`, `/health`, `/about.json`, architecture hexagonale Rust/Axum, Next.js workspace.
+- **Phase 1 VIGIL core — releasée** : auth/JWT/logout, `/me`, teams/RBAC/invitation/Manager transfer, incidents lifecycle/sévérités/assignation, timeline, WebSocket core, présence, `status_typing`, garde d'autorisation cross-team sur `watch` + `status_typing`, preuve live 2 navigateurs < 1s, tag `v0.1.0`.
+- **Hardening post-Phase 1 à faire avant de s'appuyer sur le realtime pour S3** : après reopen WebSocket, le client ré-authentifie mais ne force pas encore une resynchronisation explicite des queries ni une restauration garantie des `watch` actifs. Le polling timeline 3s a été retiré ; il faut donc ajouter un vrai resync-on-open au client.
+- **Phase 2 — backend très avancé, surface incomplète** : engine Action→REAction, HMAC GitHub, vault AES-GCM, create incident, HTTP notify et events `rule_triggered`/`rule_failed` existent. Les trous notés sont `/about.json` qui n'expose pas encore `Notify`, l'absence de flux utilisateur pour connecter/configurer un service, la preuve live GitHub CI → incident, et la preuve SQL du secret chiffré.
+- **Blocants cumulés restants** : releases, desktop Tauri + notifications, Compose final `server/client_web/client_desktop/db`, moderation kick/ban, timeline editing, PM, reactions, GIF/API externe RTC2 ou substitution validée, i18n persistée serveur (le switch web FR/EN est déjà OK), coverage mesurée ≥ 70 %, docs jury complètes, binaire desktop dans le pipeline release.
 
 ---
 
@@ -95,8 +97,8 @@ Sprints de 2 semaines (sauf S0 = 1 semaine de rails et S6 = 1 semaine de freeze)
 S0  | Sem 1     | Foundations & rails (repo, CI verte, compose v0)
 S1  | Sem 2-3   | Phase 1 core A : auth + teams + RBAC
 S2  | Sem 4-5   | Phase 1 core B : incidents + timeline + WS   → PHASE 1 ✅  (v0.1.0)
-S3  | Sem 6-7   | Phase 2 core : rule engine + about.json + vault → PHASE 2 ✅ (v0.2.0)
-S4  | Sem 8-9   | Phase 3 core : desktop Tauri + notifs + compose → PHASE 3 ✅ (v1.0.0)
+S3  | Sem 6-7   | Phase 2 core : rule engine + about.json + vault → PHASE 2 (v0.2.0)
+S4  | Sem 8-9   | Phase 3 core : desktop Tauri + notifs + compose → PHASE 3 (v1.0.0)
 S5  | Sem 10-11 | Cumul RTC2/VIGIL : releases + modération + edit/PM/réactions + i18n + coverage (v1.1.0)
 S6  | Sem 12    | Freeze : hardening + docs jury + démo + keynote (v1.2.0)
 ```
@@ -201,33 +203,54 @@ Branches : `feat/incident-lifecycle`, `feat/incident-severity`, `feat/timeline`,
 
 DoD S2 :
 
-- [ ] Deux navigateurs : une action sur l'un se reflète en < 1s sur l'autre via WS. _(✅ Serveur WS prêt, ⏳ Front)_
-- [ ] Coupure réseau → reconnexion auto, état resynchronisé. _(⏳ Front)_
-- [x] Tous les events core émis et documentés (début de `WEBSOCKET_SPEC.md`).
-- [ ] **Tag `v0.1.0`** — Phase 1 core complète.
+- [x] Deux navigateurs : une action sur l'un se reflète en < 1s sur l'autre via WS. _(✅ prouvé live 2026-06-20 ; garde cross-team vérifiée sur `watch` + `status_typing`)_
+- [ ] Coupure réseau → reconnexion auto, état resynchronisé. _(reconnexion + ré-auth en place ; **resync incomplet** — le polling 3s retiré n'est pas remplacé par une invalidation des queries au reopen WS)_
+- [x] Tous les events core émis et documentés (`WEBSOCKET_SPEC.md`).
+- [x] **Tag `v0.1.0`** — Phase 1 core complète. _(posé sur `9d18c55`, release CI verte ; sans binaire desktop ⇒ contrat `repo_cicd` final encore ouvert)_
 
 ---
 
-### S3 — Phase 2 core : Rule engine + about.json + Vault (Sem 6-7) → **Phase 2 validée**
+### S2.5 — Hardening realtime post-tag (avant S3)
+
+**Objectif** : enlever le dernier flou introduit par la suppression du polling timeline.
+
+Scope :
+
+- Au reopen WebSocket : ré-authentifier, invalider les queries actives (`incidents`, incident courant, timeline courante) et restaurer les `watch` actifs.
+- Prouver le scénario : serveur redémarré / socket coupée → le client reconnecte, re-watch l'incident courant et récupère l'état manqué sans attendre un prochain event.
+- Mettre à jour `WEBSOCKET_SPEC.md` si le comportement client change.
+
+DoD S2.5 :
+
+- [ ] Restart backend pendant une war room ouverte → timeline et présence se resynchronisent sans polling.
+- [ ] Test manuel ou script documenté dans la PR.
+
+---
+
+### S3 — Phase 2 core : Rule engine + about.json + Vault (Sem 6-7) → **Phase 2 à fermer**
 
 **Objectif** : l'automatisation Action→REAction, end-to-end, robuste.
 
 Scope :
 
-- Webhook receiver `POST /webhooks/{service}` + **validation HMAC**.
-- Hook engine : évaluation de règle (trigger + filtres → reaction).
-- **1 service Action** : GitHub (`workflow_run: failure`). **1 REAction** au-delà de VIGIL : Slack (ou HTTP/Email). VIGIL REAction : `create_incident`.
+- Webhook receiver `POST /webhooks/{service}` + **validation HMAC**. **État code : fait.**
+- Hook engine : évaluation de règle (trigger + filtres → reaction). **État code : fait.**
+- **1 service Action** : GitHub (`workflow_run: failure`). **État code : fait.**
+- **1 REAction VIGIL** : `create_incident`. **État code : fait.**
+- **1 REAction additionnelle** : HTTP notify. **État code : fait côté backend, à exposer dans `/about.json`.**
 - **1 règle complète démontrable** : CI GitHub échoue → Incident `high` créé automatiquement.
-- `/about.json` : catalogue de services **dynamique** + token SHA-256 (valeur kickoff).
-- **Vault** : stockage chiffré côté serveur des tokens OAuth2/perso (AES-GCM, clé via env/secret ; jamais en clair).
-- WS : `rule_triggered`, `rule_failed`.
+- `/about.json` : catalogue de services **dynamique** + token SHA-256 (valeur kickoff). **État code : token OK, catalogue incomplet/statique.**
+- **Vault** : stockage chiffré côté serveur des tokens OAuth2/perso (AES-GCM, clé via env/secret ; jamais en clair). **État code : vault OK, flux utilisateur absent.**
+- WS : `rule_triggered`, `rule_failed`. **État code : fait.**
 
-Branches : `feat/webhook-receiver-hmac`, `feat/hook-engine`, `feat/action-github`, `feat/reaction-vigil-slack`, `feat/about-json-dynamic`, `feat/token-vault`, `feat/ws-rule-events`.
+Branches restantes : `fix/ws-reopen-resync`, `feat/about-json-notify`, `feat/service-connections`, `docs/phase2-proof`.
 
 DoD S3 :
 
+- [ ] Au reopen WS, le client resynchronise l'état actif sans polling.
+- [ ] `/about.json` expose le catalogue réel : GitHub Action + `create_incident` + `notify`.
+- [ ] Un utilisateur peut connecter/configurer le secret d'un service via l'app, stocké dans le vault.
 - [ ] Démo live : push qui casse la CI GitHub → Incident apparaît tout seul dans OpsWarden.
-- [ ] `/about.json` reflète le catalogue réel (rien de hardcodé côté client).
 - [ ] Token en base illisible en clair (preuve : `SELECT` qui montre du chiffré).
 - [ ] **Tag `v0.2.0`** — Phase 2 core complète.
 
