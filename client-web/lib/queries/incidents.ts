@@ -127,7 +127,6 @@ export function useTimeline(incidentId: string) {
       const timeline = (await res.json()) as TimelineResponse;
       return { entries: timeline.entries.map(normalizeTimelineEntry) };
     },
-    refetchInterval: 3000, // naive polling for now (replaced by WS in Tranche C)
   });
 }
 
