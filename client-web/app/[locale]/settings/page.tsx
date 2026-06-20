@@ -17,6 +17,7 @@ import Image from "next/image";
 import { useRouter as useIntlRouter, usePathname } from "../../../i18n/routing";
 import { apiFetch } from "@/lib/api";
 import { useCreateTeam, useTeams } from "@/lib/queries/teams";
+import { GithubIntegration } from "@/components/settings/GithubIntegration";
 import { useAuthStore } from "@/store/auth";
 import { useTranslations } from "next-intl";
 
@@ -65,7 +66,6 @@ export default function SettingsPage() {
   const tErr = useTranslations("errors");
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"profile" | "integrations">("profile");
-  const [connectedList, setConnectedList] = useState<string[]>(["github", "k8s"]);
   const [stationName, setStationName] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -125,14 +125,6 @@ export default function SettingsPage() {
       setDeleteError(t("deleteFailed"));
     } finally {
       setDeletePending(false);
-    }
-  };
-
-  const toggleIntegration = (id: string) => {
-    if (connectedList.includes(id)) {
-      setConnectedList((prev) => prev.filter((x) => x !== id));
-    } else {
-      setConnectedList((prev) => [...prev, id]);
     }
   };
 
@@ -331,41 +323,38 @@ export default function SettingsPage() {
             </h2>
 
             <div className="divide-border mt-2 divide-y">
-              {AVAILABLE_INTEGRATIONS.map((integ) => {
-                const isActive = connectedList.includes(integ.id);
-                return (
-                  <div
-                    key={integ.id}
-                    className="flex items-center justify-between gap-4 py-4 first:pt-2 last:pb-0"
-                  >
-                    <div className="flex min-w-0 items-center gap-4 pr-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-                        <Image
-                          src={integ.icon}
-                          alt={integ.name}
-                          width={24}
-                          height={24}
-                          className="h-7 w-7 object-contain"
-                        />
-                      </div>
-                      <div className="min-w-0 pr-4">
-                        <span className="text-text block truncate font-medium">{integ.name}</span>
-                        <p className="text-muted/70 mt-0.5 truncate text-sm">{integ.desc}</p>
-                      </div>
-                    </div>
+              <GithubIntegration />
 
-                    <button
-                      type="button"
-                      onClick={() => toggleIntegration(integ.id)}
-                      className={`inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 ${
-                        isActive ? "ow-secondary text-text" : "ow-primary"
-                      }`}
-                    >
-                      {isActive ? t("connected") : t("connect")}
-                    </button>
+              {AVAILABLE_INTEGRATIONS.filter((integ) => integ.id !== "github").map((integ) => (
+                <div
+                  key={integ.id}
+                  className="flex items-center justify-between gap-4 py-4 last:pb-0"
+                >
+                  <div className="flex min-w-0 items-center gap-4 pr-4 opacity-60">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+                      <Image
+                        src={integ.icon}
+                        alt={integ.name}
+                        width={24}
+                        height={24}
+                        className="h-7 w-7 object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0 pr-4">
+                      <span className="text-text block truncate font-medium">{integ.name}</span>
+                      <p className="text-muted/70 mt-0.5 truncate text-sm">{integ.desc}</p>
+                    </div>
                   </div>
-                );
-              })}
+
+                  <button
+                    type="button"
+                    disabled
+                    className="ow-secondary text-muted inline-flex h-10 shrink-0 cursor-not-allowed items-center justify-center rounded-md px-4 text-sm font-medium whitespace-nowrap opacity-50"
+                  >
+                    {t("comingSoon")}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
