@@ -17,19 +17,15 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
   const assignIncident = useAssignIncident();
   const user = useAuthStore((s) => s.user);
 
-  const sendJson = useWsStore((s) => s.sendJson);
+  const watch = useWsStore((s) => s.watch);
+  const unwatch = useWsStore((s) => s.unwatch);
   const watchers = useWatchers(id);
 
   useEffect(() => {
-    if (id) {
-      sendJson({ type: "watch", incident_id: id });
-    }
-    return () => {
-      if (id) {
-        sendJson({ type: "unwatch", incident_id: id });
-      }
-    };
-  }, [id, sendJson]);
+    if (!id) return;
+    watch(id);
+    return () => unwatch(id);
+  }, [id, watch, unwatch]);
 
   if (isLoading) {
     return <div className="text-muted animate-pulse p-10 text-center">Loading War Room...</div>;
