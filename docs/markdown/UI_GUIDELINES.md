@@ -1,97 +1,151 @@
 # OpsWarden UI/UX Guidelines
 
-This document serves as the visual and interaction contract for the OpsWarden web and desktop clients, fulfilling the VIGIL requirements for visual consistency, accessibility, and user experience.
+This document describes the UI contract currently implemented in the web client.
+The code is the source of truth:
 
-OpsWarden adopts a "Control Room / NOC" (Network Operations Center) aesthetic. The design is utilitarian, robust, and highly technical. It prioritizes function over form, drawing inspiration from tools like GitHub Actions, Jenkins, and Prometheus.
+- `client-web/app/globals.css` defines product tokens and reusable utility classes.
+- `client-web/tailwind.config.ts` exposes those tokens to Tailwind.
+- `client-web/app/[locale]/layout.tsx` defines the font stack.
+- `client-web/components/incidents/SeverityChip.tsx` and
+  `client-web/components/incidents/StateChip.tsx` define incident status visuals.
 
-## 1. Typography
+Status: web client only. The desktop client is not present in the repository yet;
+when it is added, it should reuse the same visual rules.
 
-The interface uses two primary typefaces:
+## 1. Product Direction
 
-- **IBM Plex Mono** (Monospace): Used for all technical data, numbers, IDs, section headers, badges, and timestamps. It reinforces the technical, terminal-like aspect.
-- **IBM Plex Sans** (Sans-Serif): Used for body text, descriptions, and user names, ensuring readability for long-form content.
+OpsWarden uses a dark operational-control-room interface: dense, readable, and
+work-focused. The UI favors fast scanning, direct actions, and visible incident
+state over decorative presentation.
 
-### Hierarchy
+The current visual language uses:
 
-- **Title (`h1`)**: 21px, font-weight 700.
-- **Subtitle (`h2/h3`)**: 18px, font-weight 600.
-- **Section Label**: 11px, IBM Plex Mono, uppercase, tracking (letter-spacing) 0.15em.
-- **Body (`p`)**: 14px, IBM Plex Sans.
-- **Microcopy (`small`)**: 12px, color muted.
+- opaque dark surfaces over a subtle dotted background;
+- gold for primary actions and active navigation;
+- semantic colors for incident severity and lifecycle state;
+- compact rows, chips, and command panels.
 
-## 2. Color Palette & Usage Rules
+## 2. Typography
 
-OpsWarden uses a strict dark theme. Colors are never used randomly; they carry specific semantic meaning.
+Implemented fonts:
 
-### Base Colors (The Environment)
+| Role           | Font           | Source                               |
+| -------------- | -------------- | ------------------------------------ |
+| Main UI        | Inter          | `client-web/app/[locale]/layout.tsx` |
+| Technical data | JetBrains Mono | `client-web/app/[locale]/layout.tsx` |
 
-| Color                      | Hex       | Usage                                                                                                                    |
-| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Background Base**        | `#15161a` | The main application background (deepest charcoal).                                                                      |
-| **Panel / Surface**        | `#0e0e12` | Cards, sidebars, and elevated containers.                                                                                |
-| **Panel Hover**            | `#1b1b20` | Hover states for clickable rows and secondary buttons.                                                                   |
-| **Border**                 | `#26262b` | Dividers and default card borders.                                                                                       |
-| **Text Primary**           | `#e7e7ea` | Standard text and headings.                                                                                              |
-| **Text Muted**             | `#8e9197` | Subtitles, secondary information, empty states.                                                                          |
-| **Brand / Primary Action** | `#f1cf13` | The "Gold" accent. Used for primary buttons, active tabs, and highlights. It contrasts heavily with the dark background. |
+Usage in the codebase:
 
-### Severity Colors (Incidents)
+- main headings: bold sans-serif, usually `text-2xl` or `text-lg`;
+- row metadata, IDs, and technical values: `font-mono`;
+- operational labels and table text: compact `text-xs` to `text-sm`.
 
-Severity indicates the _impact_ of an incident.
+## 3. Color Tokens
 
-| Severity     | Color  | Hex       | Usage Context                               |
-| ------------ | ------ | --------- | ------------------------------------------- |
-| **Low**      | Blue   | `#3b82f6` | Minor issues, no customer impact.           |
-| **Medium**   | Amber  | `#f59e0b` | Partial degradation.                        |
-| **High**     | Orange | `#fb7d3c` | Major degradation, core features affected.  |
-| **Critical** | Red    | `#ef4444` | Complete outage, immediate action required. |
+The implemented palette lives in `client-web/app/globals.css`.
 
-### State Colors (Lifecycle)
+| Token          | Value                    | Usage                                    |
+| -------------- | ------------------------ | ---------------------------------------- |
+| `--bg`         | `#15161a`                | application background                   |
+| `--panel`      | `#1b1c20`                | main surfaces via `.surface` / `.glass`  |
+| `--panel-2`    | `#212228`                | secondary surfaces via `.surface-subtle` |
+| `--ow-border`  | `rgba(255,255,255,0.08)` | default border                           |
+| `--text`       | `#e7e7ea`                | primary text                             |
+| `--ow-muted`   | `#989ba1`                | secondary text                           |
+| `--ow-muted-2` | `#6f737a`                | quieter text / placeholders              |
+| `--gold`       | `#fbc02d`                | primary action / active UI               |
+| `--gold-hover` | `#f9a825`                | primary hover                            |
+| `--gold-ink`   | `#1a1405`                | text on gold buttons                     |
 
-State indicates the _status_ of an incident.
+Destructive actions currently use `.ow-danger`:
 
-| State            | Color  | Hex       | Usage Context                                     |
-| ---------------- | ------ | --------- | ------------------------------------------------- |
-| **Open**         | Red    | `#ef4444` | New, unacknowledged incident. Requires attention. |
-| **Acknowledged** | Blue   | `#3b82f6` | A responder is on it.                             |
-| **Escalated**    | Purple | `#c084fc` | More help is needed, severity likely increased.   |
-| **Resolved**     | Green  | `#22c55e` | The issue is fixed and the system is stable.      |
+| Token/class        | Value     | Usage               |
+| ------------------ | --------- | ------------------- |
+| `.ow-danger`       | `#ff2d2d` | destructive buttons |
+| `.ow-danger:hover` | `#e91919` | destructive hover   |
 
-_Note: For Releases, `Blocked` uses Red, `In Progress` uses Gold, and `Completed` uses Green._
+## 4. Incident Visual Mapping
 
-## 3. Accessibility (a11y)
+### Severity
 
-The interface follows strict accessibility minimums:
+Implemented in `SeverityChip`.
 
-1. **Keyboard Navigation**: All primary actions (Create Incident, Acknowledge, Resolve, Change Severity) are fully reachable via `Tab` and actionable via `Enter`/`Space`.
-2. **Explicit Labels**: No input relies solely on placeholders. Every `<input>` or `<select>` is tied to a visible `<label>`.
-3. **No Color-Only Information**: **"Color is never the only signal"**. Every state or severity indicator is always accompanied by an icon and/or explicit text.
-   - _Example_: A "Critical" incident isn't just a red dot; it is a chip containing a specific alert icon `TriangleAlert` + the word "Critical" + the color red. This ensures full readability for color-blind users.
+| Severity   | Token                     | Visual cue                                       |
+| ---------- | ------------------------- | ------------------------------------------------ |
+| `low`      | `--sev-low: #3b82f6`      | `AlertCircle` icon + localized text              |
+| `medium`   | `--sev-medium: #f59e0b`   | `AlertTriangle` icon + localized text            |
+| `high`     | `--sev-high: #fb7d3c`     | `AlertOctagon` icon + localized text             |
+| `critical` | `--sev-critical: #ef4444` | animated `Flame` icon + uppercase localized text |
 
-## 4. Reusable UI Components
+### Incident State
 
-To maintain consistency, the app relies on predefined components:
+Implemented in `StateChip`.
 
-- **Button**:
-  - `Primary (Gold)`: For the main action of a view (e.g., "Create Incident").
-  - `Secondary (Panel)`: For standard actions (e.g., "Edit").
-  - `Ghost`: For low-priority or icon-only actions.
-- **Status Chip**: A pill-shaped indicator displaying a severity or state. Always uses a background with 12% opacity of the main color, and a border with 30% opacity.
-- **Data Row**: Used for lists of incidents or releases. Features a fixed-width Mono ID (`#INC-102`), a truncated title, and right-aligned metadata/chips. Hovering highlights the row.
-- **KPI Card**: Displays a single large metric (e.g., "MTTR") in Mono font, with an uppercase tracking label above it.
+| State          | Token                | Visual cue                                 |
+| -------------- | -------------------- | ------------------------------------------ |
+| `open`         | `--st-open: #ef4444` | `CircleDot` icon + colored rounded chip    |
+| `acknowledged` | `--st-ack: #3b82f6`  | `Clock` icon + colored rounded chip        |
+| `escalated`    | `--st-esc: #c084fc`  | `ShieldAlert` icon + colored rounded chip  |
+| `resolved`     | `--st-res: #22c55e`  | `CheckCircle2` icon + colored rounded chip |
 
-## 5. Dark Patterns & Mitigation
+Release state visuals are not implemented in the current web client.
 
-OpsWarden prohibits dark patterns. The user must always be in control.
+## 5. Reusable UI Classes
 
-- **Destructive Actions**: Deleting an incident, kicking a member, or transferring the Manager role are considered destructive.
-  - _Mitigation_: These actions never trigger immediately. They always open a `ConfirmDialog` modal. The modal explicitly names the affected resource (e.g., _"Are you sure you want to kick **Alice** from the team?"_).
-- **No Confirmation Inversion**: Buttons are explicitly named ("Confirm Delete" vs "Cancel"). We do not use trick phrasing like "Click here to not cancel".
-- **Visibility**: Settings and destructive options are located in logical places (e.g., "Team Settings") and are never hidden behind non-obvious UI affordances.
+Implemented in `client-web/app/globals.css`.
 
-## 6. Annotated Screenshots
+| Class             | Purpose                                    |
+| ----------------- | ------------------------------------------ |
+| `.surface`        | bordered opaque panel                      |
+| `.surface-subtle` | secondary panel background                 |
+| `.glass`          | bordered panel with subtle inset highlight |
+| `.ow-input`       | dark input with gold focus ring            |
+| `.ow-primary`     | gold primary button                        |
+| `.ow-secondary`   | dark bordered secondary button             |
+| `.ow-danger`      | red destructive button                     |
 
-_(To be added by the developer during S6 after final polish)_
+Component-level patterns currently in use:
 
-1. **Dashboard & Navigation**: Showing the sidebar, KPIs, and the active incident list.
-2. **Incident War Room**: Showing the timeline, presence indicators, and state/severity controls.
+- `IncidentRow`: table row with state chip, title, short ID, severity, date, and action link.
+- `StateChip`: state color + icon + text.
+- `SeverityChip`: severity color + icon + text.
+- `Timeline`: incident log entries and a compact command input.
+- `AppShell`: responsive sidebar on desktop and bottom navigation on mobile.
+
+## 6. Accessibility Status
+
+Implemented:
+
+- incident state and severity are not color-only; each uses color, icon, and text;
+- most action buttons include visible text or an icon with nearby context;
+- form controls in signup, onboarding, and incident creation generally use visible
+  labels;
+- keyboard focus styles are present on shared inputs and several primary actions.
+
+Known gaps:
+
+- `Timeline` currently uses a placeholder-only text input (`Type command or log
+entry...`) and should receive a visible or screen-reader label;
+- annotated screenshots have not been added yet;
+- desktop accessibility cannot be evaluated until the desktop client exists.
+
+## 7. Dark Patterns
+
+Current rule: destructive actions should be explicit, visually distinct, and
+placed where users expect them.
+
+Implemented examples:
+
+- logout and account deletion actions use the red `.ow-danger` style;
+- account deletion uses a confirmation modal in `settings/page.tsx`.
+
+Known gap:
+
+- this document should be revisited when team deletion, member moderation,
+  release cancellation, and Manager transfer are implemented, because those
+  destructive workflows must name the affected resource in a confirmation dialog.
+
+## 8. Screenshots
+
+Annotated screenshots are not present yet. Add them only after the screens they
+document are stable, so the file does not describe UI that no longer exists.

@@ -1,15 +1,18 @@
 # OpsWarden — Blueprint produit & technique
 
-> Document de design (le « quoi » et le « comment »). Compagnon de la roadmap (le « quand »).
-> Décisions verrouillées : monorepo modulaire (cargo + npm workspaces), hexagonal Rust/Axum, agent RAG = service unique extrait derrière un port, couche cloud en repo `opswarden-ops` séparé hors notation.
+> Document de design cible (le « quoi » et le « comment »). Compagnon de la roadmap (le « quand ») et de `grading-criteria.md` (le « prouvé / pas encore prouvé »).
+> Sources officielles : `docs/pdf/01_consignes_RTC.pdf`, `docs/pdf/02_consignes_RTC.pdf`, `docs/pdf/03_consignes_VIGIL.pdf`.
+> Traçabilité : voir `docs/markdown/official-sources.md` pour les hashes et la règle de mise à jour.
+> Décisions verrouillées : monorepo modulaire (cargo + npm workspaces), hexagonal Rust/Axum, Next.js, Tauri, PostgreSQL, WebSockets, Docker Compose, GitHub Actions.
+> Règle de priorité : pas de cloud, website marketing, IA/RAG ou vitrine portfolio tant que la matrice cumulative RTC 1 + RTC 2 + VIGIL n'est pas verte ou explicitement arbitrée.
 
 ---
 
 ## 1. Identité produit
 
-**OpsWarden est une plateforme collaborative de gestion d'incidents, temps réel, avec un moteur d'automatisation Action→REAction et un agent d'investigation (AI SRE).**
+**OpsWarden est une plateforme collaborative de gestion d'incidents, temps réel, avec un moteur d'automatisation Action→REAction.** L'agent d'investigation (AI SRE) est une ambition produit différée : il ne passe devant aucun critère RTC/VIGIL obligatoire.
 
-Une équipe technique y coordonne en direct ses **Incidents** (problèmes non planifiés, triés et résolus) et ses **Releases** (déploiements planifiés, validés étape par étape). Les deux sont liés : un Incident peut bloquer une Release en cours. Des événements externes (CI qui casse, webhook) déclenchent automatiquement des actions internes, et un agent lit le contexte (logs, diff de commit, incidents passés) pour proposer une cause racine.
+Une équipe technique y coordonne en direct ses **Incidents** (problèmes non planifiés, triés et résolus) et ses **Releases** (déploiements planifiés, validés étape par étape). Les deux sont liés : un Incident peut bloquer une Release en cours. Des événements externes (CI qui casse, webhook) déclenchent automatiquement des actions internes. Plus tard, quand le socle obligatoire sera vert, un agent pourra lire le contexte (logs, diff de commit, incidents passés) pour proposer une cause racine.
 
 **Positionnement** : un mini incident.io / Rootly, avec un agent d'investigation — la brique frontière 2026 du marché. Pas un clone de chat scolaire : un outil réellement utilisable, publiable.
 
@@ -29,26 +32,36 @@ Conséquence produit : OpsWarden se positionne comme un **mini incident.io / Roo
 
 ## 2. Périmètre fonctionnel (carte des features)
 
-Organisé par briques d'une vraie IMP. `[core]` = bloquant pour la notation, `[ext]` = grade-boosting, `[cherry]` = portfolio.
+Organisé par briques d'une vraie IMP. Les statuts ci-dessous décrivent le
+contrat cible dérivé des trois briefs officiels, pas l'état du code. L'état réel
+vit dans `grading-criteria.md`.
 
-| Brique                               | Features                                                                                            | Statut        |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------- |
-| **Auth & identité**                  | signup email/pwd, login JWT, `/me`, logout (invalidation token)                                     | `[core]`      |
-|                                      | OAuth2 GitHub                                                                                       | `[ext]`       |
-| **Teams & RBAC**                     | teams, code d'invitation, 3 rôles (Observer/Responder/Manager), transfert Manager                   | `[core]`      |
-|                                      | modération (kick / ban temp / ban perm)                                                             | `[ext]`       |
-| **Incident lifecycle**               | états open→ack→escalated→resolved, sévérité low→critical, assignation                               | `[core]`      |
-| **Collaboration temps réel**         | timeline horodatée, présence (qui regarde quoi), reconnexion auto                                   | `[core]`      |
-|                                      | édition d'entrée, réactions emoji, messages privés 1-1                                              | `[ext]`       |
-| **Automatisation (Action→REAction)** | webhook receiver + HMAC, hook engine, ≥1 règle end-to-end, `/about.json` dynamique + token          | `[core]`      |
-|                                      | services additionnels (GitLab, HTTP, Email, Timer, Generic Webhook)                                 | `[ext]`       |
-| **Releases**                         | cycle created→in_progress→completed/cancelled, steps séquentiels, **blocage auto** par incident lié | `[ext]`       |
-| **AI SRE / investigation**           | agent RAG, `@ask` / `@search`, hypothèse de cause racine + runbook dans la timeline                 | `[cherry]`    |
-| **Clients**                          | web (Next.js) + desktop natif (Tauri) avec notifs OS + tray                                         | `[core]`      |
-| **i18n**                             | FR/EN (labels, états, sévérités), persisté serveur                                                  | `[core/ext]*` |
-| **Vitrine cloud**                    | k8s / terraform / Traefik / OTel                                                                    | `[cherry]`    |
+`[phase-core]` = bloque une phase VIGIL. `[required-final]` = requis par RTC 1/2
+ou par la cohérence finale VIGIL. `[deferred]` = interdit de priorité tant que le
+cumul obligatoire n'est pas vert.
 
-_\*core ou ext selon ton exemption T-DEV-600._
+| Brique                               | Features                                                                                            | Statut             |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- | ------------------ |
+| **Auth & identité**                  | signup email/pwd, login JWT, `/me`, logout (invalidation token)                                     | `[core]`           |
+|                                      | OAuth2 GitHub                                                                                       | `[ext]`            |
+| **Teams & RBAC**                     | teams, code d'invitation, 3 rôles (Observer/Responder/Manager), transfert Manager                   | `[core]`           |
+|                                      | liste membres, quitter/supprimer team, gestion rôle, modération (kick / ban temp / ban perm)        | `[required-final]` |
+| **Incident lifecycle**               | états open→ack→escalated→resolved, sévérité low→critical, assignation                               | `[core]`           |
+| **Collaboration temps réel**         | timeline horodatée, présence (qui regarde quoi), reconnexion auto                                   | `[core]`           |
+|                                      | édition d'entrée, réactions emoji, messages privés 1-1                                              | `[required-final]` |
+| **Automatisation (Action→REAction)** | webhook receiver + HMAC, hook engine, ≥1 règle end-to-end, `/about.json` dynamique + token          | `[core]`           |
+|                                      | 1 REAction additionnelle au-delà de VIGIL (HTTP/Email/Discord)                                      | `[phase-core]`     |
+|                                      | services additionnels (GitLab, Timer, Generic Webhook...)                                           | `[required-final]` |
+| **Releases**                         | cycle created→in_progress→completed/cancelled, steps séquentiels, **blocage auto** par incident lié | `[required-final]` |
+| **AI SRE / investigation**           | agent RAG, `@ask` / `@search`, hypothèse de cause racine + runbook dans la timeline                 | `[deferred]`       |
+| **Clients**                          | web (Next.js) + desktop natif (Tauri) avec notifs OS + tray                                         | `[core]`           |
+| **i18n**                             | FR/EN web + desktop, états/sévérités, langue persistée serveur                                      | `[required-final]` |
+| **External API RTC2**                | critère `web_api_integration` : GIF API ou substitution explicitement validée                       | `[required-final]` |
+| **Vitrine cloud**                    | k8s / terraform / Traefik / OTel                                                                    | `[deferred]`       |
+
+Les exemptions VIGIL ne couvrent que `repo_cicd`, `web_multilingual` et
+`desktop_multilingual`, et seulement avec preuve déclarée au kickoff. Par défaut,
+OpsWarden planifie ces critères comme à refaire.
 
 ---
 
@@ -260,7 +273,10 @@ Services au lancement : **Action** = GitHub (`workflow_run: failure`) ; **REActi
 
 ---
 
-## 7. Agent AI SRE (le différenciateur)
+## 7. Agent AI SRE (différenciateur différé)
+
+Cette section décrit une ambition produit, pas une priorité immédiate. Elle reste
+gelée tant que les critères cumulés RTC 1 + RTC 2 + VIGIL ne sont pas verts.
 
 Service unique extrait, branché via le port `InvestigationEngine`. Tout le reste de la plateforme l'ignore (il pourrait être supprimé sans casser le core).
 
@@ -302,16 +318,16 @@ Taxonomie (détaillée dans `WEBSOCKET_SPEC.md`) :
 
 ## 9. Surface API REST (résumé)
 
-| Domaine          | Endpoints clés                                                                          |
-| ---------------- | --------------------------------------------------------------------------------------- |
-| Auth             | `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /me`                 |
-| Teams            | `POST /teams`, `POST /teams/:id/join`, `PUT /teams/:id/members/:uid`, transfert Manager |
-| Incidents        | `POST /incidents`, transitions d'état, `POST /incidents/:id/assign`                     |
-| Timeline         | `POST /incidents/:id/timeline`, `GET /incidents/:id/timeline`                           |
-| Releases `[ext]` | `POST /releases`, `POST /releases/:id/steps/:s/validate`                                |
-| Rules            | `POST /rules`, `GET /rules`, `POST /webhooks/:service`                                  |
-| Services         | connexion tiers (token → vault), `GET /reactions/available`                             |
-| Système          | `GET /about.json` (catalogue + token SHA-256), `GET /health`                            |
+| Domaine                     | Endpoints clés                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| Auth                        | `POST /api/auth/sign-up`, `POST /api/auth/sign-in`, `POST /api/auth/logout`, `GET /api/me` |
+| Teams                       | `POST /api/teams`, `POST /api/teams/join`, transfert Manager, leave/delete                 |
+| Incidents                   | `POST /api/incidents`, transitions d'état, `PUT /api/incidents/:id/assign`                 |
+| Timeline                    | `POST /api/incidents/:id/timeline`, `GET /api/incidents/:id/timeline`                      |
+| Releases `[required-final]` | `POST /api/releases`, `POST /api/releases/:id/steps/:s/validate`                           |
+| Rules                       | `POST /rules`, `GET /rules`, `POST /webhooks/:service`                                     |
+| Services                    | connexion tiers (token → vault), `GET /reactions/available`                                |
+| Système                     | `GET /about.json` (catalogue + token SHA-256), `GET /health`                               |
 
 Toutes les routes protégées renvoient 401/403/404 cohérents.
 

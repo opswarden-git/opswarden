@@ -1,106 +1,216 @@
 # WEBSOCKET_SPEC
 
-Real-time channel for OpsWarden. One WebSocket connection per client. The server
-pushes domain events to the connected members of a team; clients reconnect
-automatically. This document is the contract between server and clients.
+This document describes the WebSocket behavior currently implemented by the
+server and web client. The code is the source of truth:
 
-> Status: **Phase 1-2 live** — the four incident/timeline events, `presence_update`,
-> the inbound `watch`/`unwatch`/`status_typing` commands with their `user_typing`
-> broadcast, and the Phase 2 automation events `rule_triggered`/`rule_failed` are all
-> implemented. The extended events (`member_*`, `release_*`, reactions, private
-> messages) come in later phases.
+- server route: `server/src/handlers/ws.rs`
+- server hub: `server/src/adapters/ws/hub.rs`
+- wire serialization: `server/src/adapters/ws/protocol.rs`
+- domain events: `server/src/domain/event.rs`
+- web client hook: `client-web/lib/ws.ts`
+- timeline typing sender: `client-web/components/incidents/Timeline.tsx`
+
+Status: implemented for incident, timeline, presence, typing, and automation
+events. Release, moderation, reaction, private-message, and timeline-edit events
+are not implemented in the current codebase.
 
 ## Connection
 
-- **Endpoint**: `GET /ws` (HTTP upgrade). The route is public.
-- **Transport**: text frames carrying JSON objects, each with a `type` field.
+- Endpoint: `GET /ws`
+- Transport: WebSocket text frames containing JSON objects.
+- The HTTP upgrade route is public. Authentication happens in-band as the first
+  text frame.
 
-## Authentication — first message
+## Authentication
 
-Browsers cannot set an `Authorization` header on the WS handshake, so the
-connection authenticates **in-band**: the client's first frame must be
+The first text frame must be:
 
 ```json
 { "type": "auth", "token": "<jwt>" }
 ```
 
-The server verifies the JWT (same `TokenService` as the REST API) and checks it
-is not revoked (same blacklist as `POST /api/auth/logout`). On success the
-connection is registered for every team the user belongs to. On any failure
-(missing/invalid/expired/revoked token, malformed frame) the server closes the
-connection. Until a valid `auth` frame is received, no events are delivered.
+Server behavior:
 
-## Reconnection (client responsibility)
+- verifies the JWT with the same token service used by REST;
+- rejects revoked tokens using the logout revocation store;
+- closes the socket if the first valid text frame is not a valid auth message;
+- ignores ping, pong, and binary frames before auth;
+- registers the connection for every team returned by
+  `list_team_ids_for_user(user_id)`.
 
-Automatic reconnection is **mandatory**. On disconnect the client reconnects with
-backoff, re-sends the `auth` frame, and re-fetches current state over REST to
-resynchronize (events received while disconnected are not replayed).
+Until authentication succeeds, no server events are delivered.
 
-## Inbound commands (client → server)
+## Client Reconnection
 
-After authenticating, a client may send commands. Unknown or malformed frames are
-ignored (forward-compatible). Presence and typing are **ephemeral**: never
-persisted, forgotten when the connection closes.
+The web client uses `react-use-websocket` with:
 
-| `type`          | Effect                                                                            | Payload                                           |
-| --------------- | --------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `watch`         | start watching an incident; co-watchers receive a `presence_update`               | `{ "type": "watch", "incident_id": "…" }`         |
-| `unwatch`       | stop watching an incident; remaining co-watchers receive a `presence_update`      | `{ "type": "unwatch", "incident_id": "…" }`       |
-| `status_typing` | signal the user is typing on an incident; its co-watchers receive a `user_typing` | `{ "type": "status_typing", "incident_id": "…" }` |
+- `shouldReconnect: () => true`
+- `reconnectAttempts: 10`
+- `reconnectInterval: 3000`
 
-A client typically sends `watch` when an incident view opens and `unwatch` when it
-closes. Disconnecting is an implicit `unwatch` of everything.
+When the socket opens and a token exists, the client sends the auth frame again.
+Events missed while disconnected are not replayed by the server.
 
-## Outbound events (server → client)
+## Inbound Commands
 
-Incident/timeline events are delivered to every connected member of the event's
-team. `presence_update` and `user_typing` are delivered only to the **co-watchers**
-of the incident (the clients currently watching it). `by` / `author` are user ids;
-`at` is a Unix timestamp (seconds).
+After authentication, the server accepts these commands. Unknown or malformed
+text frames are ignored.
 
-| `type`                   | Emitted when                                  | Payload                                                                         |
-| ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------- |
-| `incident_state_changed` | an incident transitions state                 | `{ "type", "incident_id", "new_state", "by" }`                                  |
-| `incident_escalated`     | an incident transitions to `escalated`        | `{ "type", "incident_id", "new_severity", "by" }`                               |
-| `incident_assigned`      | a Manager assigns a responder                 | `{ "type", "incident_id", "assigned_to", "by" }`                                |
-| `timeline_entry_added`   | a timeline entry is posted                    | `{ "type", "incident_id", "entry": { "entry_id", "content", "author", "at" } }` |
-| `presence_update`        | the watcher set of an incident changes        | `{ "type", "incident_id", "watchers": ["…"] }`                                  |
-| `user_typing`            | a co-watcher signals it is typing             | `{ "type", "incident_id", "user_id" }`                                          |
-| `rule_triggered`         | a Phase 2 automation rule reacted to an event | `{ "type", "service", "rule", "incident_id" }`                                  |
-| `rule_failed`            | a Phase 2 automation rule's reaction failed   | `{ "type", "service", "rule", "reason" }`                                       |
+| Type            | Payload                                              | Current behavior                                                                                                |
+| --------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `watch`         | `{ "type": "watch", "incident_id": "uuid" }`         | Marks this connection as watching an incident and sends `presence_update` to current watchers of that incident. |
+| `unwatch`       | `{ "type": "unwatch", "incident_id": "uuid" }`       | Removes this connection from the watcher set and sends `presence_update` to remaining watchers.                 |
+| `status_typing` | `{ "type": "status_typing", "incident_id": "uuid" }` | If the incident exists, publishes a `user_typing` event for that incident's team.                               |
 
-Note: escalating an incident emits **both** `incident_state_changed`
-(`new_state: "escalated"`) and `incident_escalated` (with the current severity).
-`watchers` is the list of **distinct** user ids watching the incident (a user with
-two tabs appears once).
+Presence is ephemeral and stored only in `WsHub`; it is not persisted.
 
-### Examples
+Current limitation: `watch` and `unwatch` do not validate incident membership in
+the handler. Clients should only watch incidents they obtained through protected
+REST APIs. Domain events remain team-scoped by the hub.
+
+## Outbound Events
+
+Most outbound events are serialized from `DomainEvent` in
+`server/src/adapters/ws/protocol.rs` and broadcast by `WsHub` to connected users
+whose connection is registered for the event's `team_id`.
+
+`presence_update` is not a domain event. It is generated by the hub and sent only
+to connections currently watching the incident.
+
+### Incident Events
 
 ```json
-{"type":"incident_state_changed","incident_id":"…","new_state":"acknowledged","by":"…"}
-{"type":"incident_escalated","incident_id":"…","new_severity":"critical","by":"…"}
-{"type":"incident_assigned","incident_id":"…","assigned_to":"…","by":"…"}
-{"type":"timeline_entry_added","incident_id":"…","entry":{"entry_id":"…","content":"…","author":"…","at":1780000000}}
-{"type":"presence_update","incident_id":"…","watchers":["…","…"]}
-{"type":"user_typing","incident_id":"…","user_id":"…"}
-{"type":"rule_triggered","service":"github","rule":"…","incident_id":"…"}
-{"type":"rule_failed","service":"github","rule":"…","reason":"…"}
+{
+  "type": "incident_state_changed",
+  "incident_id": "uuid",
+  "new_state": "open|acknowledged|escalated|resolved",
+  "by": "uuid"
+}
 ```
 
-## Where it lives (architecture)
+Emitted when an incident status changes.
 
-- **Events are born in the app layer**: each use case publishes a typed
-  `domain::event::DomainEvent` through the `ports::EventPublisher` port after
-  persisting its change. Publishing is fire-and-forget — a broadcast failure
-  never fails the business operation.
-- **Fan-out is an adapter**: `adapters/ws/hub.rs` (`WsHub`) implements
-  `EventPublisher`, holds the connection registry, and sends to the connections
-  whose user belongs to the event's team. The wire JSON is built in
-  `adapters/ws/protocol.rs`.
-- **Presence and typing are ephemeral transport state**: who watches / is typing on
-  which incident lives in the `WsHub` (never the domain, never the database).
-  `watch`/`unwatch` mutate the per-connection watch set and broadcast a
-  `presence_update`; `status_typing` broadcasts a `user_typing` to the co-watchers.
-- **Transport shell**: `handlers/ws.rs` performs the upgrade, the first-message
-  auth, registers/unregisters the connection, dispatches inbound commands to the
-  hub, and pumps events to the socket.
+```json
+{
+  "type": "incident_escalated",
+  "incident_id": "uuid",
+  "new_severity": "low|medium|high|critical",
+  "by": "uuid"
+}
+```
+
+Emitted when the incident status transitions to `escalated`. The status-change
+path also emits `incident_state_changed`.
+
+```json
+{
+  "type": "incident_assigned",
+  "incident_id": "uuid",
+  "assigned_to": "uuid",
+  "by": "uuid"
+}
+```
+
+Emitted when a responder is assigned.
+
+### Timeline Events
+
+```json
+{
+  "type": "timeline_entry_added",
+  "incident_id": "uuid",
+  "entry": {
+    "entry_id": "uuid",
+    "content": "text",
+    "author": "uuid",
+    "at": 1780000000
+  }
+}
+```
+
+Emitted when a timeline entry is created. `at` is a Unix timestamp in seconds.
+
+### Presence And Typing
+
+```json
+{
+  "type": "presence_update",
+  "incident_id": "uuid",
+  "watchers": ["uuid"]
+}
+```
+
+Emitted after `watch`, `unwatch`, or socket unregister changes the watcher set.
+The watcher list contains distinct user IDs; multiple tabs for the same user
+count once.
+
+```json
+{
+  "type": "user_typing",
+  "incident_id": "uuid",
+  "user_id": "uuid"
+}
+```
+
+Emitted after `status_typing` if the incident exists. Current server behavior
+broadcasts it to all connected members of the incident's team, not only to
+co-watchers. The current web client stores typing users globally for the mounted
+timeline and expires each indicator after 3 seconds.
+
+### Automation Events
+
+```json
+{
+  "type": "rule_triggered",
+  "service": "github",
+  "rule": "CI failure -> Incident",
+  "incident_id": "uuid-or-null"
+}
+```
+
+Emitted when an automation rule matches and its reaction succeeds. `incident_id`
+is present when the reaction created an incident and `null` for side-effect
+reactions such as notifications.
+
+```json
+{
+  "type": "rule_failed",
+  "service": "github",
+  "rule": "CI failure -> Incident",
+  "reason": "error message"
+}
+```
+
+Emitted when an automation rule matches but its reaction fails.
+
+Note: `team_id` exists on the internal `DomainEvent` so the hub can route the
+event, but the current wire JSON does not include `team_id`.
+
+## Web Client Handling
+
+The current web client reacts to events in `client-web/lib/ws.ts`:
+
+| Event                    | Client effect                                         |
+| ------------------------ | ----------------------------------------------------- |
+| `incident_state_changed` | invalidates incident detail and incident list queries |
+| `incident_escalated`     | invalidates incident detail and incident list queries |
+| `incident_assigned`      | invalidates incident detail and incident list queries |
+| `timeline_entry_added`   | invalidates the incident timeline query               |
+| `presence_update`        | updates the global watcher list                       |
+| `user_typing`            | adds a temporary typing indicator for 3 seconds       |
+| `rule_triggered`         | invalidates the incident list query                   |
+| `rule_failed`            | logs an automation error to the browser console       |
+
+## Not Implemented Yet
+
+The following event families appear in the VIGIL brief and roadmap but are not
+implemented in the current codebase:
+
+- `release_step_validated`
+- `release_state_changed`
+- `member_kicked`
+- `member_banned`
+- `timeline_entry_edited`
+- `private_message_received`
+- `reaction_added`
+- `reaction_removed`
