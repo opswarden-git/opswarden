@@ -168,15 +168,15 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service                                                                                                                          | Stack        | Local address           | Phase     |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------- | --------- |
+| Service                                                                                                                              | Stack        | Local address             | Phase     |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | --------- |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        | S0 (live) |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` | S0 (live) |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` | Phase 1   |
 | `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` | Phase 3   |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                | Phase 5   |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  | Phase 5   |
 
-Cloud showcase (separate `opswarden-ops` repo, not graded):
+Cloud showcase (separate `opswarden-ops` repo):
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" />
@@ -222,35 +222,35 @@ T-DEV-600) are folded below into the phase where they must first hold. Depth:
 
 ### S0 — Foundations & rails (Week 1)
 
-- [x] Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
-- [x] Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
-- [x] `docker-compose.yml` v0: `server` (8080) + `db` Postgres healthy
-- [x] Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
-- [x] Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
-- [x] `.gitignore`, protected `main`, conventional commits, PR template
+- [X] Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
+- [X] Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
+- [X] `docker-compose.yml` v0: `server` (8080) + `db` Postgres healthy
+- [X] Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
+- [X] Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
+- [X] `.gitignore`, protected `main`, conventional commits, PR template
 
 ### Phase 1 — Real-time collaborative core (S1-S2, Weeks 2-5) — `v0.1.0`
 
-- [x] Email auth + JWT, `GET /me`, logout with token invalidation _(✅ API Server prête)_
-- [x] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) _(✅ API Server prête)_
-- [x] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities _(✅ API Server prête)_
-- [x] Real-time collaborative timeline (timestamped entries, Responder assignment) _(✅ API Server prête)_
-- [x] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
-- [x] Postgres persistence (SQLx) + versioned migrations
-- [x] _Security_: server-side RBAC enforcement (401/403 tested)
-- [x] _Tests_: coverage started, happy path + >=1 error path per feature
-- [x] _Docs_: `WEBSOCKET_SPEC.md` started
+- [X] Email auth + JWT, `GET /me`, logout with token invalidation _(✅ API Server prête)_
+- [X] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) _(✅ API Server prête)_
+- [X] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities _(✅ API Server prête)_
+- [X] Real-time collaborative timeline (timestamped entries, Responder assignment) _(✅ API Server prête)_
+- [X] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
+- [X] Postgres persistence (SQLx) + versioned migrations
+- [X] _Security_: server-side RBAC enforcement (401/403 tested)
+- [X] _Tests_: coverage started, happy path + >=1 error path per feature
+- [X] _Docs_: `WEBSOCKET_SPEC.md` started
 
 ### Phase 2 — Automation & professionalization (S3, Weeks 6-7) — `v0.2.0`
 
-- [x] Webhook receiver `POST /webhooks/{service}` + HMAC validation
-- [x] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- [x] 1 external Action (GitHub) + 1 REAction beyond VIGIL (generic HTTP `Notify`, covers Slack)
-- [x] `/about.json` reflects the real catalog (nothing hard-coded client-side)
-- [x] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
-- [x] WebSockets `rule_triggered`, `rule_failed`
-- [x] _CI/CD_: lint+test on every push + **coverage artifact** on merge to `main` are live; build/artifacts on tag `v*.*.*` (`release.yml`) are active
-- [x] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
+- [X] Webhook receiver `POST /webhooks/{service}` + HMAC validation
+- [X] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
+- [X] 1 external Action (GitHub) + 1 REAction beyond VIGIL (generic HTTP `Notify`, covers Slack)
+- [X] `/about.json` reflects the real catalog (nothing hard-coded client-side)
+- [X] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
+- [X] WebSockets `rule_triggered`, `rule_failed`
+- [X] _CI/CD_: lint+test on every push + **coverage artifact** on merge to `main` are live; build/artifacts on tag `v*.*.*` (`release.yml`) are active
+- [X] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
 
 ### Phase 3 — Desktop & delivery (S4, Weeks 8-9) — `v1.0.0` (project passes)
 

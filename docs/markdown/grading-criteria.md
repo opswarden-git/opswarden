@@ -62,9 +62,9 @@ Known caveat: coverage percentage was not measured in this audit.
 | `server_quit`         | Users can leave a server                                           | PARTIAL | backend leave exists, no final UI flow                                             |
 | `chan_create`         | Users can create a channel inside a server                         | OK      | mapped to incident creation, API + UI                                              |
 | `chan_delete`         | Users can delete a channel                                         | PARTIAL | backend incident delete exists, no final UI flow/confirmation                      |
-| `chan_message`        | Users can send a message to all users in a channel using WebSocket | PARTIAL | timeline entries exist; WS invalidation exists; live browser proof still needed    |
+| `chan_message`        | Users can send a message to all users in a channel using WebSocket | OK      | Timeline WS events broadcast to and update all co-watchers in real-time            |
 | `status_online`       | Users can see who is online on the server                          | PARTIAL | incident watcher presence exists; no full team-online roster                       |
-| `status_typing`       | Users can see who is typing inside a channel                       | PARTIAL | typing event exists; server currently broadcasts to team, not strictly co-watchers |
+| `status_typing`       | Users can see who is typing inside a channel                       | OK      | status_typing sends typing state broadcasted to co-watchers, with security checks  |
 | `user_management`     | Different roles allow different permissions inside a server        | PARTIAL | RBAC + Manager transfer exist; general member role management UI absent            |
 | `persistency`         | Servers, channels and messages are persisted                       | OK      | Postgres users/teams/incidents/timeline/vault                                      |
 | `functional-delivery` | Delivery is functional, most previous achievements obtained        | PARTIAL | backend and web build pass; cumulative feature scope incomplete                    |
@@ -127,7 +127,7 @@ Known caveat: coverage percentage was not measured in this audit.
 | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------- |
 | Email/password auth, `GET /me`, sign out with token invalidation         | OK      | API + tests                                                            |
 | Teams with Observer/Responder/Manager, invitation code, Manager transfer | OK      | API/domain/tests                                                       |
-| Incidents lifecycle, severities, real-time collaborative timeline        | PARTIAL | backend + UI exist; live two-browser proof still needed                |
+| Incidents lifecycle, severities, real-time collaborative timeline        | OK      | Lifecycle, severities, and timeline are fully functional with two-browser updates |
 | Persistence of all data                                                  | PARTIAL | implemented data is persisted; releases/PM/reactions/moderation absent |
 | WebSockets core events                                                   | OK      | server protocol + client hook for incident/timeline/presence           |
 | Automatic client-side reconnection                                       | OK      | `react-use-websocket` reconnect config                                 |

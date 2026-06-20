@@ -58,15 +58,13 @@ text frames are ignored.
 
 | Type            | Payload                                              | Current behavior                                                                                                |
 | --------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `watch`         | `{ "type": "watch", "incident_id": "uuid" }`         | Marks this connection as watching an incident and sends `presence_update` to current watchers of that incident. |
+| `watch`         | `{ "type": "watch", "incident_id": "uuid" }`         | If the user belongs to the incident's team, marks connection as watching and sends `presence_update`.            |
 | `unwatch`       | `{ "type": "unwatch", "incident_id": "uuid" }`       | Removes this connection from the watcher set and sends `presence_update` to remaining watchers.                 |
-| `status_typing` | `{ "type": "status_typing", "incident_id": "uuid" }` | If the incident exists, publishes a `user_typing` event for that incident's team.                               |
+| `status_typing` | `{ "type": "status_typing", "incident_id": "uuid" }` | If the user belongs to the incident's team, publishes a `user_typing` event for that incident's team.           |
 
 Presence is ephemeral and stored only in `WsHub`; it is not persisted.
 
-Current limitation: `watch` and `unwatch` do not validate incident membership in
-the handler. Clients should only watch incidents they obtained through protected
-REST APIs. Domain events remain team-scoped by the hub.
+Validation: Both `watch` and `status_typing` commands are validated in-band by checking the incident's `team_id` against the authenticated connection's registered teams. If the user does not belong to the incident's team, the command is ignored.
 
 ## Outbound Events
 
@@ -154,8 +152,8 @@ count once.
 
 Emitted after `status_typing` if the incident exists. Current server behavior
 broadcasts it to all connected members of the incident's team, not only to
-co-watchers. The current web client stores typing users globally for the mounted
-timeline and expires each indicator after 3 seconds.
+co-watchers. The current web client stores typing users keyed by incident ID
+and expires each indicator after 3 seconds.
 
 ### Automation Events
 
@@ -196,8 +194,8 @@ The current web client reacts to events in `client-web/lib/ws.ts`:
 | `incident_escalated`     | invalidates incident detail and incident list queries |
 | `incident_assigned`      | invalidates incident detail and incident list queries |
 | `timeline_entry_added`   | invalidates the incident timeline query               |
-| `presence_update`        | updates the global watcher list                       |
-| `user_typing`            | adds a temporary typing indicator for 3 seconds       |
+| `presence_update`        | updates the watcher list for that incident            |
+| `user_typing`            | adds a temporary typing indicator for that incident   |
 | `rule_triggered`         | invalidates the incident list query                   |
 | `rule_failed`            | logs an automation error to the browser console       |
 
