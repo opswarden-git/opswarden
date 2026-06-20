@@ -123,8 +123,13 @@ export function useRealtime() {
     reconnectInterval: 3000,
   });
 
+  // Store a non-queueing sender (`keep: false`): commands sent while the socket
+  // is closed are dropped, never queued. Otherwise react-use-websocket flushes a
+  // pre-open `watch` *before* the OPEN effect sends `auth`, making the first
+  // server frame a non-auth command — which the server closes the socket on. The
+  // OPEN effect stays the single place that authenticates, then replays watches.
   useEffect(() => {
-    setSendJson(sendJsonMessage);
+    setSendJson((msg) => sendJsonMessage(msg, false));
   }, [sendJsonMessage, setSendJson]);
 
   // On every (re)open: authenticate, then resync. The server replays nothing it
