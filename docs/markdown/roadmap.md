@@ -4,20 +4,36 @@
 > **Contexte** : solo, rattrapage T-DEV-600, niveau visé senior-grade + portfolio public.
 > **Fenêtre** : 5 juin 2026 → veille de rentrée septembre ≈ **12 semaines**.
 > **Archi verrouillée** : monorepo modulaire (cargo workspace + npm workspaces), hexagonal Rust/Axum, agent RAG = service unique extrait derrière un port, couche cloud/IaC en repo `opswarden-ops` séparé **hors chemin de notation**.
+> **Sources officielles** : `docs/pdf/01_consignes_RTC.pdf`, `docs/pdf/02_consignes_RTC.pdf`, `docs/pdf/03_consignes_VIGIL.pdf`.
+> **Traçabilité** : voir `docs/markdown/official-sources.md` pour les hashes et la règle de mise à jour.
 
 ---
 
 ## 0. Principe directeur (à relire chaque lundi)
 
-**Sécuriser le « pass » le plus tôt possible, empiler la valeur ensuite.**
+**Sécuriser les critères cumulés RTC 1 + RTC 2 + VIGIL avant tout bonus.**
 
-Le sujet pénalise une démo qui crashe plus qu'une feature manquante. La conséquence stratégique est non négociable :
+Le sujet pénalise une démo qui crashe plus qu'une feature manquante, mais le
+rattrapage ajoute une contrainte plus dure : les achievements RTC 1 et RTC 2
+restent à couvrir sous le produit VIGIL. La conséquence stratégique est non
+négociable :
 
-- **Fin Semaine 9, le projet doit être techniquement validable** (les 3 phases _core_ passent, `docker compose up` tourne, CI verte).
-- Les 3 semaines restantes sont du **grade-boosting + portfolio** (AI SRE, releases, modération, i18n, couverture, vitrine cloud, keynote).
+- **Fin Semaine 9, le projet doit être techniquement validable** (les 3 phases _core_ VIGIL passent, `docker compose up` tourne, CI verte).
+- Les features héritées RTC 2 non couvertes par le core VIGIL (**kick/ban, édition, PM, réactions, GIF/API externe, i18n, desktop**) passent avant toute feature portfolio.
+- Les sujets **déploiement cloud, website marketing, AI SRE/RAG, vitrine ops** sont gelés jusqu'à validation explicite de la matrice `grading-criteria.md`.
 - Si on prend du retard : on coupe dans l'_extended_, **jamais** dans le _core_. Le core est intouchable.
 
 Règle d'or scope : **le produit (monorepo) ne dépend jamais de la vitrine (cloud).** Le jury exécute `docker compose up`, pas `kubectl apply`.
+
+---
+
+## 0b. Audit courant (2026-06-19)
+
+Résumé de `grading-criteria.md` après audit code + PDF :
+
+- **Solide** : backend Rust/Axum, architecture hexagonale, auth/JWT/logout, teams/RBAC/invitation/Manager transfer, incidents/timeline, WebSocket hub, vault AES-GCM, GitHub webhook, CI, web Next.js FR/EN.
+- **Partiel** : front temps réel à prouver en live, `/about.json` catalogue incomplet, service connection utilisateur absent, README/HOWTO incomplets, coverage non mesurée, UI finale non screenshotée.
+- **Bloquant restant** : releases, desktop Tauri + notifications, Compose final `server/client_web/client_desktop/db`, moderation kick/ban, timeline editing, PM, reactions, GIF/API externe RTC2 ou substitution validée, i18n persistée serveur, docs jury complètes.
 
 ---
 
@@ -61,13 +77,13 @@ chore(ci): wire clippy and prettier on every branch push
 
 ### Cadence de tags (jalons)
 
-| Tag      | Quand           | Signifie                                      |
-| -------- | --------------- | --------------------------------------------- |
-| `v0.1.0` | Fin S2 (Sem 5)  | Phase 1 core validée                          |
-| `v0.2.0` | Fin S3 (Sem 7)  | Phase 2 core validée                          |
-| `v1.0.0` | Fin S4 (Sem 9)  | Phase 3 core validée → **projet passe**       |
-| `v1.1.0` | Fin S5 (Sem 11) | Extended (AI SRE, releases, modération, i18n) |
-| `v1.2.0` | S6 (Sem 12)     | Polish + vitrine cloud + freeze démo          |
+| Tag      | Quand           | Signifie                                                                   |
+| -------- | --------------- | -------------------------------------------------------------------------- |
+| `v0.1.0` | Fin S2 (Sem 5)  | Phase 1 core validée                                                       |
+| `v0.2.0` | Fin S3 (Sem 7)  | Phase 2 core validée                                                       |
+| `v1.0.0` | Fin S4 (Sem 9)  | Phase 3 core validée → **projet passe**                                    |
+| `v1.1.0` | Fin S5 (Sem 11) | Cumul RTC2/VIGIL : releases, modération, edit/PM/réactions, i18n, coverage |
+| `v1.2.0` | S6 (Sem 12)     | Polish + docs jury + freeze démo                                           |
 
 ---
 
@@ -81,11 +97,11 @@ S1  | Sem 2-3   | Phase 1 core A : auth + teams + RBAC
 S2  | Sem 4-5   | Phase 1 core B : incidents + timeline + WS   → PHASE 1 ✅  (v0.1.0)
 S3  | Sem 6-7   | Phase 2 core : rule engine + about.json + vault → PHASE 2 ✅ (v0.2.0)
 S4  | Sem 8-9   | Phase 3 core : desktop Tauri + notifs + compose → PHASE 3 ✅ (v1.0.0)
-S5  | Sem 10-11 | Extended : AI SRE/RAG + releases + modération + i18n + coverage (v1.1.0)
-S6  | Sem 12    | Freeze : hardening + vitrine cloud + démo + keynote (v1.2.0)
+S5  | Sem 10-11 | Cumul RTC2/VIGIL : releases + modération + edit/PM/réactions + i18n + coverage (v1.1.0)
+S6  | Sem 12    | Freeze : hardening + docs jury + démo + keynote (v1.2.0)
 ```
 
-**Lecture clé** : le projet est _passable_ dès la fin de la Semaine 9. Tout ce qui suit est du bonus.
+**Lecture clé** : le projet est _passable_ côté core VIGIL dès la fin de la Semaine 9 seulement si S4 est réellement complet. Tout ce qui suit n'est pas du bonus libre : S5 sert d'abord à fermer les critères hérités RTC 1/2 et les docs jury. L'IA/cloud restent hors-scope tant que cette fermeture n'est pas verte.
 
 ---
 
@@ -240,31 +256,36 @@ DoD S4 :
 
 ---
 
-### S5 — Extended : AI SRE + Releases + Modération + i18n + Coverage (Sem 10-11)
+### S5 — Cumul RTC2/VIGIL : fonctionnalités héritées + couverture (Sem 10-11)
 
-**Objectif** : empiler la valeur qui démarque (et fait gagner le master).
+**Objectif** : fermer les critères cumulés avant toute valeur portfolio.
 
 Scope (par ordre de priorité, on s'arrête où le temps s'arrête) :
 
-1. **Agent RAG / AI SRE** (ton différenciateur) : service unique `investigation` derrière un port `InvestigationEngine`. Chaîne : Incident créé → l'agent lit logs d'erreur + diff du commit + incidents passés similaires → poste une hypothèse de cause racine + runbook suggéré dans la timeline. Endpoints `@ask` / `@search`.
-2. **Releases** : cycle complet + **blocage auto** par Incident lié (`in_progress → blocked`), `release_step_validated`, `release_state_changed`.
-3. **Modération** : kick / ban temporaire / ban permanent (l'historique reste attribué). Events `member_kicked`, `member_banned`.
-4. **i18n FR/EN** (si non exempté) : labels, états, sévérités ; langue persistée serveur.
-5. **Couverture ≥ 70% lignes** + branches au-delà du happy path ; rapport en artifact CI (`cargo tarpaulin`).
-6. Si rab : timeline editing, réactions, messages privés, OAuth2 GitHub.
+1. **Releases** : cycle complet + **blocage auto** par Incident lié (`in_progress → blocked`), `release_step_validated`, `release_state_changed`. Nécessaire aussi pour la notification desktop "Release bloquée".
+2. **Modération RTC2** : kick / ban temporaire / ban permanent (l'historique reste attribué). Events `member_kicked`, `member_banned`.
+3. **Collaboration RTC2** : timeline editing, réactions, messages privés. Events `timeline_entry_edited`, `reaction_added`, `reaction_removed`, `private_message_received`.
+4. **External API RTC2** : satisfaire `web_api_integration` par une GIF API minimale ou obtenir une validation explicite que l'intégration Action→REAction remplace ce critère.
+5. **i18n FR/EN finalisée** : web + desktop, états/sévérités, langue persistée serveur. Ne pas supposer l'exemption sans preuve.
+6. **Couverture ≥ 70% lignes** + branches au-delà du happy path ; rapport en artifact CI (`cargo tarpaulin`).
+7. **Docs jury** : `HOWTOCONTRIBUTE.md`, `README.md`, `WEBSOCKET_SPEC.md`, `UI_GUIDELINES.md` à jour.
 
-Branches : `feat/investigation-agent`, `feat/releases-lifecycle`, `feat/release-auto-block`, `feat/moderation`, `feat/i18n`, `test/coverage-70`.
+Explicitement hors S5 tant que la matrice n'est pas verte : AI SRE/RAG, cloud, website marketing, vitrine ops.
+
+Branches : `feat/releases-lifecycle`, `feat/release-auto-block`, `feat/moderation`, `feat/timeline-editing`, `feat/private-messages`, `feat/timeline-reactions`, `feat/external-api`, `feat/i18n-persistence`, `test/coverage-70`, `docs/jury-pack`.
 
 DoD S5 :
 
-- [ ] Démo AI SRE : incident auto-créé → l'agent poste une analyse plausible en < 30s.
 - [ ] Une Release passe `blocked` quand on lie un incident actif (démo).
+- [ ] Kick / ban temp / ban perm fonctionnent, sans réécrire l'historique.
+- [ ] Timeline editing, PM et réactions sont utilisables et temps réel.
+- [ ] Le critère `web_api_integration` est couvert ou arbitré par écrit.
 - [ ] Couverture ≥ 70% visible dans l'artifact CI.
 - [ ] **Tag `v1.1.0`**.
 
 ---
 
-### S6 — Freeze, vitrine cloud & keynote (Sem 12)
+### S6 — Freeze, docs jury & keynote (Sem 12)
 
 **Objectif** : zéro régression, démo carrée, portfolio prêt. **Aucune feature nouvelle sur le produit.**
 
@@ -272,9 +293,10 @@ Scope :
 
 - **Hardening** : chasse aux bugs, edge cases, messages d'erreur, dark patterns (confirmations destructives nommant la ressource).
 - Docs restantes : `WEBSOCKET_SPEC.md`, `HOWTOCONTRIBUTE.md` (comment ajouter service/Action/REAction/event), `UI_GUIDELINES.md` (palette, mapping états→visuel, composants, dark patterns, **≥ 2 screenshots annotés**).
-- **Vitrine cloud** (repo `opswarden-ops`, hors notation) : Vercel (web) + droplet/DOKS via terraform + Traefik + OTel/Grafana/Loki si le temps le permet. **Toujours optionnel.**
 - **Démo de secours enregistrée** (vidéo) sur environnement stable isolé.
 - **Keynote** répétée (voir §6).
+
+Cloud/vitrine/AI restent à discuter séparément seulement si `grading-criteria.md` est vert.
 
 DoD S6 :
 
@@ -320,10 +342,11 @@ Note : `private_message_received` n'est envoyé qu'à l'émetteur + destinataire
 | `desktop_app` / `desktop_specs` / `desktop_notifications`                   | Tauri + notifs OS                                       | S4                          |
 | `web_multilingual` / `desktop_multilingual`                                 | i18n FR/EN                                              | S5                          |
 | `web_core_features` / `web_pm` / `web_reactions`                            | modération + édition / messages privés / réactions      | S5                          |
+| `web_api_integration`                                                       | GIF API ou substitution explicitement validée           | S5                          |
 | `presentation` / `proj_pres` / `proj_review` / `proj_answers` / `proj_orga` | keynote + board + démo                                  | S6                          |
-| `extra_small` / `extra_medium` / `extra_large`                              | features hors sujet → **AI SRE, releases, GitLab…**     | S5                          |
+| `extra_small` / `extra_medium` / `extra_large`                              | seulement après matrice obligatoire verte               | Après arbitrage             |
 
-> Les libellés purement chat (`chan_create`, `chan_delete`, `status_typing`…) n'ont **pas** d'équivalent direct : OpsWarden n'a pas de channels. Leur valeur conceptuelle (créer/lister des ressources, présence) est couverte par les features VIGIL en §4 (teams, incidents, timeline, présence).
+> Les libellés chat (`chan_create`, `chan_delete`, `status_typing`…) sont mappés au vocabulaire VIGIL : Team = server, Incident war room = channel, timeline entry = message. Ce mapping doit rester explicite dans la démo et la documentation.
 >
 > **Lecture clé** : la discipline notée (versioning, lint, CI, tests) se gagne **dès S0**, pas à la fin — d'où la rampe de couverture du §3.
 
@@ -334,15 +357,15 @@ Note : `private_message_received` n'est envoyé qu'à l'émetteur + destinataire
 1. **Introduction** : le problème (la « coordination tax », MTTR) — ouvrir sur la recomposition du marché (Opsgenie EOL avril 2027).
 2. **Archi technique** : monolithe modulaire hexagonal Rust + justification des 3 choix libres + agent RAG extrait.
 3. **Méthodologie** : trunk-based, 6 sprints, CI verte en permanence, « pass sécurisé S9 puis valeur empilée ».
-4. **Démo live** : la chaîne Action→REAction (CI cassée → incident) + l'AI SRE qui investigue + notif desktop native. Environnement stable, backup vidéo prêt.
-5. **Code walkthrough** : choisir **le rule engine** ou **l'AI SRE** (la pièce la plus impressionnante) — montrer la séparation domain/ports/adapters.
+4. **Démo live** : le parcours complet validé par la matrice (auth → team → incident/timeline temps réel → Action→REAction → desktop/notif quand disponible). Environnement stable, backup vidéo prêt.
+5. **Code walkthrough** : choisir **le rule engine** ou le **WebSocket hub** — montrer la séparation domain/ports/adapters.
 6. **Q&A** : préparer les questions « pourquoi pas microservices ? » (réponse : modular monolith = consensus 2026 solo, découpable plus tard) et « pourquoi Rust/Tauri/Postgres ? ».
 
 ### Angle de pitch produit
 
 - Le sujet couvre déjà les briques "collaboration + lifecycle + automatisation" d'une vraie Incident Management Platform.
 - Les briques non demandées mais très valorisantes sont : on-call, status page, postmortem, analytics MTTR, AI SRE.
-- Parmi elles, **AI SRE** est le meilleur levier de différenciation pour OpsWarden : plus impressionnant qu'une accumulation de features périphériques, et directement cohérent avec le moteur Action→REAction.
+- Parmi elles, **AI SRE** reste le meilleur levier de différenciation pour OpsWarden, mais seulement après fermeture des critères obligatoires listés dans `grading-criteria.md`.
 
 ---
 
@@ -359,9 +382,11 @@ Note : `private_message_received` n'est envoyé qu'à l'émetteur + destinataire
 
 ---
 
-## 8. Repo `opswarden-ops` (vitrine, hors notation)
+## 8. Repo `opswarden-ops` (parking, hors notation)
 
-Séparé du monorepo produit. Contenu (best-effort, S6) :
+Séparé du monorepo produit. Ne pas y investir de temps tant que la matrice
+cumulative RTC 1 + RTC 2 + VIGIL n'est pas verte ou explicitement arbitrée.
+Contenu potentiel, pour plus tard :
 
 - `terraform/` — provisioning DOKS (DigitalOcean, student pack).
 - `k8s/` — manifests (Traefik, Postgres, Redis, services, ingress, cAdvisor).
@@ -369,7 +394,7 @@ Séparé du monorepo produit. Contenu (best-effort, S6) :
 - CI « local → cloud » séparée.
 - `docs/architecture.png`.
 
-**Contrat** : ce repo ne doit jamais être un prérequis pour faire tourner OpsWarden. C'est la cerise portfolio, pas le gâteau.
+**Contrat** : ce repo ne doit jamais être un prérequis pour faire tourner OpsWarden. C'est un parking portfolio, pas une dépendance du rattrapage.
 
 ---
 

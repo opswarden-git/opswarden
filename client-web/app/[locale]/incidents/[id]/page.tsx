@@ -3,7 +3,7 @@
 import React, { use, useEffect } from "react";
 import { useAssignIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
 import { useAuthStore } from "@/store/auth";
-import { useWsStore } from "@/lib/ws";
+import { useWsStore, useWatchers } from "@/lib/ws";
 import { StateChip } from "@/components/incidents/StateChip";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { Timeline } from "@/components/incidents/Timeline";
@@ -18,7 +18,7 @@ export default function WarRoomPage({ params }: { params: Promise<{ id: string }
   const user = useAuthStore((s) => s.user);
 
   const sendJson = useWsStore((s) => s.sendJson);
-  const watchers = useWsStore((s) => s.watchers);
+  const watchers = useWatchers(id);
 
   useEffect(() => {
     if (id) {

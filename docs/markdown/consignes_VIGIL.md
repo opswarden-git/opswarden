@@ -1,3 +1,17 @@
+> Source note — official briefs live in `docs/pdf/`.
+>
+> - `docs/pdf/01_consignes_RTC.pdf`: RTC 1, already passed historically but its
+>   grading achievements remain part of the cumulative audit.
+> - `docs/pdf/02_consignes_RTC.pdf`: RTC 2, already passed historically but its
+>   grading achievements remain part of the cumulative audit.
+> - `docs/pdf/03_consignes_VIGIL.pdf`: VIGIL rattrapage, the current official
+>   project brief.
+>
+> This Markdown file mirrors the VIGIL brief for searchability. The PDFs remain
+> the source of truth. See `official-sources.md` for PDF hashes and update
+> policy, and `grading-criteria.md` for the cumulative RTC 1 + RTC 2 + VIGIL
+> matrix.
+
 VIGIL
 
 <RATTRAPAGE />

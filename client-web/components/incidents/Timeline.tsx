@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useTimeline, useAddTimelineEntry } from "@/lib/queries/incidents";
-import { useWsStore } from "@/lib/ws";
+import { useWsStore, useTypingUsers } from "@/lib/ws";
 import { Send, Terminal } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +11,7 @@ export function Timeline({ incidentId }: { incidentId: string }) {
   const t = useTranslations("Incidents");
 
   const sendJson = useWsStore((s) => s.sendJson);
-  const typingUsers = useWsStore((s) => s.typingUsers);
+  const typingUsers = useTypingUsers(incidentId);
   const lastTypingTime = useRef(0);
 
   const handleSubmit = (e: React.FormEvent) => {
