@@ -5,5 +5,6 @@ target
 Cargo.lock
 package-lock.json
 flake.lock
+.sqlx
 docs/pdf
 docs/brand
