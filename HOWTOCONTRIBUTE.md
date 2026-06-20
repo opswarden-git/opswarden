@@ -12,36 +12,40 @@ OpsWarden is composed of two main components:
 ## 🚀 Setting Up the Development Environment
 
 ### Prerequisites
+
 - [Nix](https://nixos.org/download.html) (with flakes enabled) - We strongly recommend using Nix to ensure your environment perfectly matches our CI.
 - Docker and Docker Compose (for the PostgreSQL database).
 
 ### Getting Started
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/your-org/opswarden.git
    cd opswarden/opswarden-app
    ```
 
 2. **Start the database**:
+
    ```bash
    docker compose up -d
    ```
 
 3. **Enter the Nix development shell**:
    This will automatically install Rust, Node.js, and all required tools.
+
    ```bash
    nix develop
    ```
 
 4. **Initialize the database**:
+
    ```bash
    cargo sqlx database setup
    ```
 
 5. **Start the applications**:
    You will need two separate terminal windows (both in `nix develop`).
-
    - **Backend**:
      ```bash
      cargo run -p opswarden-server
@@ -55,6 +59,7 @@ OpsWarden is composed of two main components:
 ## 📝 Coding Standards
 
 ### Rust (Backend)
+
 - We strictly enforce formatting and linting.
 - Before committing, run:
   ```bash
@@ -67,6 +72,7 @@ OpsWarden is composed of two main components:
   ```
 
 ### TypeScript (Frontend)
+
 - We use Prettier for formatting and ESLint for linting.
 - Run the following before committing:
   ```bash

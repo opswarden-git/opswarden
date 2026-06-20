@@ -3,12 +3,12 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
-  contents: write   # creer la GitHub Release
-  packages: write   # pousser l'image vers ghcr.io
+  contents: write # creer la GitHub Release
+  packages: write # pousser l'image vers ghcr.io
 
 concurrency:
   group: release-${{ github.ref }}

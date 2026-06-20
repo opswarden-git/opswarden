@@ -159,13 +159,13 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service                                                                                                                              | Stack        | Local address             |
-| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- |
+| Service                                                                                                                          | Stack        | Local address           |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------- |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` |
 | `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` |
 | `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                |
 
 Cloud showcase (separate `opswarden-ops` repo):
 
@@ -203,12 +203,14 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 ## Roadmap
 
 **Foundations & rails**
+
 - Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
 - Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
 - Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
 - Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
 
 **Real-time collaborative core**
+
 - Email auth + JWT, `GET /me`, logout with token invalidation
 - Teams + 3-role RBAC + invitation code + Manager transfer
 - Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities
@@ -217,6 +219,7 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - Postgres persistence (SQLx) + versioned migrations
 
 **Automation & professionalization**
+
 - Webhook receiver `POST /webhooks/{service}` + HMAC validation
 - Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
 - 1 external Action (GitHub) + 1 REAction (generic HTTP `Notify`, covers Slack)
@@ -224,6 +227,7 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - WebSockets `rule_triggered`, `rule_failed`
 
 **Desktop & delivery**
+
 - Installable Tauri app (Linux / AppImage target) reusing the front-end
 - Native OS notifications: assignment, `critical` severity, blocked Release + tray icon
 - Final `docker-compose.yml`: `server` 8080 / `client_web` 8081 / `client_desktop` / `db`
@@ -239,6 +243,7 @@ Trunk-based workflow: short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`,
 `test/`), conventional commits, squash-merge into a protected `main`. Every PR
 follows the [PR template](.github/pull_request_template.md), whose Definition of
 Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint`
+
 - `format:check` + `typecheck` green, tests covering the happy path and at least
   one error path, business logic kept out of handlers and clients, impacted docs
   updated, and an atomic conventional commit.
