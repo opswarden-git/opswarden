@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/png/heroicon.png" alt="OpsWarden" width="130" />
+  <h1 align="center">OpsWarden</h1>
 </p>
-
-<h1 align="center">OpsWarden</h1>
 
 <p align="center">
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -29,9 +27,8 @@
 - [Scope](#scope) — what ships, in tiers
 - [How it works](#how-it-works) — install and run locally
 - [Architecture](#architecture) — hexagonal, where things live
-- [Roadmap](#roadmap) — phase-by-phase checklist
+- [Roadmap](#roadmap) — project milestones
 - [Contributing](#contributing) — workflow and Definition of Done
-- [Blueprint](docs/markdown/blueprint.md) and [VIGIL brief](docs/markdown/consignes_VIGIL.md)
 
 ## Introduction
 
@@ -63,10 +60,9 @@ OpsWarden aims to be a real Incident Management Platform, in the lineage of
 delivered in tiers. Locked architecture decision: a modular hexagonal monolith
 (cargo + npm workspaces) for the core, **a single extracted service** (the AI SRE
 agent, behind a port), and the cloud/ops layer in **separate repositories** — the
-microservices instinct is honored where it pays, without distributed-systems tax
-on the graded path.
+microservices instinct is honored where it pays, without distributed-systems tax.
 
-**Core — required by the brief, graded by the jury**
+**Core Features**
 
 - Email auth + JWT, `/me`, logout with token invalidation; teams + 3-role RBAC
   (Observer / Responder / Manager) + invitation code + Manager transfer
@@ -78,13 +74,13 @@ on the graded path.
 - Tauri desktop client (OS notifications, tray); `docker-compose` (server 8080 /
   client_web 8081 / db / exposed desktop binary); GitHub Actions CI/CD; FR/EN i18n
 
-**Extended — grade-boosting**
+**Extended Features**
 
 - GitHub OAuth2; Releases + automatic blocking by a linked incident; moderation
   (kick / temp ban / perm ban); timeline editing, reactions, private messages
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
-**Long-term vision — portfolio (promised, not built yet)**
+**Long-term vision**
 
 - **AI SRE**: RAG microservice (FastAPI, `@ask` / `@search`, pgvector, LLM/SLM)
   correlating logs + commit diff + past incidents to propose a root cause + runbook
@@ -93,10 +89,6 @@ on the graded path.
 - **IaC showcase** (repo `opswarden-ops`): Minikube &rarr; k8s &rarr; Terraform &rarr;
   DigitalOcean (DOKS) + Traefik + cAdvisor + Argo/Flux; Redis + async workers
 - **Deployment**: Vercel (web) + multi-repo (product monorepo v1, separate ops repos)
-
-> These tiers give the **big picture** to anyone (or any agent) entering the
-> project. The grading contract stays the **core**: secure it first, stack the
-> rest after. Depth: [blueprint](docs/markdown/blueprint.md).
 
 ## How it works
 
@@ -138,14 +130,11 @@ opswarden/
 │   │   └── lib.rs        # build_app(): app testable without opening a socket
 │   ├── tests/            # integration tests
 │   └── Dockerfile        # multi-stage build of the server binary
-├── client-web/           # Next.js + Tailwind -- supervision UI (Phase 1)
-├── client-desktop/       # Tauri -- native app + tray + OS notifications (Phase 3)
-├── investigation/        # AI SRE agent (RAG / pgvector) -- extracted (Phase 5)
-├── docs/
-│   ├── markdown/         # blueprint, roadmap, VIGIL brief, grading
-│   └── png/              # brand kit (logo, palette, typography)
+├── client-web/           # Next.js + Tailwind -- supervision UI
+├── client-desktop/       # Tauri -- native app + tray + OS notifications
+├── investigation/        # AI SRE agent (RAG / pgvector) -- extracted
 ├── .github/workflows/    # server + web + release CI (dormant, see Roadmap)
-├── docker-compose.yml    # jury contract: server + db (final: +web +desktop)
+├── docker-compose.yml    # compose setup: server + db
 ├── Cargo.toml            # cargo workspace
 └── package.json          # npm workspaces
 ```
@@ -168,13 +157,13 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service                                                                                                                              | Stack        | Local address             | Phase     |
-| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- | --------- |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        | S0 (live) |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` | S0 (live) |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` | Phase 1   |
-| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` | Phase 3   |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  | Phase 5   |
+| Service                                                                                                                              | Stack        | Local address             |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------- |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` |
+| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                  |
 
 Cloud showcase (separate `opswarden-ops` repo):
 
@@ -209,71 +198,34 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - **Where the WebSocket broadcaster lives**: an adapter implementing the
   `EventBus` port.
 
-Details (diagrams, domain model, state machines, rule engine, AI SRE agent) live
-in the [blueprint](docs/markdown/blueprint.md).
-
 ## Roadmap
 
-3 VIGIL phases (each phase complete before the next), 6 solo two-week sprints.
-Guiding principle: **secure the "pass" early, stack value after**; cut into the
-_extended_, never the _core_. Validation criteria (inherited from T-JSF-600 /
-T-DEV-600) are folded below into the phase where they must first hold. Depth:
-[roadmap](docs/markdown/roadmap.md) + [grading](docs/markdown/grading-criteria.md).
+**Foundations & rails**
+- Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
+- Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
+- Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
+- Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
 
-### S0 — Foundations & rails (Week 1)
+**Real-time collaborative core**
+- Email auth + JWT, `GET /me`, logout with token invalidation
+- Teams + 3-role RBAC + invitation code + Manager transfer
+- Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities
+- Real-time collaborative timeline (timestamped entries, Responder assignment)
+- Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
+- Postgres persistence (SQLx) + versioned migrations
 
-- [X] Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
-- [X] Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
-- [X] `docker-compose.yml` v0: `server` (8080) + `db` Postgres healthy
-- [X] Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
-- [X] Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
-- [X] `.gitignore`, protected `main`, conventional commits, PR template
+**Automation & professionalization**
+- Webhook receiver `POST /webhooks/{service}` + HMAC validation
+- Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
+- 1 external Action (GitHub) + 1 REAction (generic HTTP `Notify`, covers Slack)
+- `/about.json` reflects the real catalog (nothing hard-coded client-side)
+- WebSockets `rule_triggered`, `rule_failed`
 
-### Phase 1 — Real-time collaborative core (S1-S2, Weeks 2-5) — `v0.1.0`
-
-- [X] Email auth + JWT, `GET /me`, logout with token invalidation _(✅ API Server prête)_
-- [X] Teams + 3-role RBAC + invitation code + Manager transfer (single-Manager invariant) _(✅ API Server prête)_
-- [X] Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities _(✅ API Server prête)_
-- [X] Real-time collaborative timeline (timestamped entries, Responder assignment) _(✅ API Server prête)_
-- [X] Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
-- [X] Postgres persistence (SQLx) + versioned migrations
-- [X] _Security_: server-side RBAC enforcement (401/403 tested)
-- [X] _Tests_: coverage started, happy path + >=1 error path per feature
-- [X] _Docs_: `WEBSOCKET_SPEC.md` started
-
-### Phase 2 — Automation & professionalization (S3, Weeks 6-7) — `v0.2.0`
-
-- [X] Webhook receiver `POST /webhooks/{service}` + HMAC validation
-- [X] Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- [X] 1 external Action (GitHub) + 1 REAction beyond VIGIL (generic HTTP `Notify`, covers Slack)
-- [X] `/about.json` reflects the real catalog (nothing hard-coded client-side)
-- [X] _Security_: AES-GCM encrypted token vault (proof: unreadable `SELECT`)
-- [X] WebSockets `rule_triggered`, `rule_failed`
-- [X] _CI/CD_: lint+test on every push + **coverage artifact** on merge to `main` are live; build/artifacts on tag `v*.*.*` (`release.yml`) are active
-- [X] _Docs_: `HOWTOCONTRIBUTE.md` (add a service / Action / REAction / WS event)
-
-### Phase 3 — Desktop & delivery (S4, Weeks 8-9) — `v1.0.0` (project passes)
-
-- [ ] Installable Tauri app (Linux / AppImage target) reusing the front-end
-- [ ] Native OS notifications: assignment, `critical` severity, blocked Release + tray icon
-- [ ] Final `docker-compose.yml`: `server` 8080 / `client_web` 8081 / `client_desktop` / `db`; web depends on server AND desktop; binary exposed at `:8081/client.AppImage`
-- [ ] FR/EN i18n (labels, states, severities) persisted server-side
-- [ ] _Docs_: complete `README.md` (architecture + diagram, justification of the 3 free choices, install, REST docs, commented DB schema, "where things live")
-
-### Extended — grade-boosting (S5, Weeks 10-11) — `v1.1.0`
-
-- [ ] AI SRE: RAG microservice (`@ask` / `@search`, pgvector) &rarr; root cause + runbook posted to the timeline
-- [ ] Releases: full lifecycle + automatic blocking by a linked incident (`release_step_validated`, `release_state_changed`)
-- [ ] Moderation (kick / temp ban / perm ban) + `member_kicked`, `member_banned` events
-- [ ] Timeline editing, reactions, private messages; GitHub OAuth2; GitLab as an Action
-- [ ] _Tests_: **>= 70% line + branch coverage beyond the happy path**, report as CI artifact
-
-### Freeze, showcase & keynote (S6, Week 12) — `v1.2.0`
-
-- [ ] Hardening: edge cases, error messages, dark patterns (confirmations naming the resource)
-- [ ] _Docs_: `UI_GUIDELINES.md` (palette, state&rarr;visual mapping, components, >=2 annotated screenshots)
-- [ ] Cloud showcase `opswarden-ops` (k8s / Terraform / DOKS / Traefik / OTel) — not graded
-- [ ] Recorded backup demo + rehearsed keynote
+**Desktop & delivery**
+- Installable Tauri app (Linux / AppImage target) reusing the front-end
+- Native OS notifications: assignment, `critical` severity, blocked Release + tray icon
+- Final `docker-compose.yml`: `server` 8080 / `client_web` 8081 / `client_desktop` / `db`
+- FR/EN i18n (labels, states, severities) persisted server-side
 
 > CI (`.github/workflows/`) is intentionally **dormant** (gitignored) during the
 > front/back rebuild. The workflows are ready and fixed; reactivate by removing
@@ -285,18 +237,9 @@ Trunk-based workflow: short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`,
 `test/`), conventional commits, squash-merge into a protected `main`. Every PR
 follows the [PR template](.github/pull_request_template.md), whose Definition of
 Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint`
-
 - `format:check` + `typecheck` green, tests covering the happy path and at least
   one error path, business logic kept out of handlers and clients, impacted docs
   updated, and an atomic conventional commit.
-
-A single **CI Gate** aggregates the path-filtered server and web jobs and is the
-only required status check, so every PR is gated consistently:
-
-![CI/CD pipeline: a change-detection job fans out to conditional server and web jobs, aggregated by a single required CI Gate](docs/png/ci-cd.png)
-
-The extension guide (adding a service / an Action / a REAction / a WebSocket
-event) will live in `HOWTOCONTRIBUTE.md` (Phase 2-3).
 
 ## License
 

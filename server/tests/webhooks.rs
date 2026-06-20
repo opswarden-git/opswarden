@@ -138,5 +138,15 @@ async fn about_exposes_the_automation_catalog() {
     assert_eq!(services.len(), 1);
     assert_eq!(services[0]["name"], "github");
     assert_eq!(services[0]["actions"][0]["name"], "ci_failed");
-    assert_eq!(services[0]["reactions"][0]["name"], "create_incident");
+
+    // The catalog must surface both REActions the engine supports, not only
+    // create_incident: the generic HTTP `notify` reaction is part of the contract.
+    let reaction_names: Vec<&str> = services[0]["reactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    assert!(reaction_names.contains(&"create_incident"));
+    assert!(reaction_names.contains(&"notify"));
 }

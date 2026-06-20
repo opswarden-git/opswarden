@@ -83,9 +83,17 @@ fn automation_catalog() -> Vec<ServiceCatalog> {
             description: "A GitHub Actions workflow run completed with a failing conclusion"
                 .to_string(),
         }],
-        reactions: vec![CatalogItem {
-            name: "create_incident".to_string(),
-            description: "Open a high-severity incident in the configured team".to_string(),
-        }],
+        reactions: vec![
+            CatalogItem {
+                name: "create_incident".to_string(),
+                description: "Open a high-severity incident in the configured team".to_string(),
+            },
+            CatalogItem {
+                name: "notify".to_string(),
+                description:
+                    "Send a notification to a configured HTTP webhook (Slack, Discord, or any URL)"
+                        .to_string(),
+            },
+        ],
     }]
 }

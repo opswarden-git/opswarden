@@ -45,7 +45,8 @@ export function Sidebar({ className }: { className?: string }) {
           width={32}
           height={32}
           className="h-8 w-auto object-contain"
-          style={{ width: "auto" }}
+          style={{ width: "auto", height: "auto" }}
+          priority
         />
         <Image
           src="/assets/logo-text-light.png"
@@ -53,7 +54,8 @@ export function Sidebar({ className }: { className?: string }) {
           width={220}
           height={44}
           className="h-7 w-auto object-contain object-left"
-          style={{ width: "auto" }}
+          style={{ width: "auto", height: "auto" }}
+          priority
         />
       </Link>
 
