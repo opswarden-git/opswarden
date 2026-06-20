@@ -7,6 +7,7 @@ pub mod auth;
 pub mod error;
 pub mod incident;
 pub mod middleware;
+pub mod service_connection;
 pub mod team;
 pub mod webhook;
 pub mod ws;

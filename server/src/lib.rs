@@ -87,6 +87,14 @@ pub fn build_app(state: AppState) -> Router {
             post(handlers::incident::add_timeline_entry)
                 .get(handlers::incident::list_timeline_entries),
         )
+        .route(
+            "/api/service-connections",
+            get(handlers::service_connection::list_service_connections),
+        )
+        .route(
+            "/api/service-connections/github",
+            put(handlers::service_connection::connect_github),
+        )
         .route_layer(axum::middleware::from_fn_with_state(
             state.clone(),
             handlers::middleware::require_auth,

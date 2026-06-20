@@ -28,6 +28,8 @@ pub enum DomainError {
     InvalidSignature,
     /// No secret/config registered for the targeted webhook service (Phase 2).
     UnknownService,
+    /// A service-connection secret was submitted empty/blank (Phase 2).
+    InvalidServiceSecret,
     /// Encryption/decryption failure in the secret vault (Phase 2).
     Crypto,
     /// A rule's outbound reaction (e.g. an HTTP/Slack notification) failed (Phase 2).
@@ -65,6 +67,7 @@ impl DomainError {
             DomainError::Forbidden => "forbidden",
             DomainError::InvalidSignature => "invalid_signature",
             DomainError::UnknownService => "unknown_service",
+            DomainError::InvalidServiceSecret => "invalid_service_secret",
             DomainError::Crypto => "crypto_error",
             DomainError::ReactionFailed => "reaction_failed",
             DomainError::OAuthNotConfigured => "oauth_not_configured",
@@ -105,6 +108,7 @@ impl std::fmt::Display for DomainError {
             DomainError::Forbidden => write!(f, "You are not allowed to perform this action"),
             DomainError::InvalidSignature => write!(f, "Invalid webhook signature"),
             DomainError::UnknownService => write!(f, "Unknown webhook service"),
+            DomainError::InvalidServiceSecret => write!(f, "Service secret cannot be empty"),
             DomainError::Crypto => write!(f, "Cryptographic failure"),
             DomainError::ReactionFailed => write!(f, "Automation reaction failed"),
             DomainError::OAuthNotConfigured => write!(f, "OAuth provider is not configured"),

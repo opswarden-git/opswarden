@@ -62,6 +62,9 @@ impl IntoResponse for DomainError {
                 (StatusCode::UNAUTHORIZED, "Invalid webhook signature")
             }
             DomainError::UnknownService => (StatusCode::NOT_FOUND, "Unknown webhook service"),
+            DomainError::InvalidServiceSecret => {
+                (StatusCode::BAD_REQUEST, "Service secret cannot be empty")
+            }
             DomainError::Crypto => (StatusCode::INTERNAL_SERVER_ERROR, "Cryptographic failure"),
             DomainError::ReactionFailed => (StatusCode::BAD_GATEWAY, "Automation reaction failed"),
             DomainError::OAuthNotConfigured => (
