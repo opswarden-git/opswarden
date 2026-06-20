@@ -107,7 +107,6 @@ export default function LoginPage() {
                 width={40}
                 height={40}
                 className="h-10 w-auto object-contain"
-                style={{ width: "auto", height: "auto" }}
                 priority
               />
               <Image
@@ -116,7 +115,6 @@ export default function LoginPage() {
                 width={240}
                 height={48}
                 className="h-8 w-auto object-contain"
-                style={{ width: "auto", height: "auto" }}
                 priority
               />
             </Link>
