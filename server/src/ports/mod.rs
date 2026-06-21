@@ -4,7 +4,7 @@ use crate::domain::automation::{ExternalEvent, Rule};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
-use crate::domain::team::{Role, Team};
+use crate::domain::team::{Role, Team, TeamMemberView};
 use crate::domain::timeline::TimelineEntry;
 use crate::domain::user::User;
 use async_trait::async_trait;
@@ -55,6 +55,9 @@ pub trait TeamRepo: Send + Sync {
     async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
     /// Count how many members a team has.
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError>;
+    /// Every member of a team, enriched with the user's email and role. Powers
+    /// the team roster view; the read is scoped to one team by the caller.
+    async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError>;
 }
 
 #[async_trait]

@@ -34,7 +34,7 @@ pub(crate) mod tests {
     use crate::domain::error::DomainError;
     use crate::domain::event::DomainEvent;
     use crate::domain::incident::Incident;
-    use crate::domain::team::Role;
+    use crate::domain::team::{Role, TeamMemberView};
     use crate::domain::timeline::TimelineEntry;
     use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
 
@@ -130,6 +130,19 @@ pub(crate) mod tests {
 
         async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
             Ok(self.roles.keys().filter(|(t, _)| *t == team_id).count() as u64)
+        }
+
+        async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError> {
+            Ok(self
+                .roles
+                .iter()
+                .filter(|((t, _), _)| *t == team_id)
+                .map(|((_, user_id), role)| TeamMemberView {
+                    user_id: *user_id,
+                    email: format!("user-{user_id}@test.local"),
+                    role: *role,
+                })
+                .collect())
         }
     }
 

@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::team::{
-    CreateTeamCommand, CreateTeamUseCase, JoinTeamCommand, JoinTeamUseCase, ListTeamsCommand,
-    ListTeamsUseCase, TransferManagerCommand, TransferManagerUseCase,
+    CreateTeamCommand, CreateTeamUseCase, JoinTeamCommand, JoinTeamUseCase, ListTeamMembersCommand,
+    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, TransferManagerCommand,
+    TransferManagerUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
@@ -42,6 +43,39 @@ pub async fn list_teams(
                 name: team.name,
                 invitation_code: team.invitation_code,
                 role: team.role.to_string(),
+            })
+            .collect(),
+    ))
+}
+
+#[derive(Serialize)]
+pub struct TeamMemberResponse {
+    pub user_id: Uuid,
+    pub email: String,
+    pub role: String,
+}
+
+pub async fn list_members(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+) -> Result<Json<Vec<TeamMemberResponse>>, DomainError> {
+    let use_case = ListTeamMembersUseCase::new(state.teams.clone());
+    let result = use_case
+        .list_members(ListTeamMembersCommand {
+            team_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(Json(
+        result
+            .members
+            .into_iter()
+            .map(|member| TeamMemberResponse {
+                user_id: member.user_id,
+                email: member.email,
+                role: member.role.to_string(),
             })
             .collect(),
     ))

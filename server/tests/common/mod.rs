@@ -6,7 +6,7 @@ use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
-use opswarden_server::domain::team::{Role, Team};
+use opswarden_server::domain::team::{Role, Team, TeamMemberView};
 use opswarden_server::domain::timeline::TimelineEntry;
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
@@ -292,6 +292,21 @@ impl TeamRepo for DummyTeamRepo {
             .keys()
             .filter(|(t, _)| *t == team_id)
             .count() as u64)
+    }
+
+    async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError> {
+        Ok(self
+            .roles
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|((t, _), _)| *t == team_id)
+            .map(|((_, user_id), role)| TeamMemberView {
+                user_id: *user_id,
+                email: format!("user-{user_id}@test.local"),
+                role: *role,
+            })
+            .collect())
     }
 }
 

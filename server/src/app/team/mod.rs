@@ -3,6 +3,7 @@ pub mod create_team;
 pub mod delete_team;
 pub mod join_team;
 pub mod leave_team;
+pub mod list_members;
 pub mod list_teams;
 pub mod transfer_manager;
 
@@ -10,6 +11,7 @@ pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
 pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
 pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
+pub use list_members::{ListTeamMembersCommand, ListTeamMembersResult, ListTeamMembersUseCase};
 pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
 
@@ -23,7 +25,7 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
-    use crate::domain::team::{Role, Team};
+    use crate::domain::team::{Role, Team, TeamMemberView};
     use crate::ports::TeamRepo;
 
     /// Configurable fake `TeamRepo`. Reads (`team`, `roles`) are preset via the
@@ -129,6 +131,18 @@ pub(crate) mod tests {
 
         async fn count_members(&self, _team_id: Uuid) -> Result<u64, DomainError> {
             Ok(self.roles.len() as u64)
+        }
+
+        async fn list_members(&self, _team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError> {
+            Ok(self
+                .roles
+                .iter()
+                .map(|(user_id, role)| TeamMemberView {
+                    user_id: *user_id,
+                    email: format!("user-{user_id}@test.local"),
+                    role: *role,
+                })
+                .collect())
         }
     }
 }
