@@ -8,6 +8,12 @@ export interface Team {
   role: "manager" | "responder" | "observer";
 }
 
+export interface TeamMember {
+  user_id: string;
+  email: string;
+  role: "manager" | "responder" | "observer";
+}
+
 export function useTeams() {
   return useQuery<Team[]>({
     queryKey: ["teams"],
@@ -16,6 +22,19 @@ export function useTeams() {
       if (!res.ok) throw new Error("Failed to fetch teams");
       return res.json();
     },
+  });
+}
+
+export function useTeamMembers(teamId: string | undefined) {
+  return useQuery<TeamMember[]>({
+    queryKey: ["team-members", teamId],
+    queryFn: async () => {
+      if (!teamId) return [];
+      const res = await apiFetch(`/api/teams/${teamId}/members`);
+      if (!res.ok) throw new Error("Failed to fetch team members");
+      return res.json();
+    },
+    enabled: !!teamId,
   });
 }
 
