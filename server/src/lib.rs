@@ -57,6 +57,10 @@ pub fn build_app(state: AppState) -> Router {
             post(handlers::team::create_team).get(handlers::team::list_teams),
         )
         .route("/api/teams/join", post(handlers::team::join_team))
+        .route(
+            "/api/teams/{team_id}/members",
+            get(handlers::team::list_members),
+        )
         .route("/api/teams/{team_id}", delete(handlers::team::delete_team))
         .route(
             "/api/teams/{team_id}/leave",

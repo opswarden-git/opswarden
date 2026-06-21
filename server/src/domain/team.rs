@@ -104,6 +104,16 @@ pub struct TeamMember {
     pub role: Role,
 }
 
+/// Read projection of a team member enriched with the user's email, for the
+/// roster view. Joins `team_members` with `users`, so it carries identity the
+/// bare `TeamMember` association does not.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamMemberView {
+    pub user_id: Uuid,
+    pub email: String,
+    pub role: Role,
+}
+
 /// A single role assignment to apply. A manager transfer yields exactly two of
 /// these, applied atomically by the repository.
 #[derive(Debug, Clone, PartialEq, Eq)]

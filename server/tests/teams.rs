@@ -108,6 +108,89 @@ async fn transfer_manager_requires_the_requester_to_be_manager() {
 }
 
 #[tokio::test]
+async fn list_members_returns_the_roster_for_a_team_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let requester = Uuid::nil();
+    let teammate = Uuid::new_v4();
+
+    ctx.teams.seed_member(team_id, requester, Role::Manager);
+    ctx.teams.seed_member(team_id, teammate, Role::Responder);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/teams/{team_id}/members"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let members = json.as_array().unwrap();
+    assert_eq!(members.len(), 2);
+    assert!(members
+        .iter()
+        .all(|m| m["email"].as_str().unwrap().contains('@')));
+    assert!(members
+        .iter()
+        .any(|m| m["user_id"] == teammate.to_string() && m["role"] == "responder"));
+}
+
+#[tokio::test]
+async fn list_members_is_forbidden_for_a_non_member() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    // The requester (mock token -> nil uuid) is NOT seeded into this team.
+    ctx.teams
+        .seed_member(team_id, Uuid::new_v4(), Role::Manager);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/teams/{team_id}/members"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn list_members_requires_authentication() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/teams/{team_id}/members"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
 async fn leave_team_removes_member_when_not_manager() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();

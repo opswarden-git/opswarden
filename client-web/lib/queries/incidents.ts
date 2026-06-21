@@ -163,7 +163,10 @@ export function useUpdateIncidentStatus() {
         method: "PUT",
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error(`Failed to set incident status to ${status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "status_update_failed");
+      }
       return res.json();
     },
     onSuccess: (data, variables) => {
@@ -182,11 +185,32 @@ export function useAssignIncident() {
         method: "PUT",
         body: JSON.stringify({ assignee_id: assigneeId }),
       });
-      if (!res.ok) throw new Error("Failed to assign incident");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "assign_failed");
+      }
       return res.json();
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["incident", variables.incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    },
+  });
+}
+
+export function useDeleteIncident() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (incidentId: string) => {
+      const res = await apiFetch(`/api/incidents/${incidentId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "delete_incident_failed");
+      }
+    },
+    onSuccess: (_data, incidentId) => {
+      queryClient.removeQueries({ queryKey: ["incident", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
     },
   });

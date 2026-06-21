@@ -34,27 +34,24 @@ export function Timeline({ incidentId }: { incidentId: string }) {
     }
   };
 
-  if (isLoading) return <div className="text-muted animate-pulse p-4 text-sm">Loading logs...</div>;
-  if (error) return <div className="text-sev-critical p-4 text-sm">Failed to load logs.</div>;
+  if (isLoading)
+    return <div className="text-muted animate-pulse p-4 text-sm">{t("loadingTimeline")}</div>;
+  if (error)
+    return <div className="text-sev-critical p-4 text-sm">{t("failedToLoadTimeline")}</div>;
 
   return (
     <div className="flex h-full flex-col">
       <div className="surface-subtle border-border border-b p-4">
         <h2 className="text-text flex items-center gap-2 text-sm font-bold">
           <Terminal className="text-gold h-4 w-4" />
-          Operator Log
+          {t("operatorTimeline")}
         </h2>
       </div>
 
       <div className="flex flex-1 flex-col-reverse space-y-4 overflow-y-auto p-4">
-        {/* We reverse the flex direction to keep the latest messages at the bottom if we mapped it backwards, 
-            but the original was top-down. Let's just use regular flex and scroll down, or display them normally.
-            Usually logs are top-to-bottom so the newest is at the bottom. 
-            Wait, data.entries is likely sorted newest first or oldest first. 
-            Let's keep original order but style it better. */}
         <div className="space-y-4">
           {data?.entries.length === 0 ? (
-            <div className="text-muted p-4 text-center text-sm">No entries yet.</div>
+            <div className="text-muted p-4 text-center text-sm">{t("noEntriesYet")}</div>
           ) : (
             data?.entries.map((entry) => (
               <div key={entry.id} className="surface-subtle border-border rounded-md border p-4">
@@ -78,8 +75,8 @@ export function Timeline({ incidentId }: { incidentId: string }) {
       {typingUsers.length > 0 && (
         <div className="text-gold/80 animate-pulse px-4 py-1 text-xs">
           {typingUsers.length === 1
-            ? `${typingUsers[0].split("-")[0]} is typing...`
-            : `${typingUsers.length} operators are typing...`}
+            ? t("typingOne", { user: typingUsers[0].split("-")[0] })
+            : t("typingMany", { count: typingUsers.length })}
         </div>
       )}
 
@@ -89,7 +86,7 @@ export function Timeline({ incidentId }: { incidentId: string }) {
             type="text"
             value={content}
             onChange={handleContentChange}
-            placeholder="Type command or log entry..."
+            placeholder={t("logEventPlaceholder")}
             className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
           />
           <button

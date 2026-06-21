@@ -1,7 +1,7 @@
 // --- server/src/adapters/pg/team.rs ---
 
 use crate::domain::error::DomainError;
-use crate::domain::team::{InvitationCode, Role, Team};
+use crate::domain::team::{InvitationCode, Role, Team, TeamMemberView};
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
 use sqlx::PgPool;
@@ -254,6 +254,31 @@ impl TeamRepo for PgTeamRepo {
 
         Ok(record.count as u64)
     }
+
+    async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError> {
+        let records = sqlx::query!(
+            r#"
+            SELECT u.id AS user_id, u.email, m.role
+            FROM team_members m
+            JOIN users u ON u.id = m.user_id
+            WHERE m.team_id = $1
+            ORDER BY m.joined_at
+            "#,
+            team_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(records
+            .into_iter()
+            .map(|row| TeamMemberView {
+                user_id: row.user_id,
+                email: row.email,
+                role: role_from_str(&row.role),
+            })
+            .collect())
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---
@@ -350,5 +375,41 @@ mod tests {
         let found = repo.find_by_invitation_code("OPS-NOPE99").await.unwrap();
 
         assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn it_lists_members_with_email_and_role() {
+        let pool = test_pool().await;
+        let repo = PgTeamRepo::new(pool.clone());
+
+        let manager = seed_user(&pool).await;
+        let observer = seed_user(&pool).await;
+        let team = Team::new("Roster Crew").unwrap();
+        repo.save_team(&team).await.unwrap();
+        repo.add_member(team.id, manager, Role::Manager)
+            .await
+            .unwrap();
+        repo.add_member(team.id, observer, Role::Observer)
+            .await
+            .unwrap();
+
+        let members = repo.list_members(team.id).await.unwrap();
+
+        assert_eq!(members.len(), 2);
+        let manager_row = members.iter().find(|m| m.user_id == manager).unwrap();
+        assert_eq!(manager_row.role, Role::Manager);
+        assert!(manager_row.email.contains('@'));
+        assert!(members
+            .iter()
+            .any(|m| m.user_id == observer && m.role == Role::Observer));
+    }
+
+    #[tokio::test]
+    async fn it_lists_no_members_for_an_unknown_team() {
+        let repo = PgTeamRepo::new(test_pool().await);
+
+        let members = repo.list_members(Uuid::new_v4()).await.unwrap();
+
+        assert!(members.is_empty());
     }
 }
