@@ -131,3 +131,21 @@ export function useTransferManager(teamId: string) {
     onSuccess: () => invalidateTeamScope(queryClient, teamId),
   });
 }
+
+/** Promote/demote a member between Observer and Responder (Manager-only server-side). */
+export function useSetMemberRole(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: "observer" | "responder" }) => {
+      const res = await apiFetch(`/api/teams/${teamId}/members/${userId}/role`, {
+        method: "PUT",
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "set_member_role_failed");
+      }
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}

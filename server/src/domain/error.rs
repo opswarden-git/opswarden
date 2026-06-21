@@ -18,6 +18,13 @@ pub enum DomainError {
     MemberNotFound,
     NotManager,
     AlreadyManager,
+    /// A member role change targeted an unaccepted value. Only Observer and
+    /// Responder are settable here; promotion to Manager goes through transfer.
+    InvalidRole,
+    /// Attempted to change the Manager's role via the member-role endpoint. The
+    /// Manager role only moves through an explicit transfer (single-Manager
+    /// invariant).
+    CannotChangeManagerRole,
     AssigneeNotResponder,
     ManagerCannotLeave,
     /// Account deletion refused while the user still manages a team: they must
@@ -61,6 +68,8 @@ impl DomainError {
             DomainError::MemberNotFound => "member_not_found",
             DomainError::NotManager => "not_manager",
             DomainError::AlreadyManager => "already_manager",
+            DomainError::InvalidRole => "invalid_role",
+            DomainError::CannotChangeManagerRole => "cannot_change_manager_role",
             DomainError::AssigneeNotResponder => "assignee_not_responder",
             DomainError::ManagerCannotLeave => "manager_cannot_leave",
             DomainError::MustTransferManagerFirst => "must_transfer_manager_first",
@@ -100,6 +109,10 @@ impl std::fmt::Display for DomainError {
             DomainError::MemberNotFound => write!(f, "User is not a member of this team"),
             DomainError::NotManager => write!(f, "Only the team manager may perform this action"),
             DomainError::AlreadyManager => write!(f, "User is already the team manager"),
+            DomainError::InvalidRole => write!(f, "Role must be Observer or Responder"),
+            DomainError::CannotChangeManagerRole => {
+                write!(f, "The manager's role can only change through a transfer")
+            }
             DomainError::AssigneeNotResponder => {
                 write!(f, "Assignee must be a Responder or Manager of the team")
             }

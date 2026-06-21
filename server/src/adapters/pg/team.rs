@@ -279,6 +279,28 @@ impl TeamRepo for PgTeamRepo {
             })
             .collect())
     }
+
+    async fn set_member_role(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+        role: Role,
+    ) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            UPDATE team_members SET role = $3
+            WHERE team_id = $1 AND user_id = $2
+            "#,
+            team_id,
+            user_id,
+            role_to_str(role),
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---
@@ -411,5 +433,27 @@ mod tests {
         let members = repo.list_members(Uuid::new_v4()).await.unwrap();
 
         assert!(members.is_empty());
+    }
+
+    #[tokio::test]
+    async fn it_sets_a_member_role_in_postgres() {
+        let pool = test_pool().await;
+        let repo = PgTeamRepo::new(pool.clone());
+
+        let member = seed_user(&pool).await;
+        let team = Team::new("Role Crew").unwrap();
+        repo.save_team(&team).await.unwrap();
+        repo.add_member(team.id, member, Role::Observer)
+            .await
+            .unwrap();
+
+        repo.set_member_role(team.id, member, Role::Responder)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            repo.find_member_role(team.id, member).await.unwrap(),
+            Some(Role::Responder)
+        );
     }
 }

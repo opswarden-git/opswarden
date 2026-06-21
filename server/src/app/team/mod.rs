@@ -5,6 +5,7 @@ pub mod join_team;
 pub mod leave_team;
 pub mod list_members;
 pub mod list_teams;
+pub mod set_member_role;
 pub mod transfer_manager;
 
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
@@ -13,6 +14,7 @@ pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
 pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
 pub use list_members::{ListTeamMembersCommand, ListTeamMembersResult, ListTeamMembersUseCase};
 pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
+pub use set_member_role::{SetMemberRoleCommand, SetMemberRoleUseCase};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
 
 // Shared in-memory mock for the team use-case tests (no DB in this run).
@@ -41,6 +43,7 @@ pub(crate) mod tests {
         pub transfers: Mutex<Vec<(Uuid, Uuid, Uuid)>>,
         pub deleted: Mutex<Vec<Uuid>>,
         pub removed: Mutex<Vec<(Uuid, Uuid)>>,
+        pub role_changes: Mutex<Vec<(Uuid, Uuid, Role)>>,
     }
 
     impl MockTeamRepo {
@@ -143,6 +146,19 @@ pub(crate) mod tests {
                     role: *role,
                 })
                 .collect())
+        }
+
+        async fn set_member_role(
+            &self,
+            team_id: Uuid,
+            user_id: Uuid,
+            role: Role,
+        ) -> Result<(), DomainError> {
+            self.role_changes
+                .lock()
+                .unwrap()
+                .push((team_id, user_id, role));
+            Ok(())
         }
     }
 }

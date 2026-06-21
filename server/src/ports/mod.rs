@@ -58,6 +58,14 @@ pub trait TeamRepo: Send + Sync {
     /// Every member of a team, enriched with the user's email and role. Powers
     /// the team roster view; the read is scoped to one team by the caller.
     async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError>;
+    /// Set a member's role within a team. Used for Observer↔Responder changes;
+    /// the Manager seat is upheld by `transfer_manager`, not this method.
+    async fn set_member_role(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+        role: Role,
+    ) -> Result<(), DomainError>;
 }
 
 #[async_trait]

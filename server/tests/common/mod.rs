@@ -308,6 +308,16 @@ impl TeamRepo for DummyTeamRepo {
             })
             .collect())
     }
+
+    async fn set_member_role(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+        role: Role,
+    ) -> Result<(), DomainError> {
+        self.roles.lock().unwrap().insert((team_id, user_id), role);
+        Ok(())
+    }
 }
 
 pub struct DummyClock;

@@ -8,10 +8,11 @@ use uuid::Uuid;
 
 use crate::app::team::{
     CreateTeamCommand, CreateTeamUseCase, JoinTeamCommand, JoinTeamUseCase, ListTeamMembersCommand,
-    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, TransferManagerCommand,
-    TransferManagerUseCase,
+    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, SetMemberRoleCommand,
+    SetMemberRoleUseCase, TransferManagerCommand, TransferManagerUseCase,
 };
 use crate::domain::error::DomainError;
+use crate::domain::team::Role;
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 
@@ -79,6 +80,41 @@ pub async fn list_members(
             })
             .collect(),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct SetMemberRolePayload {
+    pub role: String,
+}
+
+/// Only Observer and Responder are settable here; "manager" (and anything else)
+/// is rejected — the Manager seat moves through `transfer_manager`, not this route.
+fn parse_assignable_role(value: &str) -> Result<Role, DomainError> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "observer" => Ok(Role::Observer),
+        "responder" => Ok(Role::Responder),
+        _ => Err(DomainError::InvalidRole),
+    }
+}
+
+pub async fn set_member_role(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path((team_id, user_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<SetMemberRolePayload>,
+) -> Result<StatusCode, DomainError> {
+    let new_role = parse_assignable_role(&payload.role)?;
+    let use_case = SetMemberRoleUseCase::new(state.teams.clone());
+    use_case
+        .set_member_role(SetMemberRoleCommand {
+            team_id,
+            requester_id: session.user_id,
+            target_user_id: user_id,
+            new_role,
+        })
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]

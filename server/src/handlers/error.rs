@@ -50,6 +50,13 @@ impl IntoResponse for DomainError {
             DomainError::AlreadyManager => {
                 (StatusCode::CONFLICT, "User is already the team manager")
             }
+            DomainError::InvalidRole => {
+                (StatusCode::BAD_REQUEST, "Role must be Observer or Responder")
+            }
+            DomainError::CannotChangeManagerRole => (
+                StatusCode::CONFLICT,
+                "The manager's role can only change through a transfer",
+            ),
             DomainError::NotManager => (
                 StatusCode::FORBIDDEN,
                 "Only the team manager may perform this action",
