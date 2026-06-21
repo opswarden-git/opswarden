@@ -73,3 +73,61 @@ export function useJoinTeam() {
     },
   });
 }
+
+/**
+ * Team membership/ownership mutations. On error the thrown message is the
+ * backend's stable error `code` (e.g. `manager_cannot_leave`, `not_manager`) so
+ * the UI maps it through `errors.<code>` i18n. Each invalidates the team list,
+ * the affected roster, and incident views the membership change touches.
+ */
+function invalidateTeamScope(queryClient: ReturnType<typeof useQueryClient>, teamId: string) {
+  queryClient.invalidateQueries({ queryKey: ["teams"] });
+  queryClient.invalidateQueries({ queryKey: ["team-members", teamId] });
+  queryClient.invalidateQueries({ queryKey: ["incidents"] });
+}
+
+export function useLeaveTeam(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch(`/api/teams/${teamId}/leave`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "leave_team_failed");
+      }
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}
+
+export function useDeleteTeam(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch(`/api/teams/${teamId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "delete_team_failed");
+      }
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}
+
+export function useTransferManager(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (newManagerId: string) => {
+      const res = await apiFetch(`/api/teams/${teamId}/manager`, {
+        method: "PUT",
+        body: JSON.stringify({ new_manager_id: newManagerId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "transfer_manager_failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}

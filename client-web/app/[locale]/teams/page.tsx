@@ -5,6 +5,7 @@ import { useTeams, useTeamMembers } from "@/lib/queries/teams";
 import { CreateTeamDialog } from "@/components/teams/CreateTeamDialog";
 import { JoinTeamDialog } from "@/components/teams/JoinTeamDialog";
 import { RoleChip } from "@/components/teams/RoleChip";
+import { TeamActions } from "@/components/teams/TeamActions";
 import { Shield, Users, Copy, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -161,6 +162,14 @@ export default function TeamsPage() {
           </div>
         </div>
       )}
+
+      {activeTeam ? (
+        <TeamActions
+          team={activeTeam}
+          members={members ?? []}
+          onLeftOrDeleted={() => setActiveTeamId("")}
+        />
+      ) : null}
     </div>
   );
 }
