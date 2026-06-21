@@ -45,6 +45,7 @@ export function Sidebar({ className }: { className?: string }) {
           width={32}
           height={32}
           className="h-8 w-auto object-contain"
+          style={{ width: "auto" }}
           priority
         />
         <Image
@@ -53,6 +54,7 @@ export function Sidebar({ className }: { className?: string }) {
           width={220}
           height={44}
           className="h-7 w-auto object-contain object-left"
+          style={{ width: "auto" }}
           priority
         />
       </Link>
