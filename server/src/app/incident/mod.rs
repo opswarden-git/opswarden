@@ -144,6 +144,15 @@ pub(crate) mod tests {
                 })
                 .collect())
         }
+
+        async fn set_member_role(
+            &self,
+            _team_id: Uuid,
+            _user_id: Uuid,
+            _role: Role,
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
     }
 
     #[derive(Default)]

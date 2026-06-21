@@ -160,6 +160,28 @@ pub fn plan_manager_transfer(
     })
 }
 
+/// Pure validation for an Observer↔Responder role change. This endpoint never
+/// touches the Manager role: promotion to Manager is a transfer, and demoting
+/// the sitting Manager here would break the single-Manager invariant. Both are
+/// rejected so the only authority over the Manager seat stays
+/// `plan_manager_transfer`.
+pub fn validate_member_role_change(
+    requester_role: Role,
+    target_current_role: Role,
+    new_role: Role,
+) -> Result<(), DomainError> {
+    if requester_role != Role::Manager {
+        return Err(DomainError::NotManager);
+    }
+    if new_role == Role::Manager {
+        return Err(DomainError::InvalidRole);
+    }
+    if target_current_role == Role::Manager {
+        return Err(DomainError::CannotChangeManagerRole);
+    }
+    Ok(())
+}
+
 // --- TESTS ---
 
 #[cfg(test)]
@@ -247,5 +269,40 @@ mod tests {
         let result = plan_manager_transfer(Role::Manager, manager, manager);
 
         assert_eq!(result.unwrap_err(), DomainError::AlreadyManager);
+    }
+
+    #[test]
+    fn manager_may_promote_and_demote_between_observer_and_responder() {
+        assert!(
+            validate_member_role_change(Role::Manager, Role::Observer, Role::Responder).is_ok()
+        );
+        assert!(
+            validate_member_role_change(Role::Manager, Role::Responder, Role::Observer).is_ok()
+        );
+    }
+
+    #[test]
+    fn non_manager_cannot_change_roles() {
+        assert_eq!(
+            validate_member_role_change(Role::Responder, Role::Observer, Role::Responder)
+                .unwrap_err(),
+            DomainError::NotManager
+        );
+    }
+
+    #[test]
+    fn promotion_to_manager_is_not_a_role_change() {
+        assert_eq!(
+            validate_member_role_change(Role::Manager, Role::Responder, Role::Manager).unwrap_err(),
+            DomainError::InvalidRole
+        );
+    }
+
+    #[test]
+    fn the_sitting_manager_role_cannot_be_changed_here() {
+        assert_eq!(
+            validate_member_role_change(Role::Manager, Role::Manager, Role::Responder).unwrap_err(),
+            DomainError::CannotChangeManagerRole
+        );
     }
 }
