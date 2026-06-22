@@ -6,7 +6,7 @@
 <p align="center">
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
-  <a href="https://github.com/RomeoCavazza/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v0.4.0-F4C430?style=flat-square" alt="Release v0.4.0" /></a>
+  <a href="https://github.com/RomeoCavazza/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v0.5.0-F4C430?style=flat-square" alt="Release v0.5.0" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
 </p>
@@ -50,10 +50,11 @@ rather than yet another re-skinned real-time chat. All business logic lives on t
 server (Rust/Axum, hexagonal architecture); the web and desktop clients display
 and relay, with no business logic.
 
-> Status: the **core backend** is implemented and tested — email/JWT auth (with
-> logout/revocation), teams + 3-role RBAC, the incident lifecycle and real-time
-> timeline, all on PostgreSQL (SQLx). The real-time front-end and later phases are
-> in progress; this page describes the full target and how to get there.
+> Status: the **web core** is implemented and tested — email/JWT auth (with
+> logout/revocation), teams + 3-role RBAC, incident lifecycle, real-time roster
+> presence, timeline editing and emoji reactions, all on PostgreSQL (SQLx).
+> Desktop, moderation, private messages and release management remain in progress;
+> this page describes the full target and how to get there.
 
 ## Scope
 
@@ -69,7 +70,7 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - Email auth + JWT, `/me`, logout with token invalidation; teams + 3-role RBAC
   (Observer / Responder / Manager) + invitation code + Manager transfer
 - Incidents (open &rarr; acknowledged &rarr; escalated &rarr; resolved, severities)
-  with a real-time collaborative timeline
+  with a real-time collaborative timeline, inline edits and emoji reactions
 - WebSockets (`incident_*`, `presence_update`) + automatic client reconnection
 - Action&rarr;REAction automation: GitHub webhook (CI failed) &rarr; incident;
   dynamic `/about.json` + SHA-256 token; encrypted token vault (AES-GCM)
@@ -79,7 +80,7 @@ microservices instinct is honored where it pays, without distributed-systems tax
 **Extended Features**
 
 - GitHub OAuth2; Releases + automatic blocking by a linked incident; moderation
-  (kick / temp ban / perm ban); timeline editing, reactions, private messages
+  (kick / temp ban / perm ban); private messages
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
 **Long-term vision**
