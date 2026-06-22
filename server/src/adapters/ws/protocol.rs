@@ -17,6 +17,18 @@ pub fn presence_wire(incident_id: Uuid, watchers: &[Uuid]) -> String {
     .to_string()
 }
 
+/// Serialize a `team_presence_update` frame: which members of `team_id` are
+/// currently connected (distinct users — multiple tabs count once). Ephemeral
+/// hub state, scoped to the team: only members of `team_id` ever receive it.
+pub fn team_presence_wire(team_id: Uuid, online_user_ids: &[Uuid]) -> String {
+    json!({
+        "type": "team_presence_update",
+        "team_id": team_id,
+        "online_user_ids": online_user_ids,
+    })
+    .to_string()
+}
+
 /// Serialize a domain event to its on-the-wire JSON, per the WebSocket contract
 /// documented in `WEBSOCKET_SPEC.md`. The wire format is a transport concern and
 /// lives here, never in the domain.
@@ -189,6 +201,19 @@ mod tests {
         let watchers = v["watchers"].as_array().unwrap();
         assert_eq!(watchers.len(), 2);
         assert_eq!(watchers[0], u1.to_string());
+    }
+
+    #[test]
+    fn team_presence_update_wire_shape() {
+        let team_id = Uuid::new_v4();
+        let u1 = Uuid::new_v4();
+        let u2 = Uuid::new_v4();
+        let v: Value = serde_json::from_str(&team_presence_wire(team_id, &[u1, u2])).unwrap();
+        assert_eq!(v["type"], "team_presence_update");
+        assert_eq!(v["team_id"], team_id.to_string());
+        let online = v["online_user_ids"].as_array().unwrap();
+        assert_eq!(online.len(), 2);
+        assert_eq!(online[0], u1.to_string());
     }
 
     #[test]

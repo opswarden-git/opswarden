@@ -11,7 +11,8 @@ export type WsClientCommand =
   | { type: "auth"; token: string }
   | { type: "watch"; incident_id: string }
   | { type: "unwatch"; incident_id: string }
-  | { type: "status_typing"; incident_id: string };
+  | { type: "status_typing"; incident_id: string }
+  | { type: "refresh_teams" };
 
 /** Events the server pushes to the client (see docs/markdown/WEBSOCKET_SPEC.md). */
 export type WsServerEvent =
@@ -24,6 +25,7 @@ export type WsServerEvent =
       entry: { entry_id: string; content: string; author: string; at: number };
     }
   | { type: "presence_update"; incident_id: string; watchers: string[] }
+  | { type: "team_presence_update"; team_id: string; online_user_ids: string[] }
   | { type: "user_typing"; incident_id: string; user_id: string }
   | {
       type: "rule_triggered";
@@ -43,6 +45,10 @@ interface WsState {
   /** Transient "is typing" user ids, keyed by incident id. Each entry self-expires. */
   typingByIncident: Record<string, string[]>;
   addTypingUser: (incidentId: string, userId: string) => void;
+  /** Online member ids per team (ephemeral WS presence). Pushed by the server on
+   *  connect/disconnect; scoped so a client only ever holds its own teams' rosters. */
+  onlineByTeam: Record<string, string[]>;
+  setTeamOnline: (teamId: string, userIds: string[]) => void;
   /** Incidents this client intends to watch. Kept so a WS reopen can replay the
    *  watch commands (the server drops presence when the socket closes) and so a
    *  socket that opens after a war room mounts still establishes presence. */
@@ -81,6 +87,11 @@ export const useWsStore = create<WsState>((set, get) => ({
       });
     }, 3000);
   },
+  onlineByTeam: {},
+  setTeamOnline: (teamId, userIds) =>
+    set((state) => ({
+      onlineByTeam: { ...state.onlineByTeam, [teamId]: userIds },
+    })),
   activeWatches: [],
   watch: (incidentId) => {
     set((state) =>
@@ -111,6 +122,10 @@ export const useWatchers = (incidentId: string): string[] =>
 /** Users currently typing on a single incident. */
 export const useTypingUsers = (incidentId: string): string[] =>
   useWsStore((s) => s.typingByIncident[incidentId] ?? EMPTY);
+
+/** Online member ids for a single team. */
+export const useTeamOnline = (teamId: string): string[] =>
+  useWsStore((s) => s.onlineByTeam[teamId] ?? EMPTY);
 
 export function useRealtime() {
   const token = useAuthStore((s) => s.token);
@@ -165,6 +180,9 @@ export function useRealtime() {
         break;
       case "presence_update":
         useWsStore.getState().setWatchers(event.incident_id, event.watchers || []);
+        break;
+      case "team_presence_update":
+        useWsStore.getState().setTeamOnline(event.team_id, event.online_user_ids || []);
         break;
       case "user_typing":
         useWsStore.getState().addTypingUser(event.incident_id, event.user_id);

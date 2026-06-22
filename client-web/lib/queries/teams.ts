@@ -1,5 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import { useWsStore } from "../ws";
+
+/** Tell the server to re-resolve this connection's team scope after the current
+ *  user's membership changed (create/join/leave/delete), so team presence and
+ *  in-band authz update without waiting for a reconnect. Dropped if the socket
+ *  is closed — a reconnect re-resolves teams anyway. */
+function notifyTeamMembershipChanged() {
+  useWsStore.getState().sendJson({ type: "refresh_teams" });
+}
 
 export interface Team {
   team_id: string;
@@ -52,6 +61,7 @@ export function useCreateTeam() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
+      notifyTeamMembershipChanged();
     },
   });
 }
@@ -70,6 +80,7 @@ export function useJoinTeam() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
+      notifyTeamMembershipChanged();
     },
   });
 }
@@ -96,7 +107,10 @@ export function useLeaveTeam(teamId: string) {
         throw new Error(body?.code ?? "leave_team_failed");
       }
     },
-    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+    onSuccess: () => {
+      invalidateTeamScope(queryClient, teamId);
+      notifyTeamMembershipChanged();
+    },
   });
 }
 
@@ -110,7 +124,10 @@ export function useDeleteTeam(teamId: string) {
         throw new Error(body?.code ?? "delete_team_failed");
       }
     },
-    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+    onSuccess: () => {
+      invalidateTeamScope(queryClient, teamId);
+      notifyTeamMembershipChanged();
+    },
   });
 }
 

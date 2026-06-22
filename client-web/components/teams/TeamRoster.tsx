@@ -12,6 +12,7 @@ import {
   useLeaveTeam,
   useDeleteTeam,
 } from "@/lib/queries/teams";
+import { useTeamOnline } from "@/lib/ws";
 import { RoleChip } from "./RoleChip";
 import { MemberRowActions } from "./MemberRowActions";
 import { ConfirmTeamActionDialog } from "./ConfirmTeamActionDialog";
@@ -36,6 +37,10 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
   const tErr = useTranslations("errors");
 
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
+  const onlineSet = new Set(useTeamOnline(team.team_id));
+  // Count only members actually shown in the roster (avoids counting a stale
+  // online id that has already left, before the roster query refetches).
+  const onlineCount = (members ?? []).filter((m) => onlineSet.has(m.user_id)).length;
   const setRole = useSetMemberRole(team.team_id);
   const transfer = useTransferManager(team.team_id);
   const leave = useLeaveTeam(team.team_id);
@@ -85,6 +90,12 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         <Users className="text-muted h-5 w-5" />
         <h2 className="text-text text-lg font-semibold tracking-tight">{t("members")}</h2>
         <span className="text-muted/70 truncate text-sm">— {team.name}</span>
+        {onlineCount > 0 ? (
+          <span className="text-muted/60 inline-flex items-center gap-1.5 text-xs">
+            <span className="bg-st-res h-1.5 w-1.5 rounded-full" />
+            {t("onlineCount", { count: onlineCount })}
+          </span>
+        ) : null}
         {isManager && team.invitation_code ? (
           <button
             type="button"
@@ -129,8 +140,17 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
               key={member.user_id}
               className="flex items-center gap-3 px-6 py-4 transition-colors hover:bg-white/[0.03]"
             >
-              <span className="surface-subtle text-muted border-border flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
-                {initials(member.email)}
+              <span className="relative shrink-0">
+                <span className="surface-subtle text-muted border-border flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold">
+                  {initials(member.email)}
+                </span>
+                <span
+                  title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
+                  aria-label={onlineSet.has(member.user_id) ? t("online") : t("offline")}
+                  className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
+                    onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
+                  }`}
+                />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-text truncate font-medium">{member.email}</div>
