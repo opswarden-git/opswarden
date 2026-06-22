@@ -74,11 +74,11 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - WebSockets (`incident_*`, `presence_update`) + automatic client reconnection
 - Action&rarr;REAction automation: GitHub webhook (CI failed) &rarr; incident;
   dynamic `/about.json` + SHA-256 token; encrypted token vault (AES-GCM)
-- Tauri desktop client (OS notifications, tray); `docker-compose` (server 8080 /
-  client_web 8081 / db / exposed desktop binary); GitHub Actions CI/CD; FR/EN i18n
+- `docker-compose` (server 8080 / client_web 8081 / db); GitHub Actions CI/CD; FR/EN i18n
 
-**Extended Features**
+**Extended Features** (in progress / planned)
 
+- Tauri desktop client (OS notifications, tray) + packaged desktop binary
 - GitHub OAuth2; Releases + automatic blocking by a linked incident; moderation
   (kick / temp ban / perm ban); private messages
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
@@ -124,7 +124,7 @@ curl http://localhost:8080/about.json  # -> service catalog + SHA-256 token
 opswarden/
 ├── server/               # Rust/Axum -- ALL business logic (hexagonal)
 │   ├── src/
-│   │   ├── domain/       # pure models (Incident, Release, Team...) -- zero I/O
+│   │   ├── domain/       # pure models (Incident, Team, Timeline...) -- zero I/O
 │   │   ├── ports/        # traits (IncidentRepo, EventBus, TokenVault...)
 │   │   ├── app/          # use-cases (business rule orchestration)
 │   │   ├── adapters/     # port implementations (Postgres, WS, crypto)
@@ -134,8 +134,8 @@ opswarden/
 │   ├── tests/            # integration tests
 │   └── Dockerfile        # multi-stage build of the server binary
 ├── client-web/           # Next.js + Tailwind -- supervision UI
-├── client-desktop/       # Tauri -- native app + tray + OS notifications
-├── investigation/        # AI SRE agent (RAG / pgvector) -- extracted
+├── client-desktop/       # Tauri -- native app + tray (planned, not in repo yet)
+├── investigation/        # AI SRE agent (RAG / pgvector) (planned, not in repo yet)
 ├── .github/workflows/    # server + web + release CI (dormant, see Roadmap)
 ├── docker-compose.yml    # compose setup: server + db
 ├── Cargo.toml            # cargo workspace
