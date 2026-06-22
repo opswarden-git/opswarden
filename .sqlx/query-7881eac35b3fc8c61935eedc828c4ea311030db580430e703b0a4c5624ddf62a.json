@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM timeline_reactions\n            WHERE entry_id = $1 AND user_id = $2 AND emoji = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7881eac35b3fc8c61935eedc828c4ea311030db580430e703b0a4c5624ddf62a"
+}

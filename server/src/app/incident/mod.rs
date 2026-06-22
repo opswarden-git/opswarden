@@ -3,9 +3,11 @@ pub mod assign_responder;
 pub mod change_incident_status;
 pub mod create_incident;
 pub mod delete_incident;
+pub mod edit_timeline_entry;
 pub mod get_incident;
 pub mod list_incidents;
 pub mod list_timeline_entries;
+pub mod toggle_timeline_reaction;
 
 pub use add_timeline_entry::{
     AddTimelineEntryCommand, AddTimelineEntryResult, AddTimelineEntryUseCase,
@@ -16,11 +18,17 @@ pub use change_incident_status::{
 };
 pub use create_incident::{CreateIncidentCommand, CreateIncidentResult, CreateIncidentUseCase};
 pub use delete_incident::{DeleteIncidentCommand, DeleteIncidentUseCase};
+pub use edit_timeline_entry::{
+    EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
+};
 pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
 pub use list_incidents::{ListIncidentsCommand, ListIncidentsResult, ListIncidentsUseCase};
 pub use list_timeline_entries::{
     ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
-    DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
+    ReactionSummary, TimelineEntryView, DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
+};
+pub use toggle_timeline_reaction::{
+    ToggleReactionCommand, ToggleReactionResult, ToggleReactionUseCase,
 };
 
 #[cfg(test)]
@@ -35,7 +43,7 @@ pub(crate) mod tests {
     use crate::domain::event::DomainEvent;
     use crate::domain::incident::Incident;
     use crate::domain::team::{Role, TeamMemberView};
-    use crate::domain::timeline::TimelineEntry;
+    use crate::domain::timeline::{ReactionRecord, TimelineEntry};
     use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
 
     #[derive(Default)]
@@ -227,6 +235,8 @@ pub(crate) mod tests {
     #[derive(Default)]
     pub struct MockTimelineRepo {
         pub appended: Mutex<Vec<TimelineEntry>>,
+        /// (entry_id, user_id, emoji) — the unique-per-tuple reaction store.
+        pub reactions: Mutex<Vec<(Uuid, Uuid, String)>>,
     }
 
     #[async_trait]
@@ -252,6 +262,91 @@ pub(crate) mod tests {
             entries.reverse();
             entries.truncate(limit as usize);
             Ok(entries)
+        }
+
+        async fn find_entry_by_id(
+            &self,
+            entry_id: Uuid,
+        ) -> Result<Option<TimelineEntry>, DomainError> {
+            Ok(self
+                .appended
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|e| e.id == entry_id)
+                .cloned())
+        }
+
+        async fn update_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError> {
+            let mut appended = self.appended.lock().unwrap();
+            if let Some(slot) = appended.iter_mut().find(|e| e.id == entry.id) {
+                *slot = entry.clone();
+            }
+            Ok(())
+        }
+
+        async fn add_reaction(
+            &self,
+            entry_id: Uuid,
+            user_id: Uuid,
+            emoji: &str,
+        ) -> Result<bool, DomainError> {
+            let mut reactions = self.reactions.lock().unwrap();
+            let key = (entry_id, user_id, emoji.to_string());
+            if reactions.contains(&key) {
+                return Ok(false);
+            }
+            reactions.push(key);
+            Ok(true)
+        }
+
+        async fn remove_reaction(
+            &self,
+            entry_id: Uuid,
+            user_id: Uuid,
+            emoji: &str,
+        ) -> Result<(), DomainError> {
+            self.reactions
+                .lock()
+                .unwrap()
+                .retain(|(e, u, em)| !(*e == entry_id && *u == user_id && em == emoji));
+            Ok(())
+        }
+
+        async fn count_reaction(&self, entry_id: Uuid, emoji: &str) -> Result<u64, DomainError> {
+            Ok(self
+                .reactions
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(e, _, em)| *e == entry_id && em == emoji)
+                .count() as u64)
+        }
+
+        async fn list_reactions_for_incident(
+            &self,
+            incident_id: Uuid,
+        ) -> Result<Vec<ReactionRecord>, DomainError> {
+            let entry_ids: Vec<Uuid> = self
+                .appended
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|e| e.incident_id == incident_id)
+                .map(|e| e.id)
+                .collect();
+            Ok(self
+                .reactions
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(e, _, _)| entry_ids.contains(e))
+                .map(|(entry_id, user_id, emoji)| ReactionRecord {
+                    entry_id: *entry_id,
+                    user_id: *user_id,
+                    emoji: emoji.clone(),
+                })
+                .collect())
         }
     }
 }

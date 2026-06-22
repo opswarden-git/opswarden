@@ -96,6 +96,14 @@ pub fn build_app(state: AppState) -> Router {
                 .get(handlers::incident::list_timeline_entries),
         )
         .route(
+            "/api/incidents/{incident_id}/timeline/{entry_id}",
+            put(handlers::incident::edit_timeline_entry),
+        )
+        .route(
+            "/api/incidents/{incident_id}/timeline/{entry_id}/reactions",
+            post(handlers::incident::toggle_reaction),
+        )
+        .route(
             "/api/service-connections",
             get(handlers::service_connection::list_service_connections),
         )

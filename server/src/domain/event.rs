@@ -38,6 +38,30 @@ pub enum DomainEvent {
         author: Uuid,
         at: DateTime<Utc>,
     },
+    /// A timeline entry's content was edited (RTC 2). `edited_at` is the new stamp.
+    TimelineEntryEdited {
+        team_id: Uuid,
+        incident_id: Uuid,
+        entry_id: Uuid,
+        content: String,
+        edited_at: DateTime<Utc>,
+    },
+    /// A user added an emoji reaction to a timeline entry (RTC 2).
+    ReactionAdded {
+        team_id: Uuid,
+        incident_id: Uuid,
+        entry_id: Uuid,
+        emoji: String,
+        user_id: Uuid,
+    },
+    /// A user removed an emoji reaction from a timeline entry (RTC 2).
+    ReactionRemoved {
+        team_id: Uuid,
+        incident_id: Uuid,
+        entry_id: Uuid,
+        emoji: String,
+        user_id: Uuid,
+    },
     UserTyping {
         team_id: Uuid,
         incident_id: Uuid,
@@ -69,6 +93,9 @@ impl DomainEvent {
             | DomainEvent::IncidentEscalated { team_id, .. }
             | DomainEvent::IncidentAssigned { team_id, .. }
             | DomainEvent::TimelineEntryAdded { team_id, .. }
+            | DomainEvent::TimelineEntryEdited { team_id, .. }
+            | DomainEvent::ReactionAdded { team_id, .. }
+            | DomainEvent::ReactionRemoved { team_id, .. }
             | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
             | DomainEvent::RuleFailed { team_id, .. } => *team_id,

@@ -84,6 +84,45 @@ pub fn to_wire(event: &DomainEvent) -> String {
                 "at": at.timestamp(),
             },
         }),
+        DomainEvent::TimelineEntryEdited {
+            incident_id,
+            entry_id,
+            content,
+            edited_at,
+            ..
+        } => json!({
+            "type": "timeline_entry_edited",
+            "incident_id": incident_id,
+            "entry_id": entry_id,
+            "content": content,
+            "edited_at": edited_at.timestamp(),
+        }),
+        DomainEvent::ReactionAdded {
+            incident_id,
+            entry_id,
+            emoji,
+            user_id,
+            ..
+        } => json!({
+            "type": "reaction_added",
+            "incident_id": incident_id,
+            "entry_id": entry_id,
+            "emoji": emoji,
+            "user_id": user_id,
+        }),
+        DomainEvent::ReactionRemoved {
+            incident_id,
+            entry_id,
+            emoji,
+            user_id,
+            ..
+        } => json!({
+            "type": "reaction_removed",
+            "incident_id": incident_id,
+            "entry_id": entry_id,
+            "emoji": emoji,
+            "user_id": user_id,
+        }),
         DomainEvent::UserTyping {
             incident_id,
             user_id,
@@ -228,6 +267,52 @@ mod tests {
         assert_eq!(v["type"], "user_typing");
         assert_eq!(v["incident_id"], incident_id.to_string());
         assert_eq!(v["user_id"], user_id.to_string());
+    }
+
+    #[test]
+    fn timeline_entry_edited_wire_shape() {
+        let incident_id = Uuid::new_v4();
+        let entry_id = Uuid::new_v4();
+        let edited_at = Utc.with_ymd_and_hms(2026, 6, 22, 10, 0, 0).unwrap();
+        let v = parse(&DomainEvent::TimelineEntryEdited {
+            team_id: Uuid::new_v4(),
+            incident_id,
+            entry_id,
+            content: "fixed typo".to_string(),
+            edited_at,
+        });
+        assert_eq!(v["type"], "timeline_entry_edited");
+        assert_eq!(v["incident_id"], incident_id.to_string());
+        assert_eq!(v["entry_id"], entry_id.to_string());
+        assert_eq!(v["content"], "fixed typo");
+        assert_eq!(v["edited_at"], edited_at.timestamp());
+    }
+
+    #[test]
+    fn reaction_added_and_removed_wire_shapes() {
+        let incident_id = Uuid::new_v4();
+        let entry_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let added = parse(&DomainEvent::ReactionAdded {
+            team_id: Uuid::new_v4(),
+            incident_id,
+            entry_id,
+            emoji: "👍".to_string(),
+            user_id,
+        });
+        assert_eq!(added["type"], "reaction_added");
+        assert_eq!(added["entry_id"], entry_id.to_string());
+        assert_eq!(added["emoji"], "👍");
+        assert_eq!(added["user_id"], user_id.to_string());
+
+        let removed = parse(&DomainEvent::ReactionRemoved {
+            team_id: Uuid::new_v4(),
+            incident_id,
+            entry_id,
+            emoji: "👍".to_string(),
+            user_id,
+        });
+        assert_eq!(removed["type"], "reaction_removed");
     }
 
     #[test]

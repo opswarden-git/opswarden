@@ -7,7 +7,7 @@ use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
 use opswarden_server::domain::team::{Role, Team, TeamMemberView};
-use opswarden_server::domain::timeline::TimelineEntry;
+use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
     Clock, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, RuleRepo,
@@ -374,6 +374,7 @@ impl IncidentRepo for DummyIncidentRepo {
 #[derive(Default)]
 pub struct DummyTimelineRepo {
     entries: Mutex<Vec<TimelineEntry>>,
+    reactions: Mutex<Vec<(Uuid, Uuid, String)>>,
 }
 
 #[allow(dead_code)]
@@ -416,6 +417,88 @@ impl TimelineRepo for DummyTimelineRepo {
         entries.reverse();
         entries.truncate(limit as usize);
         Ok(entries)
+    }
+
+    async fn find_entry_by_id(&self, entry_id: Uuid) -> Result<Option<TimelineEntry>, DomainError> {
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| e.id == entry_id)
+            .cloned())
+    }
+
+    async fn update_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError> {
+        let mut entries = self.entries.lock().unwrap();
+        if let Some(slot) = entries.iter_mut().find(|e| e.id == entry.id) {
+            *slot = entry.clone();
+        }
+        Ok(())
+    }
+
+    async fn add_reaction(
+        &self,
+        entry_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<bool, DomainError> {
+        let mut reactions = self.reactions.lock().unwrap();
+        let key = (entry_id, user_id, emoji.to_string());
+        if reactions.contains(&key) {
+            return Ok(false);
+        }
+        reactions.push(key);
+        Ok(true)
+    }
+
+    async fn remove_reaction(
+        &self,
+        entry_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<(), DomainError> {
+        self.reactions
+            .lock()
+            .unwrap()
+            .retain(|(e, u, em)| !(*e == entry_id && *u == user_id && em == emoji));
+        Ok(())
+    }
+
+    async fn count_reaction(&self, entry_id: Uuid, emoji: &str) -> Result<u64, DomainError> {
+        Ok(self
+            .reactions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(e, _, em)| *e == entry_id && em == emoji)
+            .count() as u64)
+    }
+
+    async fn list_reactions_for_incident(
+        &self,
+        incident_id: Uuid,
+    ) -> Result<Vec<ReactionRecord>, DomainError> {
+        let entry_ids: Vec<Uuid> = self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| e.incident_id == incident_id)
+            .map(|e| e.id)
+            .collect();
+        Ok(self
+            .reactions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(e, _, _)| entry_ids.contains(e))
+            .map(|(entry_id, user_id, emoji)| ReactionRecord {
+                entry_id: *entry_id,
+                user_id: *user_id,
+                emoji: emoji.clone(),
+            })
+            .collect())
     }
 }
 

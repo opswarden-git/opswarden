@@ -10,9 +10,10 @@ use uuid::Uuid;
 use crate::app::incident::{
     AddTimelineEntryCommand, AddTimelineEntryUseCase, AssignResponderCommand,
     AssignResponderUseCase, ChangeIncidentStatusCommand, ChangeIncidentStatusUseCase,
-    CreateIncidentCommand, CreateIncidentUseCase, GetIncidentCommand, GetIncidentUseCase,
-    ListIncidentsCommand, ListIncidentsUseCase, ListTimelineEntriesCommand,
-    ListTimelineEntriesUseCase,
+    CreateIncidentCommand, CreateIncidentUseCase, EditTimelineEntryCommand,
+    EditTimelineEntryUseCase, GetIncidentCommand, GetIncidentUseCase, ListIncidentsCommand,
+    ListIncidentsUseCase, ListTimelineEntriesCommand, ListTimelineEntriesUseCase,
+    ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
@@ -216,12 +217,21 @@ pub struct AddTimelineEntryPayload {
 }
 
 #[derive(Serialize)]
+pub struct ReactionResponse {
+    pub emoji: String,
+    pub count: u64,
+    pub reacted: bool,
+}
+
+#[derive(Serialize)]
 pub struct TimelineEntryResponse {
     pub entry_id: Uuid,
     pub incident_id: Uuid,
     pub author_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub edited_at: Option<DateTime<Utc>>,
+    pub reactions: Vec<ReactionResponse>,
 }
 
 pub async fn add_timeline_entry(
@@ -252,8 +262,87 @@ pub async fn add_timeline_entry(
             author_id: result.author_id,
             content: result.content,
             created_at: result.created_at,
+            edited_at: None,
+            reactions: Vec::new(),
         }),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct EditTimelineEntryPayload {
+    pub content: String,
+}
+
+pub async fn edit_timeline_entry(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path((incident_id, entry_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<EditTimelineEntryPayload>,
+) -> Result<Json<TimelineEntryResponse>, DomainError> {
+    let use_case = EditTimelineEntryUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.timeline.clone(),
+        state.events.clone(),
+    );
+    let result = use_case
+        .edit(EditTimelineEntryCommand {
+            incident_id,
+            entry_id,
+            requester_id: session.user_id,
+            content: payload.content,
+        })
+        .await?;
+
+    Ok(Json(TimelineEntryResponse {
+        entry_id: result.entry_id,
+        incident_id: result.incident_id,
+        author_id: result.author_id,
+        content: result.content,
+        created_at: result.created_at,
+        edited_at: result.edited_at,
+        reactions: Vec::new(),
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct ToggleReactionPayload {
+    pub emoji: String,
+}
+
+#[derive(Serialize)]
+pub struct ToggleReactionResponse {
+    pub emoji: String,
+    pub reacted: bool,
+    pub count: u64,
+}
+
+pub async fn toggle_reaction(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path((incident_id, entry_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<ToggleReactionPayload>,
+) -> Result<Json<ToggleReactionResponse>, DomainError> {
+    let use_case = ToggleReactionUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.timeline.clone(),
+        state.events.clone(),
+    );
+    let result = use_case
+        .toggle(ToggleReactionCommand {
+            incident_id,
+            entry_id,
+            user_id: session.user_id,
+            emoji: payload.emoji,
+        })
+        .await?;
+
+    Ok(Json(ToggleReactionResponse {
+        emoji: result.emoji,
+        reacted: result.reacted,
+        count: result.count,
+    }))
 }
 
 #[derive(Deserialize)]
@@ -289,12 +378,22 @@ pub async fn list_timeline_entries(
         entries: result
             .entries
             .into_iter()
-            .map(|entry| TimelineEntryResponse {
-                entry_id: entry.id,
-                incident_id: entry.incident_id,
-                author_id: entry.author_id,
-                content: entry.content,
-                created_at: entry.created_at,
+            .map(|view| TimelineEntryResponse {
+                entry_id: view.entry.id,
+                incident_id: view.entry.incident_id,
+                author_id: view.entry.author_id,
+                content: view.entry.content,
+                created_at: view.entry.created_at,
+                edited_at: view.entry.edited_at,
+                reactions: view
+                    .reactions
+                    .into_iter()
+                    .map(|r| ReactionResponse {
+                        emoji: r.emoji,
+                        count: r.count,
+                        reacted: r.reacted,
+                    })
+                    .collect(),
             })
             .collect(),
     }))
