@@ -1,20 +1,23 @@
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import type { OnboardingData, UpdateOnboardingData } from "./types";
 
 interface StepProps {
-  data: any;
-  updateData: (fields: any) => void;
+  data: OnboardingData;
+  updateData: UpdateOnboardingData;
   next: () => void;
 }
 
+type CredentialErrors = Partial<Record<"operatorName" | "email" | "password", string>>;
+
 export function StepCredentials({ data, updateData, next }: StepProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<CredentialErrors>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: any = {};
+    const newErrors: CredentialErrors = {};
     if (!data.email) newErrors.email = "Required";
     if (!data.password || data.password.length < 6) newErrors.password = "Must be at least 6 chars";
     if (!data.operatorName) newErrors.operatorName = "Required";

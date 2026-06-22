@@ -7,22 +7,23 @@ import { StepCredentials } from "@/components/onboarding/StepCredentials";
 import { StepStation } from "@/components/onboarding/StepStation";
 import { StepIntegrations } from "@/components/onboarding/StepIntegrations";
 import { StepVerification } from "@/components/onboarding/StepVerification";
+import type { OnboardingData, UpdateOnboardingData } from "@/components/onboarding/types";
 import { useTranslations } from "next-intl";
 
 export default function SignupPage() {
   const t = useTranslations("Auth");
   const [step, setStep] = useState(1);
-  const [data, setData] = useState({
+  const [data, setData] = useState<OnboardingData>({
     operatorName: "",
     email: "",
     password: "",
     stationName: "",
     timezone: "Europe/Paris",
     clearance: "observer",
-    integrations: [] as string[],
+    integrations: [],
   });
 
-  const updateData = (fields: Partial<typeof data>) => {
+  const updateData: UpdateOnboardingData = (fields) => {
     setData((prev) => ({ ...prev, ...fields }));
   };
 
