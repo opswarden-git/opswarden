@@ -111,6 +111,7 @@
     "invalid_service_secret": "Service secret cannot be empty.",
     "crypto_error": "A cryptographic error occurred.",
     "reaction_failed": "The automation reaction failed.",
+    "invalid_reaction": "Invalid reaction.",
     "storage_error": "A storage error occurred."
   },
   "Teams": {
@@ -232,6 +233,9 @@
     "fieldTitle": "Title",
     "fieldSeverity": "Severity Level",
     "deleteIncident": "Delete Incident",
+    "edit": "Edit",
+    "save": "Save",
+    "edited": "(edited)",
     "deleteIncidentConfirm": "This permanently deletes « {title} ». Type DELETE to confirm.",
     "actionFailed": "Action failed. Please try again.",
     "processing": "Processing…"

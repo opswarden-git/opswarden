@@ -35,6 +35,9 @@ impl IntoResponse for DomainError {
             DomainError::InvalidTimelineEntry => {
                 (StatusCode::BAD_REQUEST, "Timeline entry content is invalid")
             }
+            DomainError::InvalidReaction => {
+                (StatusCode::BAD_REQUEST, "Reaction emoji is invalid")
+            }
             DomainError::TeamNotFound => (
                 StatusCode::NOT_FOUND,
                 "No team matches this invitation code",

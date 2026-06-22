@@ -111,6 +111,7 @@
     "invalid_service_secret": "Le secret du service ne peut pas être vide.",
     "crypto_error": "Une erreur cryptographique est survenue.",
     "reaction_failed": "La réaction d’automatisation a échoué.",
+    "invalid_reaction": "Réaction invalide.",
     "storage_error": "Une erreur de stockage est survenue."
   },
   "Teams": {
@@ -232,6 +233,9 @@
     "fieldTitle": "Titre",
     "fieldSeverity": "Niveau de sévérité",
     "deleteIncident": "Supprimer l'incident",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "edited": "(modifié)",
     "deleteIncidentConfirm": "Cela supprime définitivement « {title} ». Tapez DELETE pour confirmer.",
     "actionFailed": "L'action a échoué. Réessayez.",
     "processing": "Traitement…"

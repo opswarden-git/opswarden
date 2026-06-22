@@ -5,7 +5,7 @@ use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
 use crate::domain::team::{Role, Team, TeamMemberView};
-use crate::domain::timeline::TimelineEntry;
+use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::User;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -86,6 +86,32 @@ pub trait TimelineRepo: Send + Sync {
         incident_id: Uuid,
         limit: u32,
     ) -> Result<Vec<TimelineEntry>, DomainError>;
+    /// Load a single entry (to authorize and apply an edit).
+    async fn find_entry_by_id(&self, entry_id: Uuid) -> Result<Option<TimelineEntry>, DomainError>;
+    /// Persist an edited entry: updates `content` and `edited_at`.
+    async fn update_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError>;
+    /// Add a reaction; returns `true` when newly inserted, `false` when the user
+    /// already had that emoji on the entry (idempotent — no duplicate).
+    async fn add_reaction(
+        &self,
+        entry_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<bool, DomainError>;
+    /// Remove a reaction (idempotent: removing a missing one is not an error).
+    async fn remove_reaction(
+        &self,
+        entry_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<(), DomainError>;
+    /// How many distinct users currently react to `entry_id` with `emoji`.
+    async fn count_reaction(&self, entry_id: Uuid, emoji: &str) -> Result<u64, DomainError>;
+    /// Every reaction on every entry of an incident, for roster aggregation.
+    async fn list_reactions_for_incident(
+        &self,
+        incident_id: Uuid,
+    ) -> Result<Vec<ReactionRecord>, DomainError>;
 }
 
 #[async_trait]

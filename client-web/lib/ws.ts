@@ -24,6 +24,27 @@ export type WsServerEvent =
       incident_id: string;
       entry: { entry_id: string; content: string; author: string; at: number };
     }
+  | {
+      type: "timeline_entry_edited";
+      incident_id: string;
+      entry_id: string;
+      content: string;
+      edited_at: number;
+    }
+  | {
+      type: "reaction_added";
+      incident_id: string;
+      entry_id: string;
+      emoji: string;
+      user_id: string;
+    }
+  | {
+      type: "reaction_removed";
+      incident_id: string;
+      entry_id: string;
+      emoji: string;
+      user_id: string;
+    }
   | { type: "presence_update"; incident_id: string; watchers: string[] }
   | { type: "team_presence_update"; team_id: string; online_user_ids: string[] }
   | { type: "user_typing"; incident_id: string; user_id: string }
@@ -176,6 +197,9 @@ export function useRealtime() {
         queryClient.invalidateQueries({ queryKey: ["incidents"] });
         break;
       case "timeline_entry_added":
+      case "timeline_entry_edited":
+      case "reaction_added":
+      case "reaction_removed":
         queryClient.invalidateQueries({ queryKey: ["timeline", event.incident_id] });
         break;
       case "presence_update":

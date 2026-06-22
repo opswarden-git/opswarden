@@ -12,6 +12,8 @@ pub enum DomainError {
     InvalidSeverity,
     InvalidIncidentTransition,
     InvalidTimelineEntry,
+    /// A timeline reaction emoji was blank or too long.
+    InvalidReaction,
     TeamNotFound,
     IncidentNotFound,
     AlreadyMember,
@@ -62,6 +64,7 @@ impl DomainError {
             DomainError::InvalidSeverity => "invalid_severity",
             DomainError::InvalidIncidentTransition => "invalid_incident_transition",
             DomainError::InvalidTimelineEntry => "invalid_timeline_entry",
+            DomainError::InvalidReaction => "invalid_reaction",
             DomainError::TeamNotFound => "team_not_found",
             DomainError::IncidentNotFound => "incident_not_found",
             DomainError::AlreadyMember => "already_member",
@@ -103,6 +106,7 @@ impl std::fmt::Display for DomainError {
             DomainError::InvalidTimelineEntry => {
                 write!(f, "Timeline entry content is invalid")
             }
+            DomainError::InvalidReaction => write!(f, "Reaction emoji is invalid"),
             DomainError::TeamNotFound => write!(f, "No team matches this invitation code"),
             DomainError::IncidentNotFound => write!(f, "Incident was not found"),
             DomainError::AlreadyMember => write!(f, "User is already a member of this team"),

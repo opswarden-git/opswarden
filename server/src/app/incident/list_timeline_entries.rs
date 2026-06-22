@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
+use crate::domain::timeline::TimelineEntry;
 use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo};
 
 pub const DEFAULT_TIMELINE_LIMIT: u32 = 50;
@@ -14,9 +16,25 @@ pub struct ListTimelineEntriesCommand {
     pub limit: Option<u32>,
 }
 
+/// Aggregated reactions for one emoji on one entry: how many users reacted and
+/// whether the requesting user is among them.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReactionSummary {
+    pub emoji: String,
+    pub count: u64,
+    pub reacted: bool,
+}
+
+/// A timeline entry enriched with its reaction summary, for the read view.
+#[derive(Debug, PartialEq, Eq)]
+pub struct TimelineEntryView {
+    pub entry: TimelineEntry,
+    pub reactions: Vec<ReactionSummary>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ListTimelineEntriesResult {
-    pub entries: Vec<crate::domain::timeline::TimelineEntry>,
+    pub entries: Vec<TimelineEntryView>,
 }
 
 pub struct ListTimelineEntriesUseCase {
@@ -63,6 +81,45 @@ impl ListTimelineEntriesUseCase {
             .list_entries_for_incident(cmd.incident_id, limit)
             .await?;
 
+        // Aggregate reactions per (entry, emoji): a count and whether the
+        // requester is one of the reactors.
+        let reactions = self
+            .timeline
+            .list_reactions_for_incident(cmd.incident_id)
+            .await?;
+        let mut by_entry: HashMap<Uuid, HashMap<String, (u64, bool)>> = HashMap::new();
+        for r in reactions {
+            let slot = by_entry
+                .entry(r.entry_id)
+                .or_default()
+                .entry(r.emoji)
+                .or_insert((0, false));
+            slot.0 += 1;
+            if r.user_id == cmd.requester_id {
+                slot.1 = true;
+            }
+        }
+
+        let entries = entries
+            .into_iter()
+            .map(|entry| {
+                let mut reactions: Vec<ReactionSummary> = by_entry
+                    .get(&entry.id)
+                    .map(|m| {
+                        m.iter()
+                            .map(|(emoji, (count, reacted))| ReactionSummary {
+                                emoji: emoji.clone(),
+                                count: *count,
+                                reacted: *reacted,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                reactions.sort_by(|a, b| a.emoji.cmp(&b.emoji));
+                TimelineEntryView { entry, reactions }
+            })
+            .collect();
+
         Ok(ListTimelineEntriesResult { entries })
     }
 }
@@ -104,7 +161,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.entries.len(), 1);
-        assert_eq!(result.entries[0].content, "Investigating ingress");
+        assert_eq!(result.entries[0].entry.content, "Investigating ingress");
     }
 
     #[tokio::test]
@@ -138,6 +195,51 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.entries.len(), 1);
-        assert_eq!(result.entries[0].content, "Entry number 2");
+        assert_eq!(result.entries[0].entry.content, "Entry number 2");
+    }
+
+    #[tokio::test]
+    async fn list_aggregates_reaction_counts_and_reacted_flag() {
+        let team_id = Uuid::new_v4();
+        let requester_id = Uuid::new_v4();
+        let other_id = Uuid::new_v4();
+        let incident = Incident::new(team_id, "Latency spike", Severity::High).unwrap();
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Observer));
+        let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
+        let timeline = Arc::new(MockTimelineRepo::default());
+        let entry = TimelineEntry::new(incident.id, other_id, "Investigating").unwrap();
+        timeline.append_entry(&entry).await.unwrap();
+        // Two users react with 👍; only the requester also reacts with 🔥.
+        timeline
+            .add_reaction(entry.id, requester_id, "👍")
+            .await
+            .unwrap();
+        timeline
+            .add_reaction(entry.id, other_id, "👍")
+            .await
+            .unwrap();
+        timeline
+            .add_reaction(entry.id, requester_id, "🔥")
+            .await
+            .unwrap();
+
+        let use_case = ListTimelineEntriesUseCase::new(teams, incidents, timeline);
+        let result = use_case
+            .list_entries(ListTimelineEntriesCommand {
+                incident_id: incident.id,
+                requester_id,
+                limit: None,
+            })
+            .await
+            .unwrap();
+
+        let reactions = &result.entries[0].reactions;
+        let thumbs = reactions.iter().find(|r| r.emoji == "👍").unwrap();
+        assert_eq!(thumbs.count, 2);
+        assert!(thumbs.reacted);
+        let fire = reactions.iter().find(|r| r.emoji == "🔥").unwrap();
+        assert_eq!(fire.count, 1);
+        assert!(fire.reacted);
     }
 }
