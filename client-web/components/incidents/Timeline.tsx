@@ -47,10 +47,10 @@ function TimelineEntryItem({
     );
   };
 
+  // Be defensive for stale React Query/HMR data loaded before reactions existed.
+  const reactions = entry.reactions ?? [];
   // Preset emojis plus any non-preset emoji that already carries a reaction.
-  const extraEmojis = entry.reactions
-    .map((r) => r.emoji)
-    .filter((e) => !PRESET_REACTIONS.includes(e));
+  const extraEmojis = reactions.map((r) => r.emoji).filter((e) => !PRESET_REACTIONS.includes(e));
   const emojis = [...PRESET_REACTIONS, ...extraEmojis];
 
   return (
@@ -113,7 +113,7 @@ function TimelineEntryItem({
 
       <div className="mt-2 flex flex-wrap items-center gap-1">
         {emojis.map((emoji) => {
-          const r = entry.reactions.find((x) => x.emoji === emoji);
+          const r = reactions.find((x) => x.emoji === emoji);
           const count = r?.count ?? 0;
           const reacted = r?.reacted ?? false;
           return (
