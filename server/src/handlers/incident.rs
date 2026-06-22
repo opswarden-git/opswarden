@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::incident::{
-    AddTimelineEntryCommand, AddTimelineEntryUseCase, AssignResponderCommand,
-    AssignResponderUseCase, ChangeIncidentStatusCommand, ChangeIncidentStatusUseCase,
-    CreateIncidentCommand, CreateIncidentUseCase, EditTimelineEntryCommand,
-    EditTimelineEntryUseCase, GetIncidentCommand, GetIncidentUseCase, ListIncidentsCommand,
-    ListIncidentsUseCase, ListTimelineEntriesCommand, ListTimelineEntriesUseCase,
+    AddTimelineEntryCommand, AddTimelineEntryResult, AddTimelineEntryUseCase,
+    AssignResponderCommand, AssignResponderUseCase, ChangeIncidentStatusCommand,
+    ChangeIncidentStatusUseCase, CreateIncidentCommand, CreateIncidentUseCase,
+    EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
+    GetIncidentCommand, GetIncidentUseCase, ListIncidentsCommand, ListIncidentsUseCase,
+    ListTimelineEntriesCommand, ListTimelineEntriesUseCase, ReactionSummary, TimelineEntryView,
     ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
@@ -234,6 +235,66 @@ pub struct TimelineEntryResponse {
     pub reactions: Vec<ReactionResponse>,
 }
 
+impl From<ReactionSummary> for ReactionResponse {
+    fn from(reaction: ReactionSummary) -> Self {
+        Self {
+            emoji: reaction.emoji,
+            count: reaction.count,
+            reacted: reaction.reacted,
+        }
+    }
+}
+
+// A freshly added entry has no edit and no reactions yet.
+impl From<AddTimelineEntryResult> for TimelineEntryResponse {
+    fn from(result: AddTimelineEntryResult) -> Self {
+        Self {
+            entry_id: result.entry_id,
+            incident_id: result.incident_id,
+            author_id: result.author_id,
+            content: result.content,
+            created_at: result.created_at,
+            edited_at: None,
+            reactions: Vec::new(),
+        }
+    }
+}
+
+// The edit response carries `edited_at`; reactions are unchanged by an edit, so
+// the write path returns none and the client refetches the list for the counts.
+impl From<EditTimelineEntryResult> for TimelineEntryResponse {
+    fn from(result: EditTimelineEntryResult) -> Self {
+        Self {
+            entry_id: result.entry_id,
+            incident_id: result.incident_id,
+            author_id: result.author_id,
+            content: result.content,
+            created_at: result.created_at,
+            edited_at: result.edited_at,
+            reactions: Vec::new(),
+        }
+    }
+}
+
+// The read view is the only path that carries aggregated reactions.
+impl From<TimelineEntryView> for TimelineEntryResponse {
+    fn from(view: TimelineEntryView) -> Self {
+        Self {
+            entry_id: view.entry.id,
+            incident_id: view.entry.incident_id,
+            author_id: view.entry.author_id,
+            content: view.entry.content,
+            created_at: view.entry.created_at,
+            edited_at: view.entry.edited_at,
+            reactions: view
+                .reactions
+                .into_iter()
+                .map(ReactionResponse::from)
+                .collect(),
+        }
+    }
+}
+
 pub async fn add_timeline_entry(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
@@ -254,18 +315,7 @@ pub async fn add_timeline_entry(
         })
         .await?;
 
-    Ok((
-        StatusCode::CREATED,
-        Json(TimelineEntryResponse {
-            entry_id: result.entry_id,
-            incident_id: result.incident_id,
-            author_id: result.author_id,
-            content: result.content,
-            created_at: result.created_at,
-            edited_at: None,
-            reactions: Vec::new(),
-        }),
-    ))
+    Ok((StatusCode::CREATED, Json(result.into())))
 }
 
 #[derive(Deserialize)]
@@ -294,15 +344,7 @@ pub async fn edit_timeline_entry(
         })
         .await?;
 
-    Ok(Json(TimelineEntryResponse {
-        entry_id: result.entry_id,
-        incident_id: result.incident_id,
-        author_id: result.author_id,
-        content: result.content,
-        created_at: result.created_at,
-        edited_at: result.edited_at,
-        reactions: Vec::new(),
-    }))
+    Ok(Json(result.into()))
 }
 
 #[derive(Deserialize)]
@@ -378,23 +420,7 @@ pub async fn list_timeline_entries(
         entries: result
             .entries
             .into_iter()
-            .map(|view| TimelineEntryResponse {
-                entry_id: view.entry.id,
-                incident_id: view.entry.incident_id,
-                author_id: view.entry.author_id,
-                content: view.entry.content,
-                created_at: view.entry.created_at,
-                edited_at: view.entry.edited_at,
-                reactions: view
-                    .reactions
-                    .into_iter()
-                    .map(|r| ReactionResponse {
-                        emoji: r.emoji,
-                        count: r.count,
-                        reacted: r.reacted,
-                    })
-                    .collect(),
-            })
+            .map(TimelineEntryResponse::from)
             .collect(),
     }))
 }
