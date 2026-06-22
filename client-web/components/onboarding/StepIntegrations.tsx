@@ -1,10 +1,11 @@
 import React from "react";
 import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
+import type { OnboardingData, UpdateOnboardingData } from "./types";
 
 interface StepProps {
-  data: any;
-  updateData: (fields: any) => void;
+  data: OnboardingData;
+  updateData: UpdateOnboardingData;
   next: () => void;
   back: () => void;
 }

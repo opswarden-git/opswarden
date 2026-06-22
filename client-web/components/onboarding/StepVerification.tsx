@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "@/i18n/routing";
+import type { OnboardingData } from "./types";
 
 interface StepProps {
-  data: any;
+  data: OnboardingData;
 }
 
 const CONSOLE_LOGS = [
@@ -82,11 +83,12 @@ export function StepVerification({ data }: StepProps) {
         } else {
           throw new Error("Failed to load user profile");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!isCancelled) {
-          setError(err.message || "An error occurred");
+          const message = err instanceof Error && err.message ? err.message : "An error occurred";
+          setError(message);
           clearInterval(interval);
-          setLogs((prev) => [...prev, `[ERROR] ${err.message}`]);
+          setLogs((prev) => [...prev, `[ERROR] ${message}`]);
         }
       }
     };

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 
 /** Connection status per third-party service. Secrets are never returned. */
-export interface ServiceConnections {
+interface ServiceConnections {
   github: { connected: boolean };
 }
 

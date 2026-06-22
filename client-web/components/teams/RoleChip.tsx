@@ -2,7 +2,7 @@ import React from "react";
 import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-export type TeamRole = "manager" | "responder" | "observer";
+type TeamRole = "manager" | "responder" | "observer";
 
 /**
  * Small, reusable RBAC role badge: icon + translated label. Shared by the

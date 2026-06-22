@@ -21,7 +21,7 @@ OpsWarden is composed of two main components:
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/your-org/opswarden.git
+   git clone https://github.com/RomeoCavazza/opswarden.git
    cd opswarden/opswarden-app
    ```
 

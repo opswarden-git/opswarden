@@ -1,10 +1,11 @@
 import React from "react";
 import { ChevronLeft, Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { OnboardingData, UpdateOnboardingData } from "./types";
 
 interface StepProps {
-  data: any;
-  updateData: (fields: any) => void;
+  data: OnboardingData;
+  updateData: UpdateOnboardingData;
   next: () => void;
   back: () => void;
 }
