@@ -13,7 +13,7 @@ import { useWsStore, useWatchers } from "@/lib/ws";
 import { StateChip } from "@/components/incidents/StateChip";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { Timeline } from "@/components/incidents/Timeline";
-import { DeleteIncidentDialog } from "@/components/incidents/DeleteIncidentDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ArrowLeft, CheckCircle2, Clock, ShieldAlert, Trash2, UserPlus } from "lucide-react";
 import { Link, useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
@@ -252,9 +252,15 @@ export function WarRoomClient({ id }: { id: string }) {
         </div>
       </div>
 
-      <DeleteIncidentDialog
+      <ConfirmDialog
         open={deleteOpen}
-        title={incident.title}
+        title={t("deleteIncident")}
+        description={t("deleteIncidentConfirm", { title: incident.title })}
+        confirmLabel={t("deleteIncident")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
+        danger
+        requireType="DELETE"
         pending={deleteIncident.isPending}
         error={deleteIncident.error ? errorText(deleteIncident.error.message) : null}
         onConfirm={onDelete}

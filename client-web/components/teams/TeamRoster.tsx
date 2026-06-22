@@ -15,7 +15,7 @@ import {
 import { useTeamOnline } from "@/lib/ws";
 import { RoleChip } from "./RoleChip";
 import { MemberRowActions } from "./MemberRowActions";
-import { ConfirmTeamActionDialog } from "./ConfirmTeamActionDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** Avatar initials derived from the email local-part (e.g. romeo.cavazza → RC). */
 function initials(email: string): string {
@@ -208,32 +208,38 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         )}
       </div>
 
-      <ConfirmTeamActionDialog
+      <ConfirmDialog
         open={dialog === "makeManager"}
         title={t("makeManager")}
         description={t("transferConfirm", { email: target?.email ?? "" })}
         confirmLabel={t("makeManager")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
         pending={transfer.isPending}
         error={transfer.error ? errorText(transfer.error.message) : null}
         onConfirm={onMakeManager}
         onClose={close}
       />
-      <ConfirmTeamActionDialog
+      <ConfirmDialog
         open={dialog === "leave"}
         title={t("leaveTeam")}
         description={t("leaveConfirm", { name: team.name })}
         confirmLabel={t("leaveTeam")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
         danger
         pending={leave.isPending}
         error={leave.error ? errorText(leave.error.message) : null}
         onConfirm={onLeave}
         onClose={close}
       />
-      <ConfirmTeamActionDialog
+      <ConfirmDialog
         open={dialog === "delete"}
         title={t("deleteTeam")}
         description={t("deleteConfirm", { name: team.name })}
         confirmLabel={t("deleteTeam")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
         danger
         requireType="DELETE"
         pending={remove.isPending}

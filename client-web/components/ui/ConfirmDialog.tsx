@@ -2,14 +2,18 @@
 
 import React, { useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { useTranslations } from "next-intl";
 
-interface ConfirmTeamActionDialogProps {
+interface ConfirmDialogProps {
   open: boolean;
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel: string;
+  /** Shown on the confirm button while `pending`; defaults to `confirmLabel`. */
+  pendingLabel?: string;
   danger?: boolean;
+  /** When set, the confirm button stays disabled until the user types this exact
+   *  sentinel (e.g. "DELETE") — the dark-pattern guard for destructive actions. */
   requireType?: string;
   pending?: boolean;
   error?: string | null;
@@ -18,14 +22,12 @@ interface ConfirmTeamActionDialogProps {
 }
 
 /**
- * Generic confirmation modal for team actions. When `requireType` is set, the
- * confirm button stays disabled until the user types that exact sentinel
- * (e.g. "DELETE") — the dark-pattern guard for destructive actions.
- *
- * The stateful body lives in a child that is only mounted while open, so the
- * typed confirmation resets on every open without a reset effect.
+ * Shared confirmation modal for danger / typed-confirm actions across the app
+ * (team leave/delete/transfer, incident delete, account delete). Labels are
+ * passed in so the dialog stays i18n-namespace-agnostic. The stateful body only
+ * mounts while open, so the typed sentinel resets on every open without an effect.
  */
-export function ConfirmTeamActionDialog(props: ConfirmTeamActionDialogProps) {
+export function ConfirmDialog(props: ConfirmDialogProps) {
   if (!props.open) return null;
   return <ConfirmDialogBody {...props} />;
 }
@@ -34,16 +36,16 @@ function ConfirmDialogBody({
   title,
   description,
   confirmLabel,
+  cancelLabel,
+  pendingLabel,
   danger = false,
   requireType,
   pending = false,
   error,
   onConfirm,
   onClose,
-}: ConfirmTeamActionDialogProps) {
-  const t = useTranslations("Teams");
+}: ConfirmDialogProps) {
   const [typed, setTyped] = useState("");
-
   const confirmDisabled = pending || (requireType ? typed !== requireType : false);
 
   return (
@@ -74,7 +76,7 @@ function ConfirmDialogBody({
             onClick={onClose}
             className="ow-secondary h-10 rounded-md px-4 text-sm font-medium transition-colors"
           >
-            {t("cancel")}
+            {cancelLabel}
           </button>
           <button
             type="button"
@@ -84,7 +86,7 @@ function ConfirmDialogBody({
               danger ? "ow-danger" : "ow-primary"
             }`}
           >
-            {pending ? t("processing") : confirmLabel}
+            {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
           </button>
         </div>
       </div>
