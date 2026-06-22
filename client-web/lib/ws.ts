@@ -183,6 +183,11 @@ export function useRealtime() {
         break;
       case "team_presence_update":
         useWsStore.getState().setTeamOnline(event.team_id, event.online_user_ids || []);
+        // A presence change can also signal a membership change (someone just
+        // joined or left this team). Refresh the roster so the member list stays
+        // in sync with who is actually in the team — otherwise a joiner never
+        // appears for members already viewing the roster.
+        queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
         break;
       case "user_typing":
         useWsStore.getState().addTypingUser(event.incident_id, event.user_id);
