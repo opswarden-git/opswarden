@@ -24,12 +24,20 @@ interface IncidentViewResponse {
   created_at: string;
 }
 
+export interface TimelineReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
+
 export interface TimelineEntry {
   id: string;
   incident_id: string;
   author_id: string;
   content: string;
   created_at: string;
+  edited_at: string | null;
+  reactions: TimelineReaction[];
 }
 
 interface TimelineEntryResponse {
@@ -38,6 +46,8 @@ interface TimelineEntryResponse {
   author_id: string;
   content: string;
   created_at: string;
+  edited_at: string | null;
+  reactions: TimelineReaction[];
 }
 
 interface TimelineResponse {
@@ -63,6 +73,8 @@ function normalizeTimelineEntry(entry: TimelineEntryResponse): TimelineEntry {
     author_id: entry.author_id,
     content: entry.content,
     created_at: entry.created_at,
+    edited_at: entry.edited_at,
+    reactions: entry.reactions ?? [],
   };
 }
 
@@ -141,6 +153,66 @@ export function useAddTimelineEntry() {
       });
       if (!res.ok) throw new Error("Failed to post timeline entry");
       return res.text();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
+    },
+  });
+}
+
+/** Edit a timeline entry's content (author-only, enforced server-side). */
+export function useEditTimelineEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      incidentId,
+      entryId,
+      content,
+    }: {
+      incidentId: string;
+      entryId: string;
+      content: string;
+    }) => {
+      const res = await apiFetch(`/api/incidents/${incidentId}/timeline/${entryId}`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "edit_timeline_entry_failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
+    },
+  });
+}
+
+/** Toggle the current user's emoji reaction on a timeline entry (any member). */
+export function useToggleTimelineReaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      incidentId,
+      entryId,
+      emoji,
+    }: {
+      incidentId: string;
+      entryId: string;
+      emoji: string;
+    }) => {
+      const res = await apiFetch(`/api/incidents/${incidentId}/timeline/${entryId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "toggle_reaction_failed");
+      }
+      return res.json();
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
