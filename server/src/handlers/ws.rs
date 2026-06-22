@@ -32,13 +32,17 @@ struct AuthMessage {
 }
 
 /// Inbound commands a client may send after authenticating. Unknown frames are
-/// ignored (forward-compatible). `watch`/`unwatch` drive incident presence.
+/// ignored (forward-compatible). `watch`/`unwatch` drive incident presence;
+/// `refresh_teams` re-resolves the connection's team scope after the user
+/// created, joined, left, or deleted a team (the scope is otherwise fixed at
+/// auth time, which would leave team presence and authz stale until reconnect).
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClientCommand {
     Watch { incident_id: Uuid },
     Unwatch { incident_id: Uuid },
     StatusTyping { incident_id: Uuid },
+    RefreshTeams,
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState) {
@@ -84,7 +88,11 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     //    Unparseable or unknown frames are ignored.
     let hub = state.events.clone();
     let incidents = state.incidents.clone();
+    let teams_repo = state.teams.clone();
     let mut recv_task = tokio::spawn(async move {
+        // Owned, mutable copy of the team scope: kept in sync with the hub on
+        // `refresh_teams` so in-band authz (watch/typing) also follows membership.
+        let mut teams = teams;
         while let Some(Ok(msg)) = receiver.next().await {
             match msg {
                 Message::Close(_) => break,
@@ -106,6 +114,17 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     // Unwatch only ever removes this connection from a watcher set,
                     // so it is harmless even for an incident the user cannot see.
                     Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
+                    // Re-resolve the team scope from the database (the authority)
+                    // and update both the hub (presence routing) and the local
+                    // authz copy. The hub re-broadcasts presence for every team
+                    // the change touched.
+                    Ok(ClientCommand::RefreshTeams) => {
+                        if let Ok(ids) = teams_repo.list_team_ids_for_user(user_id).await {
+                            let new_teams: HashSet<Uuid> = ids.into_iter().collect();
+                            teams = new_teams.clone();
+                            hub.refresh_teams(conn_id, new_teams);
+                        }
+                    }
                     Ok(ClientCommand::StatusTyping { incident_id }) => {
                         if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
                         {
