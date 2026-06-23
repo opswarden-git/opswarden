@@ -60,7 +60,7 @@ The web client listens on `http://localhost:4242`.
 Run the desktop shell:
 
 ```bash
-./client-desktop/dev.sh
+just desktop-dev   # wrapper for ./client-desktop/dev.sh
 ```
 
 The desktop app currently runs in URL mode against `http://localhost:4242`.
