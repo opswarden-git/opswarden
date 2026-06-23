@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "ignoreExportsUsedInFile": true,
-  "ignoreDependencies": ["prettier-plugin-tailwindcss"]
+  "ignoreDependencies": ["prettier-plugin-tailwindcss"],
+  "ignoreFiles": ["client-desktop/scripts/start-web-dev.mjs"]
 }
