@@ -104,19 +104,17 @@ export default function LoginPage() {
               <Image
                 src="/assets/logo-icon.png"
                 alt="Icon"
-                width={40}
+                width={49}
                 height={40}
-                className="h-10 w-auto object-contain"
-                style={{ width: "auto" }}
+                className="object-contain"
                 priority
               />
               <Image
                 src="/assets/logo-text-light.png"
                 alt="OpsWarden"
-                width={240}
-                height={48}
-                className="h-8 w-auto object-contain"
-                style={{ width: "auto" }}
+                width={207}
+                height={32}
+                className="object-contain"
                 priority
               />
             </Link>
