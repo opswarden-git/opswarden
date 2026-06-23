@@ -28,6 +28,7 @@
         tauriLibraries = with pkgs; [
           webkitgtk_4_1 gtk3 cairo gdk-pixbuf glib dbus openssl librsvg
           libsoup_3 at-spi2-atk libdbusmenu-gtk3 glib-networking
+          libayatana-appindicator
         ];
       in
       {
@@ -94,6 +95,7 @@
             gtk3
             libdbusmenu-gtk3
             glib-networking
+            libayatana-appindicator
             gsettings-desktop-schemas
             adwaita-icon-theme
             dconf
