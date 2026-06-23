@@ -211,15 +211,6 @@ mod tests {
     use crate::domain::timeline::TimelineEntry;
     use crate::domain::user::{Email, User};
     use crate::ports::{IncidentRepo, TeamRepo, UserRepo};
-    use sqlx::postgres::PgPoolOptions;
-
-    async fn test_pool() -> PgPool {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        PgPoolOptions::new().connect(&database_url).await.unwrap()
-    }
-
     async fn seed_incident(pool: &PgPool) -> (Uuid, Uuid) {
         let users = PgUserRepo::new(pool.clone());
         let teams = PgTeamRepo::new(pool.clone());
@@ -242,9 +233,8 @@ mod tests {
         (incident.id, user.id)
     }
 
-    #[tokio::test]
-    async fn it_appends_and_lists_recent_entries_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_appends_and_lists_recent_entries_in_postgres(pool: PgPool) {
         let repo = PgTimelineRepo::new(pool.clone());
         let (incident_id, author_id) = seed_incident(&pool).await;
 
@@ -262,9 +252,8 @@ mod tests {
         assert_eq!(entries[0].content, "Issue isolated");
     }
 
-    #[tokio::test]
-    async fn it_edits_an_entry_keeping_created_at_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_edits_an_entry_keeping_created_at_in_postgres(pool: PgPool) {
         let repo = PgTimelineRepo::new(pool.clone());
         let (incident_id, author_id) = seed_incident(&pool).await;
 
@@ -288,9 +277,8 @@ mod tests {
         assert_eq!(loaded.created_at, stored_created_at);
     }
 
-    #[tokio::test]
-    async fn it_toggles_and_counts_reactions_without_duplicates_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_toggles_and_counts_reactions_without_duplicates_in_postgres(pool: PgPool) {
         let repo = PgTimelineRepo::new(pool.clone());
         let (incident_id, author_id) = seed_incident(&pool).await;
 

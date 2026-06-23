@@ -174,15 +174,6 @@ mod tests {
     use crate::domain::team::{Role, Team};
     use crate::domain::user::{Email, User};
     use crate::ports::{TeamRepo, UserRepo};
-    use sqlx::postgres::PgPoolOptions;
-
-    async fn test_pool() -> PgPool {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        PgPoolOptions::new().connect(&database_url).await.unwrap()
-    }
-
     async fn seed_team(pool: &PgPool) -> Uuid {
         let users = PgUserRepo::new(pool.clone());
         let teams = PgTeamRepo::new(pool.clone());
@@ -199,9 +190,8 @@ mod tests {
         team.id
     }
 
-    #[tokio::test]
-    async fn it_saves_finds_and_updates_incidents_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_saves_finds_and_updates_incidents_in_postgres(pool: PgPool) {
         let repo = PgIncidentRepo::new(pool.clone());
         let team_id = seed_team(&pool).await;
 

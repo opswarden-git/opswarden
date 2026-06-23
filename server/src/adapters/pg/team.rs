@@ -311,15 +311,6 @@ mod tests {
     use crate::adapters::pg::user::PgUserRepo;
     use crate::domain::user::{Email, User};
     use crate::ports::UserRepo;
-    use sqlx::postgres::PgPoolOptions;
-
-    async fn test_pool() -> PgPool {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        PgPoolOptions::new().connect(&database_url).await.unwrap()
-    }
-
     /// Persist a throwaway user so membership FKs resolve.
     async fn seed_user(pool: &PgPool) -> Uuid {
         let users = PgUserRepo::new(pool.clone());
@@ -329,9 +320,8 @@ mod tests {
         user.id
     }
 
-    #[tokio::test]
-    async fn it_creates_joins_and_transfers_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_creates_joins_and_transfers_in_postgres(pool: PgPool) {
         let repo = PgTeamRepo::new(pool.clone());
 
         let manager = seed_user(&pool).await;
@@ -373,9 +363,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn joining_twice_is_rejected_by_the_database() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn joining_twice_is_rejected_by_the_database(pool: PgPool) {
         let repo = PgTeamRepo::new(pool.clone());
 
         let user = seed_user(&pool).await;
@@ -390,18 +379,17 @@ mod tests {
         assert_eq!(again.unwrap_err(), DomainError::AlreadyMember);
     }
 
-    #[tokio::test]
-    async fn unknown_invitation_code_returns_none() {
-        let repo = PgTeamRepo::new(test_pool().await);
+    #[sqlx::test]
+    async fn unknown_invitation_code_returns_none(pool: PgPool) {
+        let repo = PgTeamRepo::new(pool);
 
         let found = repo.find_by_invitation_code("OPS-NOPE99").await.unwrap();
 
         assert!(found.is_none());
     }
 
-    #[tokio::test]
-    async fn it_lists_members_with_email_and_role() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_lists_members_with_email_and_role(pool: PgPool) {
         let repo = PgTeamRepo::new(pool.clone());
 
         let manager = seed_user(&pool).await;
@@ -426,18 +414,17 @@ mod tests {
             .any(|m| m.user_id == observer && m.role == Role::Observer));
     }
 
-    #[tokio::test]
-    async fn it_lists_no_members_for_an_unknown_team() {
-        let repo = PgTeamRepo::new(test_pool().await);
+    #[sqlx::test]
+    async fn it_lists_no_members_for_an_unknown_team(pool: PgPool) {
+        let repo = PgTeamRepo::new(pool);
 
         let members = repo.list_members(Uuid::new_v4()).await.unwrap();
 
         assert!(members.is_empty());
     }
 
-    #[tokio::test]
-    async fn it_sets_a_member_role_in_postgres() {
-        let pool = test_pool().await;
+    #[sqlx::test]
+    async fn it_sets_a_member_role_in_postgres(pool: PgPool) {
         let repo = PgTeamRepo::new(pool.clone());
 
         let member = seed_user(&pool).await;

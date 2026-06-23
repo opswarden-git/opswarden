@@ -70,6 +70,11 @@ OpsWarden is composed of two main components:
   ```bash
   cargo test
   ```
+  The PostgreSQL adapter tests use `#[sqlx::test]`, which creates an ephemeral
+  database per test. They require `DATABASE_URL` to be set and the Postgres role
+  to have the `CREATEDB` privilege (the Docker Compose role already does).
+  `just test` exports a sensible default; running `cargo test` directly needs
+  `DATABASE_URL` in your environment.
 
 ### TypeScript (Frontend)
 

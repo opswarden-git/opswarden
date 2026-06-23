@@ -1,5 +1,11 @@
 set shell := ["bash", "-cu"]
 
+# Default DB for the test / coverage / ci-build-test recipes. The PG adapter
+# tests use #[sqlx::test], which needs DATABASE_URL and a Postgres role with
+# CREATEDB (it spins an ephemeral database per test). An already-exported
+# DATABASE_URL is respected; otherwise this points at the compose DB.
+export DATABASE_URL := env_var_or_default("DATABASE_URL", "postgres://opswarden:opswarden@localhost:5433/opswarden")
+
 # liste les recettes disponibles
 default:
     @just --list

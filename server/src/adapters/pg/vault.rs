@@ -84,21 +84,13 @@ impl SecretVault for PgAesVault {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::postgres::PgPoolOptions;
     use sqlx::Row;
 
     const KEY: [u8; aes::KEY_LEN] = [42u8; aes::KEY_LEN];
 
-    async fn pool() -> PgPool {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        PgPoolOptions::new().connect(&database_url).await.unwrap()
-    }
-
-    #[tokio::test]
-    async fn it_stores_and_reveals_a_secret_in_postgres() {
-        let vault = PgAesVault::new(pool().await, KEY);
+    #[sqlx::test]
+    async fn it_stores_and_reveals_a_secret_in_postgres(pool: PgPool) {
+        let vault = PgAesVault::new(pool, KEY);
         let service = format!("svc_{}", uuid::Uuid::new_v4());
 
         assert!(vault.reveal(&service).await.unwrap().is_none());
@@ -113,26 +105,25 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn raw_row_holds_ciphertext_not_the_plaintext() {
-        let p = pool().await;
-        let vault = PgAesVault::new(p.clone(), KEY);
+    #[sqlx::test]
+    async fn raw_row_holds_ciphertext_not_the_plaintext(pool: PgPool) {
+        let vault = PgAesVault::new(pool.clone(), KEY);
         let service = format!("svc_{}", uuid::Uuid::new_v4());
         vault.store(&service, "ghp_top_secret").await.unwrap();
 
         // What a raw operator SELECT would see: encrypted bytes, never the secret.
         let row = sqlx::query("SELECT ciphertext FROM external_secrets WHERE service = $1")
             .bind(&service)
-            .fetch_one(&p)
+            .fetch_one(&pool)
             .await
             .unwrap();
         let ciphertext: Vec<u8> = row.get("ciphertext");
         assert_ne!(ciphertext.as_slice(), b"ghp_top_secret");
     }
 
-    #[tokio::test]
-    async fn delete_removes_the_secret_idempotently() {
-        let vault = PgAesVault::new(pool().await, KEY);
+    #[sqlx::test]
+    async fn delete_removes_the_secret_idempotently(pool: PgPool) {
+        let vault = PgAesVault::new(pool, KEY);
         let service = format!("svc_{}", uuid::Uuid::new_v4());
         vault.store(&service, "to-be-deleted").await.unwrap();
         assert!(vault.reveal(&service).await.unwrap().is_some());

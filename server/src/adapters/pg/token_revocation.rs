@@ -64,3 +64,43 @@ impl TokenRevocationRepo for PgTokenRevocationRepo {
         Ok(record)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    #[sqlx::test]
+    async fn revoke_then_is_revoked(pool: PgPool) {
+        let repo = PgTokenRevocationRepo::new(pool);
+        let token = "jwt-token-abc";
+
+        assert!(!repo.is_revoked(token).await.unwrap());
+        repo.revoke(token, Utc::now() + Duration::hours(1))
+            .await
+            .unwrap();
+        assert!(repo.is_revoked(token).await.unwrap());
+    }
+
+    #[sqlx::test]
+    async fn an_expired_revocation_no_longer_counts(pool: PgPool) {
+        let repo = PgTokenRevocationRepo::new(pool);
+        let token = "jwt-token-expired";
+
+        repo.revoke(token, Utc::now() - Duration::hours(1))
+            .await
+            .unwrap();
+        assert!(!repo.is_revoked(token).await.unwrap());
+    }
+
+    #[sqlx::test]
+    async fn revoking_twice_is_idempotent(pool: PgPool) {
+        let repo = PgTokenRevocationRepo::new(pool);
+        let token = "jwt-token-twice";
+        let exp = Utc::now() + Duration::hours(1);
+
+        repo.revoke(token, exp).await.unwrap();
+        repo.revoke(token, exp).await.unwrap(); // ON CONFLICT DO NOTHING
+        assert!(repo.is_revoked(token).await.unwrap());
+    }
+}
