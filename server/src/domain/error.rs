@@ -18,6 +18,9 @@ pub enum DomainError {
     IncidentNotFound,
     AlreadyMember,
     MemberNotFound,
+    /// The targeted user account does not exist (e.g. a pre-emptive ban of an
+    /// unknown user id).
+    UserNotFound,
     NotManager,
     AlreadyManager,
     /// A member role change targeted an unaccepted value. Only Observer and
@@ -27,6 +30,17 @@ pub enum DomainError {
     /// Manager role only moves through an explicit transfer (single-Manager
     /// invariant).
     CannotChangeManagerRole,
+    /// A Manager tried to kick/ban themselves.
+    CannotModerateSelf,
+    /// A Manager tried to kick/ban another Manager. With the single-Manager
+    /// invariant this is only ever the requester, but it is barred regardless.
+    CannotModerateManager,
+    /// (Re)joining a team was refused because the user has an active ban.
+    UserBanned,
+    /// A temporary ban was created with an expiry that is not in the future.
+    InvalidBanExpiry,
+    /// The requested ban kind was neither "temporary" nor "permanent".
+    InvalidBanKind,
     AssigneeNotResponder,
     ManagerCannotLeave,
     /// Account deletion refused while the user still manages a team: they must
@@ -69,10 +83,16 @@ impl DomainError {
             DomainError::IncidentNotFound => "incident_not_found",
             DomainError::AlreadyMember => "already_member",
             DomainError::MemberNotFound => "member_not_found",
+            DomainError::UserNotFound => "user_not_found",
             DomainError::NotManager => "not_manager",
             DomainError::AlreadyManager => "already_manager",
             DomainError::InvalidRole => "invalid_role",
             DomainError::CannotChangeManagerRole => "cannot_change_manager_role",
+            DomainError::CannotModerateSelf => "cannot_moderate_self",
+            DomainError::CannotModerateManager => "cannot_moderate_manager",
+            DomainError::UserBanned => "user_banned",
+            DomainError::InvalidBanExpiry => "invalid_ban_expiry",
+            DomainError::InvalidBanKind => "invalid_ban_kind",
             DomainError::AssigneeNotResponder => "assignee_not_responder",
             DomainError::ManagerCannotLeave => "manager_cannot_leave",
             DomainError::MustTransferManagerFirst => "must_transfer_manager_first",
@@ -111,11 +131,23 @@ impl std::fmt::Display for DomainError {
             DomainError::IncidentNotFound => write!(f, "Incident was not found"),
             DomainError::AlreadyMember => write!(f, "User is already a member of this team"),
             DomainError::MemberNotFound => write!(f, "User is not a member of this team"),
+            DomainError::UserNotFound => write!(f, "User account not found"),
             DomainError::NotManager => write!(f, "Only the team manager may perform this action"),
             DomainError::AlreadyManager => write!(f, "User is already the team manager"),
             DomainError::InvalidRole => write!(f, "Role must be Observer or Responder"),
             DomainError::CannotChangeManagerRole => {
                 write!(f, "The manager's role can only change through a transfer")
+            }
+            DomainError::CannotModerateSelf => write!(f, "You cannot moderate yourself"),
+            DomainError::CannotModerateManager => {
+                write!(f, "The team manager cannot be kicked or banned")
+            }
+            DomainError::UserBanned => write!(f, "You are banned from this team"),
+            DomainError::InvalidBanExpiry => {
+                write!(f, "A temporary ban must expire in the future")
+            }
+            DomainError::InvalidBanKind => {
+                write!(f, "Ban kind must be temporary or permanent")
             }
             DomainError::AssigneeNotResponder => {
                 write!(f, "Assignee must be a Responder or Manager of the team")

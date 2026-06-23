@@ -161,6 +161,25 @@ pub(crate) mod tests {
         ) -> Result<(), DomainError> {
             Ok(())
         }
+
+        async fn add_ban(&self, _ban: &crate::domain::team::TeamBan) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn find_ban(
+            &self,
+            _team_id: Uuid,
+            _user_id: Uuid,
+        ) -> Result<Option<crate::domain::team::TeamBan>, DomainError> {
+            Ok(None)
+        }
+
+        async fn list_bans(
+            &self,
+            _team_id: Uuid,
+        ) -> Result<Vec<crate::domain::team::TeamBan>, DomainError> {
+            Ok(Vec::new())
+        }
     }
 
     #[derive(Default)]
@@ -181,6 +200,7 @@ pub(crate) mod tests {
         pub saved: Mutex<Vec<Incident>>,
         pub updated: Mutex<Vec<Incident>>,
         pub deleted: Mutex<Vec<Uuid>>,
+        pub cleared: Mutex<Vec<(Uuid, Uuid)>>,
     }
 
     impl MockIncidentRepo {
@@ -228,6 +248,15 @@ pub(crate) mod tests {
 
         async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
             self.deleted.lock().unwrap().push(incident_id);
+            Ok(())
+        }
+
+        async fn clear_assignee_for_member(
+            &self,
+            team_id: Uuid,
+            user_id: Uuid,
+        ) -> Result<(), DomainError> {
+            self.cleared.lock().unwrap().push((team_id, user_id));
             Ok(())
         }
     }

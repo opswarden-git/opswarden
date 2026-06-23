@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE incidents SET assignee_id = NULL\n            WHERE team_id = $1 AND assignee_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d8a358a461bf51b8207dbda720d8c23c0e9b99ef37f51cea3924ff4a8f6e365d"
+}

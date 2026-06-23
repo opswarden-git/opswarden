@@ -4,7 +4,7 @@ use crate::domain::automation::{ExternalEvent, Rule};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
-use crate::domain::team::{Role, Team, TeamMemberView};
+use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::User;
 use async_trait::async_trait;
@@ -66,6 +66,14 @@ pub trait TeamRepo: Send + Sync {
         user_id: Uuid,
         role: Role,
     ) -> Result<(), DomainError>;
+    /// Record (or replace) a moderation ban. Upserts on `(team_id, user_id)` so
+    /// re-banning a user updates the existing row rather than duplicating it.
+    async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError>;
+    /// The ban currently recorded for a user on a team, if any. The row may be
+    /// expired; the caller decides via `TeamBan::is_active`.
+    async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError>;
+    /// Every ban recorded for a team, for the Manager's moderation list.
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError>;
 }
 
 #[async_trait]
@@ -76,6 +84,14 @@ pub trait IncidentRepo: Send + Sync {
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError>;
+    /// Clear the assignee on every incident of `team_id` currently assigned to
+    /// `user_id`. Called when a member is kicked/banned so no incident stays
+    /// assigned to a non-member (upholds the assignee-must-be-a-member rule).
+    async fn clear_assignee_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), DomainError>;
 }
 
 #[async_trait]
