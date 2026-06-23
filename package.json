@@ -2,7 +2,8 @@
   "name": "opswarden",
   "private": true,
   "workspaces": [
-    "client-web"
+    "client-web",
+    "client-desktop"
   ],
   "scripts": {
     "format": "prettier --write .",

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the OpsWarden desktop shell: core APIs + native notifications on the main window.",
+  "windows": ["main"],
+  "permissions": ["core:default", "notification:default"]
+}

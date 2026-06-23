@@ -1,0 +1,14 @@
+{
+  "name": "opswarden-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Thin Tauri v2 shell around the OpsWarden web client (URL mode: loads the running Next app).",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

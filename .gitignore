@@ -1,6 +1,8 @@
 # Rust
 /target
 **/target
+# Tauri generated ACL/permission schemas (regenerated on every desktop build)
+**/src-tauri/gen/
 # Node
 node_modules
 .next

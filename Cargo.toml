@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["server"]
+# The Tauri desktop crate is standalone (own lockfile, own WebKit/GTK toolchain
+# via `nix develop .#tauri`); keep it out of the server workspace so server
+# builds/CI never compile the desktop GUI stack.
+exclude = ["client-desktop"]
