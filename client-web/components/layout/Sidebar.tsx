@@ -42,19 +42,17 @@ export function Sidebar({ className }: { className?: string }) {
         <Image
           src="/assets/logo-icon.png"
           alt="Icon"
-          width={32}
+          width={39}
           height={32}
-          className="h-8 w-auto object-contain"
-          style={{ width: "auto" }}
+          className="object-contain"
           priority
         />
         <Image
           src="/assets/logo-text-light.png"
           alt="OpsWarden"
-          width={220}
-          height={44}
-          className="h-7 w-auto object-contain object-left"
-          style={{ width: "auto" }}
+          width={181}
+          height={28}
+          className="object-contain object-left"
           priority
         />
       </Link>

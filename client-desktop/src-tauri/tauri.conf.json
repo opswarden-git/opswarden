@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpsWarden",
+  "version": "0.1.0",
+  "identifier": "com.opswarden.desktop",
+  "build": {
+    "beforeDevCommand": "node scripts/start-web-dev.mjs",
+    "devUrl": "http://localhost:4242",
+    "frontendDist": "http://localhost:4242"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "OpsWarden",
+        "url": "http://localhost:4242",
+        "width": 1280,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
