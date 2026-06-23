@@ -144,14 +144,8 @@ mod tests {
     use crate::domain::team::{Role, Team};
     use crate::domain::timeline::TimelineEntry;
     use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo};
-    use sqlx::postgres::PgPoolOptions;
-
-    #[tokio::test]
-    async fn it_saves_and_finds_a_user_in_postgres() {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        let pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
+    #[sqlx::test]
+    async fn it_saves_and_finds_a_user_in_postgres(pool: PgPool) {
         let repo = PgUserRepo::new(pool);
 
         let email_str = format!("integration_{}@opswarden.com", uuid::Uuid::new_v4());
@@ -170,12 +164,8 @@ mod tests {
         assert_eq!(found_user.password_hash, "my_super_hash");
     }
 
-    #[tokio::test]
-    async fn delete_account_removes_user_and_timeline_but_keeps_the_team_in_postgres() {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string()
-        });
-        let pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
+    #[sqlx::test]
+    async fn delete_account_removes_user_and_timeline_but_keeps_the_team_in_postgres(pool: PgPool) {
         let users = PgUserRepo::new(pool.clone());
         let teams = PgTeamRepo::new(pool.clone());
         let incidents = PgIncidentRepo::new(pool.clone());

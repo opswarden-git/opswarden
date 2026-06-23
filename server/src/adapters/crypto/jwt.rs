@@ -60,3 +60,51 @@ impl TokenService for JwtTokenService {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn roundtrip_preserves_user_id_and_sets_future_expiry() {
+        let svc = JwtTokenService::new("test-secret".to_string());
+        let uid = Uuid::new_v4();
+
+        let token = svc.generate_token(uid).unwrap();
+        let claims = svc.verify_token(&token).unwrap();
+
+        assert_eq!(claims.user_id, uid);
+        assert!(claims.expires_at > Utc::now());
+    }
+
+    #[test]
+    fn a_token_signed_with_another_secret_is_rejected() {
+        let signer = JwtTokenService::new("secret-a".to_string());
+        let verifier = JwtTokenService::new("secret-b".to_string());
+
+        let token = signer.generate_token(Uuid::new_v4()).unwrap();
+
+        assert_eq!(
+            verifier.verify_token(&token).unwrap_err(),
+            DomainError::InvalidToken
+        );
+    }
+
+    #[test]
+    fn a_garbage_or_tampered_token_is_rejected() {
+        let svc = JwtTokenService::new("test-secret".to_string());
+
+        assert_eq!(
+            svc.verify_token("not.a.jwt").unwrap_err(),
+            DomainError::InvalidToken
+        );
+
+        let mut tampered = svc.generate_token(Uuid::new_v4()).unwrap();
+        tampered.push('x'); // corrupt the signature segment
+        assert_eq!(
+            svc.verify_token(&tampered).unwrap_err(),
+            DomainError::InvalidToken
+        );
+    }
+}
