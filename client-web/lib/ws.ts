@@ -3,6 +3,8 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useAuthStore } from "@/store/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
+import { notifyDesktop } from "@/lib/desktopNotify";
+import type { Incident } from "@/lib/queries/incidents";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
 
@@ -192,10 +194,46 @@ export function useRealtime() {
     switch (event.type) {
       case "incident_state_changed":
       case "incident_escalated":
-      case "incident_assigned":
+      case "incident_assigned": {
+        const incidentPatch: Partial<Incident> =
+          event.type === "incident_state_changed"
+            ? { status: event.new_state as Incident["status"] }
+            : event.type === "incident_escalated"
+              ? { severity: event.new_severity as Incident["severity"] }
+              : { assignee: event.assigned_to };
+
+        queryClient.setQueryData<Incident>(["incident", event.incident_id], (incident) =>
+          incident ? { ...incident, ...incidentPatch } : incident,
+        );
+        queryClient.setQueriesData<Incident[]>({ queryKey: ["incidents"] }, (incidents) =>
+          incidents?.map((incident) =>
+            incident.id === event.incident_id ? { ...incident, ...incidentPatch } : incident,
+          ),
+        );
         queryClient.invalidateQueries({ queryKey: ["incident", event.incident_id] });
         queryClient.invalidateQueries({ queryKey: ["incidents"] });
+
+        // Native desktop notification (no-op outside the Tauri shell). Only
+        // notify the affected user, and never for one's own action.
+        const currentUserId = useAuthStore.getState().user?.id;
+        const shortId = event.incident_id.slice(0, 8);
+        if (
+          event.type === "incident_assigned" &&
+          currentUserId &&
+          event.assigned_to === currentUserId &&
+          event.by !== currentUserId
+        ) {
+          notifyDesktop("Incident assigned to you", `Incident #${shortId}`);
+        } else if (
+          event.type === "incident_escalated" &&
+          currentUserId &&
+          (event.new_severity === "critical" || event.new_severity === "high") &&
+          event.by !== currentUserId
+        ) {
+          notifyDesktop(`Incident escalated to ${event.new_severity}`, `Incident #${shortId}`);
+        }
         break;
+      }
       case "timeline_entry_added":
       case "timeline_entry_edited":
       case "reaction_added":

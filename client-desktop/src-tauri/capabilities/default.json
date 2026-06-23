@@ -3,5 +3,8 @@
   "identifier": "default",
   "description": "Default capability for the OpsWarden desktop shell: core APIs + native notifications on the main window.",
   "windows": ["main"],
+  "remote": {
+    "urls": ["http://localhost:4242"]
+  },
   "permissions": ["core:default", "notification:default"]
 }
