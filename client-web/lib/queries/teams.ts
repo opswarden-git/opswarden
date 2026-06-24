@@ -166,3 +166,40 @@ export function useSetMemberRole(teamId: string) {
     onSuccess: () => invalidateTeamScope(queryClient, teamId),
   });
 }
+
+/** Kick a member out of the team (Manager-only server-side). */
+export function useKickMember(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiFetch(`/api/teams/${teamId}/members/${userId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "kick_member_failed");
+      }
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}
+
+/** A ban request: permanent, or temporary with an ISO `expires_at`. */
+export type BanKindInput = { kind: "permanent" } | { kind: "temporary"; expires_at: string };
+
+/** Ban a member from the team (Manager-only). Removes their membership server-side. */
+export function useBanMember(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, ban }: { userId: string; ban: BanKindInput }) => {
+      const res = await apiFetch(`/api/teams/${teamId}/bans`, {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, ...ban }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "ban_member_failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}

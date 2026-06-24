@@ -256,7 +256,11 @@ pub async fn kick_member(
     Extension(session): Extension<AuthenticatedSession>,
     Path((team_id, user_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, DomainError> {
-    let use_case = KickMemberUseCase::new(state.teams.clone(), state.incidents.clone());
+    let use_case = KickMemberUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.events.clone(),
+    );
     use_case
         .kick_member(KickMemberCommand {
             team_id,
@@ -304,6 +308,7 @@ pub async fn ban_member(
         state.teams.clone(),
         state.incidents.clone(),
         state.users.clone(),
+        state.events.clone(),
     );
     let result = use_case
         .ban_member(BanMemberCommand {

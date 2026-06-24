@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp, Crown } from "lucide-react";
+import { ChevronDown, ChevronUp, Crown, UserMinus, Ban } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TeamMember } from "@/lib/queries/teams";
 
@@ -17,11 +17,15 @@ export function MemberRowActions({
   pending,
   onSetRole,
   onMakeManager,
+  onKick,
+  onBan,
 }: {
   member: TeamMember;
   pending: boolean;
   onSetRole: (role: "observer" | "responder") => void;
   onMakeManager: () => void;
+  onKick: () => void;
+  onBan: () => void;
 }) {
   const t = useTranslations("Teams");
 
@@ -51,6 +55,26 @@ export function MemberRowActions({
         className="text-muted hover:text-gold rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
       >
         <Crown className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onKick}
+        disabled={pending}
+        title={t("kick")}
+        aria-label={t("kick")}
+        className="text-muted hover:text-sev-high rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
+      >
+        <UserMinus className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={onBan}
+        disabled={pending}
+        title={t("ban")}
+        aria-label={t("ban")}
+        className="text-muted hover:text-sev-critical rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
+      >
+        <Ban className="h-4 w-4" />
       </button>
     </div>
   );

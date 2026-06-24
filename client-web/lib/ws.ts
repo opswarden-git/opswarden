@@ -57,7 +57,8 @@ export type WsServerEvent =
       rule: string;
       incident_id?: string;
     }
-  | { type: "rule_failed"; team_id: string; service: string; rule: string; reason: string };
+  | { type: "rule_failed"; team_id: string; service: string; rule: string; reason: string }
+  | { type: "team_member_removed"; team_id: string; user_id: string };
 
 interface WsState {
   /** Presence rosters keyed by incident id. A single global roster would leak
@@ -262,6 +263,24 @@ export function useRealtime() {
           `[Automation] Rule failed for ${event.service}: ${event.rule} - ${event.reason}`,
         );
         break;
+      case "team_member_removed": {
+        // A member was kicked/banned. Refresh the team list and incident views
+        // (a cleared assignee shows as Unassigned) for everyone on the team.
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
+        queryClient.invalidateQueries({ queryKey: ["incident"] });
+        if (event.user_id === useAuthStore.getState().user?.id) {
+          // It was me: drop my now-stale WS team scope so I stop receiving this
+          // team's broadcasts. The team disappears from my list via the ["teams"]
+          // invalidation above; do NOT refetch its roster — I can no longer read
+          // it (that would 403).
+          useWsStore.getState().sendJson({ type: "refresh_teams" });
+        } else {
+          // A peer was removed: refresh the roster I'm still allowed to see.
+          queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
+        }
+        break;
+      }
     }
   }, [lastJsonMessage, queryClient]);
 

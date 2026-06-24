@@ -6,11 +6,14 @@ import { Users, Copy, Check, Trash2, LogOut } from "lucide-react";
 import {
   Team,
   TeamMember,
+  BanKindInput,
   useTeamMembers,
   useSetMemberRole,
   useTransferManager,
   useLeaveTeam,
   useDeleteTeam,
+  useKickMember,
+  useBanMember,
 } from "@/lib/queries/teams";
 import { useTeamOnline } from "@/lib/ws";
 import { RoleChip } from "./RoleChip";
@@ -25,7 +28,18 @@ function initials(email: string): string {
   return letters.toUpperCase();
 }
 
-type Dialog = "leave" | "delete" | "makeManager" | null;
+type Dialog = "leave" | "delete" | "makeManager" | "kick" | "ban" | null;
+type BanDuration = "permanent" | "1h" | "24h" | "7d";
+
+/** Map a UI duration choice to the ban payload the API expects. */
+function durationToBan(d: BanDuration): BanKindInput {
+  if (d === "permanent") return { kind: "permanent" };
+  const hours = d === "1h" ? 1 : d === "24h" ? 24 : 24 * 7;
+  return {
+    kind: "temporary",
+    expires_at: new Date(Date.now() + hours * 3_600_000).toISOString(),
+  };
+}
 
 /**
  * The roster IS the team-management surface: members list + (Manager-only)
@@ -45,9 +59,12 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
   const transfer = useTransferManager(team.team_id);
   const leave = useLeaveTeam(team.team_id);
   const remove = useDeleteTeam(team.team_id);
+  const kick = useKickMember(team.team_id);
+  const ban = useBanMember(team.team_id);
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [target, setTarget] = useState<TeamMember | null>(null);
+  const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
   const [copied, setCopied] = useState(false);
 
   const isManager = team.role === "manager";
@@ -68,6 +85,24 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
   };
   const onMakeManager = () => {
     if (target) transfer.mutate(target.user_id, { onSuccess: close });
+  };
+  const openKick = (member: TeamMember) => {
+    kick.reset();
+    setTarget(member);
+    setDialog("kick");
+  };
+  const openBan = (member: TeamMember) => {
+    ban.reset();
+    setBanDuration("permanent");
+    setTarget(member);
+    setDialog("ban");
+  };
+  const onKick = () => {
+    if (target) kick.mutate(target.user_id, { onSuccess: close });
+  };
+  const onBan = () => {
+    if (target)
+      ban.mutate({ userId: target.user_id, ban: durationToBan(banDuration) }, { onSuccess: close });
   };
   const onLeave = () =>
     leave.mutate(undefined, {
@@ -162,9 +197,13 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
               {isManager ? (
                 <MemberRowActions
                   member={member}
-                  pending={setRole.isPending || transfer.isPending}
+                  pending={
+                    setRole.isPending || transfer.isPending || kick.isPending || ban.isPending
+                  }
                   onSetRole={(role) => setRole.mutate({ userId: member.user_id, role })}
                   onMakeManager={() => openMakeManager(member)}
+                  onKick={() => openKick(member)}
+                  onBan={() => openBan(member)}
                 />
               ) : null}
             </li>
@@ -247,6 +286,43 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         onConfirm={onDelete}
         onClose={close}
       />
+      <ConfirmDialog
+        open={dialog === "kick"}
+        title={t("kick")}
+        description={t("kickConfirm", { email: target?.email ?? "" })}
+        confirmLabel={t("kick")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
+        danger
+        pending={kick.isPending}
+        error={kick.error ? errorText(kick.error.message) : null}
+        onConfirm={onKick}
+        onClose={close}
+      />
+      <ConfirmDialog
+        open={dialog === "ban"}
+        title={t("banMember")}
+        description={t("banConfirm", { email: target?.email ?? "" })}
+        confirmLabel={t("ban")}
+        cancelLabel={t("cancel")}
+        pendingLabel={t("processing")}
+        danger
+        pending={ban.isPending}
+        error={ban.error ? errorText(ban.error.message) : null}
+        onConfirm={onBan}
+        onClose={close}
+      >
+        <select
+          value={banDuration}
+          onChange={(e) => setBanDuration(e.target.value as BanDuration)}
+          className="ow-input flex h-10 w-full cursor-pointer appearance-none rounded-md px-3 py-2 text-sm"
+        >
+          <option value="permanent">{t("banPermanent")}</option>
+          <option value="1h">{t("ban1h")}</option>
+          <option value="24h">{t("ban24h")}</option>
+          <option value="7d">{t("ban7d")}</option>
+        </select>
+      </ConfirmDialog>
     </div>
   );
 }
