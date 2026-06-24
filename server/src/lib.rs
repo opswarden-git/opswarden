@@ -16,9 +16,9 @@ use axum::{
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    Clock, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, RuleRepo, SecretVault,
-    TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService, UserRepo, WebhookParser,
-    WebhookVerifier,
+    Clock, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
+    RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService, UserRepo,
+    WebhookParser, WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -45,6 +45,8 @@ pub struct AppState {
     pub notifier: Arc<dyn Notifier + Send + Sync>,
     /// External GIF search (GIPHY) for timeline GIFs (RTC2 web_api_integration).
     pub gifs: Arc<dyn GifSearch + Send + Sync>,
+    /// Bilateral 1-to-1 direct messages between team-sharing users (RTC2 web_pm).
+    pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
     pub config: config::Config,
 }
 
@@ -56,6 +58,11 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route("/api/auth/logout", post(handlers::auth::logout))
         .route("/api/giphy/search", get(handlers::gif::search_gifs))
+        .route(
+            "/api/private-messages",
+            post(handlers::private_message::send_private_message)
+                .get(handlers::private_message::list_private_messages),
+        )
         .route(
             "/api/teams",
             post(handlers::team::create_team).get(handlers::team::list_teams),

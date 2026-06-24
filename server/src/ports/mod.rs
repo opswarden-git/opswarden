@@ -4,6 +4,7 @@ use crate::domain::automation::{ExternalEvent, Rule};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
+use crate::domain::private_message::PrivateMessage;
 use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::User;
@@ -128,6 +129,21 @@ pub trait TimelineRepo: Send + Sync {
         &self,
         incident_id: Uuid,
     ) -> Result<Vec<ReactionRecord>, DomainError>;
+}
+
+#[async_trait]
+pub trait PrivateMessageRepo: Send + Sync {
+    /// Persist a sent private message.
+    async fn save(&self, message: &PrivateMessage) -> Result<(), DomainError>;
+    /// The conversation between two users — both directions of the pair — newest
+    /// first, capped at `limit`. The pair is symmetric, so the argument order
+    /// does not matter.
+    async fn list_conversation(
+        &self,
+        user_a: Uuid,
+        user_b: Uuid,
+        limit: u32,
+    ) -> Result<Vec<PrivateMessage>, DomainError>;
 }
 
 #[async_trait]

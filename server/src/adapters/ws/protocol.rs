@@ -159,6 +159,22 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "team_id": team_id,
             "user_id": user_id,
         }),
+        DomainEvent::PrivateMessageReceived {
+            message_id,
+            sender_id,
+            recipient_id,
+            content,
+            at,
+        } => json!({
+            "type": "private_message_received",
+            "message": {
+                "id": message_id,
+                "sender_id": sender_id,
+                "recipient_id": recipient_id,
+                "content": content,
+                "at": at.timestamp(),
+            },
+        }),
     };
     value.to_string()
 }
@@ -343,6 +359,27 @@ mod tests {
         assert_eq!(v["type"], "team_member_removed");
         assert_eq!(v["team_id"], team_id.to_string());
         assert_eq!(v["user_id"], user_id.to_string());
+    }
+
+    #[test]
+    fn private_message_received_nests_message_with_unix_time() {
+        let message_id = Uuid::new_v4();
+        let sender_id = Uuid::new_v4();
+        let recipient_id = Uuid::new_v4();
+        let at = Utc.with_ymd_and_hms(2026, 6, 24, 14, 30, 0).unwrap();
+        let v = parse(&DomainEvent::PrivateMessageReceived {
+            message_id,
+            sender_id,
+            recipient_id,
+            content: "ping".to_string(),
+            at,
+        });
+        assert_eq!(v["type"], "private_message_received");
+        assert_eq!(v["message"]["id"], message_id.to_string());
+        assert_eq!(v["message"]["sender_id"], sender_id.to_string());
+        assert_eq!(v["message"]["recipient_id"], recipient_id.to_string());
+        assert_eq!(v["message"]["content"], "ping");
+        assert_eq!(v["message"]["at"], at.timestamp());
     }
 
     #[test]

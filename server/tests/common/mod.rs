@@ -6,13 +6,14 @@ use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
+use opswarden_server::domain::private_message::PrivateMessage;
 use opswarden_server::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
     Clock, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher,
-    RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService,
-    UserRepo,
+    PrivateMessageRepo, RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims,
+    TokenRevocationRepo, TokenService, UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -22,9 +23,11 @@ use uuid::Uuid;
 #[allow(dead_code)]
 pub struct TestContext {
     pub app: axum::Router,
+    pub users: Arc<DummyUserRepo>,
     pub teams: Arc<DummyTeamRepo>,
     pub incidents: Arc<DummyIncidentRepo>,
     pub timeline: Arc<DummyTimelineRepo>,
+    pub private_messages: Arc<DummyPrivateMessageRepo>,
     pub revoked_tokens: Arc<DummyTokenRevocationRepo>,
     pub vault: Arc<DummyVault>,
 }
@@ -95,11 +98,26 @@ impl GifSearch for DummyGifSearch {
     }
 }
 
-pub struct DummyUserRepo;
+#[derive(Default)]
+pub struct DummyUserRepo {
+    /// Extra users seeded by tests (e.g. a private-message recipient). The
+    /// default authenticated user is the nil UUID, handled below without seeding.
+    extra: Mutex<HashMap<Uuid, User>>,
+}
+
+#[allow(dead_code)]
+impl DummyUserRepo {
+    pub fn seed_user(&self, user: User) {
+        self.extra.lock().unwrap().insert(user.id, user);
+    }
+}
 
 #[async_trait]
 impl UserRepo for DummyUserRepo {
     async fn find_by_id(&self, user_id: Uuid) -> Result<Option<User>, DomainError> {
+        if let Some(user) = self.extra.lock().unwrap().get(&user_id) {
+            return Ok(Some(user.clone()));
+        }
         if user_id == Uuid::nil() {
             let email = opswarden_server::domain::user::Email::new("existing@test.com").unwrap();
             Ok(Some(User {
@@ -572,6 +590,52 @@ impl TimelineRepo for DummyTimelineRepo {
     }
 }
 
+#[derive(Default)]
+pub struct DummyPrivateMessageRepo {
+    messages: Mutex<Vec<PrivateMessage>>,
+}
+
+#[allow(dead_code)]
+impl DummyPrivateMessageRepo {
+    pub fn seed(&self, message: PrivateMessage) {
+        self.messages.lock().unwrap().push(message);
+    }
+
+    pub fn all(&self) -> Vec<PrivateMessage> {
+        self.messages.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl PrivateMessageRepo for DummyPrivateMessageRepo {
+    async fn save(&self, message: &PrivateMessage) -> Result<(), DomainError> {
+        self.messages.lock().unwrap().push(message.clone());
+        Ok(())
+    }
+
+    async fn list_conversation(
+        &self,
+        user_a: Uuid,
+        user_b: Uuid,
+        limit: u32,
+    ) -> Result<Vec<PrivateMessage>, DomainError> {
+        let mut msgs: Vec<PrivateMessage> = self
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| {
+                (m.sender_id == user_a && m.recipient_id == user_b)
+                    || (m.sender_id == user_b && m.recipient_id == user_a)
+            })
+            .cloned()
+            .collect();
+        msgs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
+        msgs.truncate(limit as usize);
+        Ok(msgs)
+    }
+}
+
 pub fn test_context() -> TestContext {
     build_context(Arc::new(StaticRuleRepo::empty()))
 }
@@ -584,18 +648,21 @@ pub fn test_context_with_github_rule(team_id: Uuid) -> TestContext {
 }
 
 fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
+    let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
     let timeline = Arc::new(DummyTimelineRepo::default());
+    let private_messages = Arc::new(DummyPrivateMessageRepo::default());
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
     let vault = Arc::new(DummyVault::default());
     let config = Config::from_env();
 
     let app = build_app(AppState {
-        users: Arc::new(DummyUserRepo),
+        users: users.clone(),
         teams: teams.clone(),
         incidents: incidents.clone(),
         timeline: timeline.clone(),
+        private_messages: private_messages.clone(),
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         oauth: Arc::new(DummyOAuthClient),
@@ -613,9 +680,11 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
 
     TestContext {
         app,
+        users,
         teams,
         incidents,
         timeline,
+        private_messages,
         revoked_tokens,
         vault,
     }

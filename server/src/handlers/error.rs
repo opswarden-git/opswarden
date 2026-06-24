@@ -38,6 +38,13 @@ impl IntoResponse for DomainError {
             DomainError::InvalidReaction => {
                 (StatusCode::BAD_REQUEST, "Reaction emoji is invalid")
             }
+            DomainError::InvalidPrivateMessage => {
+                (StatusCode::BAD_REQUEST, "Private message content is invalid")
+            }
+            DomainError::NoSharedTeam => (
+                StatusCode::FORBIDDEN,
+                "You can only message members of a team you share",
+            ),
             DomainError::TeamNotFound => (
                 StatusCode::NOT_FOUND,
                 "No team matches this invitation code",

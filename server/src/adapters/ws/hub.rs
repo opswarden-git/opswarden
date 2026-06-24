@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
 use super::protocol::{presence_wire, team_presence_wire, to_wire};
-use crate::domain::event::DomainEvent;
+use crate::domain::event::{DomainEvent, EventDelivery};
 use crate::ports::EventPublisher;
 
 pub type ConnectionId = Uuid;
@@ -169,15 +169,21 @@ fn broadcast_team_presence(conns: &HashMap<ConnectionId, Connection>, team_id: U
 #[async_trait]
 impl EventPublisher for WsHub {
     async fn publish(&self, event: DomainEvent) {
-        let team_id = event.team_id();
+        let delivery = event.delivery();
         let payload = to_wire(&event);
         // Collect-and-send under the lock is fine: UnboundedSender::send is
         // synchronous and non-blocking, so no await is held across the lock.
         let conns = self.connections.lock().unwrap();
+        // A connection is a recipient when it belongs to the event's team
+        // (team-scoped events) or when its user is one of the targeted users
+        // (private messages). Send errors are ignored: a closed receiver means
+        // the connection is gone and its task will unregister itself.
         for conn in conns.values() {
-            if conn.teams.contains(&team_id) {
-                // Ignore send errors: a closed receiver means the connection is
-                // gone and its task will unregister itself.
+            let is_recipient = match &delivery {
+                EventDelivery::Team(team_id) => conn.teams.contains(team_id),
+                EventDelivery::Users(user_ids) => user_ids.contains(&conn.user_id),
+            };
+            if is_recipient {
                 let _ = conn.tx.send(payload.clone());
             }
         }
@@ -215,6 +221,44 @@ mod tests {
 
         let msg = rx_a.try_recv().unwrap();
         assert!(msg.contains("incident_state_changed"));
+        assert!(rx_b.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn private_message_reaches_only_sender_and_recipient() {
+        let hub = WsHub::new();
+        let (sender, recipient, bystander) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        // All three even share a team, to prove the PM is user-scoped, not fanned
+        // out to the team.
+        let team = Uuid::new_v4();
+        let (tx_s, mut rx_s) = mpsc::unbounded_channel();
+        let (tx_r, mut rx_r) = mpsc::unbounded_channel();
+        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+        hub.register(sender, HashSet::from([team]), tx_s);
+        hub.register(recipient, HashSet::from([team]), tx_r);
+        hub.register(bystander, HashSet::from([team]), tx_b);
+        while rx_s.try_recv().is_ok() {}
+        while rx_r.try_recv().is_ok() {}
+        while rx_b.try_recv().is_ok() {}
+
+        hub.publish(DomainEvent::PrivateMessageReceived {
+            message_id: Uuid::new_v4(),
+            sender_id: sender,
+            recipient_id: recipient,
+            content: "psst".to_string(),
+            at: chrono::Utc::now(),
+        })
+        .await;
+
+        assert!(rx_s
+            .try_recv()
+            .unwrap()
+            .contains("private_message_received"));
+        assert!(rx_r
+            .try_recv()
+            .unwrap()
+            .contains("private_message_received"));
+        // A co-team bystander must not receive the private message.
         assert!(rx_b.try_recv().is_err());
     }
 

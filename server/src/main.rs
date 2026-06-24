@@ -8,6 +8,7 @@ use opswarden_server::adapters::giphy::GiphyClient;
 use opswarden_server::adapters::notify::HttpNotifier;
 use opswarden_server::adapters::oauth::GoogleOAuthClient;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
+use opswarden_server::adapters::pg::private_message::PgPrivateMessageRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::timeline::PgTimelineRepo;
 use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
@@ -67,6 +68,7 @@ async fn main() {
         teams: Arc::new(PgTeamRepo::new(pool.clone())),
         incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
         timeline: Arc::new(PgTimelineRepo::new(pool.clone())),
+        private_messages: Arc::new(PgPrivateMessageRepo::new(pool.clone())),
         hasher: Arc::new(Argon2Hasher),
         tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
         oauth: Arc::new(GoogleOAuthClient::new(
