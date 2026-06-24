@@ -59,6 +59,12 @@ pub enum DomainError {
     ReactionFailed,
     OAuthNotConfigured,
     OAuthFailed,
+    /// GIF search was requested but no GIPHY API key is configured server-side.
+    GiphyNotConfigured,
+    /// An external service (e.g. GIPHY) was unreachable or returned an error.
+    ExternalServiceUnavailable,
+    /// A GIF search query was blank or too long.
+    InvalidGifQuery,
     Storage,
 }
 
@@ -104,6 +110,9 @@ impl DomainError {
             DomainError::ReactionFailed => "reaction_failed",
             DomainError::OAuthNotConfigured => "oauth_not_configured",
             DomainError::OAuthFailed => "oauth_failed",
+            DomainError::GiphyNotConfigured => "giphy_not_configured",
+            DomainError::ExternalServiceUnavailable => "external_service_unavailable",
+            DomainError::InvalidGifQuery => "invalid_gif_query",
             DomainError::Storage => "storage_error",
         }
     }
@@ -162,6 +171,11 @@ impl std::fmt::Display for DomainError {
             DomainError::ReactionFailed => write!(f, "Automation reaction failed"),
             DomainError::OAuthNotConfigured => write!(f, "OAuth provider is not configured"),
             DomainError::OAuthFailed => write!(f, "OAuth authentication failed"),
+            DomainError::GiphyNotConfigured => write!(f, "GIF search is not configured"),
+            DomainError::ExternalServiceUnavailable => {
+                write!(f, "An external service is unavailable")
+            }
+            DomainError::InvalidGifQuery => write!(f, "GIF search query is invalid"),
             DomainError::Storage => write!(f, "Storage failure"),
         }
     }

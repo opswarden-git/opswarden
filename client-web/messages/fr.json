@@ -118,7 +118,11 @@
     "invalid_ban_expiry": "Un bannissement temporaire doit expirer dans le futur.",
     "invalid_ban_kind": "Le type de bannissement doit être temporaire ou permanent.",
     "user_not_found": "Compte utilisateur introuvable.",
-    "storage_error": "Une erreur de stockage est survenue."
+    "storage_error": "Une erreur de stockage est survenue.",
+    "giphy_not_configured": "La recherche de GIF n’est pas disponible pour le moment",
+    "external_service_unavailable": "Le service de GIF est temporairement indisponible",
+    "invalid_gif_query": "Veuillez saisir un terme de recherche plus court",
+    "gif_search_failed": "Échec de la recherche de GIF"
   },
   "Teams": {
     "title": "Équipes",
@@ -253,6 +257,15 @@
     "edited": "(modifié)",
     "deleteIncidentConfirm": "Cela supprime définitivement « {title} ». Tapez DELETE pour confirmer.",
     "actionFailed": "L'action a échoué. Réessayez.",
-    "processing": "Traitement…"
+    "processing": "Traitement…",
+    "gifButton": "Rechercher des GIF",
+    "gifSearchPlaceholder": "Rechercher sur GIPHY…",
+    "gifSearchHint": "Saisissez un terme pour rechercher des GIF",
+    "gifSearching": "Recherche…",
+    "gifNoResults": "Aucun GIF trouvé",
+    "gifSearchFailed": "Échec de la recherche de GIF",
+    "gifClose": "Fermer la recherche de GIF",
+    "gifAlt": "GIF",
+    "poweredByGiphy": "Propulsé par GIPHY"
   }
 }

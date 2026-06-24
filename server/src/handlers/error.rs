@@ -99,6 +99,13 @@ impl IntoResponse for DomainError {
                 "OAuth provider is not configured",
             ),
             DomainError::OAuthFailed => (StatusCode::BAD_GATEWAY, "OAuth authentication failed"),
+            DomainError::GiphyNotConfigured => {
+                (StatusCode::SERVICE_UNAVAILABLE, "GIF search is not configured")
+            }
+            DomainError::ExternalServiceUnavailable => {
+                (StatusCode::BAD_GATEWAY, "An external service is unavailable")
+            }
+            DomainError::InvalidGifQuery => (StatusCode::BAD_REQUEST, "GIF search query is invalid"),
             DomainError::AssigneeNotResponder => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "Assignee must be a Responder or Manager of the team",

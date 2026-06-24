@@ -24,6 +24,10 @@ pub struct Config {
     pub google_oauth_client_secret: Option<String>,
     pub google_oauth_redirect_uri: String,
     pub web_origin: String,
+    /// GIPHY REST API key for timeline GIF search (server-side only — never
+    /// exposed to the client). `None` => the search endpoint reports
+    /// `giphy_not_configured`.
+    pub giphy_api_key: Option<String>,
 }
 
 impl Config {
@@ -74,6 +78,7 @@ impl Config {
             .unwrap_or_else(|| "http://localhost:8080/api/auth/google/callback".to_string());
         let web_origin = optional_env("OPSWARDEN_WEB_ORIGIN")
             .unwrap_or_else(|| "http://localhost:4242".to_string());
+        let giphy_api_key = optional_env("GIPHY_API_KEY");
 
         Self {
             kickoff_token_secret,
@@ -86,6 +91,7 @@ impl Config {
             google_oauth_client_secret,
             google_oauth_redirect_uri,
             web_origin,
+            giphy_api_key,
         }
     }
 

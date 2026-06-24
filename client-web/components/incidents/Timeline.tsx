@@ -8,6 +8,8 @@ import {
 } from "@/lib/queries/incidents";
 import { useWsStore, useTypingUsers } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
+import { giphyEntryUrl } from "@/lib/queries/gifs";
+import { GifSearchPanel } from "./GifSearchPanel";
 import { Pencil, Send, Terminal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,8 @@ function TimelineEntryItem({
   const [draft, setDraft] = useState(entry.content);
 
   const isAuthor = !!currentUserId && entry.author_id === currentUserId;
+  // A GIF entry renders as an image; only host-allowlisted giphy.com URLs pass.
+  const gifUrl = giphyEntryUrl(entry.content);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
 
   const startEdit = () => {
@@ -64,7 +68,7 @@ function TimelineEntryItem({
           <span className="text-muted/60 text-[10px]">
             {new Date(entry.created_at).toLocaleTimeString()}
           </span>
-          {isAuthor && !editing ? (
+          {isAuthor && !editing && !gifUrl ? (
             <button
               type="button"
               onClick={startEdit}
@@ -107,6 +111,14 @@ function TimelineEntryItem({
             </button>
           </div>
         </div>
+      ) : gifUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={gifUrl}
+          alt={t("gifAlt")}
+          loading="lazy"
+          className="max-h-56 max-w-full rounded-md"
+        />
       ) : (
         <p className="text-text text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
       )}
@@ -143,6 +155,7 @@ export function Timeline({ incidentId }: { incidentId: string }) {
   const { data, isLoading, error } = useTimeline(incidentId);
   const addEntry = useAddTimelineEntry();
   const [content, setContent] = useState("");
+  const [showGifPanel, setShowGifPanel] = useState(false);
   const t = useTranslations("Incidents");
   const currentUserId = useAuthStore((s) => s.user?.id);
 
@@ -158,6 +171,15 @@ export function Timeline({ incidentId }: { incidentId: string }) {
       {
         onSuccess: () => setContent(""),
       },
+    );
+  };
+
+  // Insert a GIF as a timeline entry using the `giphy:<url>` sentinel, reusing
+  // the same mutation (and realtime fan-out) as a normal text entry.
+  const handleSelectGif = (url: string) => {
+    addEntry.mutate(
+      { incidentId, content: `giphy:${url}` },
+      { onSuccess: () => setShowGifPanel(false) },
     );
   };
 
@@ -210,7 +232,27 @@ export function Timeline({ incidentId }: { incidentId: string }) {
       )}
 
       <div className="surface-subtle border-border border-t p-4">
+        {showGifPanel ? (
+          <GifSearchPanel
+            onSelect={handleSelectGif}
+            onClose={() => setShowGifPanel(false)}
+            disabled={addEntry.isPending}
+          />
+        ) : null}
         <form onSubmit={handleSubmit} className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowGifPanel((v) => !v)}
+            title={t("gifButton")}
+            aria-label={t("gifButton")}
+            aria-pressed={showGifPanel}
+            className={cn(
+              "flex h-10 shrink-0 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors",
+              showGifPanel ? "border-gold/40 bg-gold/10 text-text border" : "ow-secondary",
+            )}
+          >
+            GIF
+          </button>
           <input
             type="text"
             value={content}

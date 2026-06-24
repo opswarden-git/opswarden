@@ -215,3 +215,29 @@ pub trait RuleRepo: Send + Sync {
 pub trait Notifier: Send + Sync {
     async fn notify(&self, url: &str, message: &str) -> Result<(), DomainError>;
 }
+
+/// A normalized GIF search result, independent of the provider's JSON shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GifResult {
+    pub id: String,
+    pub title: String,
+    /// URL of the animated GIF to display when selected.
+    pub url: String,
+    /// Smaller still/preview URL for the results grid.
+    pub preview_url: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// External GIF search (RTC2 `web_api_integration`, backed by GIPHY). The
+/// provider, HTTP transport and API-key handling are adapter concerns; the
+/// use-case only ever sees normalized `GifResult`s.
+#[async_trait]
+pub trait GifSearch: Send + Sync {
+    async fn search(
+        &self,
+        query: &str,
+        limit: u32,
+        rating: &str,
+    ) -> Result<Vec<GifResult>, DomainError>;
+}

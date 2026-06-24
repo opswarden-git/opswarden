@@ -10,8 +10,9 @@ use opswarden_server::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
-    Clock, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, RuleRepo,
-    SecretVault, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
+    Clock, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher,
+    RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService,
+    UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -70,6 +71,27 @@ pub struct DummyNotifier;
 impl Notifier for DummyNotifier {
     async fn notify(&self, _url: &str, _message: &str) -> Result<(), DomainError> {
         Ok(())
+    }
+}
+
+pub struct DummyGifSearch;
+
+#[async_trait]
+impl GifSearch for DummyGifSearch {
+    async fn search(
+        &self,
+        query: &str,
+        _limit: u32,
+        _rating: &str,
+    ) -> Result<Vec<GifResult>, DomainError> {
+        Ok(vec![GifResult {
+            id: "demo".to_string(),
+            title: format!("result for {query}"),
+            url: "https://media.giphy.com/media/demo/giphy.gif".to_string(),
+            preview_url: "https://media.giphy.com/media/demo/200w_s.gif".to_string(),
+            width: 200,
+            height: 150,
+        }])
     }
 }
 
@@ -585,6 +607,7 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         webhook_parser: Arc::new(GithubParser),
         rules,
         notifier: Arc::new(DummyNotifier),
+        gifs: Arc::new(DummyGifSearch),
         config,
     });
 
