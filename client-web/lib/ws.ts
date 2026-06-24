@@ -58,7 +58,17 @@ export type WsServerEvent =
       incident_id?: string;
     }
   | { type: "rule_failed"; team_id: string; service: string; rule: string; reason: string }
-  | { type: "team_member_removed"; team_id: string; user_id: string };
+  | { type: "team_member_removed"; team_id: string; user_id: string }
+  | {
+      type: "private_message_received";
+      message: {
+        id: string;
+        sender_id: string;
+        recipient_id: string;
+        content: string;
+        at: number;
+      };
+    };
 
 interface WsState {
   /** Presence rosters keyed by incident id. A single global roster would leak
@@ -279,6 +289,17 @@ export function useRealtime() {
           // A peer was removed: refresh the roster I'm still allowed to see.
           queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
         }
+        break;
+      }
+      case "private_message_received": {
+        // Refresh only the affected 1-to-1 conversation — never team-wide. The
+        // peer is the other participant relative to me, so both sender and
+        // recipient invalidate the same conversation key and see the new message.
+        const me = useAuthStore.getState().user?.id;
+        if (!me) break;
+        const { sender_id, recipient_id } = event.message;
+        const peer = sender_id === me ? recipient_id : sender_id;
+        queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
         break;
       }
     }
