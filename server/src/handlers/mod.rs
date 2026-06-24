@@ -8,6 +8,7 @@ pub mod error;
 pub mod gif;
 pub mod incident;
 pub mod middleware;
+pub mod private_message;
 pub mod service_connection;
 pub mod team;
 pub mod webhook;

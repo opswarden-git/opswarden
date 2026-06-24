@@ -14,6 +14,11 @@ pub enum DomainError {
     InvalidTimelineEntry,
     /// A timeline reaction emoji was blank or too long.
     InvalidReaction,
+    /// A private message body was blank or exceeded the length limit.
+    InvalidPrivateMessage,
+    /// A private message was attempted between two users who share no team (or
+    /// with oneself). PMs are only allowed between distinct co-members.
+    NoSharedTeam,
     TeamNotFound,
     IncidentNotFound,
     AlreadyMember,
@@ -85,6 +90,8 @@ impl DomainError {
             DomainError::InvalidIncidentTransition => "invalid_incident_transition",
             DomainError::InvalidTimelineEntry => "invalid_timeline_entry",
             DomainError::InvalidReaction => "invalid_reaction",
+            DomainError::InvalidPrivateMessage => "invalid_private_message",
+            DomainError::NoSharedTeam => "no_shared_team",
             DomainError::TeamNotFound => "team_not_found",
             DomainError::IncidentNotFound => "incident_not_found",
             DomainError::AlreadyMember => "already_member",
@@ -136,6 +143,12 @@ impl std::fmt::Display for DomainError {
                 write!(f, "Timeline entry content is invalid")
             }
             DomainError::InvalidReaction => write!(f, "Reaction emoji is invalid"),
+            DomainError::InvalidPrivateMessage => {
+                write!(f, "Private message content is invalid")
+            }
+            DomainError::NoSharedTeam => {
+                write!(f, "You can only message members of a team you share")
+            }
             DomainError::TeamNotFound => write!(f, "No team matches this invitation code"),
             DomainError::IncidentNotFound => write!(f, "Incident was not found"),
             DomainError::AlreadyMember => write!(f, "User is already a member of this team"),

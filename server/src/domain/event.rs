@@ -88,11 +88,34 @@ pub enum DomainEvent {
     /// and lose access. Covers both kick and ban — the distinction lives in the
     /// bans list, not the realtime signal.
     TeamMemberRemoved { team_id: Uuid, user_id: Uuid },
+    /// A private message was sent (RTC 2). Unlike every other event this is *not*
+    /// team-scoped: it must reach exactly the two participants (sender +
+    /// recipient), never a whole team. See `delivery`.
+    PrivateMessageReceived {
+        message_id: Uuid,
+        sender_id: Uuid,
+        recipient_id: Uuid,
+        content: String,
+        at: DateTime<Utc>,
+    },
+}
+
+/// How the WebSocket adapter should fan an event out. Keeps the routing rule in
+/// the domain (where the event is defined) without coupling it to the transport:
+/// almost everything is team-scoped, private messages are user-scoped.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EventDelivery {
+    /// Deliver to every connected member of this team.
+    Team(Uuid),
+    /// Deliver only to connections owned by these users — never team-wide.
+    Users(Vec<Uuid>),
 }
 
 impl DomainEvent {
-    /// The team whose connected members should receive this event.
-    pub fn team_id(&self) -> Uuid {
+    /// The set of clients that should receive this event. Team events fan out to
+    /// the team's connected members; a private message reaches only its two
+    /// participants.
+    pub fn delivery(&self) -> EventDelivery {
         match self {
             DomainEvent::IncidentStateChanged { team_id, .. }
             | DomainEvent::IncidentEscalated { team_id, .. }
@@ -104,7 +127,12 @@ impl DomainEvent {
             | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
             | DomainEvent::RuleFailed { team_id, .. }
-            | DomainEvent::TeamMemberRemoved { team_id, .. } => *team_id,
+            | DomainEvent::TeamMemberRemoved { team_id, .. } => EventDelivery::Team(*team_id),
+            DomainEvent::PrivateMessageReceived {
+                sender_id,
+                recipient_id,
+                ..
+            } => EventDelivery::Users(vec![*sender_id, *recipient_id]),
         }
     }
 }
