@@ -1,9 +1,10 @@
 // --- server/src/adapters/pg/team.rs ---
 
 use crate::domain::error::DomainError;
-use crate::domain::team::{InvitationCode, Role, Team, TeamMemberView};
+use crate::domain::team::{BanKind, InvitationCode, Role, Team, TeamBan, TeamMemberView};
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -34,6 +35,15 @@ fn role_from_str(value: &str) -> Role {
         "manager" => Role::Manager,
         "responder" => Role::Responder,
         _ => Role::Observer,
+    }
+}
+
+/// Map the nullable `team_bans.expires_at` column to a `BanKind`
+/// (NULL = permanent, a timestamp = temporary).
+fn ban_kind(expires_at: Option<DateTime<Utc>>) -> BanKind {
+    match expires_at {
+        Some(expires_at) => BanKind::Temporary { expires_at },
+        None => BanKind::Permanent,
     }
 }
 
@@ -301,6 +311,82 @@ impl TeamRepo for PgTeamRepo {
 
         Ok(())
     }
+
+    async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            INSERT INTO team_bans (team_id, user_id, expires_at, reason, created_by, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (team_id, user_id) DO UPDATE
+            SET expires_at = EXCLUDED.expires_at,
+                reason     = EXCLUDED.reason,
+                created_by = EXCLUDED.created_by,
+                created_at = EXCLUDED.created_at
+            "#,
+            ban.team_id,
+            ban.user_id,
+            ban.expires_at(),
+            ban.reason.as_deref(),
+            ban.created_by,
+            ban.created_at,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
+
+    async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError> {
+        let row = sqlx::query!(
+            r#"
+            SELECT expires_at, reason, created_by, created_at
+            FROM team_bans
+            WHERE team_id = $1 AND user_id = $2
+            "#,
+            team_id,
+            user_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(row.map(|r| TeamBan {
+            team_id,
+            user_id,
+            kind: ban_kind(r.expires_at),
+            reason: r.reason,
+            created_by: r.created_by,
+            created_at: r.created_at,
+        }))
+    }
+
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT user_id, expires_at, reason, created_by, created_at
+            FROM team_bans
+            WHERE team_id = $1
+            ORDER BY created_at DESC
+            "#,
+            team_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| TeamBan {
+                team_id,
+                user_id: r.user_id,
+                kind: ban_kind(r.expires_at),
+                reason: r.reason,
+                created_by: r.created_by,
+                created_at: r.created_at,
+            })
+            .collect())
+    }
 }
 
 // --- TESTS (require a reachable Postgres; URL from the DATABASE_URL variable) ---
@@ -442,5 +528,60 @@ mod tests {
             repo.find_member_role(team.id, member).await.unwrap(),
             Some(Role::Responder)
         );
+    }
+
+    #[sqlx::test]
+    async fn it_stores_finds_and_upserts_bans_in_postgres(pool: PgPool) {
+        let repo = PgTeamRepo::new(pool.clone());
+        let manager = seed_user(&pool).await;
+        let target = seed_user(&pool).await;
+        let team = Team::new("Ban Crew").unwrap();
+        repo.save_team(&team).await.unwrap();
+
+        // No ban initially.
+        assert!(repo.find_ban(team.id, target).await.unwrap().is_none());
+
+        // Permanent ban with a reason.
+        let ban = TeamBan::permanent(team.id, target, manager, Some("spam".to_string()));
+        repo.add_ban(&ban).await.unwrap();
+
+        let found = repo.find_ban(team.id, target).await.unwrap().unwrap();
+        assert!(matches!(found.kind, BanKind::Permanent));
+        assert!(found.is_active(Utc::now()));
+        assert_eq!(found.reason.as_deref(), Some("spam"));
+        assert_eq!(found.created_by, Some(manager));
+
+        // Re-banning the same user upserts (one row, now temporary).
+        let expires = Utc::now() + chrono::Duration::hours(1);
+        let temp = TeamBan::temporary(team.id, target, manager, expires, None).unwrap();
+        repo.add_ban(&temp).await.unwrap();
+
+        let bans = repo.list_bans(team.id).await.unwrap();
+        assert_eq!(bans.len(), 1);
+        assert!(matches!(bans[0].kind, BanKind::Temporary { .. }));
+        assert!(bans[0].is_active(Utc::now()));
+        assert!(bans[0].reason.is_none());
+    }
+
+    #[sqlx::test]
+    async fn deleting_the_moderator_account_keeps_the_ban_and_nulls_created_by(pool: PgPool) {
+        let repo = PgTeamRepo::new(pool.clone());
+        let users = PgUserRepo::new(pool.clone());
+        let moderator = seed_user(&pool).await;
+        let target = seed_user(&pool).await;
+        let team = Team::new("Ban Crew").unwrap();
+        repo.save_team(&team).await.unwrap();
+
+        repo.add_ban(&TeamBan::permanent(team.id, target, moderator, None))
+            .await
+            .unwrap();
+
+        // The moderator deletes their account: the FK is ON DELETE SET NULL, so
+        // this must not fail and the ban must survive.
+        users.delete_account(moderator).await.unwrap();
+
+        let ban = repo.find_ban(team.id, target).await.unwrap().unwrap();
+        assert!(ban.is_active(Utc::now()));
+        assert_eq!(ban.created_by, None);
     }
 }

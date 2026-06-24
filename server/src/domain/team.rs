@@ -1,5 +1,6 @@
 // --- server/src/domain/team.rs ---
 
+use chrono::{DateTime, Utc};
 use rand::RngExt;
 use std::fmt;
 use uuid::Uuid;
@@ -182,6 +183,108 @@ pub fn validate_member_role_change(
     Ok(())
 }
 
+/// How long a moderation ban keeps a user out of a team.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BanKind {
+    /// Blocks (re)joining until `expires_at`.
+    Temporary { expires_at: DateTime<Utc> },
+    /// Blocks (re)joining with no end.
+    Permanent,
+}
+
+/// A moderation ban: a user barred from a team by its Manager. At most one ban
+/// row exists per (team, user); re-banning replaces it. A ban is independent of
+/// membership — it persists after the membership row is removed, which is what
+/// blocks a later rejoin.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamBan {
+    pub team_id: Uuid,
+    pub user_id: Uuid,
+    pub kind: BanKind,
+    pub reason: Option<String>,
+    /// The moderator who issued the ban, or `None` once that account is deleted
+    /// (the FK is `ON DELETE SET NULL`, so the ban outlives its issuer).
+    pub created_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl TeamBan {
+    /// A temporary ban. Rejected if `expires_at` is not in the future (a ban
+    /// that expired the moment it was created would be meaningless).
+    pub fn temporary(
+        team_id: Uuid,
+        user_id: Uuid,
+        created_by: Uuid,
+        expires_at: DateTime<Utc>,
+        reason: Option<String>,
+    ) -> Result<Self, DomainError> {
+        if expires_at <= Utc::now() {
+            return Err(DomainError::InvalidBanExpiry);
+        }
+        Ok(Self {
+            team_id,
+            user_id,
+            kind: BanKind::Temporary { expires_at },
+            reason,
+            created_by: Some(created_by),
+            created_at: Utc::now(),
+        })
+    }
+
+    /// A permanent ban (no expiry).
+    pub fn permanent(
+        team_id: Uuid,
+        user_id: Uuid,
+        created_by: Uuid,
+        reason: Option<String>,
+    ) -> Self {
+        Self {
+            team_id,
+            user_id,
+            kind: BanKind::Permanent,
+            reason,
+            created_by: Some(created_by),
+            created_at: Utc::now(),
+        }
+    }
+
+    /// True while the ban still blocks joining: permanent bans always, temporary
+    /// bans only until their expiry.
+    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
+        match self.kind {
+            BanKind::Permanent => true,
+            BanKind::Temporary { expires_at } => expires_at > now,
+        }
+    }
+
+    /// Expiry instant for a temporary ban; `None` for a permanent one (the form
+    /// persisted in `team_bans.expires_at`).
+    pub fn expires_at(&self) -> Option<DateTime<Utc>> {
+        match self.kind {
+            BanKind::Temporary { expires_at } => Some(expires_at),
+            BanKind::Permanent => None,
+        }
+    }
+}
+
+/// Pure validation for a Manager moderating (kicking or banning) a target.
+/// `target_role` is `None` when the target is not a current member (allowed only
+/// for a pre-emptive ban). The single-Manager invariant means the only Manager
+/// is the requester, so self- and Manager-targets are both barred.
+pub fn validate_member_moderation(
+    requester_id: Uuid,
+    target_id: Uuid,
+    target_role: Option<Role>,
+) -> Result<(), DomainError> {
+    if requester_id == target_id {
+        return Err(DomainError::CannotModerateSelf);
+    }
+    if target_role == Some(Role::Manager) {
+        return Err(DomainError::CannotModerateManager);
+    }
+    Ok(())
+}
+
 // --- TESTS ---
 
 #[cfg(test)]
@@ -303,6 +406,56 @@ mod tests {
         assert_eq!(
             validate_member_role_change(Role::Manager, Role::Manager, Role::Responder).unwrap_err(),
             DomainError::CannotChangeManagerRole
+        );
+    }
+
+    #[test]
+    fn a_permanent_ban_is_always_active() {
+        let ban = TeamBan::permanent(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), None);
+        assert!(ban.is_active(Utc::now()));
+        assert_eq!(ban.expires_at(), None);
+    }
+
+    #[test]
+    fn a_temporary_ban_is_active_before_expiry_and_inactive_after() {
+        let expires = Utc::now() + chrono::Duration::hours(1);
+        let ban = TeamBan::temporary(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            expires,
+            None,
+        )
+        .unwrap();
+        assert!(ban.is_active(Utc::now()));
+        assert!(!ban.is_active(expires + chrono::Duration::seconds(1)));
+        assert_eq!(ban.expires_at(), Some(expires));
+    }
+
+    #[test]
+    fn a_temporary_ban_in_the_past_is_rejected() {
+        let past = Utc::now() - chrono::Duration::hours(1);
+        let result = TeamBan::temporary(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), past, None);
+        assert_eq!(result.unwrap_err(), DomainError::InvalidBanExpiry);
+    }
+
+    #[test]
+    fn moderation_bars_self_and_manager_targets() {
+        let manager = Uuid::new_v4();
+        let member = Uuid::new_v4();
+
+        assert!(validate_member_moderation(manager, member, Some(Role::Observer)).is_ok());
+        assert!(validate_member_moderation(manager, member, Some(Role::Responder)).is_ok());
+        // Pre-emptive ban of a non-member is allowed.
+        assert!(validate_member_moderation(manager, member, None).is_ok());
+
+        assert_eq!(
+            validate_member_moderation(manager, manager, Some(Role::Manager)).unwrap_err(),
+            DomainError::CannotModerateSelf
+        );
+        assert_eq!(
+            validate_member_moderation(manager, member, Some(Role::Manager)).unwrap_err(),
+            DomainError::CannotModerateManager
         );
     }
 }

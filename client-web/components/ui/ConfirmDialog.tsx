@@ -17,6 +17,8 @@ interface ConfirmDialogProps {
   requireType?: string;
   pending?: boolean;
   error?: string | null;
+  /** Optional extra body (e.g. a ban-duration select) rendered under the description. */
+  children?: React.ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -42,6 +44,7 @@ function ConfirmDialogBody({
   requireType,
   pending = false,
   error,
+  children,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
@@ -58,6 +61,8 @@ function ConfirmDialogBody({
             <p className="text-muted mt-2 text-sm">{description}</p>
           </div>
         </div>
+
+        {children}
 
         {requireType ? (
           <input

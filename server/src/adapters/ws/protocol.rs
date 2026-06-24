@@ -154,6 +154,11 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "rule": rule,
             "reason": reason,
         }),
+        DomainEvent::TeamMemberRemoved { team_id, user_id } => json!({
+            "type": "team_member_removed",
+            "team_id": team_id,
+            "user_id": user_id,
+        }),
     };
     value.to_string()
 }
@@ -328,6 +333,16 @@ mod tests {
         assert_eq!(v["service"], "github");
         assert_eq!(v["rule"], "github-ci-failed-to-incident");
         assert_eq!(v["incident_id"], incident_id.to_string());
+    }
+
+    #[test]
+    fn team_member_removed_wire_shape() {
+        let team_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let v = parse(&DomainEvent::TeamMemberRemoved { team_id, user_id });
+        assert_eq!(v["type"], "team_member_removed");
+        assert_eq!(v["team_id"], team_id.to_string());
+        assert_eq!(v["user_id"], user_id.to_string());
     }
 
     #[test]

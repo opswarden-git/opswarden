@@ -6,7 +6,7 @@ use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::Incident;
-use opswarden_server::domain::team::{Role, Team, TeamMemberView};
+use opswarden_server::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
@@ -184,6 +184,7 @@ impl TokenRevocationRepo for DummyTokenRevocationRepo {
 pub struct DummyTeamRepo {
     teams_by_code: Mutex<HashMap<String, Team>>,
     roles: Mutex<HashMap<(Uuid, Uuid), Role>>,
+    bans: Mutex<HashMap<(Uuid, Uuid), TeamBan>>,
 }
 
 impl DummyTeamRepo {
@@ -196,6 +197,16 @@ impl DummyTeamRepo {
 
     pub fn seed_member(&self, team_id: Uuid, user_id: Uuid, role: Role) {
         self.roles.lock().unwrap().insert((team_id, user_id), role);
+    }
+
+    // Only the team moderation tests use this; other integration crates share
+    // `common` but never seed a ban.
+    #[allow(dead_code)]
+    pub fn seed_ban(&self, ban: TeamBan) {
+        self.bans
+            .lock()
+            .unwrap()
+            .insert((ban.team_id, ban.user_id), ban);
     }
 
     pub fn role_for(&self, team_id: Uuid, user_id: Uuid) -> Option<Role> {
@@ -318,6 +329,29 @@ impl TeamRepo for DummyTeamRepo {
         self.roles.lock().unwrap().insert((team_id, user_id), role);
         Ok(())
     }
+
+    async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError> {
+        self.bans
+            .lock()
+            .unwrap()
+            .insert((ban.team_id, ban.user_id), ban.clone());
+        Ok(())
+    }
+
+    async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError> {
+        Ok(self.bans.lock().unwrap().get(&(team_id, user_id)).cloned())
+    }
+
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
+        Ok(self
+            .bans
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|b| b.team_id == team_id)
+            .cloned()
+            .collect())
+    }
 }
 
 pub struct DummyClock;
@@ -367,6 +401,20 @@ impl IncidentRepo for DummyIncidentRepo {
 
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
         self.incidents.lock().unwrap().remove(&incident_id);
+        Ok(())
+    }
+
+    async fn clear_assignee_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        let mut incidents = self.incidents.lock().unwrap();
+        for incident in incidents.values_mut() {
+            if incident.team_id == team_id && incident.assignee == Some(user_id) {
+                incident.assignee = None;
+            }
+        }
         Ok(())
     }
 }

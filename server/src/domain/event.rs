@@ -83,6 +83,11 @@ pub enum DomainEvent {
         rule: String,
         reason: String,
     },
+    /// A member was removed from a team by moderation (kick or ban). Lets the
+    /// remaining members refresh their roster, and the removed user drop the team
+    /// and lose access. Covers both kick and ban — the distinction lives in the
+    /// bans list, not the realtime signal.
+    TeamMemberRemoved { team_id: Uuid, user_id: Uuid },
 }
 
 impl DomainEvent {
@@ -98,7 +103,8 @@ impl DomainEvent {
             | DomainEvent::ReactionRemoved { team_id, .. }
             | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
-            | DomainEvent::RuleFailed { team_id, .. } => *team_id,
+            | DomainEvent::RuleFailed { team_id, .. }
+            | DomainEvent::TeamMemberRemoved { team_id, .. } => *team_id,
         }
     }
 }

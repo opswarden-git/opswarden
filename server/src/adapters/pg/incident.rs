@@ -164,6 +164,26 @@ impl IncidentRepo for PgIncidentRepo {
 
         Ok(())
     }
+
+    async fn clear_assignee_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            UPDATE incidents SET assignee_id = NULL
+            WHERE team_id = $1 AND assignee_id = $2
+            "#,
+            team_id,
+            user_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -215,5 +235,42 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(updated.status, IncidentStatus::Acknowledged);
+    }
+
+    #[sqlx::test]
+    async fn clear_assignee_for_member_unassigns_their_incidents(pool: PgPool) {
+        let repo = PgIncidentRepo::new(pool.clone());
+        let team_id = seed_team(&pool).await;
+
+        // A user to assign, then "remove" from the team.
+        let users = PgUserRepo::new(pool.clone());
+        let email = Email::new(format!("assignee_{}@opswarden.com", Uuid::new_v4())).unwrap();
+        let assignee = User::new(email, "hash");
+        users.save(&assignee).await.unwrap();
+
+        let mut incident = Incident::new(team_id, "owned by a member", Severity::High).unwrap();
+        incident.assign(assignee.id);
+        repo.save_incident(&incident).await.unwrap();
+        assert_eq!(
+            repo.find_incident_by_id(incident.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .assignee,
+            Some(assignee.id)
+        );
+
+        repo.clear_assignee_for_member(team_id, assignee.id)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            repo.find_incident_by_id(incident.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .assignee,
+            None
+        );
     }
 }

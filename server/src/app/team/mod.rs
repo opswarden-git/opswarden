@@ -1,17 +1,23 @@
 // --- server/src/app/team/mod.rs ---
+pub mod ban_member;
 pub mod create_team;
 pub mod delete_team;
 pub mod join_team;
+pub mod kick_member;
 pub mod leave_team;
+pub mod list_bans;
 pub mod list_members;
 pub mod list_teams;
 pub mod set_member_role;
 pub mod transfer_manager;
 
+pub use ban_member::{BanMemberCommand, BanMemberResult, BanMemberUseCase, BanRequest};
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
 pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
+pub use kick_member::{KickMemberCommand, KickMemberUseCase};
 pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
+pub use list_bans::{ListBansCommand, ListBansResult, ListBansUseCase};
 pub use list_members::{ListTeamMembersCommand, ListTeamMembersResult, ListTeamMembersUseCase};
 pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
 pub use set_member_role::{SetMemberRoleCommand, SetMemberRoleUseCase};
@@ -27,7 +33,7 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
-    use crate::domain::team::{Role, Team, TeamMemberView};
+    use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
     use crate::ports::TeamRepo;
 
     /// Configurable fake `TeamRepo`. Reads (`team`, `roles`) are preset via the
@@ -44,6 +50,7 @@ pub(crate) mod tests {
         pub deleted: Mutex<Vec<Uuid>>,
         pub removed: Mutex<Vec<(Uuid, Uuid)>>,
         pub role_changes: Mutex<Vec<(Uuid, Uuid, Role)>>,
+        pub bans: Mutex<Vec<TeamBan>>,
     }
 
     impl MockTeamRepo {
@@ -56,6 +63,11 @@ pub(crate) mod tests {
 
         pub fn with_member(mut self, user_id: Uuid, role: Role) -> Self {
             self.roles.insert(user_id, role);
+            self
+        }
+
+        pub fn with_ban(self, ban: TeamBan) -> Self {
+            self.bans.lock().unwrap().push(ban);
             self
         }
     }
@@ -159,6 +171,32 @@ pub(crate) mod tests {
                 .unwrap()
                 .push((team_id, user_id, role));
             Ok(())
+        }
+
+        async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError> {
+            let mut bans = self.bans.lock().unwrap();
+            // Upsert by user (the mock is single-team), mirroring the PG adapter.
+            bans.retain(|b| b.user_id != ban.user_id);
+            bans.push(ban.clone());
+            Ok(())
+        }
+
+        async fn find_ban(
+            &self,
+            _team_id: Uuid,
+            user_id: Uuid,
+        ) -> Result<Option<TeamBan>, DomainError> {
+            Ok(self
+                .bans
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|b| b.user_id == user_id)
+                .cloned())
+        }
+
+        async fn list_bans(&self, _team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
+            Ok(self.bans.lock().unwrap().clone())
         }
     }
 }

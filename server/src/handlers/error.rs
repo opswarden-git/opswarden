@@ -46,6 +46,7 @@ impl IntoResponse for DomainError {
             DomainError::MemberNotFound => {
                 (StatusCode::NOT_FOUND, "User is not a member of this team")
             }
+            DomainError::UserNotFound => (StatusCode::NOT_FOUND, "User account not found"),
             DomainError::AlreadyMember => (
                 StatusCode::CONFLICT,
                 "User is already a member of this team",
@@ -63,6 +64,22 @@ impl IntoResponse for DomainError {
             DomainError::NotManager => (
                 StatusCode::FORBIDDEN,
                 "Only the team manager may perform this action",
+            ),
+            DomainError::CannotModerateSelf => {
+                (StatusCode::FORBIDDEN, "You cannot moderate yourself")
+            }
+            DomainError::CannotModerateManager => (
+                StatusCode::FORBIDDEN,
+                "The team manager cannot be kicked or banned",
+            ),
+            DomainError::UserBanned => (StatusCode::FORBIDDEN, "You are banned from this team"),
+            DomainError::InvalidBanExpiry => (
+                StatusCode::BAD_REQUEST,
+                "A temporary ban must expire in the future",
+            ),
+            DomainError::InvalidBanKind => (
+                StatusCode::BAD_REQUEST,
+                "Ban kind must be temporary or permanent",
             ),
             DomainError::Forbidden => (
                 StatusCode::FORBIDDEN,

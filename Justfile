@@ -74,6 +74,10 @@ viz-deps:
 web-dev:
     npm run dev --workspace client-web
 
+# client desktop (Tauri) en dev -- display requis (Wayland/X, ex. Hyprland)
+desktop-dev:
+    ./client-desktop/dev.sh
+
 # qualité côté web (lint + format + types)
 web-check:
     npm run lint --workspace client-web

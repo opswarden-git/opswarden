@@ -65,6 +65,14 @@ pub fn build_app(state: AppState) -> Router {
             "/api/teams/{team_id}/members/{user_id}/role",
             put(handlers::team::set_member_role),
         )
+        .route(
+            "/api/teams/{team_id}/members/{user_id}",
+            delete(handlers::team::kick_member),
+        )
+        .route(
+            "/api/teams/{team_id}/bans",
+            post(handlers::team::ban_member).get(handlers::team::list_bans),
+        )
         .route("/api/teams/{team_id}", delete(handlers::team::delete_team))
         .route(
             "/api/teams/{team_id}/leave",
