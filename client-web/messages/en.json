@@ -122,7 +122,9 @@
     "giphy_not_configured": "GIF search is not available right now",
     "external_service_unavailable": "The GIF service is temporarily unavailable",
     "invalid_gif_query": "Please enter a shorter search term",
-    "gif_search_failed": "GIF search failed"
+    "gif_search_failed": "GIF search failed",
+    "no_shared_team": "You can only message members you share a team with",
+    "invalid_private_message": "Message is empty or too long"
   },
   "Teams": {
     "title": "Teams",
@@ -267,5 +269,16 @@
     "gifClose": "Close GIF search",
     "gifAlt": "GIF",
     "poweredByGiphy": "Powered by GIPHY"
+  },
+  "DirectMessages": {
+    "title": "Direct message",
+    "message": "Message",
+    "send": "Send",
+    "close": "Close",
+    "placeholder": "Write a message…",
+    "empty": "No messages yet. Say hello.",
+    "loading": "Loading conversation…",
+    "loadFailed": "Failed to load the conversation",
+    "sendFailed": "Failed to send the message"
   }
 }

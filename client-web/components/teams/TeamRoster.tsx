@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Users, Copy, Check, Trash2, LogOut } from "lucide-react";
+import { Users, Copy, Check, Trash2, LogOut, MessageSquare } from "lucide-react";
 import {
   Team,
   TeamMember,
@@ -16,8 +16,10 @@ import {
   useBanMember,
 } from "@/lib/queries/teams";
 import { useTeamOnline } from "@/lib/ws";
+import { useAuthStore } from "@/store/auth";
 import { RoleChip } from "./RoleChip";
 import { MemberRowActions } from "./MemberRowActions";
+import { DirectMessageDialog } from "./DirectMessageDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** Avatar initials derived from the email local-part (e.g. romeo.cavazza → RC). */
@@ -48,7 +50,9 @@ function durationToBan(d: BanDuration): BanKindInput {
  */
 export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDeleted: () => void }) {
   const t = useTranslations("Teams");
+  const tDm = useTranslations("DirectMessages");
   const tErr = useTranslations("errors");
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
@@ -64,6 +68,7 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [target, setTarget] = useState<TeamMember | null>(null);
+  const [messageTarget, setMessageTarget] = useState<TeamMember | null>(null);
   const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
   const [copied, setCopied] = useState(false);
 
@@ -194,6 +199,17 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
                 </div>
               </div>
               <RoleChip role={member.role} />
+              {member.user_id !== currentUserId ? (
+                <button
+                  type="button"
+                  onClick={() => setMessageTarget(member)}
+                  title={tDm("message")}
+                  aria-label={tDm("message")}
+                  className="text-muted hover:text-gold rounded-md p-1.5 transition-colors hover:bg-white/[0.06]"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </button>
+              ) : null}
               {isManager ? (
                 <MemberRowActions
                   member={member}
@@ -323,6 +339,13 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
           <option value="7d">{t("ban7d")}</option>
         </select>
       </ConfirmDialog>
+
+      {messageTarget ? (
+        <DirectMessageDialog
+          peer={{ user_id: messageTarget.user_id, email: messageTarget.email }}
+          onClose={() => setMessageTarget(null)}
+        />
+      ) : null}
     </div>
   );
 }

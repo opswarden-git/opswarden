@@ -122,7 +122,9 @@
     "giphy_not_configured": "La recherche de GIF n’est pas disponible pour le moment",
     "external_service_unavailable": "Le service de GIF est temporairement indisponible",
     "invalid_gif_query": "Veuillez saisir un terme de recherche plus court",
-    "gif_search_failed": "Échec de la recherche de GIF"
+    "gif_search_failed": "Échec de la recherche de GIF",
+    "no_shared_team": "Vous ne pouvez écrire qu’aux membres d’une équipe que vous partagez",
+    "invalid_private_message": "Message vide ou trop long"
   },
   "Teams": {
     "title": "Équipes",
@@ -267,5 +269,16 @@
     "gifClose": "Fermer la recherche de GIF",
     "gifAlt": "GIF",
     "poweredByGiphy": "Propulsé par GIPHY"
+  },
+  "DirectMessages": {
+    "title": "Message privé",
+    "message": "Message",
+    "send": "Envoyer",
+    "close": "Fermer",
+    "placeholder": "Écrire un message…",
+    "empty": "Aucun message. Dites bonjour.",
+    "loading": "Chargement de la conversation…",
+    "loadFailed": "Échec du chargement de la conversation",
+    "sendFailed": "Échec de l’envoi du message"
   }
 }
