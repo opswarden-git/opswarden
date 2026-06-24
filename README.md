@@ -39,22 +39,24 @@
 (deployments validated step by step). The two are linked: an active incident can
 block an in-progress release.
 
-External events (a failing GitHub CI run, a GitLab webhook) automatically trigger
-internal actions through an **Action&rarr;REAction** rule engine, and an **AI SRE**
-investigation agent reads the context (logs, commit diff, similar past incidents
-via vector search) to propose a root-cause hypothesis and a runbook, posted
-straight into the incident timeline.
+External events can automatically trigger internal actions through an
+**Action&rarr;REAction** rule engine: the current implementation live-proves a
+signed GitHub CI failure webhook creating an incident. GitLab and an AI SRE
+investigation agent remain roadmap items rather than shipped alpha features.
 
 Positioning: a publishable mini incident.io / Rootly focused on reducing MTTR,
 rather than yet another re-skinned real-time chat. All business logic lives on the
 server (Rust/Axum, hexagonal architecture); the web and desktop clients display
 and relay, with no business logic.
 
-> Status: the **web core** is implemented and tested — email/JWT auth (with
-> logout/revocation), teams + 3-role RBAC, incident lifecycle, real-time roster
-> presence, timeline editing and emoji reactions, all on PostgreSQL (SQLx).
-> Desktop, moderation, private messages and release management remain in progress;
-> this page describes the full target and how to get there.
+> Status: the alpha **web product** is implemented and tested — email/JWT auth
+> (with logout/revocation), teams + 3-role RBAC, incident lifecycle, real-time
+> roster presence, timeline editing, emoji reactions, member moderation,
+> private messages, and GIPHY-powered GIF timeline entries, all on PostgreSQL
+> (SQLx). Desktop is partially implemented as a Tauri URL-mode shell with tray
+> and native assignment/high-severity notifications. Release management,
+> `release_blocked` notifications, AppImage packaging, and the final compose
+> desktop artifact remain open.
 
 ## Scope
 
@@ -74,13 +76,19 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - WebSockets (`incident_*`, `presence_update`) + automatic client reconnection
 - Action&rarr;REAction automation: GitHub webhook (CI failed) &rarr; incident;
   dynamic `/about.json` + SHA-256 token; encrypted token vault (AES-GCM)
-- `docker-compose` (server 8080 / client_web 8081 / db); GitHub Actions CI/CD; FR/EN i18n
+- Team member moderation: kick, temporary ban, permanent ban, ban-gated rejoin
+- Private messages between users sharing a team, delivered over a user-scoped
+  WebSocket event
+- GIPHY GIF search via a server-side API key and authenticated backend proxy
+- `docker-compose` for server + db; local web via npm/Next.js; GitHub Actions
+  CI/CD; FR/EN i18n
 
 **Extended Features** (in progress / planned)
 
-- Tauri desktop client (OS notifications, tray) + packaged desktop binary
-- GitHub OAuth2; Releases + automatic blocking by a linked incident; moderation
-  (kick / temp ban / perm ban); private messages
+- Tauri desktop URL-mode shell is present (OS notifications + tray); packaged
+  desktop binary/AppImage is still open
+- Google OAuth2 exists as optional auth plumbing; Releases + automatic blocking
+  by a linked incident are still open
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
 **Long-term vision**
@@ -134,9 +142,9 @@ opswarden/
 │   ├── tests/            # integration tests
 │   └── Dockerfile        # multi-stage build of the server binary
 ├── client-web/           # Next.js + Tailwind -- supervision UI
-├── client-desktop/       # Tauri -- native app + tray (planned, not in repo yet)
+├── client-desktop/       # Tauri -- URL-mode native app + tray (alpha)
 ├── investigation/        # AI SRE agent (RAG / pgvector) (planned, not in repo yet)
-├── .github/workflows/    # server + web + release CI (dormant, see Roadmap)
+├── .github/workflows/    # server + web + release CI
 ├── docker-compose.yml    # compose setup: server + db
 ├── Cargo.toml            # cargo workspace
 └── package.json          # npm workspaces
@@ -160,13 +168,13 @@ npm run build --workspace client-web
 
 ### Services
 
-| Service                                                                                                                          | Stack        | Local address           |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------- |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5432`        |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080` |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242` |
-| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | `:8081/client.AppImage` |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                |
+| Service                                                                                                                          | Stack        | Local address                   |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------- |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5433`                |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080`         |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242`         |
+| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | URL mode via `just desktop-dev` |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                        |
 
 Cloud showcase (separate `opswarden-ops` repo):
 
@@ -229,14 +237,12 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 
 **Desktop & delivery**
 
-- Installable Tauri app (Linux / AppImage target) reusing the front-end
-- Native OS notifications: assignment, `critical` severity, blocked Release + tray icon
-- Final `docker-compose.yml`: `server` 8080 / `client_web` 8081 / `client_desktop` / `db`
+- Tauri URL-mode shell reusing the front-end, with tray/background behavior
+- Native OS notifications: assignment and high/critical severity are live-proven;
+  blocked Release is still open
+- Final AppImage and `docker-compose.yml`: `server` 8080 / `client_web` 8081 /
+  `client_desktop` / `db` remain the packaging gate
 - FR/EN i18n (labels, states, severities) persisted server-side
-
-> CI (`.github/workflows/`) is intentionally **dormant** (gitignored) during the
-> front/back rebuild. The workflows are ready and fixed; reactivate by removing
-> the line from `.gitignore` based on project maturity.
 
 ## Contributing
 
