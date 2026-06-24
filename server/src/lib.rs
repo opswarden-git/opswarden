@@ -16,8 +16,9 @@ use axum::{
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    Clock, IncidentRepo, Notifier, OAuthClient, PasswordHasher, RuleRepo, SecretVault, TeamRepo,
-    TimelineRepo, TokenRevocationRepo, TokenService, UserRepo, WebhookParser, WebhookVerifier,
+    Clock, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, RuleRepo, SecretVault,
+    TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService, UserRepo, WebhookParser,
+    WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -42,6 +43,8 @@ pub struct AppState {
     pub webhook_parser: Arc<dyn WebhookParser + Send + Sync>,
     pub rules: Arc<dyn RuleRepo + Send + Sync>,
     pub notifier: Arc<dyn Notifier + Send + Sync>,
+    /// External GIF search (GIPHY) for timeline GIFs (RTC2 web_api_integration).
+    pub gifs: Arc<dyn GifSearch + Send + Sync>,
     pub config: config::Config,
 }
 
@@ -52,6 +55,7 @@ pub fn build_app(state: AppState) -> Router {
             get(handlers::auth::get_me).delete(handlers::auth::delete_me),
         )
         .route("/api/auth/logout", post(handlers::auth::logout))
+        .route("/api/giphy/search", get(handlers::gif::search_gifs))
         .route(
             "/api/teams",
             post(handlers::team::create_team).get(handlers::team::list_teams),

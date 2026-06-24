@@ -2,6 +2,7 @@
 
 pub mod automation;
 pub mod crypto;
+pub mod giphy;
 pub mod notify;
 pub mod oauth;
 pub mod pg;

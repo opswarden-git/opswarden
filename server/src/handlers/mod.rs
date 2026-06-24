@@ -5,6 +5,7 @@ use serde::Serialize;
 
 pub mod auth;
 pub mod error;
+pub mod gif;
 pub mod incident;
 pub mod middleware;
 pub mod service_connection;

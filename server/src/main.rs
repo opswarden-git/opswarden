@@ -4,6 +4,7 @@ use opswarden_server::adapters::automation::StaticRuleRepo;
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
+use opswarden_server::adapters::giphy::GiphyClient;
 use opswarden_server::adapters::notify::HttpNotifier;
 use opswarden_server::adapters::oauth::GoogleOAuthClient;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
@@ -81,6 +82,10 @@ async fn main() {
         webhook_parser: Arc::new(GithubParser),
         rules,
         notifier: Arc::new(HttpNotifier::new()),
+        gifs: Arc::new(GiphyClient::new(
+            config.giphy_api_key.clone(),
+            "https://api.giphy.com".to_string(),
+        )),
         config,
     };
 
