@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM release_incidents WHERE release_id = $1 AND incident_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4dfaf5eb765bedebc163d447f9912bc0f63e911418949376f89de8469a5d10db"
+}

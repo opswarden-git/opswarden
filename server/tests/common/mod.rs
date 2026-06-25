@@ -5,14 +5,15 @@ use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::error::DomainError;
-use opswarden_server::domain::incident::Incident;
+use opswarden_server::domain::incident::{Incident, IncidentStatus};
 use opswarden_server::domain::private_message::PrivateMessage;
+use opswarden_server::domain::release::{Release, ReleaseState};
 use opswarden_server::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
     Clock, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher,
-    PrivateMessageRepo, RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims,
+    PrivateMessageRepo, ReleaseRepo, RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims,
     TokenRevocationRepo, TokenService, UserRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
@@ -28,6 +29,7 @@ pub struct TestContext {
     pub incidents: Arc<DummyIncidentRepo>,
     pub timeline: Arc<DummyTimelineRepo>,
     pub private_messages: Arc<DummyPrivateMessageRepo>,
+    pub releases: Arc<DummyReleaseRepo>,
     pub revoked_tokens: Arc<DummyTokenRevocationRepo>,
     pub vault: Arc<DummyVault>,
 }
@@ -407,6 +409,15 @@ impl DummyIncidentRepo {
     pub fn seed_incident(&self, incident: Incident) {
         self.incidents.lock().unwrap().insert(incident.id, incident);
     }
+
+    /// Current status of a stored incident, for the release blocking computation.
+    pub fn status_of(&self, incident_id: Uuid) -> Option<IncidentStatus> {
+        self.incidents
+            .lock()
+            .unwrap()
+            .get(&incident_id)
+            .map(|incident| incident.status)
+    }
 }
 
 #[async_trait]
@@ -636,6 +647,119 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
     }
 }
 
+/// In-memory release repo. Crucially its `count_active_linked_incidents` reads
+/// live incident statuses from the shared `DummyIncidentRepo`, so resolving an
+/// incident really unblocks a linked release in HTTP tests.
+pub struct DummyReleaseRepo {
+    releases: Mutex<HashMap<Uuid, Release>>,
+    links: Mutex<Vec<(Uuid, Uuid)>>,
+    incidents: Arc<DummyIncidentRepo>,
+}
+
+#[allow(dead_code)]
+impl DummyReleaseRepo {
+    pub fn new(incidents: Arc<DummyIncidentRepo>) -> Self {
+        Self {
+            releases: Mutex::new(HashMap::new()),
+            links: Mutex::new(Vec::new()),
+            incidents,
+        }
+    }
+}
+
+#[async_trait]
+impl ReleaseRepo for DummyReleaseRepo {
+    async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
+        self.releases
+            .lock()
+            .unwrap()
+            .insert(release.id, release.clone());
+        Ok(())
+    }
+
+    async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError> {
+        Ok(self.releases.lock().unwrap().get(&release_id).cloned())
+    }
+
+    async fn list_releases_for_team(&self, team_id: Uuid) -> Result<Vec<Release>, DomainError> {
+        Ok(self
+            .releases
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|r| r.team_id == team_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+        self.releases
+            .lock()
+            .unwrap()
+            .insert(release.id, release.clone());
+        Ok(())
+    }
+
+    async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
+        let mut links = self.links.lock().unwrap();
+        if !links.contains(&(release_id, incident_id)) {
+            links.push((release_id, incident_id));
+        }
+        Ok(())
+    }
+
+    async fn unlink_incident(
+        &self,
+        release_id: Uuid,
+        incident_id: Uuid,
+    ) -> Result<(), DomainError> {
+        self.links
+            .lock()
+            .unwrap()
+            .retain(|pair| *pair != (release_id, incident_id));
+        Ok(())
+    }
+
+    async fn list_linked_incident_ids(&self, release_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+        Ok(self
+            .links
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(r, _)| *r == release_id)
+            .map(|(_, i)| *i)
+            .collect())
+    }
+
+    async fn count_active_linked_incidents(&self, release_id: Uuid) -> Result<u64, DomainError> {
+        let links = self.links.lock().unwrap();
+        let mut active = 0u64;
+        for (_, incident_id) in links.iter().filter(|(r, _)| *r == release_id) {
+            if let Some(status) = self.incidents.status_of(*incident_id) {
+                if status != IncidentStatus::Resolved {
+                    active += 1;
+                }
+            }
+        }
+        Ok(active)
+    }
+
+    async fn list_release_states_linked_to_incident(
+        &self,
+        incident_id: Uuid,
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+        let releases = self.releases.lock().unwrap();
+        Ok(self
+            .links
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, i)| *i == incident_id)
+            .filter_map(|(r, _)| releases.get(r).map(|rel| (*r, rel.team_id, rel.base_state)))
+            .collect())
+    }
+}
+
 pub fn test_context() -> TestContext {
     build_context(Arc::new(StaticRuleRepo::empty()))
 }
@@ -653,6 +777,7 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
     let incidents = Arc::new(DummyIncidentRepo::default());
     let timeline = Arc::new(DummyTimelineRepo::default());
     let private_messages = Arc::new(DummyPrivateMessageRepo::default());
+    let releases = Arc::new(DummyReleaseRepo::new(incidents.clone()));
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
     let vault = Arc::new(DummyVault::default());
     let config = Config::from_env();
@@ -663,6 +788,7 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         incidents: incidents.clone(),
         timeline: timeline.clone(),
         private_messages: private_messages.clone(),
+        releases: releases.clone(),
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         oauth: Arc::new(DummyOAuthClient),
@@ -685,6 +811,7 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         incidents,
         timeline,
         private_messages,
+        releases,
         revoked_tokens,
         vault,
     }

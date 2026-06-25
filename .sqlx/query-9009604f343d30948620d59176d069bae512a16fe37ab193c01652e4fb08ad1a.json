@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT incident_id FROM release_incidents WHERE release_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "incident_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "release_incidents",
+            "name": "incident_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9009604f343d30948620d59176d069bae512a16fe37ab193c01652e4fb08ad1a"
+}

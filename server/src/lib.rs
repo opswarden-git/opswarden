@@ -17,8 +17,8 @@ use axum::{
 use crate::adapters::ws::WsHub;
 use crate::ports::{
     Clock, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
-    RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService, UserRepo,
-    WebhookParser, WebhookVerifier,
+    ReleaseRepo, RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService,
+    UserRepo, WebhookParser, WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -47,6 +47,8 @@ pub struct AppState {
     pub gifs: Arc<dyn GifSearch + Send + Sync>,
     /// Bilateral 1-to-1 direct messages between team-sharing users (RTC2 web_pm).
     pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
+    /// Releases with sequential steps and incident-driven blocking (VIGIL P1).
+    pub releases: Arc<dyn ReleaseRepo + Send + Sync>,
     pub config: config::Config,
 }
 
@@ -62,6 +64,23 @@ pub fn build_app(state: AppState) -> Router {
             "/api/private-messages",
             post(handlers::private_message::send_private_message)
                 .get(handlers::private_message::list_private_messages),
+        )
+        .route(
+            "/api/releases",
+            post(handlers::release::create_release).get(handlers::release::list_releases),
+        )
+        .route("/api/releases/{id}", get(handlers::release::get_release))
+        .route(
+            "/api/releases/{id}/cancel",
+            post(handlers::release::cancel_release),
+        )
+        .route(
+            "/api/releases/{id}/steps/{step}/validate",
+            post(handlers::release::validate_release_step),
+        )
+        .route(
+            "/api/releases/{id}/incidents/{incident_id}/link",
+            post(handlers::release::link_incident).delete(handlers::release::unlink_incident),
         )
         .route(
             "/api/teams",

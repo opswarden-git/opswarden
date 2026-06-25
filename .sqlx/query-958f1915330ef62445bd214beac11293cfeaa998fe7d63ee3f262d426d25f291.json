@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE release_steps SET validated_by = $3, validated_at = $4\n                WHERE release_id = $1 AND position = $2\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "958f1915330ef62445bd214beac11293cfeaa998fe7d63ee3f262d426d25f291"
+}

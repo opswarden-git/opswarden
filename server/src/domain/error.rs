@@ -19,6 +19,21 @@ pub enum DomainError {
     /// A private message was attempted between two users who share no team (or
     /// with oneself). PMs are only allowed between distinct co-members.
     NoSharedTeam,
+    /// A release title was blank or too long.
+    InvalidReleaseTitle,
+    /// A release's step list was empty, too long, or had blank/duplicate names.
+    InvalidReleaseSteps,
+    /// No release matches the given id.
+    ReleaseNotFound,
+    /// A step validation targeted an unknown, already-validated, or out-of-order
+    /// step (steps must be validated strictly in sequence).
+    InvalidReleaseStep,
+    /// A step validation was refused because the release is effectively blocked
+    /// by an active linked incident.
+    ReleaseBlocked,
+    /// A release transition was illegal (e.g. validating/cancelling a completed
+    /// or cancelled release).
+    InvalidReleaseTransition,
     TeamNotFound,
     IncidentNotFound,
     AlreadyMember,
@@ -92,6 +107,12 @@ impl DomainError {
             DomainError::InvalidReaction => "invalid_reaction",
             DomainError::InvalidPrivateMessage => "invalid_private_message",
             DomainError::NoSharedTeam => "no_shared_team",
+            DomainError::InvalidReleaseTitle => "invalid_release_title",
+            DomainError::InvalidReleaseSteps => "invalid_release_steps",
+            DomainError::ReleaseNotFound => "release_not_found",
+            DomainError::InvalidReleaseStep => "invalid_release_step",
+            DomainError::ReleaseBlocked => "release_blocked",
+            DomainError::InvalidReleaseTransition => "invalid_release_transition",
             DomainError::TeamNotFound => "team_not_found",
             DomainError::IncidentNotFound => "incident_not_found",
             DomainError::AlreadyMember => "already_member",
@@ -148,6 +169,20 @@ impl std::fmt::Display for DomainError {
             }
             DomainError::NoSharedTeam => {
                 write!(f, "You can only message members of a team you share")
+            }
+            DomainError::InvalidReleaseTitle => write!(f, "Release title cannot be empty"),
+            DomainError::InvalidReleaseSteps => {
+                write!(f, "A release needs at least one distinct, non-empty step")
+            }
+            DomainError::ReleaseNotFound => write!(f, "Release was not found"),
+            DomainError::InvalidReleaseStep => {
+                write!(f, "Steps must be validated in order")
+            }
+            DomainError::ReleaseBlocked => {
+                write!(f, "The release is blocked by an active linked incident")
+            }
+            DomainError::InvalidReleaseTransition => {
+                write!(f, "Invalid release lifecycle transition")
             }
             DomainError::TeamNotFound => write!(f, "No team matches this invitation code"),
             DomainError::IncidentNotFound => write!(f, "Incident was not found"),

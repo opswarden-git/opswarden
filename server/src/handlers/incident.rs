@@ -156,6 +156,7 @@ pub async fn change_status(
     let use_case = ChangeIncidentStatusUseCase::new(
         state.teams.clone(),
         state.incidents.clone(),
+        state.releases.clone(),
         state.events.clone(),
     );
     let result = use_case

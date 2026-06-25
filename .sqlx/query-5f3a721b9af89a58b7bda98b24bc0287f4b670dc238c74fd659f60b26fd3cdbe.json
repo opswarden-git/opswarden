@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT position, name, validated_by, validated_at\n            FROM release_steps\n            WHERE release_id = $1\n            ORDER BY position\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "position",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "release_steps",
+            "name": "position"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "release_steps",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "validated_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "release_steps",
+            "name": "validated_by"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "validated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "release_steps",
+            "name": "validated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "5f3a721b9af89a58b7bda98b24bc0287f4b670dc238c74fd659f60b26fd3cdbe"
+}

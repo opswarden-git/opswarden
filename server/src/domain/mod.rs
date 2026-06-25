@@ -5,6 +5,7 @@ pub mod error;
 pub mod event;
 pub mod incident;
 pub mod private_message;
+pub mod release;
 pub mod team;
 pub mod timeline;
 pub mod user;
@@ -14,6 +15,7 @@ pub use error::DomainError;
 pub use event::DomainEvent;
 pub use incident::{Incident, IncidentStatus, Severity};
 pub use private_message::{PrivateMessage, MAX_PRIVATE_MESSAGE_LEN};
+pub use release::{effective_release_state, Release, ReleaseState, ReleaseStep};
 pub use team::{
     plan_manager_transfer, InvitationCode, ManagerTransfer, Role, RoleChange, Team, TeamMember,
 };
