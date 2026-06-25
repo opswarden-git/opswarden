@@ -7,9 +7,9 @@ use super::incident::{IncidentStatus, Severity};
 
 /// Business events worth broadcasting in real time. These are domain-level facts
 /// ("an incident was acknowledged"), not a wire format: the WebSocket adapter
-/// serializes them to the on-the-wire JSON. Every event carries `team_id` so the
+/// serializes them to the on-the-wire JSON. Most events carry `team_id` so the
 /// broadcaster can fan out to the connected members of that team without knowing
-/// any business rule.
+/// any business rule; private messages are the explicit user-scoped exception.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DomainEvent {
     IncidentStateChanged {

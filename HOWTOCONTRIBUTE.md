@@ -127,6 +127,8 @@ Common variables:
 - `GITHUB_WEBHOOK_SECRET` — optional bootstrap secret for GitHub webhooks.
 - `OPSWARDEN_AUTOMATION_TEAM_ID` — required for automation rules to create
   incidents in a team.
+- `GIPHY_API_KEY` — optional server-side key for GIF search. Never expose it as
+  `NEXT_PUBLIC_*`.
 
 Never commit real secrets. `.env` is ignored.
 
@@ -249,11 +251,11 @@ Before tagging:
 Do not start portfolio/cloud/AI work before the mandatory matrix is green. The
 next important product gaps are:
 
-- RTC2 moderation: kick, temporary ban, permanent ban.
-- Private messages.
-- External GIF/API criterion or an explicitly accepted substitute.
 - Release domain and `release_blocked` notification.
 - Desktop packaging/AppImage and CI artifact.
+- Server-side persisted language preference, if the i18n exemption is not
+  accepted.
+- Jury documentation/screenshots and repo-doc reconciliation.
 - Frontend automated tests.
 
 Small documentation or demo-data cleanups are welcome when they reduce jury
