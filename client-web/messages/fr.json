@@ -24,7 +24,8 @@
     "settings": "Paramètres",
     "logout": "Déconnexion",
     "operator": "Opérateur",
-    "noStation": "Aucune organisation"
+    "noStation": "Aucune organisation",
+    "releases": "Releases"
   },
   "Onboarding": {
     "organization": "Organisation",
@@ -124,7 +125,13 @@
     "invalid_gif_query": "Veuillez saisir un terme de recherche plus court",
     "gif_search_failed": "Échec de la recherche de GIF",
     "no_shared_team": "Vous ne pouvez écrire qu’aux membres d’une équipe que vous partagez",
-    "invalid_private_message": "Message vide ou trop long"
+    "invalid_private_message": "Message vide ou trop long",
+    "release_not_found": "Release introuvable",
+    "invalid_release_title": "Le titre de la release ne peut pas être vide",
+    "invalid_release_steps": "Une release nécessite au moins une étape distincte et non vide",
+    "invalid_release_step": "Les étapes doivent être validées dans l’ordre",
+    "release_blocked": "La release est bloquée par un incident actif lié",
+    "invalid_release_transition": "Transition de release invalide"
   },
   "Teams": {
     "title": "Équipes",
@@ -280,5 +287,46 @@
     "loading": "Chargement de la conversation…",
     "loadFailed": "Échec du chargement de la conversation",
     "sendFailed": "Échec de l’envoi du message"
+  },
+  "Releases": {
+    "title": "Releases",
+    "loading": "Chargement…",
+    "failedToLoad": "Échec du chargement des releases",
+    "noTeamsYet": "Aucune équipe",
+    "noTeamsDesc": "Rejoignez ou créez une équipe pour planifier des releases.",
+    "goToTeams": "Aller aux équipes",
+    "noReleasesYet": "Aucune release",
+    "noReleasesDesc": "Créez une release pour coordonner un déploiement.",
+    "selectRelease": "Sélectionnez une release",
+    "newRelease": "Nouvelle release",
+    "newReleaseDesc": "Planifiez un déploiement en étapes ordonnées et validées.",
+    "releaseTitle": "Titre",
+    "titlePlaceholder": "ex. v1.2.0",
+    "steps": "Étapes",
+    "stepsPlaceholder": "build, staging, production",
+    "stepsHint": "Séparées par des virgules, validées dans l’ordre.",
+    "cancel": "Annuler",
+    "creating": "Création…",
+    "create": "Créer",
+    "close": "Fermer",
+    "validate": "Valider",
+    "validatedBy": "Validé par {who} · {when}",
+    "blockedShort": "Bloquée",
+    "linkedIncidents": "Incidents liés",
+    "noLinkedIncidents": "Aucun incident lié.",
+    "unlink": "Délier",
+    "linkIncidentPlaceholder": "Lier un incident actif…",
+    "noLinkableIncidents": "Aucun incident actif à lier",
+    "cancelReleaseDesc": "L’annulation arrête définitivement cette release.",
+    "cancelRelease": "Annuler la release",
+    "cancelConfirm": "Annuler la release « {title} » ? Action irréversible.",
+    "keep": "Conserver",
+    "processing": "Traitement…",
+    "actionFailed": "Action échouée",
+    "stateCreated": "Créée",
+    "stateInProgress": "En cours",
+    "stateBlocked": "Bloquée",
+    "stateCompleted": "Terminée",
+    "stateCancelled": "Annulée"
   }
 }

@@ -24,7 +24,8 @@
     "settings": "Settings",
     "logout": "Log out",
     "operator": "Operator",
-    "noStation": "No Organization"
+    "noStation": "No Organization",
+    "releases": "Releases"
   },
   "Onboarding": {
     "organization": "Organization",
@@ -124,7 +125,13 @@
     "invalid_gif_query": "Please enter a shorter search term",
     "gif_search_failed": "GIF search failed",
     "no_shared_team": "You can only message members you share a team with",
-    "invalid_private_message": "Message is empty or too long"
+    "invalid_private_message": "Message is empty or too long",
+    "release_not_found": "Release not found",
+    "invalid_release_title": "Release title cannot be empty",
+    "invalid_release_steps": "A release needs at least one distinct, non-empty step",
+    "invalid_release_step": "Steps must be validated in order",
+    "release_blocked": "The release is blocked by an active linked incident",
+    "invalid_release_transition": "Invalid release transition"
   },
   "Teams": {
     "title": "Teams",
@@ -280,5 +287,46 @@
     "loading": "Loading conversation…",
     "loadFailed": "Failed to load the conversation",
     "sendFailed": "Failed to send the message"
+  },
+  "Releases": {
+    "title": "Releases",
+    "loading": "Loading…",
+    "failedToLoad": "Failed to load releases",
+    "noTeamsYet": "No teams yet",
+    "noTeamsDesc": "Join or create a team to plan releases.",
+    "goToTeams": "Go to Teams",
+    "noReleasesYet": "No releases yet",
+    "noReleasesDesc": "Create a release to coordinate a deployment.",
+    "selectRelease": "Select a release",
+    "newRelease": "New release",
+    "newReleaseDesc": "Plan a deployment as ordered, validated steps.",
+    "releaseTitle": "Title",
+    "titlePlaceholder": "e.g. v1.2.0",
+    "steps": "Steps",
+    "stepsPlaceholder": "build, staging, production",
+    "stepsHint": "Comma-separated, validated in order.",
+    "cancel": "Cancel",
+    "creating": "Creating…",
+    "create": "Create",
+    "close": "Close",
+    "validate": "Validate",
+    "validatedBy": "Validated by {who} · {when}",
+    "blockedShort": "Blocked",
+    "linkedIncidents": "Linked incidents",
+    "noLinkedIncidents": "No linked incidents.",
+    "unlink": "Unlink",
+    "linkIncidentPlaceholder": "Link an active incident…",
+    "noLinkableIncidents": "No active incidents to link",
+    "cancelReleaseDesc": "Cancelling stops this release permanently.",
+    "cancelRelease": "Cancel release",
+    "cancelConfirm": "Cancel release “{title}”? This cannot be undone.",
+    "keep": "Keep",
+    "processing": "Processing…",
+    "actionFailed": "Action failed",
+    "stateCreated": "Created",
+    "stateInProgress": "In progress",
+    "stateBlocked": "Blocked",
+    "stateCompleted": "Completed",
+    "stateCancelled": "Cancelled"
   }
 }

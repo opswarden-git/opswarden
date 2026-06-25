@@ -68,7 +68,9 @@ export type WsServerEvent =
         content: string;
         at: number;
       };
-    };
+    }
+  | { type: "release_step_validated"; release_id: string; step: string; by: string }
+  | { type: "release_state_changed"; release_id: string; new_state: string };
 
 interface WsState {
   /** Presence rosters keyed by incident id. A single global roster would leak
@@ -302,6 +304,15 @@ export function useRealtime() {
         queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
         break;
       }
+      case "release_step_validated":
+      case "release_state_changed":
+        // A release changed (a step validated, or an effective-state move such as
+        // an incident-driven (auto-)block). The event carries only release_id, so
+        // refresh the affected release's detail and every cached release list (a
+        // prefix match — the client only holds its own teams' lists anyway).
+        queryClient.invalidateQueries({ queryKey: ["release", event.release_id] });
+        queryClient.invalidateQueries({ queryKey: ["releases"] });
+        break;
     }
   }, [lastJsonMessage, queryClient]);
 

@@ -5,6 +5,7 @@ import { Link, usePathname } from "@/i18n/routing";
 import {
   LayoutDashboard,
   ShieldAlert,
+  Rocket,
   Users,
   Settings,
   BotMessageSquare,
@@ -27,6 +28,7 @@ export function Sidebar({ className }: { className?: string }) {
   const links = [
     { href: "/", icon: LayoutDashboard, label: t("dashboard") },
     { href: "/incidents", icon: ShieldAlert, label: t("incidents") },
+    { href: "/releases", icon: Rocket, label: t("releases") },
     { href: "/teams", icon: Users, label: t("teams") },
     { href: "/ai", icon: BotMessageSquare, label: t("ai") },
   ];
