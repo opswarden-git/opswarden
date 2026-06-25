@@ -312,6 +312,17 @@ export function useRealtime() {
         // prefix match — the client only holds its own teams' lists anyway).
         queryClient.invalidateQueries({ queryKey: ["release", event.release_id] });
         queryClient.invalidateQueries({ queryKey: ["releases"] });
+        // The last missing VIGIL desktop trigger: a Release blocked by an active
+        // Incident. Native OS notification only (no-op in a normal browser via
+        // notifyDesktop). Plain English like the incident notifications above —
+        // it's a transient OS toast outside React, not localized UI. Only on the
+        // `blocked` transition; other release states never notify.
+        if (event.type === "release_state_changed" && event.new_state === "blocked") {
+          notifyDesktop(
+            "Release blocked",
+            `Release #${event.release_id.slice(0, 8)} is blocked by an active incident`,
+          );
+        }
         break;
     }
   }, [lastJsonMessage, queryClient]);
