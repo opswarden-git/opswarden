@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) AS \"count!\"\n            FROM release_incidents ri\n            JOIN incidents i ON i.id = ri.incident_id\n            WHERE ri.release_id = $1 AND i.status <> 'resolved'\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ea6057cf37314fe07bef23e9e551d985e1220b74dd4182c7a3832ec0b83a5822"
+}

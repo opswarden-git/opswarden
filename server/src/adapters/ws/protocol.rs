@@ -175,6 +175,26 @@ pub fn to_wire(event: &DomainEvent) -> String {
                 "at": at.timestamp(),
             },
         }),
+        DomainEvent::ReleaseStepValidated {
+            release_id,
+            step,
+            by,
+            ..
+        } => json!({
+            "type": "release_step_validated",
+            "release_id": release_id,
+            "step": step,
+            "by": by,
+        }),
+        DomainEvent::ReleaseStateChanged {
+            release_id,
+            new_state,
+            ..
+        } => json!({
+            "type": "release_state_changed",
+            "release_id": release_id,
+            "new_state": new_state.to_string(),
+        }),
     };
     value.to_string()
 }
@@ -380,6 +400,36 @@ mod tests {
         assert_eq!(v["message"]["recipient_id"], recipient_id.to_string());
         assert_eq!(v["message"]["content"], "ping");
         assert_eq!(v["message"]["at"], at.timestamp());
+    }
+
+    #[test]
+    fn release_step_validated_wire_shape() {
+        let release_id = Uuid::new_v4();
+        let by = Uuid::new_v4();
+        let v = parse(&DomainEvent::ReleaseStepValidated {
+            team_id: Uuid::new_v4(),
+            release_id,
+            step: "staging".to_string(),
+            by,
+        });
+        assert_eq!(v["type"], "release_step_validated");
+        assert_eq!(v["release_id"], release_id.to_string());
+        assert_eq!(v["step"], "staging");
+        assert_eq!(v["by"], by.to_string());
+    }
+
+    #[test]
+    fn release_state_changed_wire_shape() {
+        use crate::domain::release::ReleaseState;
+        let release_id = Uuid::new_v4();
+        let v = parse(&DomainEvent::ReleaseStateChanged {
+            team_id: Uuid::new_v4(),
+            release_id,
+            new_state: ReleaseState::Blocked,
+        });
+        assert_eq!(v["type"], "release_state_changed");
+        assert_eq!(v["release_id"], release_id.to_string());
+        assert_eq!(v["new_state"], "blocked");
     }
 
     #[test]

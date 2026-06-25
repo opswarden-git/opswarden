@@ -5,6 +5,7 @@ use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
 use crate::domain::private_message::PrivateMessage;
+use crate::domain::release::{Release, ReleaseState};
 use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::User;
@@ -144,6 +145,36 @@ pub trait PrivateMessageRepo: Send + Sync {
         user_b: Uuid,
         limit: u32,
     ) -> Result<Vec<PrivateMessage>, DomainError>;
+}
+
+#[async_trait]
+pub trait ReleaseRepo: Send + Sync {
+    /// Persist a new release and all its (unvalidated) steps.
+    async fn save_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Load a release with its ordered steps, or `None`.
+    async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError>;
+    /// Every release of a team (with steps), newest first.
+    async fn list_releases_for_team(&self, team_id: Uuid) -> Result<Vec<Release>, DomainError>;
+    /// Persist a mutated release: its `base_state` and the validation of its steps.
+    async fn update_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Link an incident to a release (idempotent on the pair).
+    async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError>;
+    /// Unlink an incident from a release (idempotent: unlinking a missing pair is
+    /// not an error).
+    async fn unlink_incident(&self, release_id: Uuid, incident_id: Uuid)
+        -> Result<(), DomainError>;
+    /// The incidents currently linked to a release, for the read view.
+    async fn list_linked_incident_ids(&self, release_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
+    /// How many of a release's linked incidents are still active (not resolved).
+    /// `> 0` is exactly the "is it blocked?" input for `effective_release_state`.
+    async fn count_active_linked_incidents(&self, release_id: Uuid) -> Result<u64, DomainError>;
+    /// `(release_id, team_id, base_state)` of every release linked to an incident.
+    /// Lets an incident status change recompute the blocking of affected releases
+    /// without loading their full aggregates.
+    async fn list_release_states_linked_to_incident(
+        &self,
+        incident_id: Uuid,
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError>;
 }
 
 #[async_trait]

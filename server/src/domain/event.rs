@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use super::incident::{IncidentStatus, Severity};
+use super::release::ReleaseState;
 
 /// Business events worth broadcasting in real time. These are domain-level facts
 /// ("an incident was acknowledged"), not a wire format: the WebSocket adapter
@@ -98,6 +99,21 @@ pub enum DomainEvent {
         content: String,
         at: DateTime<Utc>,
     },
+    /// A release step was validated (VIGIL Phase 1). Team-scoped.
+    ReleaseStepValidated {
+        team_id: Uuid,
+        release_id: Uuid,
+        step: String,
+        by: Uuid,
+    },
+    /// A release's *effective* state changed (VIGIL Phase 1) — including the
+    /// derived `blocked`/auto-unblock transitions driven by linked incidents.
+    /// Team-scoped.
+    ReleaseStateChanged {
+        team_id: Uuid,
+        release_id: Uuid,
+        new_state: ReleaseState,
+    },
 }
 
 /// How the WebSocket adapter should fan an event out. Keeps the routing rule in
@@ -127,7 +143,9 @@ impl DomainEvent {
             | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
             | DomainEvent::RuleFailed { team_id, .. }
-            | DomainEvent::TeamMemberRemoved { team_id, .. } => EventDelivery::Team(*team_id),
+            | DomainEvent::TeamMemberRemoved { team_id, .. }
+            | DomainEvent::ReleaseStepValidated { team_id, .. }
+            | DomainEvent::ReleaseStateChanged { team_id, .. } => EventDelivery::Team(*team_id),
             DomainEvent::PrivateMessageReceived {
                 sender_id,
                 recipient_id,

@@ -45,6 +45,24 @@ impl IntoResponse for DomainError {
                 StatusCode::FORBIDDEN,
                 "You can only message members of a team you share",
             ),
+            DomainError::InvalidReleaseTitle => {
+                (StatusCode::BAD_REQUEST, "Release title cannot be empty")
+            }
+            DomainError::InvalidReleaseSteps => (
+                StatusCode::BAD_REQUEST,
+                "A release needs at least one distinct, non-empty step",
+            ),
+            DomainError::ReleaseNotFound => (StatusCode::NOT_FOUND, "Release was not found"),
+            DomainError::InvalidReleaseStep => {
+                (StatusCode::CONFLICT, "Steps must be validated in order")
+            }
+            DomainError::ReleaseBlocked => (
+                StatusCode::CONFLICT,
+                "The release is blocked by an active linked incident",
+            ),
+            DomainError::InvalidReleaseTransition => {
+                (StatusCode::CONFLICT, "Invalid release lifecycle transition")
+            }
             DomainError::TeamNotFound => (
                 StatusCode::NOT_FOUND,
                 "No team matches this invitation code",

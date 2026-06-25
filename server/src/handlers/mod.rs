@@ -9,6 +9,7 @@ pub mod gif;
 pub mod incident;
 pub mod middleware;
 pub mod private_message;
+pub mod release;
 pub mod service_connection;
 pub mod team;
 pub mod webhook;
