@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "node scripts/start-web-dev.mjs",
     "devUrl": "http://localhost:4242",
-    "frontendDist": "http://localhost:4242"
+    "frontendDist": "http://localhost:8081"
   },
   "app": {
     "withGlobalTauri": true,
@@ -14,7 +14,6 @@
       {
         "label": "main",
         "title": "OpsWarden",
-        "url": "http://localhost:4242",
         "width": 1280,
         "height": 800,
         "resizable": true
