@@ -5,9 +5,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::release::Release;
 use crate::domain::team::Role;
-use crate::ports::{ReleaseRepo, TeamRepo};
+use crate::ports::{EventPublisher, ReleaseRepo, TeamRepo};
 
 use super::{load_detail, ReleaseDetail};
 
@@ -21,11 +22,20 @@ pub struct CreateReleaseCommand {
 pub struct CreateReleaseUseCase {
     teams: Arc<dyn TeamRepo>,
     releases: Arc<dyn ReleaseRepo>,
+    events: Arc<dyn EventPublisher>,
 }
 
 impl CreateReleaseUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>, releases: Arc<dyn ReleaseRepo>) -> Self {
-        Self { teams, releases }
+    pub fn new(
+        teams: Arc<dyn TeamRepo>,
+        releases: Arc<dyn ReleaseRepo>,
+        events: Arc<dyn EventPublisher>,
+    ) -> Self {
+        Self {
+            teams,
+            releases,
+            events,
+        }
     }
 
     pub async fn create(&self, cmd: CreateReleaseCommand) -> Result<ReleaseDetail, DomainError> {
@@ -40,6 +50,13 @@ impl CreateReleaseUseCase {
 
         let release = Release::new(cmd.team_id, cmd.title, cmd.steps)?;
         self.releases.save_release(&release).await?;
+        self.events
+            .publish(DomainEvent::ReleaseStateChanged {
+                team_id: release.team_id,
+                release_id: release.id,
+                new_state: release.base_state,
+            })
+            .await;
         load_detail(&self.releases, release).await
     }
 }
@@ -47,8 +64,10 @@ impl CreateReleaseUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::incident::tests::MockEventPublisher;
     use crate::app::incident::tests::MockTeamRepo;
     use crate::app::release::tests::MockReleaseRepo;
+    use crate::domain::event::DomainEvent;
     use crate::domain::release::ReleaseState;
 
     #[tokio::test]
@@ -58,7 +77,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Responder));
         let releases = Arc::new(MockReleaseRepo::default());
-        let uc = CreateReleaseUseCase::new(teams, releases.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let uc = CreateReleaseUseCase::new(teams, releases.clone(), events.clone());
 
         let detail = uc
             .create(CreateReleaseCommand {
@@ -73,6 +93,13 @@ mod tests {
         assert_eq!(detail.effective_state, ReleaseState::Created);
         assert_eq!(detail.release.steps.len(), 2);
         assert_eq!(releases.releases.lock().unwrap().len(), 1);
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [DomainEvent::ReleaseStateChanged {
+                new_state: ReleaseState::Created,
+                ..
+            }]
+        ));
     }
 
     #[tokio::test]
@@ -82,7 +109,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Observer));
         let releases = Arc::new(MockReleaseRepo::default());
-        let uc = CreateReleaseUseCase::new(teams, releases.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let uc = CreateReleaseUseCase::new(teams, releases.clone(), events.clone());
 
         let err = uc
             .create(CreateReleaseCommand {
@@ -96,13 +124,15 @@ mod tests {
 
         assert_eq!(err, DomainError::Forbidden);
         assert!(releases.releases.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
     async fn a_non_member_cannot_create_a_release() {
         let teams = Arc::new(MockTeamRepo::default());
         let releases = Arc::new(MockReleaseRepo::default());
-        let uc = CreateReleaseUseCase::new(teams, releases.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let uc = CreateReleaseUseCase::new(teams, releases.clone(), events);
 
         let err = uc
             .create(CreateReleaseCommand {

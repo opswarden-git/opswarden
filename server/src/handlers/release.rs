@@ -83,7 +83,11 @@ pub async fn create_release(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<CreateReleasePayload>,
 ) -> Result<(StatusCode, Json<ReleaseView>), DomainError> {
-    let use_case = CreateReleaseUseCase::new(state.teams.clone(), state.releases.clone());
+    let use_case = CreateReleaseUseCase::new(
+        state.teams.clone(),
+        state.releases.clone(),
+        state.events.clone(),
+    );
     let detail = use_case
         .create(CreateReleaseCommand {
             team_id: payload.team_id,

@@ -45,13 +45,15 @@ export function useRelease(releaseId: string | undefined) {
   });
 }
 
+const releasesKey = (teamId: string) => ["releases", { teamId }] as const;
+
 /** Invalidate the team's release list plus a specific release's detail. */
 function refreshRelease(
   queryClient: ReturnType<typeof useQueryClient>,
   teamId: string,
   releaseId?: string,
 ) {
-  queryClient.invalidateQueries({ queryKey: ["releases", { teamId }] });
+  queryClient.invalidateQueries({ queryKey: releasesKey(teamId) });
   if (releaseId) queryClient.invalidateQueries({ queryKey: ["release", releaseId] });
 }
 
@@ -79,8 +81,14 @@ export function useCreateRelease() {
       if (!res.ok) return failWithCode(res, "create_release_failed");
       return res.json() as Promise<Release>;
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["releases", { teamId: variables.team_id }] });
+    onSuccess: (created, variables) => {
+      queryClient.setQueryData<Release[]>(releasesKey(variables.team_id), (current) => {
+        if (!current) return [created];
+        if (current.some((release) => release.release_id === created.release_id)) return current;
+        return [created, ...current];
+      });
+      queryClient.setQueryData(["release", created.release_id], created);
+      queryClient.invalidateQueries({ queryKey: releasesKey(variables.team_id) });
     },
   });
 }
