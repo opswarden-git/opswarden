@@ -53,10 +53,11 @@ and relay, with no business logic.
 > (with logout/revocation), teams + 3-role RBAC, incident lifecycle, real-time
 > roster presence, timeline editing, emoji reactions, member moderation,
 > private messages, and GIPHY-powered GIF timeline entries, all on PostgreSQL
-> (SQLx). Desktop is partially implemented as a Tauri URL-mode shell with tray
-> and native assignment/high-severity notifications. Release management,
-> `release_blocked` notifications, AppImage packaging, and the final compose
-> desktop artifact remain open.
+> (SQLx). Release management is implemented with step validation and automatic
+> blocking by linked incidents. Desktop is partially implemented as a Tauri
+> URL-mode shell with tray/background behavior and native assignment,
+> high-severity, and `release_blocked` notifications. AppImage packaging and the
+> release CI artifact remain open.
 
 ## Scope
 
@@ -80,15 +81,16 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - Private messages between users sharing a team, delivered over a user-scoped
   WebSocket event
 - GIPHY GIF search via a server-side API key and authenticated backend proxy
+- Releases with ordered step validation and automatic blocking/unblocking by
+  linked incident state
 - `docker-compose` for server + db; local web via npm/Next.js; GitHub Actions
   CI/CD; FR/EN i18n
 
 **Extended Features** (in progress / planned)
 
-- Tauri desktop URL-mode shell is present (OS notifications + tray); packaged
-  desktop binary/AppImage is still open
-- Google OAuth2 exists as optional auth plumbing; Releases + automatic blocking
-  by a linked incident are still open
+- Tauri desktop URL-mode shell is present (OS notifications + tray); Compose can
+  build a local `.deb`, while AppImage/release CI packaging remains open
+- Google OAuth2 exists as optional auth plumbing
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
 **Long-term vision**
@@ -133,6 +135,24 @@ curl http://localhost:8080/health      # -> {"status":"ok"}
 curl http://localhost:8080/about.json  # -> service catalog + SHA-256 token
 curl http://localhost:8081/en          # -> 200, the web UI (FR at /fr)
 ```
+
+### Desktop app (Tauri, URL-mode)
+
+The desktop shell loads the web UI from `http://localhost:8081`, so it needs the
+compose stack (or a dev server) running. In dev: `just desktop-dev`.
+
+A build-only `client_desktop` compose service builds an installable Linux package
+in an Ubuntu/FHS container (the Tauri bundler can't run on a NixOS host) and drops
+it on the host:
+
+```bash
+docker compose --profile desktop up --build client_desktop
+# -> ./artifacts/OpsWarden_amd64.deb   (install: sudo apt install ./artifacts/OpsWarden_amd64.deb)
+```
+
+The **AppImage** is intentionally deferred to the release CI path (GitHub
+`ubuntu-22.04` runner via `tauri-action`): Tauri's pinned `linuxdeploy` is broken
+inside a local Docker container, so the local Compose path ships the `.deb`.
 
 ### The project at a glance
 
@@ -246,10 +266,10 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 **Desktop & delivery**
 
 - Tauri URL-mode shell reusing the front-end, with tray/background behavior
-- Native OS notifications: assignment and high/critical severity are live-proven;
-  blocked Release is still open
-- Final AppImage and `docker-compose.yml`: `server` 8080 / `client_web` 8081 /
-  `client_desktop` / `db` remain the packaging gate
+- Native OS notifications: assignment, high/critical severity, and blocked
+  Release are live-proven
+- Compose now covers `server` 8080 / `client_web` 8081 / `client_desktop`
+  build-only `.deb` / `db`; final AppImage + release CI remain the packaging gate
 - FR/EN i18n (labels, states, severities) persisted server-side
 
 ## Contributing

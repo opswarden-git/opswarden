@@ -3,6 +3,8 @@
 **/target
 # Tauri generated ACL/permission schemas (regenerated on every desktop build)
 **/src-tauri/gen/
+# Desktop artifacts produced by the `client_desktop` compose service
+/artifacts/
 # Node
 node_modules
 .next
