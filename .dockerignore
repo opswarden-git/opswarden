@@ -7,3 +7,5 @@
 **/.env.*
 **/node_modules/
 **/.next/
+# Desktop artifacts are mounted into client_web at runtime, never copied in.
+/artifacts/
