@@ -56,8 +56,10 @@ and relay, with no business logic.
 > (SQLx). Release management is implemented with step validation and automatic
 > blocking by linked incidents. Desktop is partially implemented as a Tauri
 > URL-mode shell with tray/background behavior and native assignment,
-> high-severity, and `release_blocked` notifications. AppImage packaging and the
-> release CI artifact remain open.
+> high-severity, and `release_blocked` notifications. Compose builds an
+> installable Linux `.deb` and serves it over HTTP through `client_web`; the
+> AppImage is built by the release CI on a GitHub `ubuntu-22.04` runner and is
+> exposed as `/client.AppImage` when copied into `./artifacts`.
 
 ## Scope
 
@@ -88,8 +90,9 @@ microservices instinct is honored where it pays, without distributed-systems tax
 
 **Extended Features** (in progress / planned)
 
-- Tauri desktop URL-mode shell is present (OS notifications + tray); Compose can
-  build a local `.deb`, while AppImage/release CI packaging remains open
+- Tauri desktop URL-mode shell is present (OS notifications + tray); Compose
+  builds a local `.deb` served by `client_web`, and the release CI builds the
+  AppImage artifact for the canonical `/client.AppImage` download path
 - Google OAuth2 exists as optional auth plumbing
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
@@ -117,16 +120,18 @@ cd opswarden
 cp .env.example .env
 # adjust OPSWARDEN_KICKOFF_TOKEN and DATABASE_URL if needed
 
-# 3. Run everything (database + server + web UI)
+# 3. Run everything (database + server + desktop artifact + web UI)
 docker compose up --build
 ```
 
-Compose brings up `db`, the `server` on `:8080`, and the production `client_web`
-on **`:8081`** (the Next.js UI, also the URL-mode target the desktop build loads).
-`client_web` proxies `/api/*` to the server over the compose network; the browser
-reaches the WebSocket directly on the server's published `:8080`. If host port
-`8081` is already in use, run `CLIENT_WEB_PORT=8091 docker compose up --build`;
-the container still listens on `:8081` internally.
+Compose brings up `db`, the `server` on `:8080`, a build-only `client_desktop`
+service that deposits the Linux desktop package in `./artifacts`, and the
+production `client_web` on **`:8081`** (the Next.js UI, also the URL-mode target
+the desktop build loads). `client_web` proxies `/api/*` to the server over the
+compose network; the browser reaches the WebSocket directly on the server's
+published `:8080`. If host port `8081` is already in use, run
+`CLIENT_WEB_PORT=8091 docker compose up --build`; the container still listens on
+`:8081` internally.
 
 Check the services respond:
 
@@ -134,6 +139,7 @@ Check the services respond:
 curl http://localhost:8080/health      # -> {"status":"ok"}
 curl http://localhost:8080/about.json  # -> service catalog + SHA-256 token
 curl http://localhost:8081/en          # -> 200, the web UI (FR at /fr)
+curl -I http://localhost:8081/client.deb
 ```
 
 ### Desktop app (Tauri, URL-mode)
@@ -143,16 +149,26 @@ compose stack (or a dev server) running. In dev: `just desktop-dev`.
 
 A build-only `client_desktop` compose service builds an installable Linux package
 in an Ubuntu/FHS container (the Tauri bundler can't run on a NixOS host) and drops
-it on the host:
+it on the host under `./artifacts`. `client_web` depends on that build and exposes
+the package over HTTP:
 
 ```bash
-docker compose --profile desktop up --build client_desktop
-# -> ./artifacts/OpsWarden_amd64.deb   (install: sudo apt install ./artifacts/OpsWarden_amd64.deb)
+docker compose up --build
+curl -I http://localhost:8081/client.deb
+sudo apt install ./artifacts/OpsWarden_amd64.deb
 ```
 
-The **AppImage** is intentionally deferred to the release CI path (GitHub
-`ubuntu-22.04` runner via `tauri-action`): Tauri's pinned `linuxdeploy` is broken
-inside a local Docker container, so the local Compose path ships the `.deb`.
+The **AppImage** is produced by the release CI, not by local Docker: Tauri's
+pinned `linuxdeploy` is broken inside a local container, while GitHub's
+`ubuntu-22.04` runner (`tauri-action`) builds it successfully. On a `v*.*.*` tag
+the `Release` workflow attaches it to the GitHub Release; a manual run
+(**Run workflow** / `workflow_dispatch`) uploads it as the `opswarden-appimage`
+artifact. Place the downloaded AppImage at `./artifacts/client.AppImage` and the
+running web container serves the VIGIL canonical route:
+
+```bash
+curl -I http://localhost:8081/client.AppImage
+```
 
 ### The project at a glance
 
@@ -173,7 +189,7 @@ opswarden/
 ├── client-desktop/       # Tauri -- URL-mode native app + tray (alpha)
 ├── investigation/        # AI SRE agent (RAG / pgvector) (planned, not in repo yet)
 ├── .github/workflows/    # server + web + release CI
-├── docker-compose.yml    # compose setup: server + db
+├── docker-compose.yml    # compose: db + server + client_desktop + client_web
 ├── Cargo.toml            # cargo workspace
 └── package.json          # npm workspaces
 ```
@@ -268,8 +284,8 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - Tauri URL-mode shell reusing the front-end, with tray/background behavior
 - Native OS notifications: assignment, high/critical severity, and blocked
   Release are live-proven
-- Compose now covers `server` 8080 / `client_web` 8081 / `client_desktop`
-  build-only `.deb` / `db`; final AppImage + release CI remain the packaging gate
+- Compose covers `db` / `server` 8080 / build-only `client_desktop` / `client_web` 8081. The web client serves the local `.deb` at `/client.deb` and the CI-built
+  AppImage at `/client.AppImage` when placed in `./artifacts/client.AppImage`
 - FR/EN i18n (labels, states, severities) persisted server-side
 
 ## Contributing
