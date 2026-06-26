@@ -4,9 +4,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml"><img src="https://github.com/RomeoCavazza/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
-  <a href="https://github.com/RomeoCavazza/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v0.5.0-F4C430?style=flat-square" alt="Release v0.5.0" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0-F4C430?style=flat-square" alt="Release v1.0.0" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
 </p>
@@ -112,8 +112,8 @@ microservices instinct is honored where it pays, without distributed-systems tax
 
 ```bash
 # 1. Clone
-git clone https://github.com/RomeoCavazza/opswarden.git    # HTTPS
-git clone git@github.com:RomeoCavazza/opswarden.git         # SSH
+git clone https://github.com/opswarden-git/opswarden.git    # HTTPS
+git clone git@github.com:opswarden-git/opswarden.git         # SSH
 cd opswarden
 
 # 2. Configure the environment
