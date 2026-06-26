@@ -1,5 +1,5 @@
-# S0 : server + db uniquement.
-# client_web / client_desktop arrivent en Phase 3 (compose final + binaire desktop).
+# Compose runtime: db + server + client_web.
+# The build-only client_desktop service lives behind the optional `desktop` profile.
 services:
   db:
     image: postgres:18-alpine
@@ -80,6 +80,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+  # Build-only desktop artifact: produces the installable Linux `.deb` in an
+  # Ubuntu/FHS container (Tauri's bundler cannot run on the NixOS host) and copies
+  # it to ./artifacts on the host, then exits. The AppImage is intentionally left
+  # to the release CI/U4 path (release.yml tauri-action) — Tauri's linuxdeploy is
+  # broken inside a local Docker container (see client-desktop/Dockerfile). Behind the `desktop`
+  # profile so a normal `docker compose up` stays lean (db + server + client_web).
+  # Generate with:
+  #   docker compose --profile desktop up --build client_desktop
+  # -> ./artifacts/OpsWarden_amd64.deb
+  client_desktop:
+    profiles: ["desktop"]
+    build:
+      context: .
+      dockerfile: client-desktop/Dockerfile
+    volumes:
+      - ./artifacts:/out
+    restart: "no"
 
 volumes:
   db_data:
