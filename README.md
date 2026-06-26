@@ -115,15 +115,23 @@ cd opswarden
 cp .env.example .env
 # adjust OPSWARDEN_KICKOFF_TOKEN and DATABASE_URL if needed
 
-# 3. Run everything (server + database)
+# 3. Run everything (database + server + web UI)
 docker compose up --build
 ```
 
-Check the server responds:
+Compose brings up `db`, the `server` on `:8080`, and the production `client_web`
+on **`:8081`** (the Next.js UI, also the URL-mode target the desktop build loads).
+`client_web` proxies `/api/*` to the server over the compose network; the browser
+reaches the WebSocket directly on the server's published `:8080`. If host port
+`8081` is already in use, run `CLIENT_WEB_PORT=8091 docker compose up --build`;
+the container still listens on `:8081` internally.
+
+Check the services respond:
 
 ```bash
 curl http://localhost:8080/health      # -> {"status":"ok"}
 curl http://localhost:8080/about.json  # -> service catalog + SHA-256 token
+curl http://localhost:8081/en          # -> 200, the web UI (FR at /fr)
 ```
 
 ### The project at a glance
