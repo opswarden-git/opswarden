@@ -17,6 +17,7 @@ concurrency:
 jobs:
   create-release:
     name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (historique complet pour le changelog)
@@ -30,6 +31,7 @@ jobs:
 
   docker-image:
     name: Build & Push server image (ghcr.io)
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,30 +63,55 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Phase 3 -- binaire desktop Tauri (cible Linux / AppImage, cf. blueprint).
-  # Le client_web l'expose ensuite sur GET :8081/client.AppImage (contrat compose).
-  # desktop-appimage:
-  #   name: Build desktop AppImage (Tauri)
-  #   runs-on: ubuntu-22.04
-  #   needs: create-release
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 20
-  #     - uses: dtolnay/rust-toolchain@stable
-  #     - name: Deps systeme Tauri (Linux)
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev \
-  #           libappindicator3-dev librsvg2-dev patchelf
-  #     - name: Install deps
-  #       run: npm install
-  #     - uses: tauri-apps/tauri-action@v0
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         projectPath: ./client-desktop
-  #         tagName: ${{ github.ref_name }}
-  #         releaseName: OpsWarden ${{ github.ref_name }}
-  #         args: --bundles appimage
+  # Phase 3 -- desktop AppImage (Tauri, URL-mode -> http://localhost:8081).
+  # Built on ubuntu-22.04 (glibc 2.35), the platform where Tauri's linuxdeploy
+  # works -- it is broken inside a local Docker container (see client-desktop/
+  # Dockerfile + U3), which is why the local Compose `client_desktop` service
+  # produces a `.deb` and the AppImage is produced here. This job is a builder
+  # only; workflow_dispatch can smoke-test the AppImage without creating a GitHub
+  # Release or pushing a server image. A separate tag-only job attaches the
+  # generated AppImage after the release exists.
+  desktop-appimage:
+    name: Build desktop AppImage (Tauri)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Tauri Linux system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf libfuse2
+      - name: Install desktop npm deps (Tauri CLI)
+        run: npm ci --workspace client-desktop --include-workspace-root=false
+      - name: Build AppImage
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: ./client-desktop
+          args: --bundles appimage
+      - name: Upload AppImage as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opswarden-appimage
+          path: client-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  attach-desktop-appimage:
+    name: Attach desktop AppImage to GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    needs: [create-release, desktop-appimage]
+    steps:
+      - name: Download AppImage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: opswarden-appimage
+          path: desktop-artifacts
+      - name: Attach AppImage to the GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: desktop-artifacts/*.AppImage
