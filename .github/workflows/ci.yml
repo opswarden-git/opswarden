@@ -199,6 +199,8 @@ jobs:
         run: npm run format:check --workspace client-web
       - name: Type check (tsc)
         run: npm run typecheck --workspace client-web
+      - name: Unit tests (Vitest coverage)
+        run: npm run test:coverage --workspace client-web
       - name: Security audit (npm)
         run: npm audit --audit-level=high
 
