@@ -30,7 +30,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
       <button
         onClick={() => setOpen(true)}
         disabled={!teamId}
-        className="ow-danger flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
+        className="ow-danger flex h-9 items-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors disabled:opacity-50"
       >
         <AlertCircle className="h-4 w-4" />
         {t("declareIncident")}

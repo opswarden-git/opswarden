@@ -56,25 +56,36 @@ export function IntegrationsPanel() {
         {t("connectors")}
       </h2>
 
-      <div className="mt-2 space-y-2">
+      <div className="mt-4 space-y-3">
         <GithubIntegration />
 
         {AVAILABLE_INTEGRATIONS.filter((integ) => integ.id !== "github").map((integ) => (
           <div
             key={integ.id}
-            className="border-border flex items-center justify-between gap-4 rounded-md border border-dashed px-4 py-3 opacity-60"
+            className="surface-subtle border-border flex items-center justify-between gap-4 rounded-md border p-4 transition-colors hover:bg-white/[0.04]"
           >
             <div className="flex min-w-0 items-center gap-3">
               <Image
                 src={integ.icon}
                 alt={integ.name}
-                width={20}
-                height={20}
-                className="h-6 w-6 shrink-0 object-contain grayscale"
+                width={24}
+                height={24}
+                className="h-7 w-7 shrink-0 object-contain"
               />
-              <span className="text-text truncate text-sm font-medium">{integ.name}</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-text truncate font-medium">{integ.name}</span>
+                  <span className="border-border text-muted shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium">
+                    Connector
+                  </span>
+                </div>
+                <p className="text-muted/70 truncate text-xs">{integ.desc}</p>
+              </div>
             </div>
-            <span className="text-muted/60 shrink-0 text-xs">{t("comingSoon")}</span>
+
+            <span className="surface border-border text-muted inline-flex h-9 shrink-0 items-center rounded-md border px-3 text-xs font-medium select-none">
+              {t("comingSoon")}
+            </span>
           </div>
         ))}
       </div>

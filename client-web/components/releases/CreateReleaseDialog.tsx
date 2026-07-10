@@ -51,7 +51,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           setOpen(true);
         }}
         disabled={!teamId}
-        className="ow-primary flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
+        className="ow-primary flex h-9 items-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors disabled:opacity-50"
       >
         <Rocket className="h-4 w-4" />
         {t("newRelease")}

@@ -24,7 +24,7 @@ export function CreateTeamDialog() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="ow-primary flex inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors"
+        className="ow-primary flex inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors"
       >
         <Plus className="h-4 w-4" />
         {t("createTeam")}

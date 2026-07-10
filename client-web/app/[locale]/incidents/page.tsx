@@ -50,11 +50,11 @@ export default function IncidentsPage() {
         <div>
           <h1 className="text-text text-2xl font-bold tracking-tight">{t("title")}</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <select
             value={activeTeamId}
             onChange={(e) => setSelectedTeamId(e.target.value)}
-            className="ow-input flex h-10 rounded-md px-3 py-2 text-sm transition-colors"
+            className="ow-input flex h-9 rounded-md px-3 py-1.5 text-sm transition-colors"
           >
             {teams?.map((team) => (
               <option key={team.team_id} value={team.team_id} className="bg-bg text-text">
@@ -81,11 +81,11 @@ export default function IncidentsPage() {
           <table className="w-full text-left text-sm">
             <thead className="surface-subtle border-border border-b text-xs uppercase">
               <tr>
-                <th className="text-muted px-4 py-3 font-medium">{t("colStatus")}</th>
-                <th className="text-muted px-4 py-3 font-medium">{t("colTitleId")}</th>
-                <th className="text-muted px-4 py-3 font-medium">{t("colSeverity")}</th>
-                <th className="text-muted px-4 py-3 font-medium">{t("colCreatedAt")}</th>
-                <th className="text-muted px-4 py-3 text-right font-medium">{t("colAction")}</th>
+                <th className="text-muted px-5 py-3.5 font-medium">{t("colStatus")}</th>
+                <th className="text-muted px-5 py-3.5 font-medium">{t("colTitleId")}</th>
+                <th className="text-muted px-5 py-3.5 font-medium">{t("colSeverity")}</th>
+                <th className="text-muted px-5 py-3.5 font-medium">{t("colCreatedAt")}</th>
+                <th className="text-muted px-5 py-3.5 text-right font-medium">{t("colAction")}</th>
               </tr>
             </thead>
             <tbody className="divide-border divide-y">

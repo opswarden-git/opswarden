@@ -165,19 +165,19 @@ export function GithubIntegration() {
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
               placeholder={t("githubSecretPlaceholder")}
-              className="ow-input flex h-10 min-w-0 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
+              className="ow-input flex h-9 min-w-0 flex-1 rounded-md px-3 py-1.5 text-sm transition-colors"
             />
             <button
               type="submit"
               disabled={connect.isPending || !secret.trim()}
-              className="ow-primary inline-flex h-10 shrink-0 items-center justify-center rounded-md px-6 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
+              className="ow-primary inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
             >
               {connect.isPending ? t("saving") : t("save")}
             </button>
             <button
               type="button"
               onClick={closePanel}
-              className="ow-secondary text-text inline-flex h-10 shrink-0 items-center justify-center rounded-md px-4 text-sm font-medium"
+              className="ow-secondary text-text inline-flex h-9 shrink-0 items-center justify-center rounded-md px-4 text-sm font-medium"
             >
               {t("cancel")}
             </button>

@@ -59,14 +59,14 @@ export default function ReleasesPage() {
     <div className="mx-auto max-w-6xl space-y-8 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-text text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <select
             value={activeTeamId}
             onChange={(e) => {
               setSelectedTeamId(e.target.value);
               setSelectedReleaseId("");
             }}
-            className="ow-input flex h-10 rounded-md px-3 py-2 text-sm transition-colors"
+            className="ow-input flex h-9 rounded-md px-3 py-1.5 text-sm transition-colors"
           >
             {teams?.map((team) => (
               <option key={team.team_id} value={team.team_id} className="bg-bg text-text">
