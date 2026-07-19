@@ -82,13 +82,7 @@ function IncidentBreadcrumb({
   );
 }
 
-export function IncidentDetailPage({
-  incidentId,
-  teamId,
-}: {
-  incidentId: string;
-  teamId?: string;
-}) {
+export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string; teamId: string }) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
   const locale = useLocale();
@@ -113,8 +107,7 @@ export function IncidentDetailPage({
     router.replace(teamPath(incident.team_id, "incidents", incident.id));
   }, [incident, router, teamId]);
 
-  const routeTeamId = incident?.team_id ?? teamId;
-  const incidentsHref = routeTeamId ? teamPath(routeTeamId, "incidents") : "/incidents";
+  const incidentsHref = teamPath(incident?.team_id ?? teamId, "incidents");
 
   if (isLoading) {
     return (

@@ -83,6 +83,23 @@ test("Team route boundary rejects malformed identifiers", async ({ page }) => {
   await expect(page.locator('[data-page-layout="true"]')).toHaveCount(0);
 });
 
+test("root resolves to the canonical incident queue", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/en");
+  await expect(page).toHaveURL(new RegExp(`/en/teams/${TEAM_ID}/incidents$`));
+});
+
+test("expired product routes are no longer exposed", async ({ page }) => {
+  await login(page);
+
+  for (const path of ["/en/ai", "/en/incidents", `/en/incidents/${INCIDENT_ID}`, "/en/releases"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: "404" })).toBeVisible();
+    await expect(page.locator('[data-page-layout="true"]')).toHaveCount(0);
+  }
+});
+
 test("canonical pages keep one horizontal and vertical layout contract", async ({ page }) => {
   test.setTimeout(120_000);
   await login(page);
