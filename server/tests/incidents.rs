@@ -223,7 +223,7 @@ async fn observer_cannot_post_timeline_entries() {
 }
 
 #[tokio::test]
-async fn list_timeline_entries_is_bounded_and_newest_first() {
+async fn activity_is_bounded_and_newest_first() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     let incident = Incident::new(team_id, "Ingress instability", Severity::High).unwrap();
@@ -241,7 +241,7 @@ async fn list_timeline_entries_is_bounded_and_newest_first() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/incidents/{}/timeline?limit=1", incident.id))
+                .uri(format!("/api/incidents/{}/activity?limit=1", incident.id))
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -255,8 +255,32 @@ async fn list_timeline_entries_is_bounded_and_newest_first() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(json["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(json["entries"][0]["content"], "Second update");
+    assert_eq!(json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(json["items"][0]["content"], "Second update");
+}
+
+#[tokio::test]
+async fn timeline_read_route_is_gone() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "Ingress instability", Severity::High).unwrap();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Observer);
+    ctx.incidents.seed_incident(incident.clone());
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents/{}/timeline", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]
@@ -745,7 +769,7 @@ async fn non_member_cannot_react() {
 }
 
 #[tokio::test]
-async fn timeline_list_includes_reaction_counts_and_reacted_flag() {
+async fn activity_includes_reaction_counts_and_reacted_flag() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     let user = Uuid::nil();
@@ -766,7 +790,7 @@ async fn timeline_list_includes_reaction_counts_and_reacted_flag() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/incidents/{}/timeline", incident.id))
+                .uri(format!("/api/incidents/{}/activity", incident.id))
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -775,7 +799,7 @@ async fn timeline_list_includes_reaction_counts_and_reacted_flag() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let json = read_json(response).await;
-    let reactions = json["entries"][0]["reactions"].as_array().unwrap();
+    let reactions = json["items"][0]["reactions"].as_array().unwrap();
     assert_eq!(reactions.len(), 1);
     assert_eq!(reactions[0]["emoji"], "🔥");
     assert_eq!(reactions[0]["count"], 1);

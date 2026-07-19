@@ -14,8 +14,7 @@ use crate::app::incident::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
     GetIncidentCommand, GetIncidentUseCase, IncidentActivityItem, IncidentAssigneeFilter,
     IncidentCounts, IncidentListItem, IncidentSort, ListIncidentActivityCommand,
-    ListIncidentActivityUseCase, ListIncidentsCommand, ListIncidentsUseCase,
-    ListTimelineEntriesCommand, ListTimelineEntriesUseCase, ReactionSummary, TimelineEntryView,
+    ListIncidentActivityUseCase, ListIncidentsCommand, ListIncidentsUseCase, ReactionSummary,
     ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
@@ -372,7 +371,7 @@ impl From<AddTimelineEntryResult> for TimelineEntryResponse {
 }
 
 // The edit response carries `edited_at`; reactions are unchanged by an edit, so
-// the write path returns none and the client refetches the list for the counts.
+// the write path returns none and the client refetches Activity for the counts.
 impl From<EditTimelineEntryResult> for TimelineEntryResponse {
     fn from(result: EditTimelineEntryResult) -> Self {
         Self {
@@ -384,26 +383,6 @@ impl From<EditTimelineEntryResult> for TimelineEntryResponse {
             created_at: result.created_at,
             edited_at: result.edited_at,
             reactions: Vec::new(),
-        }
-    }
-}
-
-// The read view is the only path that carries aggregated reactions.
-impl From<TimelineEntryView> for TimelineEntryResponse {
-    fn from(view: TimelineEntryView) -> Self {
-        Self {
-            entry_id: view.entry.id,
-            incident_id: view.entry.incident_id,
-            author_id: view.entry.author_id,
-            author: None,
-            content: view.entry.content,
-            created_at: view.entry.created_at,
-            edited_at: view.entry.edited_at,
-            reactions: view
-                .reactions
-                .into_iter()
-                .map(ReactionResponse::from)
-                .collect(),
         }
     }
 }
@@ -501,13 +480,8 @@ pub async fn toggle_reaction(
 }
 
 #[derive(Deserialize)]
-pub struct ListTimelineEntriesQuery {
+pub struct ListIncidentActivityQuery {
     pub limit: Option<u32>,
-}
-
-#[derive(Serialize)]
-pub struct ListTimelineEntriesResponse {
-    pub entries: Vec<TimelineEntryResponse>,
 }
 
 #[derive(Serialize)]
@@ -586,7 +560,7 @@ pub async fn list_incident_activity(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
     Path(incident_id): Path<Uuid>,
-    Query(query): Query<ListTimelineEntriesQuery>,
+    Query(query): Query<ListIncidentActivityQuery>,
 ) -> Result<Json<ListIncidentActivityResponse>, DomainError> {
     let use_case = ListIncidentActivityUseCase::new(
         state.teams.clone(),
@@ -620,47 +594,6 @@ pub async fn available_reactions() -> Json<AvailableReactionsResponse> {
     Json(AvailableReactionsResponse {
         reactions: AVAILABLE_REACTIONS.to_vec(),
     })
-}
-
-pub async fn list_timeline_entries(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path(incident_id): Path<Uuid>,
-    Query(query): Query<ListTimelineEntriesQuery>,
-) -> Result<Json<ListTimelineEntriesResponse>, DomainError> {
-    let use_case = ListTimelineEntriesUseCase::new(
-        state.teams.clone(),
-        state.incidents.clone(),
-        state.timeline.clone(),
-    );
-    let result = use_case
-        .list_entries(ListTimelineEntriesCommand {
-            incident_id,
-            requester_id: session.user_id,
-            limit: query.limit,
-        })
-        .await?;
-
-    let mut entries = Vec::with_capacity(result.entries.len());
-    for view in result.entries {
-        let mut response = TimelineEntryResponse::from(view);
-        response.author = match response.author_id {
-            Some(author_id) => {
-                state
-                    .users
-                    .find_by_id(author_id)
-                    .await?
-                    .map(|user| UserSummaryResponse {
-                        user_id: user.id,
-                        email: user.email.as_str().to_string(),
-                    })
-            }
-            None => None,
-        };
-        entries.push(response);
-    }
-
-    Ok(Json(ListTimelineEntriesResponse { entries }))
 }
 
 pub async fn delete_incident(

@@ -1,8 +1,8 @@
 // --- server/src/app/incident/get_incident.rs ---
 //
 // Read use-case: a single incident by id. RBAC: only a member of the incident's
-// team may read it. The timeline is a separate resource
-// (`GET /api/incidents/{id}/timeline`), so this returns just the incident.
+// team may read it. Activity is a separate read model, so this returns just the
+// incident.
 
 use std::sync::Arc;
 
