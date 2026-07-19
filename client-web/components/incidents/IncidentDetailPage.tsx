@@ -82,12 +82,18 @@ function IncidentBreadcrumb({
   );
 }
 
-export function WarRoomClient({ id, teamId }: { id: string; teamId?: string }) {
+export function IncidentDetailPage({
+  incidentId,
+  teamId,
+}: {
+  incidentId: string;
+  teamId?: string;
+}) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
   const locale = useLocale();
   const router = useRouter();
-  const { data: incident, isLoading, error } = useIncident(id);
+  const { data: incident, isLoading, error } = useIncident(incidentId);
   const { data: teams } = useTeams();
   const { data: members } = useTeamMembers(incident?.team_id);
   const updateStatus = useUpdateIncidentStatus();
@@ -95,12 +101,12 @@ export function WarRoomClient({ id, teamId }: { id: string; teamId?: string }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const watch = useWsStore((state) => state.watch);
   const unwatch = useWsStore((state) => state.unwatch);
-  const watchers = useWatchers(id);
+  const watchers = useWatchers(incidentId);
 
   React.useEffect(() => {
-    watch(id);
-    return () => unwatch(id);
-  }, [id, watch, unwatch]);
+    watch(incidentId);
+    return () => unwatch(incidentId);
+  }, [incidentId, watch, unwatch]);
 
   React.useEffect(() => {
     if (!incident || teamId === incident.team_id) return;

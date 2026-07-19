@@ -75,6 +75,14 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/en\/teams\//);
 }
 
+test("Team route boundary rejects malformed identifiers", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/en/teams/not-a-uuid/overview");
+  await expect(page.getByRole("heading", { level: 1, name: "404" })).toBeVisible();
+  await expect(page.locator('[data-page-layout="true"]')).toHaveCount(0);
+});
+
 test("canonical pages keep one horizontal and vertical layout contract", async ({ page }) => {
   test.setTimeout(120_000);
   await login(page);

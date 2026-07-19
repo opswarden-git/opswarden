@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { WarRoomClient } from "./WarRoomClient";
+import { IncidentDetailPage } from "@/components/incidents/IncidentDetailPage";
 import { isUuid } from "@/lib/uuid";
 
 export default async function WarRoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -9,5 +9,5 @@ export default async function WarRoomPage({ params }: { params: Promise<{ id: st
     notFound();
   }
 
-  return <WarRoomClient id={id} />;
+  return <IncidentDetailPage incidentId={id} />;
 }
