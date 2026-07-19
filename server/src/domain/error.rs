@@ -73,10 +73,42 @@ pub enum DomainError {
     UnknownService,
     /// A service-connection secret was submitted empty/blank (Phase 2).
     InvalidServiceSecret,
+    /// A Team-scoped service connection has a blank or oversized provider name.
+    InvalidServiceConnection,
+    /// No Team-scoped service connection matches the requested id.
+    ServiceConnectionNotFound,
+    /// A persisted automation rule has invalid names or non-object configs.
+    InvalidAutomationRule,
+    /// No Team-scoped automation rule matches the requested id.
+    AutomationRuleNotFound,
+    /// A persisted automation run has invalid terminal metadata.
+    InvalidAutomationRun,
+    /// A provider delivery is missing its stable id/event name.
+    InvalidWebhookDelivery,
+    /// A delivery or run attempted to leave an already terminal state.
+    InvalidAutomationTransition,
     /// Encryption/decryption failure in the secret vault (Phase 2).
     Crypto,
     /// A rule's outbound reaction (e.g. an HTTP/Slack notification) failed (Phase 2).
     ReactionFailed,
+    /// An outbound endpoint is malformed or uses a contract R9 does not permit.
+    InvalidReactionEndpoint,
+    /// DNS or the literal target reaches a non-public network.
+    UnsafeReactionTarget,
+    /// The complete outbound exchange exceeded its deadline.
+    ReactionTimeout,
+    /// The remote response exceeded the bounded diagnostic size.
+    ReactionResponseTooLarge,
+    /// The server-generated notification exceeded the outbound payload limit.
+    ReactionPayloadTooLarge,
+    /// A redirect was returned; outbound automation never follows redirects.
+    ReactionRedirectRefused,
+    /// The remote endpoint answered with a client error.
+    ReactionHttp4xx,
+    /// The remote endpoint answered with a server error.
+    ReactionHttp5xx,
+    /// DNS, TLS or transport failed without exposing internal details.
+    ReactionNetworkError,
     OAuthNotConfigured,
     OAuthFailed,
     /// GIF search was requested but no GIPHY API key is configured server-side.
@@ -134,8 +166,24 @@ impl DomainError {
             DomainError::InvalidSignature => "invalid_signature",
             DomainError::UnknownService => "unknown_service",
             DomainError::InvalidServiceSecret => "invalid_service_secret",
+            DomainError::InvalidServiceConnection => "invalid_service_connection",
+            DomainError::ServiceConnectionNotFound => "service_connection_not_found",
+            DomainError::InvalidAutomationRule => "invalid_automation_rule",
+            DomainError::AutomationRuleNotFound => "automation_rule_not_found",
+            DomainError::InvalidAutomationRun => "invalid_automation_run",
+            DomainError::InvalidWebhookDelivery => "invalid_webhook_delivery",
+            DomainError::InvalidAutomationTransition => "invalid_automation_transition",
             DomainError::Crypto => "crypto_error",
             DomainError::ReactionFailed => "reaction_failed",
+            DomainError::InvalidReactionEndpoint => "invalid_reaction_endpoint",
+            DomainError::UnsafeReactionTarget => "unsafe_reaction_target",
+            DomainError::ReactionTimeout => "reaction_timeout",
+            DomainError::ReactionResponseTooLarge => "reaction_response_too_large",
+            DomainError::ReactionPayloadTooLarge => "reaction_payload_too_large",
+            DomainError::ReactionRedirectRefused => "reaction_redirect_refused",
+            DomainError::ReactionHttp4xx => "reaction_http_4xx",
+            DomainError::ReactionHttp5xx => "reaction_http_5xx",
+            DomainError::ReactionNetworkError => "reaction_network_error",
             DomainError::OAuthNotConfigured => "oauth_not_configured",
             DomainError::OAuthFailed => "oauth_failed",
             DomainError::GiphyNotConfigured => "giphy_not_configured",
@@ -215,8 +263,36 @@ impl std::fmt::Display for DomainError {
             DomainError::InvalidSignature => write!(f, "Invalid webhook signature"),
             DomainError::UnknownService => write!(f, "Unknown webhook service"),
             DomainError::InvalidServiceSecret => write!(f, "Service secret cannot be empty"),
+            DomainError::InvalidServiceConnection => {
+                write!(f, "Service connection is invalid")
+            }
+            DomainError::ServiceConnectionNotFound => {
+                write!(f, "Service connection was not found")
+            }
+            DomainError::InvalidAutomationRule => write!(f, "Automation rule is invalid"),
+            DomainError::AutomationRuleNotFound => write!(f, "Automation rule was not found"),
+            DomainError::InvalidAutomationRun => write!(f, "Automation run is invalid"),
+            DomainError::InvalidWebhookDelivery => write!(f, "Webhook delivery is invalid"),
+            DomainError::InvalidAutomationTransition => {
+                write!(f, "Automation resource is already terminal")
+            }
             DomainError::Crypto => write!(f, "Cryptographic failure"),
             DomainError::ReactionFailed => write!(f, "Automation reaction failed"),
+            DomainError::InvalidReactionEndpoint => write!(f, "Reaction endpoint is invalid"),
+            DomainError::UnsafeReactionTarget => write!(f, "Reaction target is not public"),
+            DomainError::ReactionTimeout => write!(f, "Reaction timed out"),
+            DomainError::ReactionResponseTooLarge => {
+                write!(f, "Reaction response exceeded the size limit")
+            }
+            DomainError::ReactionPayloadTooLarge => {
+                write!(f, "Reaction payload exceeded the size limit")
+            }
+            DomainError::ReactionRedirectRefused => {
+                write!(f, "Reaction redirect was refused")
+            }
+            DomainError::ReactionHttp4xx => write!(f, "Reaction endpoint rejected the request"),
+            DomainError::ReactionHttp5xx => write!(f, "Reaction endpoint failed"),
+            DomainError::ReactionNetworkError => write!(f, "Reaction network request failed"),
             DomainError::OAuthNotConfigured => write!(f, "OAuth provider is not configured"),
             DomainError::OAuthFailed => write!(f, "OAuth authentication failed"),
             DomainError::GiphyNotConfigured => write!(f, "GIF search is not configured"),

@@ -6,6 +6,7 @@ import { ShieldAlert, UserRound } from "lucide-react";
 import { useCreateTeam, useTeams } from "@/lib/queries/teams";
 import { useAuthStore } from "@/store/auth";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/Button";
 
 /** Station setup (when the user has no team yet) + read-only user identity card. */
 export function ProfilePanel() {
@@ -53,13 +54,15 @@ export function ProfilePanel() {
               placeholder={t("organization")}
               className="ow-input flex h-10 min-w-0 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
             />
-            <button
+            <Button
               type="submit"
-              disabled={createTeam.isPending || !stationName.trim()}
-              className="ow-primary inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium transition-colors disabled:opacity-50"
+              variant="primary"
+              size="lg"
+              loading={createTeam.isPending}
+              disabled={!stationName.trim()}
             >
               {createTeam.isPending ? t("creating") : t("createOrganization")}
-            </button>
+            </Button>
           </form>
           {createTeam.isError && (
             <p className="mt-2 text-sm text-red-400">{createTeam.error.message}</p>

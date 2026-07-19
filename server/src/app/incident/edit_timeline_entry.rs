@@ -70,7 +70,7 @@ impl EditTimelineEntryUseCase {
             .filter(|e| e.incident_id == incident.id)
             .ok_or(DomainError::IncidentNotFound)?;
 
-        if entry.author_id != cmd.requester_id {
+        if entry.author_id != Some(cmd.requester_id) {
             return Err(DomainError::Forbidden);
         }
 
@@ -91,7 +91,7 @@ impl EditTimelineEntryUseCase {
         Ok(EditTimelineEntryResult {
             entry_id: entry.id,
             incident_id: entry.incident_id,
-            author_id: entry.author_id,
+            author_id: cmd.requester_id,
             content: entry.content,
             created_at: entry.created_at,
             edited_at: entry.edited_at,

@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { BottomBar } from "./BottomBar";
 import { usePathname } from "next/navigation";
 import { useRealtime } from "@/lib/ws";
+import { TeamScopeProvider } from "@/components/teams/TeamScope";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,17 +19,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="text-text flex min-h-screen flex-col md:flex-row">
-      {/* Sidebar - hidden on mobile, visible on medium screens and up */}
-      <Sidebar className="hidden md:flex" />
+    <TeamScopeProvider>
+      <div className="text-text flex min-h-screen flex-col md:flex-row">
+        {/* Sidebar - hidden on mobile, visible on medium screens and up */}
+        <Sidebar className="hidden md:flex" />
 
-      {/* Main content area */}
-      <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className="flex-1 p-4 md:p-8">{children}</div>
-      </main>
+        {/* Main content area */}
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-16 md:pb-0">
+          <div className="flex-1">{children}</div>
+        </main>
 
-      {/* Bottom Bar - visible on mobile, hidden on medium screens and up */}
-      <BottomBar className="md:hidden" />
-    </div>
+        {/* Bottom Bar - visible on mobile, hidden on medium screens and up */}
+        <BottomBar className="md:hidden" />
+      </div>
+    </TeamScopeProvider>
   );
 }

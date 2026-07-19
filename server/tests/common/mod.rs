@@ -1,20 +1,26 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use opswarden_server::adapters::automation::StaticRuleRepo;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
+use opswarden_server::domain::automation_config::{
+    AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,
+};
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::{Incident, IncidentStatus};
+use opswarden_server::domain::incident_event::IncidentEvent;
 use opswarden_server::domain::private_message::PrivateMessage;
 use opswarden_server::domain::release::{Release, ReleaseState};
-use opswarden_server::domain::team::{Role, Team, TeamBan, TeamMemberView};
+use opswarden_server::domain::team::{
+    Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
+};
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::User;
 use opswarden_server::ports::{
-    Clock, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher,
-    PrivateMessageRepo, ReleaseRepo, RuleRepo, SecretVault, TeamRepo, TimelineRepo, TokenClaims,
-    TokenRevocationRepo, TokenService, UserRepo,
+    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, GifResult, GifSearch,
+    IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, PrivateMessageRepo,
+    ReleaseRepo, ServiceConnectionRepo, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
+    TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -31,51 +37,427 @@ pub struct TestContext {
     pub private_messages: Arc<DummyPrivateMessageRepo>,
     pub releases: Arc<DummyReleaseRepo>,
     pub revoked_tokens: Arc<DummyTokenRevocationRepo>,
-    pub vault: Arc<DummyVault>,
+    pub events: Arc<WsHub>,
+    pub service_connections: Arc<DummyServiceConnectionRepo>,
+    pub connection_credentials: Arc<DummyConnectionCredentialVault>,
+    pub automation_rules: Arc<DummyAutomationRuleRepo>,
+    pub webhook_deliveries: Arc<DummyWebhookDeliveryRepo>,
+    pub automation_runs: Arc<DummyAutomationRunRepo>,
+    pub notifier: Arc<DummyNotifier>,
 }
 
-/// In-memory secret vault for tests: stores plaintext keyed by service, so a
-/// webhook test can seed a known secret and then sign a body with it.
 #[derive(Default)]
-pub struct DummyVault {
-    secrets: Mutex<HashMap<String, String>>,
+pub struct DummyServiceConnectionRepo {
+    connections: Mutex<HashMap<Uuid, ServiceConnection>>,
+}
+
+#[async_trait]
+impl ServiceConnectionRepo for DummyServiceConnectionRepo {
+    async fn insert_connection(&self, connection: &ServiceConnection) -> Result<(), DomainError> {
+        self.connections
+            .lock()
+            .unwrap()
+            .insert(connection.id, connection.clone());
+        Ok(())
+    }
+
+    async fn find_connection_by_id(
+        &self,
+        connection_id: Uuid,
+    ) -> Result<Option<ServiceConnection>, DomainError> {
+        Ok(self
+            .connections
+            .lock()
+            .unwrap()
+            .get(&connection_id)
+            .cloned())
+    }
+
+    async fn find_connection_for_team(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+    ) -> Result<Option<ServiceConnection>, DomainError> {
+        Ok(self
+            .connections
+            .lock()
+            .unwrap()
+            .get(&connection_id)
+            .filter(|connection| connection.team_id == team_id)
+            .cloned())
+    }
+
+    async fn find_connection_by_service(
+        &self,
+        team_id: Uuid,
+        service: &str,
+    ) -> Result<Option<ServiceConnection>, DomainError> {
+        Ok(self
+            .connections
+            .lock()
+            .unwrap()
+            .values()
+            .find(|connection| connection.team_id == team_id && connection.service == service)
+            .cloned())
+    }
+
+    async fn list_connections_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> Result<Vec<ServiceConnection>, DomainError> {
+        let mut connections: Vec<_> = self
+            .connections
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|connection| connection.team_id == team_id)
+            .cloned()
+            .collect();
+        connections.sort_by(|left, right| left.service.cmp(&right.service));
+        Ok(connections)
+    }
+
+    async fn record_delivery_result(
+        &self,
+        connection_id: Uuid,
+        error_code: Option<&str>,
+    ) -> Result<(), DomainError> {
+        let mut connections = self.connections.lock().unwrap();
+        let connection = connections
+            .get_mut(&connection_id)
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        let now = Utc::now();
+        connection.verified_at.get_or_insert(now);
+        connection.last_delivery_at = Some(now);
+        connection.last_error_code = error_code.map(str::to_string);
+        connection.updated_at = now;
+        Ok(())
+    }
+
+    async fn record_reaction_result(
+        &self,
+        connection_id: Uuid,
+        error_code: Option<&str>,
+    ) -> Result<(), DomainError> {
+        let mut connections = self.connections.lock().unwrap();
+        let connection = connections
+            .get_mut(&connection_id)
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        if error_code.is_none() && connection.verified_at.is_none() {
+            connection.verified_at = Some(Utc::now());
+        }
+        connection.last_error_code = error_code.map(str::to_string);
+        connection.updated_at = Utc::now();
+        Ok(())
+    }
+
+    async fn reset_connection_health(&self, connection_id: Uuid) -> Result<(), DomainError> {
+        let mut connections = self.connections.lock().unwrap();
+        let connection = connections
+            .get_mut(&connection_id)
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        connection.verified_at = None;
+        connection.last_error_code = None;
+        connection.updated_at = Utc::now();
+        Ok(())
+    }
+
+    async fn delete_connection(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+    ) -> Result<bool, DomainError> {
+        let mut connections = self.connections.lock().unwrap();
+        let belongs_to_team = connections
+            .get(&connection_id)
+            .is_some_and(|connection| connection.team_id == team_id);
+        if belongs_to_team {
+            connections.remove(&connection_id);
+        }
+        Ok(belongs_to_team)
+    }
+}
+
+#[derive(Default)]
+pub struct DummyConnectionCredentialVault {
+    credentials: Mutex<HashMap<(Uuid, CredentialKind), String>>,
 }
 
 #[allow(dead_code)]
-impl DummyVault {
-    pub fn seed(&self, service: &str, secret: &str) {
-        self.secrets
-            .lock()
-            .unwrap()
-            .insert(service.to_string(), secret.to_string());
+impl DummyConnectionCredentialVault {
+    pub fn raw_values(&self) -> Vec<String> {
+        self.credentials.lock().unwrap().values().cloned().collect()
     }
 }
 
 #[async_trait]
-impl SecretVault for DummyVault {
-    async fn store(&self, service: &str, secret: &str) -> Result<(), DomainError> {
-        self.seed(service, secret);
+impl ConnectionCredentialVault for DummyConnectionCredentialVault {
+    async fn store_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+        secret: &str,
+    ) -> Result<(), DomainError> {
+        if secret.trim().is_empty() {
+            return Err(DomainError::InvalidServiceSecret);
+        }
+        self.credentials
+            .lock()
+            .unwrap()
+            .insert((connection_id, kind), secret.to_string());
         Ok(())
     }
 
-    async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError> {
-        Ok(self.secrets.lock().unwrap().get(service).cloned())
+    async fn reveal_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+    ) -> Result<Option<String>, DomainError> {
+        Ok(self
+            .credentials
+            .lock()
+            .unwrap()
+            .get(&(connection_id, kind))
+            .cloned())
     }
 
-    async fn delete(&self, service: &str) -> Result<(), DomainError> {
-        self.secrets.lock().unwrap().remove(service);
+    async fn delete_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+    ) -> Result<(), DomainError> {
+        self.credentials
+            .lock()
+            .unwrap()
+            .remove(&(connection_id, kind));
         Ok(())
+    }
+
+    async fn configured_credential_kinds(
+        &self,
+        connection_id: Uuid,
+    ) -> Result<Vec<CredentialKind>, DomainError> {
+        let mut kinds: Vec<_> = self
+            .credentials
+            .lock()
+            .unwrap()
+            .keys()
+            .filter_map(|(id, kind)| (*id == connection_id).then_some(*kind))
+            .collect();
+        kinds.sort_by_key(ToString::to_string);
+        Ok(kinds)
     }
 }
 
-/// No-op notifier for tests: the Notify REAction is unit-tested in the use-case
-/// with a recording mock; here we only need the wiring to compile and succeed.
-pub struct DummyNotifier;
+#[derive(Default)]
+pub struct DummyAutomationRuleRepo {
+    rules: Mutex<HashMap<Uuid, AutomationRule>>,
+}
+
+#[async_trait]
+impl AutomationRuleRepo for DummyAutomationRuleRepo {
+    async fn insert_rule(&self, rule: &AutomationRule) -> Result<(), DomainError> {
+        self.rules.lock().unwrap().insert(rule.id, rule.clone());
+        Ok(())
+    }
+
+    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError> {
+        let mut rules = self.rules.lock().unwrap();
+        let exists = rules
+            .get(&rule.id)
+            .is_some_and(|stored| stored.team_id == rule.team_id);
+        if exists {
+            rules.insert(rule.id, rule.clone());
+        }
+        Ok(exists)
+    }
+
+    async fn find_rule_for_team(
+        &self,
+        team_id: Uuid,
+        rule_id: Uuid,
+    ) -> Result<Option<AutomationRule>, DomainError> {
+        Ok(self
+            .rules
+            .lock()
+            .unwrap()
+            .get(&rule_id)
+            .filter(|rule| rule.team_id == team_id)
+            .cloned())
+    }
+
+    async fn list_rules_for_team(&self, team_id: Uuid) -> Result<Vec<AutomationRule>, DomainError> {
+        let mut rules: Vec<_> = self
+            .rules
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|rule| rule.team_id == team_id)
+            .cloned()
+            .collect();
+        rules.sort_by_key(|rule| (rule.created_at, rule.id));
+        Ok(rules)
+    }
+
+    async fn list_enabled_rules_for_trigger(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+        trigger_kind: &str,
+    ) -> Result<Vec<AutomationRule>, DomainError> {
+        Ok(self
+            .list_rules_for_team(team_id)
+            .await?
+            .into_iter()
+            .filter(|rule| {
+                rule.enabled
+                    && rule.trigger_connection_id == connection_id
+                    && rule.trigger_kind == trigger_kind
+            })
+            .collect())
+    }
+
+    async fn delete_rule(&self, team_id: Uuid, rule_id: Uuid) -> Result<bool, DomainError> {
+        let mut rules = self.rules.lock().unwrap();
+        let belongs_to_team = rules
+            .get(&rule_id)
+            .is_some_and(|rule| rule.team_id == team_id);
+        if belongs_to_team {
+            rules.remove(&rule_id);
+        }
+        Ok(belongs_to_team)
+    }
+}
+
+#[derive(Default)]
+pub struct DummyWebhookDeliveryRepo {
+    deliveries: Mutex<HashMap<(Uuid, String), WebhookDelivery>>,
+}
+
+#[allow(dead_code)]
+impl DummyWebhookDeliveryRepo {
+    pub fn all(&self) -> Vec<WebhookDelivery> {
+        self.deliveries.lock().unwrap().values().cloned().collect()
+    }
+}
+
+#[async_trait]
+impl WebhookDeliveryRepo for DummyWebhookDeliveryRepo {
+    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
+        let key = (
+            delivery.connection_id,
+            delivery.provider_delivery_id.clone(),
+        );
+        let mut deliveries = self.deliveries.lock().unwrap();
+        if deliveries.contains_key(&key) {
+            return Ok(false);
+        }
+        deliveries.insert(key, delivery.clone());
+        Ok(true)
+    }
+
+    async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
+        let key = (
+            delivery.connection_id,
+            delivery.provider_delivery_id.clone(),
+        );
+        let mut deliveries = self.deliveries.lock().unwrap();
+        let can_update = deliveries
+            .get(&key)
+            .is_some_and(|stored| stored.status.to_string() == "received");
+        if can_update {
+            deliveries.insert(key, delivery.clone());
+        }
+        Ok(can_update)
+    }
+
+    async fn list_deliveries_for_team(
+        &self,
+        _team_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<WebhookDelivery>, DomainError> {
+        let mut deliveries: Vec<_> = self.deliveries.lock().unwrap().values().cloned().collect();
+        deliveries.sort_by_key(|delivery| std::cmp::Reverse(delivery.received_at));
+        deliveries.truncate(limit.clamp(1, 200) as usize);
+        Ok(deliveries)
+    }
+}
+
+#[derive(Default)]
+pub struct DummyAutomationRunRepo {
+    runs: Mutex<HashMap<Uuid, AutomationRun>>,
+}
+
+#[allow(dead_code)]
+impl DummyAutomationRunRepo {
+    pub fn all(&self) -> Vec<AutomationRun> {
+        self.runs.lock().unwrap().values().cloned().collect()
+    }
+}
+
+#[async_trait]
+impl AutomationRunRepo for DummyAutomationRunRepo {
+    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
+        self.runs.lock().unwrap().insert(run.id, run.clone());
+        Ok(())
+    }
+
+    async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError> {
+        let mut runs = self.runs.lock().unwrap();
+        let can_update = runs
+            .get(&run.id)
+            .is_some_and(|stored| stored.status.to_string() == "running");
+        if can_update {
+            runs.insert(run.id, run.clone());
+        }
+        Ok(can_update)
+    }
+
+    async fn list_runs_for_team(
+        &self,
+        _team_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<AutomationRun>, DomainError> {
+        let mut runs: Vec<_> = self.runs.lock().unwrap().values().cloned().collect();
+        runs.sort_by_key(|run| std::cmp::Reverse(run.started_at));
+        runs.truncate(limit.clamp(1, 200) as usize);
+        Ok(runs)
+    }
+}
+
+#[derive(Default)]
+pub struct DummyNotifier {
+    calls: Mutex<Vec<(String, String)>>,
+    should_fail: Mutex<bool>,
+}
+
+#[allow(dead_code)]
+impl DummyNotifier {
+    pub fn calls(&self) -> Vec<(String, String)> {
+        self.calls.lock().unwrap().clone()
+    }
+
+    pub fn fail_requests(&self) {
+        *self.should_fail.lock().unwrap() = true;
+    }
+}
 
 #[async_trait]
 impl Notifier for DummyNotifier {
-    async fn notify(&self, _url: &str, _message: &str) -> Result<(), DomainError> {
+    async fn validate_endpoint(&self, _url: &str) -> Result<(), DomainError> {
         Ok(())
+    }
+
+    async fn notify(&self, url: &str, message: &str) -> Result<(), DomainError> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push((url.to_string(), message.to_string()));
+        if *self.should_fail.lock().unwrap() {
+            Err(DomainError::ReactionHttp5xx)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -323,6 +705,39 @@ impl TeamRepo for DummyTeamRepo {
             .collect())
     }
 
+    async fn list_team_directory_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<TeamDirectoryItem>, DomainError> {
+        let member_count_by_team = self.roles.lock().unwrap().clone();
+        Ok(self
+            .list_teams_for_user(user_id)
+            .await?
+            .into_iter()
+            .map(|(team, role)| TeamDirectoryItem {
+                member_count: member_count_by_team
+                    .keys()
+                    .filter(|(team_id, _)| *team_id == team.id)
+                    .count() as u64,
+                team,
+                role,
+                active_incident_count: 0,
+                active_release_count: 0,
+                blocked_release_count: 0,
+            })
+            .collect())
+    }
+
+    async fn find_team_by_id(&self, team_id: Uuid) -> Result<Option<Team>, DomainError> {
+        Ok(self
+            .teams_by_code
+            .lock()
+            .unwrap()
+            .values()
+            .find(|team| team.id == team_id)
+            .cloned())
+    }
+
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
         self.teams_by_code
             .lock()
@@ -358,6 +773,7 @@ impl TeamRepo for DummyTeamRepo {
                 user_id: *user_id,
                 email: format!("user-{user_id}@test.local"),
                 role: *role,
+                joined_at: Utc::now(),
             })
             .collect())
     }
@@ -384,7 +800,7 @@ impl TeamRepo for DummyTeamRepo {
         Ok(self.bans.lock().unwrap().get(&(team_id, user_id)).cloned())
     }
 
-    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBanView>, DomainError> {
         Ok(self
             .bans
             .lock()
@@ -392,7 +808,17 @@ impl TeamRepo for DummyTeamRepo {
             .values()
             .filter(|b| b.team_id == team_id)
             .cloned()
+            .map(|ban| TeamBanView {
+                user_email: format!("user-{}@test.local", ban.user_id),
+                moderator_email: ban.created_by.map(|id| format!("user-{id}@test.local")),
+                ban,
+            })
             .collect())
+    }
+
+    async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+        self.bans.lock().unwrap().remove(&(team_id, user_id));
+        Ok(())
     }
 }
 
@@ -403,6 +829,7 @@ impl Clock for DummyClock {}
 #[derive(Default)]
 pub struct DummyIncidentRepo {
     incidents: Mutex<HashMap<Uuid, Incident>>,
+    events: Mutex<Vec<IncidentEvent>>,
 }
 
 impl DummyIncidentRepo {
@@ -427,6 +854,16 @@ impl IncidentRepo for DummyIncidentRepo {
         Ok(())
     }
 
+    async fn save_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        self.seed_incident(incident.clone());
+        self.events.lock().unwrap().push(event.clone());
+        Ok(())
+    }
+
     async fn find_incident_by_id(
         &self,
         incident_id: Uuid,
@@ -437,6 +874,34 @@ impl IncidentRepo for DummyIncidentRepo {
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
         self.seed_incident(incident.clone());
         Ok(())
+    }
+
+    async fn update_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        self.seed_incident(incident.clone());
+        self.events.lock().unwrap().push(event.clone());
+        Ok(())
+    }
+
+    async fn list_events_for_incident(
+        &self,
+        incident_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<IncidentEvent>, DomainError> {
+        let mut events: Vec<_> = self
+            .events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event.incident_id == incident_id)
+            .cloned()
+            .collect();
+        events.sort_by_key(|event| std::cmp::Reverse((event.created_at, event.id)));
+        events.truncate(limit as usize);
+        Ok(events)
     }
 
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError> {
@@ -761,17 +1226,10 @@ impl ReleaseRepo for DummyReleaseRepo {
 }
 
 pub fn test_context() -> TestContext {
-    build_context(Arc::new(StaticRuleRepo::empty()))
+    build_context()
 }
 
-/// A context whose hook engine has the Phase-2 GitHub rule wired to `team_id`.
-/// Seed the matching secret with `ctx.vault.seed("github", secret)`.
-#[allow(dead_code)]
-pub fn test_context_with_github_rule(team_id: Uuid) -> TestContext {
-    build_context(Arc::new(StaticRuleRepo::github_ci_to_incident(team_id)))
-}
-
-fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
+fn build_context() -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
@@ -779,7 +1237,13 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
     let private_messages = Arc::new(DummyPrivateMessageRepo::default());
     let releases = Arc::new(DummyReleaseRepo::new(incidents.clone()));
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
-    let vault = Arc::new(DummyVault::default());
+    let events = Arc::new(WsHub::new());
+    let service_connections = Arc::new(DummyServiceConnectionRepo::default());
+    let connection_credentials = Arc::new(DummyConnectionCredentialVault::default());
+    let automation_rules = Arc::new(DummyAutomationRuleRepo::default());
+    let webhook_deliveries = Arc::new(DummyWebhookDeliveryRepo::default());
+    let automation_runs = Arc::new(DummyAutomationRunRepo::default());
+    let notifier = Arc::new(DummyNotifier::default());
     let config = Config::from_env();
 
     let app = build_app(AppState {
@@ -793,13 +1257,16 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         tokens: Arc::new(DummyTokenService),
         oauth: Arc::new(DummyOAuthClient),
         token_revocations: revoked_tokens.clone(),
-        events: Arc::new(WsHub::new()),
+        events: events.clone(),
         clock: Arc::new(DummyClock),
-        vault: vault.clone(),
         webhook_verifier: Arc::new(HmacSha256Verifier),
         webhook_parser: Arc::new(GithubParser),
-        rules,
-        notifier: Arc::new(DummyNotifier),
+        service_connections: service_connections.clone(),
+        connection_credentials: connection_credentials.clone(),
+        automation_rules: automation_rules.clone(),
+        webhook_deliveries: webhook_deliveries.clone(),
+        automation_runs: automation_runs.clone(),
+        notifier: notifier.clone(),
         gifs: Arc::new(DummyGifSearch),
         config,
     });
@@ -813,7 +1280,13 @@ fn build_context(rules: Arc<dyn RuleRepo + Send + Sync>) -> TestContext {
         private_messages,
         releases,
         revoked_tokens,
-        vault,
+        events,
+        service_connections,
+        connection_credentials,
+        automation_rules,
+        webhook_deliveries,
+        automation_runs,
+        notifier,
     }
 }
 

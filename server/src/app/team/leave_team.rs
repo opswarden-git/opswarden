@@ -2,7 +2,9 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::TeamRepo;
 
@@ -29,7 +31,7 @@ impl LeaveTeamUseCase {
             .await?
             .ok_or(DomainError::MemberNotFound)?;
 
-        if role == Role::Manager {
+        if !derive_capabilities(role).can_leave_team {
             return Err(DomainError::ManagerCannotLeave);
         }
 

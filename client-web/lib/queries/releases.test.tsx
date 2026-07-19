@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, queryClientWrapper } from "../../test/reactQuery";
 import { apiFetch } from "../api";
-import type { Release } from "./releases";
+import type { Release, ReleaseListItem } from "./releases";
 import {
   useCancelRelease,
   useCreateRelease,
@@ -32,9 +32,28 @@ function release(overrides: Partial<Release> = {}): Release {
     team_id: "team-1",
     title: "Deploy demo",
     state: "created",
-    steps: [{ name: "build", validated: false, validated_by: null, validated_at: null }],
+    steps: [
+      { position: 0, name: "build", validated: false, validated_by: null, validated_at: null },
+    ],
     linked_incident_ids: [],
     created_at: "2026-06-26T00:00:00Z",
+    updated_at: "2026-06-26T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function releaseListItem(overrides: Partial<ReleaseListItem> = {}): ReleaseListItem {
+  return {
+    release_id: "release-1",
+    team_id: "team-1",
+    title: "Deploy demo",
+    state: "created",
+    progress: { completed: 0, total: 1 },
+    next_step: { position: 0, name: "build" },
+    blockers: [],
+    linked_incident_ids: [],
+    created_at: "2026-06-26T00:00:00Z",
+    updated_at: "2026-06-26T00:00:00Z",
     ...overrides,
   };
 }
@@ -69,7 +88,7 @@ afterEach(() => {
 describe("release query mutations", () => {
   it("loads the team's releases", async () => {
     const queryClient = createTestQueryClient();
-    const releases = [release({ release_id: "release-a" })];
+    const releases = [releaseListItem({ release_id: "release-a" })];
     mockedApiFetch.mockResolvedValueOnce(jsonResponse(releases));
 
     const { result } = renderHook(() => useReleases("team-1"), {
@@ -97,11 +116,10 @@ describe("release query mutations", () => {
     expect(result.current.data).toEqual(detail);
   });
 
-  it("adds a created release to list and detail caches immediately", async () => {
+  it("stores created detail and refreshes the list read model", async () => {
     const queryClient = createTestQueryClient();
-    const existing = release({ release_id: "release-old", title: "Previous deploy" });
     const created = release({ release_id: "release-new", title: "New deploy" });
-    queryClient.setQueryData(["releases", { teamId: "team-1" }], [existing]);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     mockedApiFetch.mockResolvedValueOnce(jsonResponse(created, 201));
 
     const { result } = renderHook(() => useCreateRelease(), {
@@ -120,11 +138,8 @@ describe("release query mutations", () => {
       method: "POST",
       body: JSON.stringify({ team_id: "team-1", title: "New deploy", steps: ["build"] }),
     });
-    expect(queryClient.getQueryData<Release[]>(["releases", { teamId: "team-1" }])).toEqual([
-      created,
-      existing,
-    ]);
     expect(queryClient.getQueryData<Release>(["release", "release-new"])).toEqual(created);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["releases", { teamId: "team-1" }] });
   });
 
   it("surfaces backend error codes on release actions", async () => {

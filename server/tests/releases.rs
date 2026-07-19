@@ -57,6 +57,9 @@ async fn create_list_and_get_a_release() {
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(created["state"], "created");
     assert_eq!(created["steps"].as_array().unwrap().len(), 2);
+    assert_eq!(created["steps"][0]["position"], 0);
+    assert_eq!(created["steps"][1]["position"], 1);
+    assert!(created["updated_at"].is_string());
     let release_id = created["release_id"].as_str().unwrap();
 
     let (status, list) = send(
@@ -68,6 +71,13 @@ async fn create_list_and_get_a_release() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().unwrap().len(), 1);
+    assert_eq!(list[0]["progress"], json!({ "completed": 0, "total": 2 }));
+    assert_eq!(
+        list[0]["next_step"],
+        json!({ "position": 0, "name": "build" })
+    );
+    assert_eq!(list[0]["blockers"], json!([]));
+    assert!(list[0]["updated_at"].is_string());
 
     let (status, got) = send(&ctx, "GET", &format!("/api/releases/{release_id}"), None).await;
     assert_eq!(status, StatusCode::OK);
@@ -152,6 +162,27 @@ async fn linking_an_active_incident_blocks_then_resolving_unblocks() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(linked["state"], "blocked");
     assert_eq!(linked["linked_incident_ids"].as_array().unwrap().len(), 1);
+
+    let (status, list) = send(
+        &ctx,
+        "GET",
+        &format!("/api/releases?team_id={team_id}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list[0]["state"], "blocked");
+    assert_eq!(list[0]["progress"], json!({ "completed": 1, "total": 2 }));
+    assert_eq!(
+        list[0]["next_step"],
+        json!({ "position": 1, "name": "prod" })
+    );
+    assert_eq!(
+        list[0]["blockers"][0]["incident_id"],
+        incident_id.to_string()
+    );
+    assert_eq!(list[0]["blockers"][0]["title"], "prod is down");
+    assert_eq!(list[0]["blockers"][0]["severity"], "critical");
 
     // While blocked, step validation is refused.
     let (status, _b) = send(

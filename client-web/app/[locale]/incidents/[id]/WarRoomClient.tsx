@@ -1,46 +1,100 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  useAssignIncident,
-  useDeleteIncident,
-  useIncident,
-  useUpdateIncidentStatus,
-  type IncidentSeverity,
-} from "@/lib/queries/incidents";
-import { useTeamMembers } from "@/lib/queries/teams";
-import { useWsStore, useWatchers } from "@/lib/ws";
-import { StateChip } from "@/components/incidents/StateChip";
-import { SeverityChip } from "@/components/incidents/SeverityChip";
-import { Timeline } from "@/components/incidents/Timeline";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { ArrowLeft, CheckCircle2, Clock, ShieldAlert, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, Clock, ShieldAlert, Trash2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
+import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
+import { useDeleteIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
+import { useTeamMembers, useTeams } from "@/lib/queries/teams";
+import { teamPath } from "@/lib/team-routing";
+import { useWatchers, useWsStore } from "@/lib/ws";
+import { IncidentActivity } from "@/components/incidents/IncidentActivity";
+import { IncidentContextPanel } from "@/components/incidents/IncidentContextPanel";
+import { deriveIncidentHeaderActions } from "@/components/incidents/incident-detail";
+import { SeverityChip } from "@/components/incidents/SeverityChip";
+import { StateChip } from "@/components/incidents/StateChip";
+import { PageContent } from "@/components/layout/PageContent";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-const SEVERITY_KEY: Record<IncidentSeverity, string> = {
-  low: "severityLow",
-  medium: "severityMedium",
-  high: "severityHigh",
-  critical: "severityCritical",
-};
+function relativeAge(value: string, locale: string) {
+  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+  const ranges: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["day", 86_400],
+    ["hour", 3_600],
+    ["minute", 60],
+  ];
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
-export function WarRoomClient({ id }: { id: string }) {
+  for (const [unit, size] of ranges) {
+    if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit);
+  }
+
+  return formatter.format(seconds, "second");
+}
+
+function IncidentBreadcrumb({
+  currentHref,
+  incidentsHref,
+  shortId,
+  teamHref,
+  teamName,
+}: {
+  currentHref: string;
+  incidentsHref: string;
+  shortId: string;
+  teamHref: string;
+  teamName: string;
+}) {
+  const t = useTranslations("Incidents");
+
+  return (
+    <nav aria-label={t("breadcrumbLabel")} className="min-w-0 text-sm">
+      <ol className="text-muted flex min-w-0 items-center gap-2">
+        <li className="min-w-0 truncate">
+          <Link href={teamHref} className="hover:text-text transition-colors">
+            {teamName}
+          </Link>
+        </li>
+        <li aria-hidden="true">/</li>
+        <li>
+          <Link href={incidentsHref} className="hover:text-text transition-colors">
+            {t("title")}
+          </Link>
+        </li>
+        <li aria-hidden="true">/</li>
+        <li className="min-w-0 truncate">
+          <Link
+            href={currentHref}
+            aria-current="page"
+            className="text-text font-medium transition-colors"
+          >
+            {t("incidentBreadcrumb", { id: shortId })}
+          </Link>
+        </li>
+      </ol>
+    </nav>
+  );
+}
+
+export function WarRoomClient({ id, teamId }: { id: string; teamId?: string }) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
+  const locale = useLocale();
   const router = useRouter();
-
   const { data: incident, isLoading, error } = useIncident(id);
+  const { data: teams } = useTeams();
   const { data: members } = useTeamMembers(incident?.team_id);
   const updateStatus = useUpdateIncidentStatus();
-  const assignIncident = useAssignIncident();
   const deleteIncident = useDeleteIncident();
-
-  const [assigneeId, setAssigneeId] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const watch = useWsStore((s) => s.watch);
-  const unwatch = useWsStore((s) => s.unwatch);
+  const watch = useWsStore((state) => state.watch);
+  const unwatch = useWsStore((state) => state.unwatch);
   const watchers = useWatchers(id);
 
   React.useEffect(() => {
@@ -48,209 +102,157 @@ export function WarRoomClient({ id }: { id: string }) {
     return () => unwatch(id);
   }, [id, watch, unwatch]);
 
+  React.useEffect(() => {
+    if (!incident || teamId === incident.team_id) return;
+    router.replace(teamPath(incident.team_id, "incidents", incident.id));
+  }, [incident, router, teamId]);
+
+  const routeTeamId = incident?.team_id ?? teamId;
+  const incidentsHref = routeTeamId ? teamPath(routeTeamId, "incidents") : "/incidents";
+
   if (isLoading) {
-    return <div className="text-muted animate-pulse p-10 text-center">{t("loadingWarRoom")}</div>;
+    return (
+      <PageLayout width="workspace">
+        <PageHeader title={t("title")} />
+        <PageContent
+          state="loading"
+          loadingFallback={
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="surface h-96 animate-pulse rounded-md" />
+              <div className="surface h-72 animate-pulse rounded-md" />
+            </div>
+          }
+        />
+      </PageLayout>
+    );
   }
 
   if (error || !incident) {
     return (
-      <div className="mx-auto max-w-5xl p-6 text-center">
-        <p className="text-sev-critical">{t("failedToLoadIncident")}</p>
-        <Link href="/incidents" className="text-gold mt-4 inline-block hover:underline">
-          {t("returnToIncidents")}
-        </Link>
-      </div>
+      <PageLayout width="workspace">
+        <PageHeader title={t("title")} />
+        <PageContent
+          state="error"
+          errorFallback={<Alert tone="danger">{t("failedToLoadIncident")}</Alert>}
+        />
+      </PageLayout>
     );
   }
 
-  // Only Managers and Responders may carry an incident; never Observers.
-  const eligibleAssignees = (members ?? []).filter(
-    (m) => m.role === "manager" || m.role === "responder",
+  const currentTeam = teams?.find((team) => team.team_id === incident.team_id);
+  const actions = deriveIncidentActions(currentTeam?.role ?? "observer", incident.status);
+  const headerActions = deriveIncidentHeaderActions(actions.transitions);
+  const memberById = new Map((members ?? []).map((member) => [member.user_id, member]));
+  const assignee = incident.assignee ? memberById.get(incident.assignee) : undefined;
+  const people = Object.fromEntries(
+    (members ?? []).map((member) => [member.user_id, member.email]),
   );
-  const assigneeMember = (members ?? []).find((m) => m.user_id === incident.assignee);
-  const assigneeLabel = assigneeMember?.email ?? incident.assignee?.split("-")[0];
-
+  const teamName = currentTeam?.name ?? t("teamMember");
+  const currentHref = teamPath(incident.team_id, "incidents", incident.id);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
 
-  const onAssign = () => {
-    if (!assigneeId) return;
-    assignIncident.mutate({ incidentId: incident.id, assigneeId });
-  };
+  const transitionLabel = (transition: IncidentTransition) =>
+    transition === "acknowledged"
+      ? t("acknowledge")
+      : transition === "escalated"
+        ? t("escalate")
+        : t("resolve");
 
-  const onDelete = () =>
+  const transitionIcon = (transition: IncidentTransition) =>
+    transition === "acknowledged" ? (
+      <Clock className="h-4 w-4" aria-hidden="true" />
+    ) : transition === "escalated" ? (
+      <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+    ) : (
+      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+    );
+
+  const transitionButton = (transition: IncidentTransition, primary: boolean) => (
+    <Button
+      key={transition}
+      variant={primary ? "primary" : "secondary"}
+      size="lg"
+      loading={updateStatus.isPending}
+      onClick={() => updateStatus.mutate({ incidentId: incident.id, status: transition })}
+    >
+      {transitionIcon(transition)}
+      {transitionLabel(transition)}
+    </Button>
+  );
+
+  const deleteCurrentIncident = () =>
     deleteIncident.mutate(incident.id, {
-      onSuccess: () => router.push("/incidents"),
+      onSuccess: () => router.push(teamPath(incident.team_id, "incidents")),
     });
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-80px)] max-w-6xl flex-col space-y-6 p-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/incidents"
-          className="ow-secondary text-muted hover:text-text hover:border-gold rounded-md p-2 transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-text text-2xl font-bold tracking-tight">{incident.title}</h1>
-          <div className="mt-2 flex items-center gap-4">
-            <span className="text-muted font-mono text-sm">
-              {t("idLabel")}: {incident.id.split("-")[0]}
-            </span>
+    <PageLayout width="workspace">
+      <IncidentBreadcrumb
+        currentHref={currentHref}
+        incidentsHref={incidentsHref}
+        shortId={incident.id.slice(0, 8)}
+        teamHref={teamPath(incident.team_id, "overview")}
+        teamName={teamName}
+      />
+
+      <PageHeader
+        title={incident.title}
+        metadata={
+          <div className="flex flex-wrap items-center gap-2">
             <StateChip status={incident.status} />
             <SeverityChip severity={incident.severity} />
-            <span className="text-muted/60 text-xs">
-              {t("openedAt")}: {new Date(incident.created_at).toLocaleString()}
-            </span>
-            {incident.assignee ? (
-              <span className="surface-subtle text-text border-border inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                <UserPlus className="text-gold h-3 w-3" />
-                {assigneeLabel}
-              </span>
-            ) : (
-              <span className="surface-subtle text-muted/60 border-border inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                {t("unassigned")}
-              </span>
-            )}
-            <div className="surface-subtle border-border ml-auto flex items-center gap-2 rounded-full border px-3 py-1">
-              <span className="relative flex h-2 w-2">
-                {watchers.length > 0 ? (
-                  <>
-                    <span className="bg-st-res absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>
-                    <span className="bg-st-res relative inline-flex h-2 w-2 rounded-full"></span>
-                  </>
-                ) : (
-                  <span className="bg-muted/50 relative inline-flex h-2 w-2 rounded-full"></span>
-                )}
-              </span>
-              <span className="text-text text-xs font-medium">
-                {t("watchers", { count: watchers.length })}
-              </span>
-            </div>
+            <span className="text-muted">·</span>
+            <span>{assignee?.email ?? t("unassigned")}</span>
+            <span className="text-muted">·</span>
+            <time dateTime={incident.created_at}>{relativeAge(incident.created_at, locale)}</time>
           </div>
-        </div>
-      </div>
-
-      <div className="grid min-h-0 flex-1 grid-cols-3 gap-6">
-        <div className="surface col-span-2 flex flex-col overflow-hidden rounded-md">
-          <Timeline incidentId={incident.id} />
-        </div>
-
-        <div className="col-span-1 flex flex-col space-y-4">
-          <div className="surface rounded-md p-6">
-            <h3 className="text-text mb-4 font-bold">{t("commandActions")}</h3>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <select
-                  value={assigneeId}
-                  onChange={(e) => setAssigneeId(e.target.value)}
-                  disabled={eligibleAssignees.length === 0}
-                  className="ow-input flex h-10 min-w-0 flex-1 rounded-md px-3 py-2 text-sm transition-colors disabled:opacity-50"
-                >
-                  <option value="" className="bg-bg text-text">
-                    {t("assignResponder")}
-                  </option>
-                  {eligibleAssignees.map((member) => (
-                    <option key={member.user_id} value={member.user_id} className="bg-bg text-text">
-                      {member.email}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={onAssign}
-                  disabled={
-                    !assigneeId ||
-                    assigneeId === incident.assignee ||
-                    assignIncident.isPending ||
-                    eligibleAssignees.length === 0
-                  }
-                  className="ow-primary flex h-10 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  {t("assign")}
-                </button>
-              </div>
-              {eligibleAssignees.length === 0 ? (
-                <p className="text-muted/60 text-xs">{t("noEligibleAssignee")}</p>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() =>
-                  updateStatus.mutate({ incidentId: incident.id, status: "acknowledged" })
-                }
-                disabled={incident.status !== "open" || updateStatus.isPending}
-                className="ow-secondary text-text hover:border-st-ack/50 hover:bg-st-ack/10 flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
-              >
-                <Clock className="text-st-ack h-4 w-4" />
-                {t("acknowledge")}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  updateStatus.mutate({ incidentId: incident.id, status: "escalated" })
-                }
-                disabled={incident.status !== "acknowledged" || updateStatus.isPending}
-                className="border-st-esc/25 bg-st-esc/10 text-st-esc hover:bg-st-esc/20 flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
-              >
-                <ShieldAlert className="h-4 w-4" />
-                {t("escalate")}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updateStatus.mutate({ incidentId: incident.id, status: "resolved" })}
-                disabled={
-                  incident.status === "resolved" ||
-                  incident.status === "open" ||
-                  updateStatus.isPending
-                }
-                className="ow-secondary text-text hover:border-st-res/50 hover:bg-st-res/10 flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
-              >
-                <CheckCircle2 className="text-st-res h-4 w-4" />
-                {t("resolve")}
-              </button>
-            </div>
-            {updateStatus.error ? (
-              <p className="text-sev-critical mt-4 text-center text-xs">
-                {errorText(updateStatus.error.message)}
-              </p>
+        }
+        actions={
+          <>
+            {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
+            {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
+            {actions.canDelete ? (
+              <ActionMenu
+                label={t("moreActions")}
+                items={[
+                  {
+                    id: "delete",
+                    label: t("deleteIncident"),
+                    icon: Trash2,
+                    tone: "danger",
+                    onSelect: () => {
+                      deleteIncident.reset();
+                      setDeleteOpen(true);
+                    },
+                  },
+                ]}
+              />
             ) : null}
-            {assignIncident.error ? (
-              <p className="text-sev-critical mt-4 text-center text-xs">
-                {errorText(assignIncident.error.message)}
-              </p>
-            ) : null}
-          </div>
+          </>
+        }
+      />
 
-          <div className="surface flex-1 rounded-md p-6">
-            <h3 className="text-text mb-4 font-bold">{t("payloadDetails")}</h3>
-            <p className="text-muted text-sm whitespace-pre-wrap">
-              <span className="text-text">{t("fieldTitle")}:</span> {incident.title}
-              <br />
-              <br />
-              <span className="text-text">{t("fieldSeverity")}:</span>{" "}
-              {t(SEVERITY_KEY[incident.severity])}
-            </p>
-          </div>
+      {updateStatus.error ? (
+        <Alert tone="danger">{errorText(updateStatus.error.message)}</Alert>
+      ) : null}
 
-          <div className="surface rounded-md p-6">
-            <button
-              type="button"
-              onClick={() => {
-                deleteIncident.reset();
-                setDeleteOpen(true);
-              }}
-              className="ow-danger flex h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("deleteIncident")}
-            </button>
-          </div>
+      <PageContent>
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <IncidentActivity
+            incidentId={incident.id}
+            canCompose={actions.canWriteTimeline}
+            people={people}
+          />
+
+          <IncidentContextPanel
+            incident={incident}
+            team={currentTeam}
+            members={members ?? []}
+            watcherIds={watchers}
+            canAssign={actions.canAssign}
+          />
         </div>
-      </div>
+      </PageContent>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -261,11 +263,12 @@ export function WarRoomClient({ id }: { id: string }) {
         pendingLabel={t("processing")}
         danger
         requireType="DELETE"
+        requireTypeLabel={t("deleteConfirmationInput")}
         pending={deleteIncident.isPending}
         error={deleteIncident.error ? errorText(deleteIncident.error.message) : null}
-        onConfirm={onDelete}
+        onConfirm={deleteCurrentIncident}
         onClose={() => setDeleteOpen(false)}
       />
-    </div>
+    </PageLayout>
   );
 }

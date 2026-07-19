@@ -1,7 +1,6 @@
 // --- server/src/config.rs ---
 
 use sha2::{Digest, Sha256};
-use uuid::Uuid;
 
 /// Dev fallback for the AES-256 vault key (32 bytes). Override in any real
 /// environment with `OPSWARDEN_VAULT_KEY` (64 hex chars), like `JWT_SECRET`.
@@ -11,15 +10,8 @@ const DEV_VAULT_KEY: [u8; 32] = *b"opswarden-dev-vault-key-0123456!";
 pub struct Config {
     pub kickoff_token_secret: String,
     pub jwt_secret: String,
-    /// AES-256-GCM key for the secret vault (see `adapters::pg::vault`).
+    /// AES-256-GCM key for Team-owned connection credentials.
     pub vault_key: [u8; 32],
-    /// Optional GitHub webhook HMAC secret, seeded into the vault at startup.
-    pub github_webhook_secret: Option<String>,
-    /// Team that automation rules open incidents in (none = rules inert).
-    pub automation_team_id: Option<Uuid>,
-    /// Outbound URL (Slack incoming webhook, Discord, any HTTP endpoint) for the
-    /// Notify REAction; when set alongside a team, a CI failure also notifies it.
-    pub automation_notify_url: Option<String>,
     pub google_oauth_client_id: Option<String>,
     pub google_oauth_client_secret: Option<String>,
     pub google_oauth_redirect_uri: String,
@@ -65,13 +57,6 @@ impl Config {
             .and_then(|hex_key| decode_key(&hex_key))
             .unwrap_or(DEV_VAULT_KEY);
 
-        let github_webhook_secret = optional_env("GITHUB_WEBHOOK_SECRET");
-
-        // Blank or unparseable => None: rules stay inert rather than crashing.
-        let automation_team_id = optional_env("OPSWARDEN_AUTOMATION_TEAM_ID")
-            .and_then(|raw| Uuid::parse_str(raw.trim()).ok());
-
-        let automation_notify_url = optional_env("OPSWARDEN_AUTOMATION_NOTIFY_URL");
         let google_oauth_client_id = optional_env("GOOGLE_OAUTH_CLIENT_ID");
         let google_oauth_client_secret = optional_env("GOOGLE_OAUTH_CLIENT_SECRET");
         let google_oauth_redirect_uri = optional_env("GOOGLE_OAUTH_REDIRECT_URI")
@@ -84,9 +69,6 @@ impl Config {
             kickoff_token_secret,
             jwt_secret,
             vault_key,
-            github_webhook_secret,
-            automation_team_id,
-            automation_notify_url,
             google_oauth_client_id,
             google_oauth_client_secret,
             google_oauth_redirect_uri,

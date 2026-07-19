@@ -9,9 +9,12 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::team::{validate_member_moderation, Role};
+use crate::domain::team::validate_member_moderation;
+#[cfg(test)]
+use crate::domain::team::Role;
 use crate::ports::{EventPublisher, IncidentRepo, TeamRepo};
 
 pub struct KickMemberCommand {
@@ -47,7 +50,7 @@ impl KickMemberUseCase {
             .find_member_role(cmd.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if requester_role != Role::Manager {
+        if !derive_capabilities(requester_role).can_manage_members {
             return Err(DomainError::NotManager);
         }
 

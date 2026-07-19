@@ -79,6 +79,7 @@ pub struct Team {
     pub id: Uuid,
     pub name: String,
     pub invitation_code: InvitationCode,
+    pub created_at: DateTime<Utc>,
 }
 
 impl Team {
@@ -93,6 +94,7 @@ impl Team {
             id: Uuid::new_v4(),
             name,
             invitation_code: InvitationCode::generate(),
+            created_at: Utc::now(),
         })
     }
 }
@@ -103,6 +105,7 @@ pub struct TeamMember {
     pub team_id: Uuid,
     pub user_id: Uuid,
     pub role: Role,
+    pub joined_at: DateTime<Utc>,
 }
 
 /// Read projection of a team member enriched with the user's email, for the
@@ -113,6 +116,20 @@ pub struct TeamMemberView {
     pub user_id: Uuid,
     pub email: String,
     pub role: Role,
+    pub joined_at: DateTime<Utc>,
+}
+
+/// Directory projection for one team the current user belongs to. Counts are
+/// computed by the read repository so the client does not fetch four resource
+/// collections to render a single row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamDirectoryItem {
+    pub team: Team,
+    pub role: Role,
+    pub member_count: u64,
+    pub active_incident_count: u64,
+    pub active_release_count: u64,
+    pub blocked_release_count: u64,
 }
 
 /// A single role assignment to apply. A manager transfer yields exactly two of
@@ -206,6 +223,16 @@ pub struct TeamBan {
     /// (the FK is `ON DELETE SET NULL`, so the ban outlives its issuer).
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
+}
+
+/// A ban enriched with the identities needed by the moderation UI. The banned
+/// user always exists while the row exists; the moderator may have been
+/// deleted, hence the optional identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamBanView {
+    pub ban: TeamBan,
+    pub user_email: String,
+    pub moderator_email: Option<String>,
 }
 
 impl TeamBan {

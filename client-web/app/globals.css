@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 @config "../tailwind.config.ts";
 
 @layer base {
@@ -7,8 +8,8 @@
     --bg-2: #15161a;
     --panel: #1b1c20;
     --panel-2: #212228;
-    --ow-border: rgba(255, 255, 255, 0.08);
-    --ow-border-2: rgba(255, 255, 255, 0.12);
+    --ow-border: rgb(255 255 255 / 8%);
+    --ow-border-2: rgb(255 255 255 / 12%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
     --ow-muted-2: #6f737a;
@@ -16,6 +17,9 @@
     --gold-hover: #f9a825;
     --gold-dim: #fbc02d;
     --gold-ink: #1a1405;
+    --danger: #ff2d2d;
+    --danger-hover: #e91919;
+    --danger-ink: #fff;
 
     /* severities */
     --sev-low: #3b82f6;
@@ -34,11 +38,12 @@
 @layer base {
   body {
     @apply text-text font-sans antialiased;
+
     min-height: 100vh;
     background-color: var(--bg);
     background-image:
-      radial-gradient(1100px 700px at 50% -15%, rgba(255, 255, 255, 0.035), transparent 60%),
-      radial-gradient(rgba(255, 255, 255, 0.032) 1px, transparent 1px);
+      radial-gradient(1100px 700px at 50% -15%, rgb(255 255 255 / 3.5%), transparent 60%),
+      radial-gradient(rgb(255 255 255 / 3.2%) 1px, transparent 1px);
     background-size:
       auto,
       30px 30px;
@@ -53,13 +58,13 @@
     overflow: hidden;
     background-color: var(--panel);
     border: 1px solid var(--ow-border);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.055);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 5.5%);
   }
 
   .surface {
     background-color: var(--panel);
     border: 1px solid var(--ow-border);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.055);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 5.5%);
   }
 
   .surface-subtle {
@@ -107,36 +112,6 @@
     border-color: color-mix(in srgb, var(--gold) 70%, transparent);
     outline: none;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
-  }
-
-  .ow-primary {
-    background-color: var(--gold);
-    color: var(--gold-ink);
-  }
-
-  .ow-primary:hover {
-    background-color: var(--gold-hover);
-  }
-
-  .ow-secondary {
-    background-color: var(--panel);
-    color: var(--text);
-    border: 1px solid var(--ow-border);
-  }
-
-  .ow-secondary:hover {
-    background-color: var(--panel-2);
-  }
-
-  .ow-danger {
-    background-color: #ff2d2d !important;
-    color: #ffffff !important;
-    border: 1px solid #ff2d2d !important;
-  }
-
-  .ow-danger:hover {
-    background-color: #e91919 !important;
-    border-color: #e91919 !important;
   }
 }
 

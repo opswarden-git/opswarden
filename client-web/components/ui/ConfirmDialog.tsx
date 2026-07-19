@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import React, { useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "./Button";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -15,6 +17,7 @@ interface ConfirmDialogProps {
   /** When set, the confirm button stays disabled until the user types this exact
    *  sentinel (e.g. "DELETE") — the dark-pattern guard for destructive actions. */
   requireType?: string;
+  requireTypeLabel?: string;
   pending?: boolean;
   error?: string | null;
   /** Optional extra body (e.g. a ban-duration select) rendered under the description. */
@@ -30,8 +33,11 @@ interface ConfirmDialogProps {
  * mounts while open, so the typed sentinel resets on every open without an effect.
  */
 export function ConfirmDialog(props: ConfirmDialogProps) {
-  if (!props.open) return null;
-  return <ConfirmDialogBody {...props} />;
+  return (
+    <Dialog.Root open={props.open} onOpenChange={(open) => !open && props.onClose()}>
+      {props.open ? <ConfirmDialogBody {...props} /> : null}
+    </Dialog.Root>
+  );
 }
 
 function ConfirmDialogBody({
@@ -42,6 +48,7 @@ function ConfirmDialogBody({
   pendingLabel,
   danger = false,
   requireType,
+  requireTypeLabel,
   pending = false,
   error,
   children,
@@ -49,52 +56,72 @@ function ConfirmDialogBody({
   onClose,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState("");
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmDisabled = pending || (requireType ? typed !== requireType : false);
 
   return (
-    <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="surface w-full max-w-md space-y-5 rounded-md p-6 shadow-2xl">
+    <Dialog.Portal>
+      <Dialog.Overlay className="bg-bg/80 fixed inset-0 z-50 backdrop-blur-sm" />
+      <Dialog.Content
+        className="surface fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 space-y-5 rounded-md p-6 shadow-2xl outline-none"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          cancelRef.current?.focus();
+        }}
+      >
         <div className="flex gap-3">
-          {danger ? <AlertTriangle className="text-sev-critical mt-0.5 h-5 w-5 shrink-0" /> : null}
+          {danger ? (
+            <AlertTriangle
+              className="text-sev-critical mt-0.5 h-5 w-5 shrink-0"
+              aria-hidden="true"
+            />
+          ) : null}
           <div>
-            <h2 className="text-text text-lg font-semibold">{title}</h2>
-            <p className="text-muted mt-2 text-sm">{description}</p>
+            <Dialog.Title className="text-text text-lg font-semibold">{title}</Dialog.Title>
+            <Dialog.Description className="text-muted mt-2 text-sm">
+              {description}
+            </Dialog.Description>
           </div>
         </div>
 
         {children}
 
         {requireType ? (
-          <input
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            className="ow-input focus-visible:ring-sev-critical/50 flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
-            placeholder={requireType}
-          />
+          <label className="text-text block text-sm font-medium">
+            <span>{requireTypeLabel ?? requireType}</span>
+            <input
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              className="ow-input focus-visible:ring-sev-critical/50 mt-2 flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
         ) : null}
 
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? (
+          <p className="text-sev-critical text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="ow-secondary h-10 rounded-md px-4 text-sm font-medium transition-colors"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
+          <Dialog.Close asChild>
+            <Button ref={cancelRef} size="lg">
+              {cancelLabel}
+            </Button>
+          </Dialog.Close>
+          <Button
+            size="lg"
+            variant={danger ? "danger" : "primary"}
             onClick={onConfirm}
             disabled={confirmDisabled}
-            className={`inline-flex h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50 ${
-              danger ? "ow-danger" : "ow-primary"
-            }`}
+            loading={pending}
           >
             {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </Dialog.Content>
+    </Dialog.Portal>
   );
 }

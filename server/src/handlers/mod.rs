@@ -10,8 +10,8 @@ pub mod incident;
 pub mod middleware;
 pub mod private_message;
 pub mod release;
-pub mod service_connection;
 pub mod team;
+pub mod team_automation;
 pub mod webhook;
 pub mod ws;
 
@@ -45,6 +45,7 @@ pub struct ServerInfo {
 #[derive(Serialize)]
 pub struct ServiceCatalog {
     pub name: String,
+    pub label: String,
     pub actions: Vec<CatalogItem>,
     pub reactions: Vec<CatalogItem>,
 }
@@ -52,7 +53,9 @@ pub struct ServiceCatalog {
 #[derive(Serialize)]
 pub struct CatalogItem {
     pub name: String,
+    pub label: String,
     pub description: String,
+    pub connection_service: Option<String>,
 }
 
 use crate::AppState;
@@ -80,24 +83,22 @@ pub async fn about(State(state): State<AppState>) -> Json<About> {
 /// side). Grows as services/Actions/REActions are added in `adapters/webhook`
 /// and the rule engine.
 fn automation_catalog() -> Vec<ServiceCatalog> {
-    vec![ServiceCatalog {
-        name: "github".to_string(),
-        actions: vec![CatalogItem {
-            name: "ci_failed".to_string(),
-            description: "A GitHub Actions workflow run completed with a failing conclusion"
-                .to_string(),
-        }],
-        reactions: vec![
-            CatalogItem {
-                name: "create_incident".to_string(),
-                description: "Open a high-severity incident in the configured team".to_string(),
-            },
-            CatalogItem {
-                name: "notify".to_string(),
-                description:
-                    "Send a notification to a configured HTTP webhook (Slack, Discord, or any URL)"
-                        .to_string(),
-            },
-        ],
-    }]
+    crate::domain::automation_catalog::AUTOMATION_CATALOG
+        .iter()
+        .map(|service| ServiceCatalog {
+            name: service.service.to_string(),
+            label: service.label.to_string(),
+            actions: service.actions.iter().map(catalog_item).collect(),
+            reactions: service.reactions.iter().map(catalog_item).collect(),
+        })
+        .collect()
+}
+
+fn catalog_item(item: &crate::domain::automation_catalog::CatalogCapability) -> CatalogItem {
+    CatalogItem {
+        name: item.kind.to_string(),
+        label: item.label.to_string(),
+        description: item.description.to_string(),
+        connection_service: item.connection_service.map(str::to_string),
+    }
 }

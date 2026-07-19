@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/Button";
 
 /** Logout + delete-account (typed-confirm). */
 export function AccountDangerZone() {
@@ -61,29 +62,27 @@ export function AccountDangerZone() {
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-red-400">{t("logOutSession")}</h3>
           </div>
-          <button
-            onClick={handleLogout}
-            className="ow-danger inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50"
-          >
+          <Button variant="danger" size="lg" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             {t("logOut")}
-          </button>
+          </Button>
         </div>
 
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-red-400">{t("deleteAccountTitle")}</h3>
           </div>
-          <button
+          <Button
+            variant="danger"
+            size="lg"
             onClick={() => {
               setDeleteError(null);
               setDeleteOpen(true);
             }}
-            className="ow-danger inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
             {t("deleteAccount")}
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,8 +1,7 @@
 import React from "react";
 import { Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-
-type TeamRole = "manager" | "responder" | "observer";
+import type { TeamRole } from "@/lib/capabilities";
 
 /**
  * Small, reusable RBAC role badge: icon + translated label. Shared by the

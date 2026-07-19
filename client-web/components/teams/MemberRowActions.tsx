@@ -4,13 +4,11 @@ import React from "react";
 import { ChevronDown, ChevronUp, Crown, UserMinus, Ban } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TeamMember } from "@/lib/queries/teams";
+import { ActionMenu, type ActionMenuEntry } from "@/components/ui/ActionMenu";
 
 /**
- * Compact inline management actions for one roster row, shown only to a Manager.
- * Deliberately inline icon-buttons (with title/aria) rather than a popover menu:
- * the roster card clips overflow, so a faux-dropdown would be fragile — two
- * sober icons read better than a janky menu. The Manager's own row has no
- * actions (the Manager seat only moves through transfer).
+ * Labelled management actions for one roster row, shown only to a Manager.
+ * The menu primitive owns its portal, keyboard behavior and focus restoration.
  */
 export function MemberRowActions({
   member,
@@ -33,49 +31,24 @@ export function MemberRowActions({
 
   const promote = member.role === "observer";
   const roleLabel = promote ? t("makeResponder") : t("makeObserver");
+  const RoleIcon = promote ? ChevronUp : ChevronDown;
+  const items: ActionMenuEntry[] = [
+    {
+      id: "role",
+      label: roleLabel,
+      icon: RoleIcon,
+      onSelect: () => onSetRole(promote ? "responder" : "observer"),
+    },
+    {
+      id: "manager",
+      label: t("makeManager"),
+      icon: Crown,
+      onSelect: onMakeManager,
+    },
+    { id: "danger-separator", separator: true },
+    { id: "kick", label: t("kick"), icon: UserMinus, tone: "danger", onSelect: onKick },
+    { id: "ban", label: t("ban"), icon: Ban, tone: "danger", onSelect: onBan },
+  ];
 
-  return (
-    <div className="flex items-center justify-end gap-1">
-      <button
-        type="button"
-        onClick={() => onSetRole(promote ? "responder" : "observer")}
-        disabled={pending}
-        title={roleLabel}
-        aria-label={roleLabel}
-        className="text-muted hover:text-text rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
-      >
-        {promote ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      <button
-        type="button"
-        onClick={onMakeManager}
-        disabled={pending}
-        title={t("makeManager")}
-        aria-label={t("makeManager")}
-        className="text-muted hover:text-gold rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
-      >
-        <Crown className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        onClick={onKick}
-        disabled={pending}
-        title={t("kick")}
-        aria-label={t("kick")}
-        className="text-muted hover:text-sev-high rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
-      >
-        <UserMinus className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        onClick={onBan}
-        disabled={pending}
-        title={t("ban")}
-        aria-label={t("ban")}
-        className="text-muted hover:text-sev-critical rounded-md p-1.5 transition-colors hover:bg-white/[0.06] disabled:opacity-40"
-      >
-        <Ban className="h-4 w-4" />
-      </button>
-    </div>
-  );
+  return <ActionMenu label={t("actionsTitle")} items={items} disabled={pending} />;
 }

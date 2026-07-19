@@ -117,8 +117,57 @@ impl IntoResponse for DomainError {
             DomainError::InvalidServiceSecret => {
                 (StatusCode::BAD_REQUEST, "Service secret cannot be empty")
             }
+            DomainError::InvalidServiceConnection => {
+                (StatusCode::BAD_REQUEST, "Service connection is invalid")
+            }
+            DomainError::ServiceConnectionNotFound => {
+                (StatusCode::NOT_FOUND, "Service connection was not found")
+            }
+            DomainError::InvalidAutomationRule => {
+                (StatusCode::BAD_REQUEST, "Automation rule is invalid")
+            }
+            DomainError::AutomationRuleNotFound => {
+                (StatusCode::NOT_FOUND, "Automation rule was not found")
+            }
+            DomainError::InvalidAutomationRun => {
+                (StatusCode::BAD_REQUEST, "Automation run is invalid")
+            }
+            DomainError::InvalidWebhookDelivery => {
+                (StatusCode::BAD_REQUEST, "Webhook delivery is invalid")
+            }
+            DomainError::InvalidAutomationTransition => (
+                StatusCode::CONFLICT,
+                "Automation resource is already terminal",
+            ),
             DomainError::Crypto => (StatusCode::INTERNAL_SERVER_ERROR, "Cryptographic failure"),
             DomainError::ReactionFailed => (StatusCode::BAD_GATEWAY, "Automation reaction failed"),
+            DomainError::InvalidReactionEndpoint => {
+                (StatusCode::BAD_REQUEST, "Reaction endpoint is invalid")
+            }
+            DomainError::UnsafeReactionTarget => {
+                (StatusCode::BAD_REQUEST, "Reaction target is not allowed")
+            }
+            DomainError::ReactionTimeout => (StatusCode::GATEWAY_TIMEOUT, "Reaction timed out"),
+            DomainError::ReactionResponseTooLarge => (
+                StatusCode::BAD_GATEWAY,
+                "Reaction response exceeded the size limit",
+            ),
+            DomainError::ReactionPayloadTooLarge => (
+                StatusCode::BAD_REQUEST,
+                "Reaction payload exceeded the size limit",
+            ),
+            DomainError::ReactionRedirectRefused => {
+                (StatusCode::BAD_GATEWAY, "Reaction redirect was refused")
+            }
+            DomainError::ReactionHttp4xx => {
+                (StatusCode::BAD_GATEWAY, "Reaction endpoint rejected the request")
+            }
+            DomainError::ReactionHttp5xx => {
+                (StatusCode::BAD_GATEWAY, "Reaction endpoint failed")
+            }
+            DomainError::ReactionNetworkError => {
+                (StatusCode::BAD_GATEWAY, "Reaction network request failed")
+            }
             DomainError::OAuthNotConfigured => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "OAuth provider is not configured",

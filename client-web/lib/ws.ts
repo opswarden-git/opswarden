@@ -195,6 +195,7 @@ export function useRealtime() {
     for (const incidentId of activeWatches) {
       queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["timeline", incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["activity", incidentId] });
       sendJsonMessage({ type: "watch", incident_id: incidentId });
     }
   }, [readyState, token, sendJsonMessage, queryClient]);
@@ -218,13 +219,13 @@ export function useRealtime() {
         queryClient.setQueryData<Incident>(["incident", event.incident_id], (incident) =>
           incident ? { ...incident, ...incidentPatch } : incident,
         );
-        queryClient.setQueriesData<Incident[]>({ queryKey: ["incidents"] }, (incidents) =>
-          incidents?.map((incident) =>
-            incident.id === event.incident_id ? { ...incident, ...incidentPatch } : incident,
-          ),
-        );
+        // Queue queries carry filtered items plus global counters. The compact
+        // WS event does not carry enough data to update that read model safely
+        // (notably the assignee email and counter deltas), so refetch it as one
+        // coherent projection instead of partially mutating cached rows.
         queryClient.invalidateQueries({ queryKey: ["incident", event.incident_id] });
         queryClient.invalidateQueries({ queryKey: ["incidents"] });
+        queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
 
         // Native desktop notification (no-op outside the Tauri shell). Only
         // notify the affected user, and never for one's own action.
@@ -252,6 +253,7 @@ export function useRealtime() {
       case "reaction_added":
       case "reaction_removed":
         queryClient.invalidateQueries({ queryKey: ["timeline", event.incident_id] });
+        queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
         break;
       case "presence_update":
         useWsStore.getState().setWatchers(event.incident_id, event.watchers || []);

@@ -5,7 +5,11 @@ import Image from "next/image";
 import { Link, useRouter } from "@/i18n/routing";
 import { Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import { Alert } from "@/components/ui/Alert";
+import { Button, IconButton } from "@/components/ui/Button";
 import { useTranslations } from "next-intl";
+import { teamPath } from "@/lib/team-routing";
+import type { Team } from "@/lib/queries/teams";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,8 +44,8 @@ export default function LoginPage() {
 
       const teamsRes = await apiFetch("/api/teams");
       if (teamsRes.ok) {
-        const teams = await teamsRes.json();
-        router.push(Array.isArray(teams) && teams.length === 0 ? "/settings?setup=station" : "/");
+        const teams = (await teamsRes.json()) as Team[];
+        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=station");
         return;
       }
 
@@ -151,36 +155,37 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className={`ow-input ${showPassword ? "text-text" : "text-muted-2"} caret-gold placeholder:text-muted-2 flex h-10 w-full rounded-md px-3 py-2 pr-10 text-sm transition-colors`}
                   />
-                  <button
-                    type="button"
+                  <IconButton
+                    label={showPassword ? t("hidePassword") : t("showPassword")}
+                    size="sm"
+                    variant="ghost"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
-                    className="text-muted hover:text-text absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
+                    className="absolute top-1/2 right-1 -translate-y-1/2"
                   >
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
+                  </IconButton>
                 </div>
               </div>
-              {error && <div className="ow-danger rounded-md p-3 text-center text-sm">{error}</div>}
+              {error ? (
+                <Alert tone="danger" className="text-center">
+                  {error}
+                </Alert>
+              ) : null}
               <div className="mt-2 flex flex-col gap-4">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                >
+                <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>
                   {loading ? t("loggingIn") : t("login")}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  size="lg"
+                  fullWidth
                   onClick={() => {
                     const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
                     window.location.href = `/api/auth/google/start?locale=${locale}`;
                   }}
-                  className="ow-secondary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
-                  <FcGoogle className="mr-2 size-5" />
+                  <FcGoogle className="size-5" />
                   {t("loginWithGoogle")}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

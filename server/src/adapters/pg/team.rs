@@ -1,7 +1,9 @@
 // --- server/src/adapters/pg/team.rs ---
 
 use crate::domain::error::DomainError;
-use crate::domain::team::{BanKind, InvitationCode, Role, Team, TeamBan, TeamMemberView};
+use crate::domain::team::{
+    BanKind, InvitationCode, Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
+};
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -52,12 +54,13 @@ impl TeamRepo for PgTeamRepo {
     async fn save_team(&self, team: &Team) -> Result<(), DomainError> {
         sqlx::query!(
             r#"
-            INSERT INTO teams (id, name, invitation_code)
-            VALUES ($1, $2, $3)
+            INSERT INTO teams (id, name, invitation_code, created_at)
+            VALUES ($1, $2, $3, $4)
             "#,
             team.id,
             team.name,
             team.invitation_code.as_str(),
+            team.created_at,
         )
         .execute(&self.pool)
         .await
@@ -69,7 +72,7 @@ impl TeamRepo for PgTeamRepo {
     async fn find_by_invitation_code(&self, code: &str) -> Result<Option<Team>, DomainError> {
         let record = sqlx::query!(
             r#"
-            SELECT id, name, invitation_code
+            SELECT id, name, invitation_code, created_at
             FROM teams
             WHERE invitation_code = $1
             "#,
@@ -83,6 +86,7 @@ impl TeamRepo for PgTeamRepo {
             id: row.id,
             name: row.name,
             invitation_code: InvitationCode::from_existing(row.invitation_code),
+            created_at: row.created_at,
         }))
     }
 
@@ -191,7 +195,7 @@ impl TeamRepo for PgTeamRepo {
     async fn list_teams_for_user(&self, user_id: Uuid) -> Result<Vec<(Team, Role)>, DomainError> {
         let records = sqlx::query!(
             r#"
-            SELECT t.id, t.name, t.invitation_code, m.role
+            SELECT t.id, t.name, t.invitation_code, t.created_at, m.role
             FROM team_members m
             JOIN teams t ON t.id = m.team_id
             WHERE m.user_id = $1
@@ -211,11 +215,90 @@ impl TeamRepo for PgTeamRepo {
                         id: row.id,
                         name: row.name,
                         invitation_code: InvitationCode::from_existing(row.invitation_code),
+                        created_at: row.created_at,
                     },
                     role_from_str(&row.role),
                 )
             })
             .collect())
+    }
+
+    async fn list_team_directory_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<TeamDirectoryItem>, DomainError> {
+        let records = sqlx::query!(
+            r#"
+            SELECT
+                t.id,
+                t.name,
+                t.invitation_code,
+                t.created_at,
+                membership.role,
+                (SELECT COUNT(*) FROM team_members members WHERE members.team_id = t.id) AS "member_count!",
+                (SELECT COUNT(*) FROM incidents incidents
+                    WHERE incidents.team_id = t.id AND incidents.status <> 'resolved') AS "active_incident_count!",
+                (SELECT COUNT(*) FROM releases releases
+                    WHERE releases.team_id = t.id
+                      AND releases.base_state IN ('created', 'in_progress')) AS "active_release_count!",
+                (SELECT COUNT(*) FROM releases releases
+                    WHERE releases.team_id = t.id
+                      AND releases.base_state = 'in_progress'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM release_incidents links
+                          JOIN incidents incidents ON incidents.id = links.incident_id
+                          WHERE links.release_id = releases.id
+                            AND incidents.status <> 'resolved'
+                      )) AS "blocked_release_count!"
+            FROM team_members membership
+            JOIN teams t ON t.id = membership.team_id
+            WHERE membership.user_id = $1
+            ORDER BY membership.joined_at
+            "#,
+            user_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(records
+            .into_iter()
+            .map(|row| TeamDirectoryItem {
+                team: Team {
+                    id: row.id,
+                    name: row.name,
+                    invitation_code: InvitationCode::from_existing(row.invitation_code),
+                    created_at: row.created_at,
+                },
+                role: role_from_str(&row.role),
+                member_count: row.member_count as u64,
+                active_incident_count: row.active_incident_count as u64,
+                active_release_count: row.active_release_count as u64,
+                blocked_release_count: row.blocked_release_count as u64,
+            })
+            .collect())
+    }
+
+    async fn find_team_by_id(&self, team_id: Uuid) -> Result<Option<Team>, DomainError> {
+        let record = sqlx::query!(
+            r#"
+            SELECT id, name, invitation_code, created_at
+            FROM teams
+            WHERE id = $1
+            "#,
+            team_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(record.map(|row| Team {
+            id: row.id,
+            name: row.name,
+            invitation_code: InvitationCode::from_existing(row.invitation_code),
+            created_at: row.created_at,
+        }))
     }
 
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
@@ -268,7 +351,7 @@ impl TeamRepo for PgTeamRepo {
     async fn list_members(&self, team_id: Uuid) -> Result<Vec<TeamMemberView>, DomainError> {
         let records = sqlx::query!(
             r#"
-            SELECT u.id AS user_id, u.email, m.role
+            SELECT u.id AS user_id, u.email, m.role, m.joined_at
             FROM team_members m
             JOIN users u ON u.id = m.user_id
             WHERE m.team_id = $1
@@ -286,6 +369,7 @@ impl TeamRepo for PgTeamRepo {
                 user_id: row.user_id,
                 email: row.email,
                 role: role_from_str(&row.role),
+                joined_at: row.joined_at,
             })
             .collect())
     }
@@ -361,13 +445,22 @@ impl TeamRepo for PgTeamRepo {
         }))
     }
 
-    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBanView>, DomainError> {
         let rows = sqlx::query!(
             r#"
-            SELECT user_id, expires_at, reason, created_by, created_at
-            FROM team_bans
-            WHERE team_id = $1
-            ORDER BY created_at DESC
+            SELECT
+                bans.user_id,
+                banned.email AS user_email,
+                bans.expires_at,
+                bans.reason,
+                bans.created_by,
+                moderator.email AS "moderator_email?",
+                bans.created_at
+            FROM team_bans bans
+            JOIN users banned ON banned.id = bans.user_id
+            LEFT JOIN users moderator ON moderator.id = bans.created_by
+            WHERE bans.team_id = $1
+            ORDER BY bans.created_at DESC
             "#,
             team_id,
         )
@@ -377,15 +470,35 @@ impl TeamRepo for PgTeamRepo {
 
         Ok(rows
             .into_iter()
-            .map(|r| TeamBan {
-                team_id,
-                user_id: r.user_id,
-                kind: ban_kind(r.expires_at),
-                reason: r.reason,
-                created_by: r.created_by,
-                created_at: r.created_at,
+            .map(|r| TeamBanView {
+                ban: TeamBan {
+                    team_id,
+                    user_id: r.user_id,
+                    kind: ban_kind(r.expires_at),
+                    reason: r.reason,
+                    created_by: r.created_by,
+                    created_at: r.created_at,
+                },
+                user_email: r.user_email,
+                moderator_email: r.moderator_email,
             })
             .collect())
+    }
+
+    async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+        sqlx::query!(
+            r#"
+            DELETE FROM team_bans
+            WHERE team_id = $1 AND user_id = $2
+            "#,
+            team_id,
+            user_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(())
     }
 }
 
@@ -558,9 +671,9 @@ mod tests {
 
         let bans = repo.list_bans(team.id).await.unwrap();
         assert_eq!(bans.len(), 1);
-        assert!(matches!(bans[0].kind, BanKind::Temporary { .. }));
-        assert!(bans[0].is_active(Utc::now()));
-        assert!(bans[0].reason.is_none());
+        assert!(matches!(bans[0].ban.kind, BanKind::Temporary { .. }));
+        assert!(bans[0].ban.is_active(Utc::now()));
+        assert!(bans[0].ban.reason.is_none());
     }
 
     #[sqlx::test]

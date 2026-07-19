@@ -91,6 +91,7 @@ pub struct Release {
     pub base_state: ReleaseState,
     pub steps: Vec<ReleaseStep>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Release {
@@ -125,13 +126,15 @@ impl Release {
             });
         }
 
+        let now = Utc::now();
         Ok(Self {
             id: Uuid::new_v4(),
             team_id,
             title: trimmed.to_string(),
             base_state: ReleaseState::Created,
             steps,
-            created_at: Utc::now(),
+            created_at: now,
+            updated_at: now,
         })
     }
 
@@ -180,6 +183,7 @@ impl Release {
         if self.steps.iter().all(ReleaseStep::is_validated) {
             self.base_state = ReleaseState::Completed;
         }
+        self.updated_at = Utc::now();
         Ok(())
     }
 
@@ -191,6 +195,7 @@ impl Release {
             }
             _ => {
                 self.base_state = ReleaseState::Cancelled;
+                self.updated_at = Utc::now();
                 Ok(())
             }
         }
@@ -262,11 +267,14 @@ mod tests {
     fn steps_validate_sequentially_and_promote_then_complete() {
         let mut r = release();
         let by = Uuid::new_v4();
+        let stale = r.updated_at - chrono::Duration::seconds(1);
+        r.updated_at = stale;
 
         r.validate_step("build", by, false).unwrap();
         assert_eq!(r.base_state, ReleaseState::InProgress);
         assert!(r.steps[0].is_validated());
         assert_eq!(r.steps[0].validated_by, Some(by));
+        assert!(r.updated_at > stale);
 
         r.validate_step("staging", by, false).unwrap();
         r.validate_step("production", by, false).unwrap();
@@ -312,8 +320,11 @@ mod tests {
     #[test]
     fn cancel_is_refused_on_terminal_states() {
         let mut r = release();
+        let stale = r.updated_at - chrono::Duration::seconds(1);
+        r.updated_at = stale;
         r.cancel().unwrap();
         assert_eq!(r.base_state, ReleaseState::Cancelled);
+        assert!(r.updated_at > stale);
         assert_eq!(
             r.cancel().unwrap_err(),
             DomainError::InvalidReleaseTransition

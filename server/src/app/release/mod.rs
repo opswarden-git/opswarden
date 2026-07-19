@@ -1,7 +1,7 @@
 // --- server/src/app/release/mod.rs ---
 //
 // Release use-cases (VIGIL Phase 1 core). Authorization: Observer read-only,
-// Responder+ creates/links/validates, Manager-only cancels. The `blocked`
+// Responder+ links and validates, Manager-only creates and cancels. The `blocked`
 // effective state is derived (never stored) from active linked incidents, so the
 // shared helpers here are the single place that turns a base-state change into a
 // `release_state_changed` event — including the auto-unblock triggered from
@@ -29,7 +29,9 @@ pub use get_release::{GetReleaseCommand, GetReleaseUseCase};
 pub use link_incident::{
     LinkIncidentCommand, LinkIncidentUseCase, UnlinkIncidentCommand, UnlinkIncidentUseCase,
 };
-pub use list_releases::{ListReleasesCommand, ListReleasesUseCase};
+pub use list_releases::{
+    ListReleasesCommand, ListReleasesUseCase, ReleaseBlocker, ReleaseListItem,
+};
 pub use validate_release_step::{ValidateReleaseStepCommand, ValidateReleaseStepUseCase};
 
 /// A release plus the read-only facts derived from its links: the effective
@@ -119,6 +121,7 @@ pub(crate) mod tests {
     use std::sync::Mutex;
 
     use async_trait::async_trait;
+    use chrono::Utc;
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
@@ -190,6 +193,9 @@ pub(crate) mod tests {
             let mut links = self.links.lock().unwrap();
             if !links.contains(&(release_id, incident_id)) {
                 links.push((release_id, incident_id));
+                if let Some(release) = self.releases.lock().unwrap().get_mut(&release_id) {
+                    release.updated_at = Utc::now();
+                }
             }
             Ok(())
         }
@@ -199,10 +205,14 @@ pub(crate) mod tests {
             release_id: Uuid,
             incident_id: Uuid,
         ) -> Result<(), DomainError> {
-            self.links
-                .lock()
-                .unwrap()
-                .retain(|pair| *pair != (release_id, incident_id));
+            let mut links = self.links.lock().unwrap();
+            let before = links.len();
+            links.retain(|pair| *pair != (release_id, incident_id));
+            if links.len() != before {
+                if let Some(release) = self.releases.lock().unwrap().get_mut(&release_id) {
+                    release.updated_at = Utc::now();
+                }
+            }
             Ok(())
         }
 

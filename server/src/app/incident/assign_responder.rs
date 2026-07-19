@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
+use crate::domain::incident_event::IncidentEvent;
 use crate::domain::team::Role;
 use crate::ports::{EventPublisher, IncidentRepo, TeamRepo};
 
@@ -57,7 +59,7 @@ impl AssignResponderUseCase {
             .find_member_role(incident.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if !requester_role.can_act_as(Role::Manager) {
+        if !derive_capabilities(requester_role).can_assign_incident {
             return Err(DomainError::Forbidden);
         }
 
@@ -72,7 +74,10 @@ impl AssignResponderUseCase {
 
         let changed = incident.assign(cmd.assignee_id);
         if changed {
-            self.incidents.update_incident(&incident).await?;
+            let event = IncidentEvent::assigned(incident.id, cmd.requester_id, cmd.assignee_id);
+            self.incidents
+                .update_incident_with_event(&incident, &event)
+                .await?;
             self.events
                 .publish(DomainEvent::IncidentAssigned {
                     team_id: incident.team_id,
@@ -125,6 +130,7 @@ mod tests {
         assert!(result.changed);
         assert_eq!(result.assignee_id, responder);
         assert_eq!(incidents.updated.lock().unwrap().len(), 1);
+        assert_eq!(incidents.incident_events.lock().unwrap().len(), 1);
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
             [DomainEvent::IncidentAssigned { .. }]

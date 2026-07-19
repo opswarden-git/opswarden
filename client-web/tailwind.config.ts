@@ -42,6 +42,11 @@ const config = {
           dim: "var(--gold-dim)",
           ink: "var(--gold-ink)",
         },
+        danger: {
+          DEFAULT: "var(--danger)",
+          hover: "var(--danger-hover)",
+          ink: "var(--danger-ink)",
+        },
         sev: {
           low: "var(--sev-low)",
           medium: "var(--sev-medium)",

@@ -8,20 +8,65 @@ export interface Incident {
   id: string;
   team_id: string;
   title: string;
+  description: string;
   status: IncidentStatus;
   severity: IncidentSeverity;
   assignee: string | null;
   created_at: string;
+  created_by: string | null;
+  updated_at: string;
+}
+
+export interface IncidentAssignee {
+  user_id: string;
+  email: string;
+}
+
+export interface IncidentListItem extends Omit<Incident, "assignee"> {
+  assignee: IncidentAssignee | null;
+}
+
+export interface IncidentCounts {
+  all: number;
+  open: number;
+  acknowledged: number;
+  escalated: number;
+  resolved: number;
+}
+
+export interface IncidentListFilters {
+  status?: IncidentStatus;
+  severity?: IncidentSeverity;
+  assignee?: string;
+  query?: string;
+  sort?: "newest" | "oldest" | "severity";
+}
+
+export interface IncidentListResult {
+  items: IncidentListItem[];
+  counts: IncidentCounts;
 }
 
 interface IncidentViewResponse {
   incident_id: string;
   team_id: string;
   title: string;
+  description: string;
   status: IncidentStatus;
   severity: IncidentSeverity;
   assignee_id: string | null;
   created_at: string;
+  created_by: string | null;
+  updated_at: string;
+}
+
+interface IncidentListItemResponse extends Omit<IncidentViewResponse, "assignee_id"> {
+  assignee: IncidentAssignee | null;
+}
+
+interface IncidentListResponse {
+  items: IncidentListItemResponse[];
+  counts: IncidentCounts;
 }
 
 export interface TimelineReaction {
@@ -33,7 +78,8 @@ export interface TimelineReaction {
 export interface TimelineEntry {
   id: string;
   incident_id: string;
-  author_id: string;
+  author_id: string | null;
+  author: UserSummary | null;
   content: string;
   created_at: string;
   edited_at: string | null;
@@ -43,7 +89,8 @@ export interface TimelineEntry {
 interface TimelineEntryResponse {
   entry_id: string;
   incident_id: string;
-  author_id: string;
+  author_id: string | null;
+  author: UserSummary | null;
   content: string;
   created_at: string;
   edited_at: string | null;
@@ -54,15 +101,58 @@ interface TimelineResponse {
   entries: TimelineEntryResponse[];
 }
 
+export interface UserSummary {
+  user_id: string;
+  email: string;
+}
+
+export type IncidentActivityItem =
+  | {
+      type: "system_event";
+      id: string;
+      kind: "created" | "status_changed" | "assigned" | "severity_changed";
+      actor: UserSummary | null;
+      subject: UserSummary | null;
+      data: Record<string, unknown>;
+      created_at: string;
+    }
+  | {
+      type: "human_note";
+      entry_id: string;
+      author: UserSummary | null;
+      content: string;
+      created_at: string;
+      edited_at: string | null;
+      reactions: TimelineReaction[];
+    };
+
 function normalizeIncident(incident: IncidentViewResponse): Incident {
   return {
     id: incident.incident_id,
     team_id: incident.team_id,
     title: incident.title,
+    description: incident.description,
     status: incident.status,
     severity: incident.severity,
     assignee: incident.assignee_id,
     created_at: incident.created_at,
+    created_by: incident.created_by,
+    updated_at: incident.updated_at,
+  };
+}
+
+function normalizeIncidentListItem(incident: IncidentListItemResponse): IncidentListItem {
+  return {
+    id: incident.incident_id,
+    team_id: incident.team_id,
+    title: incident.title,
+    description: incident.description,
+    status: incident.status,
+    severity: incident.severity,
+    assignee: incident.assignee,
+    created_at: incident.created_at,
+    created_by: incident.created_by,
+    updated_at: incident.updated_at,
   };
 }
 
@@ -71,6 +161,7 @@ function normalizeTimelineEntry(entry: TimelineEntryResponse): TimelineEntry {
     id: entry.entry_id,
     incident_id: entry.incident_id,
     author_id: entry.author_id,
+    author: entry.author,
     content: entry.content,
     created_at: entry.created_at,
     edited_at: entry.edited_at,
@@ -78,17 +169,39 @@ function normalizeTimelineEntry(entry: TimelineEntryResponse): TimelineEntry {
   };
 }
 
-export function useIncidents(teamId?: string) {
-  return useQuery<Incident[]>({
-    queryKey: ["incidents", { teamId }],
+function incidentListQuery(teamId: string | undefined, filters: IncidentListFilters) {
+  return {
+    queryKey: ["incidents", { teamId, ...filters }] as const,
     queryFn: async () => {
-      const url = teamId ? `/api/incidents?team_id=${teamId}` : `/api/incidents`;
-      const res = await apiFetch(url);
+      const params = new URLSearchParams();
+      if (teamId) params.set("team_id", teamId);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.severity) params.set("severity", filters.severity);
+      if (filters.assignee) params.set("assignee", filters.assignee);
+      if (filters.query?.trim()) params.set("q", filters.query.trim());
+      if (filters.sort) params.set("sort", filters.sort);
+
+      const res = await apiFetch(`/api/incidents?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch incidents");
-      const incidents = (await res.json()) as IncidentViewResponse[];
-      return incidents.map(normalizeIncident);
+      const response = (await res.json()) as IncidentListResponse;
+      return {
+        items: response.items.map(normalizeIncidentListItem),
+        counts: response.counts,
+      } satisfies IncidentListResult;
     },
-    enabled: !!teamId, // typically we only load when we select a team
+    enabled: !!teamId,
+  };
+}
+
+export function useIncidentQueue(teamId: string | undefined, filters: IncidentListFilters) {
+  return useQuery(incidentListQuery(teamId, filters));
+}
+
+/** Unfiltered incident collection for cross-feature pickers such as Releases. */
+export function useIncidents(teamId?: string) {
+  return useQuery({
+    ...incidentListQuery(teamId, {}),
+    select: (result) => result.items,
   });
 }
 
@@ -111,21 +224,48 @@ export function useCreateIncident() {
     mutationFn: async ({
       team_id,
       title,
+      description,
       severity,
     }: {
       team_id: string;
       title: string;
+      description?: string;
       severity: IncidentSeverity;
     }) => {
       const res = await apiFetch("/api/incidents", {
         method: "POST",
-        body: JSON.stringify({ team_id, title, severity }),
+        body: JSON.stringify({ team_id, title, description: description ?? "", severity }),
       });
       if (!res.ok) throw new Error("Failed to create incident");
       return res.json(); // usually returns { id: string }
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["incidents", { teamId: variables.team_id }] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    },
+  });
+}
+
+export function useAvailableReactions() {
+  return useQuery<string[]>({
+    queryKey: ["available-reactions"],
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async () => {
+      const res = await apiFetch("/api/incidents/reactions/available");
+      if (!res.ok) throw new Error("Failed to fetch available reactions");
+      const body = (await res.json()) as { reactions: string[] };
+      return body.reactions;
+    },
+  });
+}
+
+export function useIncidentActivity(incidentId: string) {
+  return useQuery<IncidentActivityItem[]>({
+    queryKey: ["activity", incidentId],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/incidents/${incidentId}/activity`);
+      if (!res.ok) throw new Error("Failed to fetch incident activity");
+      const body = (await res.json()) as { items: IncidentActivityItem[] };
+      return body.items;
     },
   });
 }
@@ -156,6 +296,7 @@ export function useAddTimelineEntry() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
 }
@@ -186,6 +327,7 @@ export function useEditTimelineEntry() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
 }
@@ -216,6 +358,7 @@ export function useToggleTimelineReaction() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
 }
@@ -244,6 +387,7 @@ export function useUpdateIncidentStatus() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["incident", variables.incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
 }
@@ -266,6 +410,7 @@ export function useAssignIncident() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["incident", variables.incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
 }

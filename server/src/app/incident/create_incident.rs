@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
+use crate::domain::incident_event::IncidentEvent;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::{IncidentRepo, TeamRepo};
 
@@ -11,6 +14,7 @@ pub struct CreateIncidentCommand {
     pub team_id: Uuid,
     pub requester_id: Uuid,
     pub title: String,
+    pub description: String,
     pub severity: Severity,
 }
 
@@ -43,12 +47,21 @@ impl CreateIncidentUseCase {
             .await?
             .ok_or(DomainError::Forbidden)?;
 
-        if !role.can_act_as(Role::Manager) {
+        if !derive_capabilities(role).can_create_incident {
             return Err(DomainError::Forbidden);
         }
 
-        let incident = Incident::new(cmd.team_id, cmd.title, cmd.severity)?;
-        self.incidents.save_incident(&incident).await?;
+        let incident = Incident::new_by(
+            cmd.team_id,
+            cmd.title,
+            cmd.description,
+            cmd.severity,
+            cmd.requester_id,
+        )?;
+        let event = IncidentEvent::created(&incident, Some(cmd.requester_id));
+        self.incidents
+            .save_incident_with_event(&incident, &event)
+            .await?;
 
         Ok(CreateIncidentResult {
             incident_id: incident.id,
@@ -80,6 +93,7 @@ mod tests {
                 team_id,
                 requester_id,
                 title: "Primary DB latency".to_string(),
+                description: "Latency exceeds the customer SLO".to_string(),
                 severity: Severity::High,
             })
             .await
@@ -88,6 +102,13 @@ mod tests {
         assert_eq!(result.status, IncidentStatus::Open);
         assert_eq!(result.severity, Severity::High);
         assert_eq!(incidents.saved.lock().unwrap().len(), 1);
+        assert!(matches!(
+            incidents.incident_events.lock().unwrap().as_slice(),
+            [IncidentEvent {
+                kind: crate::domain::incident_event::IncidentEventKind::Created,
+                ..
+            }]
+        ));
     }
 
     #[tokio::test]
@@ -104,6 +125,7 @@ mod tests {
                 team_id,
                 requester_id,
                 title: "Primary DB latency".to_string(),
+                description: String::new(),
                 severity: Severity::High,
             })
             .await;

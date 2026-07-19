@@ -4,9 +4,11 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::release::Release;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::{EventPublisher, ReleaseRepo, TeamRepo};
 
@@ -44,7 +46,7 @@ impl CreateReleaseUseCase {
             .find_member_role(cmd.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_create_release {
             return Err(DomainError::Forbidden);
         }
 
@@ -71,11 +73,11 @@ mod tests {
     use crate::domain::release::ReleaseState;
 
     #[tokio::test]
-    async fn responder_can_create_a_release() {
+    async fn manager_can_create_a_release() {
         let team_id = Uuid::new_v4();
         let requester = Uuid::new_v4();
         let teams =
-            Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Responder));
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Manager));
         let releases = Arc::new(MockReleaseRepo::default());
         let events = Arc::new(MockEventPublisher::default());
         let uc = CreateReleaseUseCase::new(teams, releases.clone(), events.clone());
@@ -100,6 +102,30 @@ mod tests {
                 ..
             }]
         ));
+    }
+
+    #[tokio::test]
+    async fn responder_cannot_create_a_release() {
+        let team_id = Uuid::new_v4();
+        let requester = Uuid::new_v4();
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Responder));
+        let releases = Arc::new(MockReleaseRepo::default());
+        let events = Arc::new(MockEventPublisher::default());
+        let uc = CreateReleaseUseCase::new(teams, releases.clone(), events);
+
+        let err = uc
+            .create(CreateReleaseCommand {
+                team_id,
+                title: "v1.0.0".to_string(),
+                steps: vec!["build".into()],
+                requester_id: requester,
+            })
+            .await
+            .unwrap_err();
+
+        assert_eq!(err, DomainError::Forbidden);
+        assert!(releases.releases.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

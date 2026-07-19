@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
+import { Button } from "@/components/ui/Button";
 
 interface StepProps {
   data: OnboardingData;
@@ -81,34 +82,22 @@ export function StepIntegrations({ next, back }: StepProps) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="text-muted surface-subtle border-border shrink-0 cursor-not-allowed rounded-md border px-3 py-1.5 text-xs font-medium"
-              >
+              <Button size="sm" disabled>
                 Configure later
-              </button>
+              </Button>
             </div>
           );
         })}
       </div>
 
       <div className="mt-2 flex items-center justify-between pt-4">
-        <button
-          type="button"
-          onClick={back}
-          className="text-muted hover:text-text focus-visible:ring-gold flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
-        >
-          <ChevronLeft className="mr-1 size-4" />
+        <Button variant="ghost" size="lg" onClick={back}>
+          <ChevronLeft className="size-4" />
           Back
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
+        </Button>
+        <Button variant="primary" size="lg" onClick={next}>
           Skip for now
-        </button>
+        </Button>
       </div>
     </div>
   );

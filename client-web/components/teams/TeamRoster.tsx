@@ -1,28 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
-import { useTranslations } from "next-intl";
-import { Users, Copy, Check, Trash2, LogOut, MessageSquare } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { MessageSquare, Search, Users } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
-  Team,
-  TeamMember,
-  BanKindInput,
-  useTeamMembers,
-  useSetMemberRole,
-  useTransferManager,
-  useLeaveTeam,
-  useDeleteTeam,
-  useKickMember,
+  type BanKindInput,
+  type Team,
+  type TeamMember,
   useBanMember,
+  useKickMember,
+  useSetMemberRole,
+  useTeamMembers,
+  useTransferManager,
 } from "@/lib/queries/teams";
 import { useTeamOnline } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
-import { RoleChip } from "./RoleChip";
-import { MemberRowActions } from "./MemberRowActions";
-import { DirectMessageDialog } from "./DirectMessageDialog";
+import { deriveCapabilities } from "@/lib/capabilities";
+import { Alert } from "@/components/ui/Alert";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { IconButton } from "@/components/ui/Button";
+import { PageToolbar } from "@/components/layout/PageToolbar";
+import { DirectMessageDialog } from "./DirectMessageDialog";
+import { MemberRowActions } from "./MemberRowActions";
+import { RoleChip } from "./RoleChip";
 
-/** Avatar initials derived from the email local-part (e.g. romeo.cavazza → RC). */
 function initials(email: string): string {
   const local = email.split("@")[0] ?? email;
   const parts = local.split(/[._-]+/).filter(Boolean);
@@ -30,236 +31,171 @@ function initials(email: string): string {
   return letters.toUpperCase();
 }
 
-type Dialog = "leave" | "delete" | "makeManager" | "kick" | "ban" | null;
+type Dialog = "makeManager" | "kick" | "ban" | null;
 type BanDuration = "permanent" | "1h" | "24h" | "7d";
 
-/** Map a UI duration choice to the ban payload the API expects. */
-function durationToBan(d: BanDuration): BanKindInput {
-  if (d === "permanent") return { kind: "permanent" };
-  const hours = d === "1h" ? 1 : d === "24h" ? 24 : 24 * 7;
+function durationToBan(duration: BanDuration): BanKindInput {
+  if (duration === "permanent") return { kind: "permanent" };
+  const hours = duration === "1h" ? 1 : duration === "24h" ? 24 : 24 * 7;
   return {
     kind: "temporary",
     expires_at: new Date(Date.now() + hours * 3_600_000).toISOString(),
   };
 }
 
-/**
- * The roster IS the team-management surface: members list + (Manager-only)
- * per-row role actions, plus a slim danger zone footer. Replaces the old
- * floating TeamActions block.
- */
-export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDeleted: () => void }) {
+/** Searchable operational roster. Team-level ownership and danger actions live
+ * in Settings; row-level member actions stay beside the member they affect. */
+export function TeamRoster({ team }: { team: Team }) {
   const t = useTranslations("Teams");
   const tDm = useTranslations("DirectMessages");
   const tErr = useTranslations("errors");
-  const currentUserId = useAuthStore((s) => s.user?.id);
-
+  const locale = useLocale();
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
-  // Count only members actually shown in the roster (avoids counting a stale
-  // online id that has already left, before the roster query refetches).
-  const onlineCount = (members ?? []).filter((m) => onlineSet.has(m.user_id)).length;
+  const capabilities = deriveCapabilities(team.role);
+
   const setRole = useSetMemberRole(team.team_id);
   const transfer = useTransferManager(team.team_id);
-  const leave = useLeaveTeam(team.team_id);
-  const remove = useDeleteTeam(team.team_id);
   const kick = useKickMember(team.team_id);
   const ban = useBanMember(team.team_id);
 
+  const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [target, setTarget] = useState<TeamMember | null>(null);
   const [messageTarget, setMessageTarget] = useState<TeamMember | null>(null);
   const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
-  const [copied, setCopied] = useState(false);
 
-  const isManager = team.role === "manager";
+  const visibleMembers = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase();
+    if (!normalized) return members ?? [];
+    return (members ?? []).filter(
+      (member) =>
+        member.email.toLocaleLowerCase().includes(normalized) ||
+        member.role.toLocaleLowerCase().includes(normalized),
+    );
+  }, [members, query]);
+  const onlineCount = (members ?? []).filter((member) => onlineSet.has(member.user_id)).length;
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
   const close = () => setDialog(null);
 
-  const copyInvite = () => {
-    if (!team.invitation_code) return;
-    navigator.clipboard.writeText(team.invitation_code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const openMakeManager = (member: TeamMember) => {
-    transfer.reset();
+  const openDialog = (next: Exclude<Dialog, null>, member: TeamMember) => {
     setTarget(member);
-    setDialog("makeManager");
+    if (next === "ban") setBanDuration("permanent");
+    setDialog(next);
   };
-  const onMakeManager = () => {
-    if (target) transfer.mutate(target.user_id, { onSuccess: close });
-  };
-  const openKick = (member: TeamMember) => {
-    kick.reset();
-    setTarget(member);
-    setDialog("kick");
-  };
-  const openBan = (member: TeamMember) => {
-    ban.reset();
-    setBanDuration("permanent");
-    setTarget(member);
-    setDialog("ban");
-  };
-  const onKick = () => {
-    if (target) kick.mutate(target.user_id, { onSuccess: close });
-  };
-  const onBan = () => {
-    if (target)
-      ban.mutate({ userId: target.user_id, ban: durationToBan(banDuration) }, { onSuccess: close });
-  };
-  const onLeave = () =>
-    leave.mutate(undefined, {
-      onSuccess: () => {
-        close();
-        onLeftOrDeleted();
-      },
-    });
-  const onDelete = () =>
-    remove.mutate(undefined, {
-      onSuccess: () => {
-        close();
-        onLeftOrDeleted();
-      },
-    });
 
   return (
-    <div className="surface overflow-hidden rounded-md">
-      <div className="border-border flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-6 py-4">
-        <Users className="text-muted h-5 w-5" />
-        <h2 className="text-text text-lg font-semibold tracking-tight">{t("members")}</h2>
-        <span className="text-muted/70 truncate text-sm">— {team.name}</span>
-        {onlineCount > 0 ? (
-          <span className="text-muted/60 inline-flex items-center gap-1.5 text-xs">
+    <div className="space-y-4">
+      <PageToolbar>
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{t("searchMembers")}</span>
+          <Search
+            className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+            aria-hidden="true"
+          />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("searchMembers")}
+            className="ow-input h-10 w-full rounded-md pr-3 pl-10 text-sm"
+          />
+        </label>
+        <div className="text-muted flex items-center gap-3 px-1 text-sm">
+          <span>{t("memberCount", { count: members?.length ?? team.member_count })}</span>
+          <span className="inline-flex items-center gap-1.5">
             <span className="bg-st-res h-1.5 w-1.5 rounded-full" />
             {t("onlineCount", { count: onlineCount })}
           </span>
-        ) : null}
-        {isManager && team.invitation_code ? (
-          <button
-            type="button"
-            onClick={copyInvite}
-            title={t("copyInvitationCode")}
-            className="text-muted hover:text-text ml-auto inline-flex items-center gap-2 font-mono text-xs transition-colors"
-          >
-            {team.invitation_code}
-            {copied ? (
-              <Check className="text-st-res h-3.5 w-3.5" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-          </button>
-        ) : null}
-      </div>
-
-      {setRole.error ? (
-        <div className="ow-danger m-4 rounded-md p-3 text-sm">
-          {errorText(setRole.error.message)}
         </div>
-      ) : null}
+      </PageToolbar>
 
-      {isLoading ? (
-        <div className="divide-border divide-y">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-6 py-4">
-              <div className="bg-muted/20 h-8 w-8 animate-pulse rounded-full" />
-              <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
-              <div className="bg-muted/20 ml-auto h-5 w-20 animate-pulse rounded-full" />
-            </div>
-          ))}
+      <div className="surface overflow-hidden rounded-md">
+        <div className="border-border flex items-center gap-3 border-b px-5 py-4">
+          <Users className="text-muted h-5 w-5" aria-hidden="true" />
+          <h2 className="text-text font-semibold">{t("members")}</h2>
         </div>
-      ) : error ? (
-        <div className="ow-danger m-4 rounded-md p-4 text-sm">{t("membersFailed")}</div>
-      ) : members && members.length === 0 ? (
-        <div className="text-muted px-6 py-10 text-center text-sm">{t("noMembers")}</div>
-      ) : (
-        <ul className="divide-border divide-y">
-          {members?.map((member) => (
-            <li
-              key={member.user_id}
-              className="flex items-center gap-3 px-6 py-4 transition-colors hover:bg-white/[0.03]"
-            >
-              <span className="relative shrink-0">
-                <span className="surface-subtle text-muted border-border flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold">
-                  {initials(member.email)}
-                </span>
-                <span
-                  title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
-                  aria-label={onlineSet.has(member.user_id) ? t("online") : t("offline")}
-                  className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
-                    onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
-                  }`}
-                />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-text truncate font-medium">{member.email}</div>
-                <div className="text-muted/50 font-mono text-xs">
-                  {member.user_id.split("-")[0]}
-                </div>
+
+        {setRole.error ? (
+          <Alert tone="danger" className="m-4">
+            {errorText(setRole.error.message)}
+          </Alert>
+        ) : null}
+
+        {isLoading ? (
+          <div className="divide-border divide-y">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="flex items-center gap-3 px-5 py-4">
+                <div className="bg-muted/20 h-9 w-9 animate-pulse rounded-full" />
+                <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
+                <div className="bg-muted/20 ml-auto h-5 w-20 animate-pulse rounded-full" />
               </div>
-              <RoleChip role={member.role} />
-              {member.user_id !== currentUserId ? (
-                <button
-                  type="button"
-                  onClick={() => setMessageTarget(member)}
-                  title={tDm("message")}
-                  aria-label={tDm("message")}
-                  className="text-muted hover:text-gold rounded-md p-1.5 transition-colors hover:bg-white/[0.06]"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </button>
-              ) : null}
-              {isManager ? (
-                <MemberRowActions
-                  member={member}
-                  pending={
-                    setRole.isPending || transfer.isPending || kick.isPending || ban.isPending
-                  }
-                  onSetRole={(role) => setRole.mutate({ userId: member.user_id, role })}
-                  onMakeManager={() => openMakeManager(member)}
-                  onKick={() => openKick(member)}
-                  onBan={() => openBan(member)}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="border-border flex items-center justify-between gap-4 border-t bg-white/[0.015] px-6 py-4">
-        <div className="min-w-0">
-          <h3 className="text-muted/70 text-xs font-medium tracking-wider uppercase">
-            {t("dangerZone")}
-          </h3>
-          <p className="text-muted/60 mt-1 truncate text-xs">
-            {isManager ? t("deleteTeamDesc") : t("leaveTeamDesc")}
-          </p>
-        </div>
-        {isManager ? (
-          <button
-            type="button"
-            onClick={() => {
-              remove.reset();
-              setDialog("delete");
-            }}
-            className="ow-danger inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-            {t("deleteTeam")}
-          </button>
+            ))}
+          </div>
+        ) : error ? (
+          <Alert tone="danger" className="m-4">
+            {t("membersFailed")}
+          </Alert>
+        ) : visibleMembers.length === 0 ? (
+          <div className="text-muted px-6 py-10 text-center text-sm">
+            {query ? t("noMatchingMembers") : t("noMembers")}
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              leave.reset();
-              setDialog("leave");
-            }}
-            className="ow-danger inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            {t("leaveTeam")}
-          </button>
+          <ul className="divide-border divide-y">
+            {visibleMembers.map((member) => (
+              <li
+                key={member.user_id}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03]"
+              >
+                <span className="relative shrink-0">
+                  <span className="surface-subtle text-muted border-border flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold">
+                    {initials(member.email)}
+                  </span>
+                  <span
+                    title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
+                    className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
+                      onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
+                    }`}
+                  />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-text truncate font-medium">{member.email}</div>
+                  <div className="text-muted mt-0.5 text-xs">
+                    {t("joinedOn", {
+                      date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                        new Date(member.joined_at),
+                      ),
+                    })}
+                  </div>
+                </div>
+                <RoleChip role={member.role} />
+                <div className="flex items-center gap-1">
+                  {member.user_id !== currentUserId && capabilities.canSendPrivateMessage ? (
+                    <IconButton
+                      onClick={() => setMessageTarget(member)}
+                      label={tDm("message")}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </IconButton>
+                  ) : null}
+                  {capabilities.canManageMembers ? (
+                    <MemberRowActions
+                      member={member}
+                      pending={
+                        setRole.isPending || transfer.isPending || kick.isPending || ban.isPending
+                      }
+                      onSetRole={(role) => setRole.mutate({ userId: member.user_id, role })}
+                      onMakeManager={() => openDialog("makeManager", member)}
+                      onKick={() => openDialog("kick", member)}
+                      onBan={() => openDialog("ban", member)}
+                    />
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
@@ -272,34 +208,7 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         pendingLabel={t("processing")}
         pending={transfer.isPending}
         error={transfer.error ? errorText(transfer.error.message) : null}
-        onConfirm={onMakeManager}
-        onClose={close}
-      />
-      <ConfirmDialog
-        open={dialog === "leave"}
-        title={t("leaveTeam")}
-        description={t("leaveConfirm", { name: team.name })}
-        confirmLabel={t("leaveTeam")}
-        cancelLabel={t("cancel")}
-        pendingLabel={t("processing")}
-        danger
-        pending={leave.isPending}
-        error={leave.error ? errorText(leave.error.message) : null}
-        onConfirm={onLeave}
-        onClose={close}
-      />
-      <ConfirmDialog
-        open={dialog === "delete"}
-        title={t("deleteTeam")}
-        description={t("deleteConfirm", { name: team.name })}
-        confirmLabel={t("deleteTeam")}
-        cancelLabel={t("cancel")}
-        pendingLabel={t("processing")}
-        danger
-        requireType="DELETE"
-        pending={remove.isPending}
-        error={remove.error ? errorText(remove.error.message) : null}
-        onConfirm={onDelete}
+        onConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
         onClose={close}
       />
       <ConfirmDialog
@@ -312,7 +221,7 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         danger
         pending={kick.isPending}
         error={kick.error ? errorText(kick.error.message) : null}
-        onConfirm={onKick}
+        onConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
         onClose={close}
       />
       <ConfirmDialog
@@ -325,19 +234,28 @@ export function TeamRoster({ team, onLeftOrDeleted }: { team: Team; onLeftOrDele
         danger
         pending={ban.isPending}
         error={ban.error ? errorText(ban.error.message) : null}
-        onConfirm={onBan}
+        onConfirm={() =>
+          target &&
+          ban.mutate(
+            { userId: target.user_id, ban: durationToBan(banDuration) },
+            { onSuccess: close },
+          )
+        }
         onClose={close}
       >
-        <select
-          value={banDuration}
-          onChange={(e) => setBanDuration(e.target.value as BanDuration)}
-          className="ow-input flex h-10 w-full cursor-pointer appearance-none rounded-md px-3 py-2 text-sm"
-        >
-          <option value="permanent">{t("banPermanent")}</option>
-          <option value="1h">{t("ban1h")}</option>
-          <option value="24h">{t("ban24h")}</option>
-          <option value="7d">{t("ban7d")}</option>
-        </select>
+        <label className="space-y-2">
+          <span className="text-muted text-sm">{t("banDuration")}</span>
+          <select
+            value={banDuration}
+            onChange={(event) => setBanDuration(event.target.value as BanDuration)}
+            className="ow-input h-10 w-full rounded-md px-3 text-sm"
+          >
+            <option value="permanent">{t("banPermanent")}</option>
+            <option value="1h">{t("ban1h")}</option>
+            <option value="24h">{t("ban24h")}</option>
+            <option value="7d">{t("ban7d")}</option>
+          </select>
+        </label>
       </ConfirmDialog>
 
       {messageTarget ? (

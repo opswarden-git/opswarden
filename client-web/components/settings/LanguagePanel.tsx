@@ -6,6 +6,7 @@ import { Languages } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useRouter as useIntlRouter, usePathname } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
+import { ToggleButton } from "@/components/ui/ToggleButton";
 
 /** Interface language switch (FR/EN). */
 export function LanguagePanel() {
@@ -29,14 +30,12 @@ export function LanguagePanel() {
         <div className="min-w-0">
           <h3 className="text-text text-sm font-medium">{t("interfaceLanguage")}</h3>
         </div>
-        <div className="flex shrink-0 gap-4">
-          <button
+        <div className="flex shrink-0 gap-2">
+          <ToggleButton
+            pressed={currentLocale === "en"}
+            size="sm"
             onClick={() => switchLocale("en")}
-            className={`ring-offset-bg overflow-hidden rounded-full ring-offset-2 transition-all ${
-              currentLocale === "en"
-                ? "ring-gold opacity-100 ring-2 grayscale-0"
-                : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
-            }`}
+            aria-label="English"
           >
             <Image
               src="/assets/en.webp"
@@ -45,14 +44,13 @@ export function LanguagePanel() {
               height={24}
               className="block object-cover"
             />
-          </button>
-          <button
+            EN
+          </ToggleButton>
+          <ToggleButton
+            pressed={currentLocale === "fr"}
+            size="sm"
             onClick={() => switchLocale("fr")}
-            className={`ring-offset-bg overflow-hidden rounded-full ring-offset-2 transition-all ${
-              currentLocale === "fr"
-                ? "ring-gold opacity-100 ring-2 grayscale-0"
-                : "opacity-50 grayscale hover:opacity-100 hover:grayscale-0"
-            }`}
+            aria-label="Français"
           >
             <Image
               src="/assets/fr.webp"
@@ -61,7 +59,8 @@ export function LanguagePanel() {
               height={24}
               className="block object-cover"
             />
-          </button>
+            FR
+          </ToggleButton>
         </div>
       </div>
     </div>

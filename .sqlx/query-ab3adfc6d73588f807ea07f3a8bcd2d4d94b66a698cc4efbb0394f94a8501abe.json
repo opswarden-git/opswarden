@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                t.id,\n                t.name,\n                t.invitation_code,\n                t.created_at,\n                membership.role,\n                (SELECT COUNT(*) FROM team_members members WHERE members.team_id = t.id) AS \"member_count!\",\n                (SELECT COUNT(*) FROM incidents incidents\n                    WHERE incidents.team_id = t.id AND incidents.status <> 'resolved') AS \"active_incident_count!\",\n                (SELECT COUNT(*) FROM releases releases\n                    WHERE releases.team_id = t.id\n                      AND releases.base_state IN ('created', 'in_progress')) AS \"active_release_count!\",\n                (SELECT COUNT(*) FROM releases releases\n                    WHERE releases.team_id = t.id\n                      AND releases.base_state = 'in_progress'\n                      AND EXISTS (\n                          SELECT 1\n                          FROM release_incidents links\n                          JOIN incidents incidents ON incidents.id = links.incident_id\n                          WHERE links.release_id = releases.id\n                            AND incidents.status <> 'resolved'\n                      )) AS \"blocked_release_count!\"\n            FROM team_members membership\n            JOIN teams t ON t.id = membership.team_id\n            WHERE membership.user_id = $1\n            ORDER BY membership.joined_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "invitation_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "invitation_code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "team_members",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "member_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "active_incident_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "active_release_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "blocked_release_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ab3adfc6d73588f807ea07f3a8bcd2d4d94b66a698cc4efbb0394f94a8501abe"
+}

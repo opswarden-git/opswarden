@@ -10,9 +10,12 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::team::{validate_member_moderation, Role, TeamBan};
+#[cfg(test)]
+use crate::domain::team::Role;
+use crate::domain::team::{validate_member_moderation, TeamBan};
 use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, UserRepo};
 
 /// What the caller asked for; the use-case turns it into a validated `TeamBan`.
@@ -66,7 +69,7 @@ impl BanMemberUseCase {
             .find_member_role(cmd.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if requester_role != Role::Manager {
+        if !derive_capabilities(requester_role).can_manage_members {
             return Err(DomainError::NotManager);
         }
 
