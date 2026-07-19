@@ -76,7 +76,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
           : "ready";
 
   return (
-    <PageLayout width="workspace">
+    <PageLayout>
       <PageHeader
         title={t("title")}
         description={t("queueDescription")}
