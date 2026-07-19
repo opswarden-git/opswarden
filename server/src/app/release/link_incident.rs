@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::{EventPublisher, IncidentRepo, ReleaseRepo, TeamRepo};
 
@@ -54,7 +56,7 @@ impl LinkIncidentUseCase {
             .find_member_role(release.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_link_release_incident {
             return Err(DomainError::Forbidden);
         }
 
@@ -70,6 +72,11 @@ impl LinkIncidentUseCase {
         self.releases
             .link_incident(release.id, cmd.incident_id)
             .await?;
+        let release = self
+            .releases
+            .find_release_by_id(release.id)
+            .await?
+            .ok_or(DomainError::ReleaseNotFound)?;
         let new_effective = release.effective_state(self.has_active(release.id).await?);
 
         emit_if_state_changed(
@@ -135,7 +142,7 @@ impl UnlinkIncidentUseCase {
             .find_member_role(release.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_link_release_incident {
             return Err(DomainError::Forbidden);
         }
 
@@ -148,6 +155,11 @@ impl UnlinkIncidentUseCase {
         self.releases
             .unlink_incident(release.id, cmd.incident_id)
             .await?;
+        let release = self
+            .releases
+            .find_release_by_id(release.id)
+            .await?
+            .ok_or(DomainError::ReleaseNotFound)?;
         let new_active = self
             .releases
             .count_active_linked_incidents(release.id)

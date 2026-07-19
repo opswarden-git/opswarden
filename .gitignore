@@ -11,6 +11,8 @@ node_modules
 out
 next-env.d.ts
 *.tsbuildinfo
+/test-results/
+/playwright-report/
 # Env / secrets
 .env
 .env*.local

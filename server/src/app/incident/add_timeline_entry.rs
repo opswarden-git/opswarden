@@ -3,8 +3,10 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::domain::timeline::TimelineEntry;
 use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
@@ -62,7 +64,7 @@ impl AddTimelineEntryUseCase {
             .await?
             .ok_or(DomainError::Forbidden)?;
 
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_write_timeline {
             return Err(DomainError::Forbidden);
         }
 
@@ -75,7 +77,7 @@ impl AddTimelineEntryUseCase {
                 incident_id: entry.incident_id,
                 entry_id: entry.id,
                 content: entry.content.clone(),
-                author: entry.author_id,
+                author: cmd.author_id,
                 at: entry.created_at,
             })
             .await;
@@ -83,7 +85,7 @@ impl AddTimelineEntryUseCase {
         Ok(AddTimelineEntryResult {
             entry_id: entry.id,
             incident_id: entry.incident_id,
-            author_id: entry.author_id,
+            author_id: cmd.author_id,
             content: entry.content,
             created_at: entry.created_at,
         })

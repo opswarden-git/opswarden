@@ -7,12 +7,13 @@ pub const MAX_TIMELINE_ENTRY_LEN: usize = 2_000;
 /// Generous enough for multi-codepoint emoji (ZWJ sequences, skin tones), tight
 /// enough to reject pasted text masquerading as a reaction.
 pub const MAX_REACTION_EMOJI_LEN: usize = 32;
+pub const AVAILABLE_REACTIONS: [&str; 4] = ["👍", "👀", "✅", "🚨"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimelineEntry {
     pub id: Uuid,
     pub incident_id: Uuid,
-    pub author_id: Uuid,
+    pub author_id: Option<Uuid>,
     pub content: String,
     pub created_at: DateTime<Utc>,
     /// `Some` once the entry has been edited; `created_at` is never moved.
@@ -29,7 +30,7 @@ impl TimelineEntry {
         Ok(Self {
             id: Uuid::new_v4(),
             incident_id,
-            author_id,
+            author_id: Some(author_id),
             content,
             created_at: Utc::now(),
             edited_at: None,

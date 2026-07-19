@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Send, X } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { usePrivateMessages, useSendPrivateMessage } from "@/lib/queries/privateMessages";
+import { IconButton } from "@/components/ui/Button";
 
 /**
  * A small, operational 1-to-1 conversation modal launched from the team roster.
@@ -55,14 +56,9 @@ export function DirectMessageDialog({
             <h2 className="text-text truncate text-sm font-semibold">{t("title")}</h2>
             <p className="text-muted/70 truncate text-xs">{peer.email}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("close")}
-            className="text-muted hover:text-text transition-colors"
-          >
+          <IconButton onClick={onClose} label={t("close")} size="sm" variant="ghost">
             <X className="h-4 w-4" />
-          </button>
+          </IconButton>
         </div>
 
         <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
@@ -113,14 +109,16 @@ export function DirectMessageDialog({
             autoFocus
             className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
           />
-          <button
+          <IconButton
             type="submit"
             disabled={send.isPending || !content.trim()}
-            aria-label={t("send")}
-            className="ow-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50"
+            label={t("send")}
+            loading={send.isPending}
+            size="lg"
+            variant="primary"
           >
             <Send className="h-4 w-4" />
-          </button>
+          </IconButton>
         </form>
       </div>
     </div>

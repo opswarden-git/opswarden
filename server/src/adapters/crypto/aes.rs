@@ -1,6 +1,6 @@
 // server/src/adapters/crypto/aes.rs
 //
-// AES-256-GCM helpers behind the SecretVault. Each encryption draws a fresh
+// AES-256-GCM helpers behind the Team connection credential vault. Each encryption draws a fresh
 // 96-bit nonce, returned alongside the ciphertext; decryption needs both. The
 // GCM authentication tag is carried inside the ciphertext, so any tampering (or a
 // wrong key) makes decryption fail rather than return garbage.

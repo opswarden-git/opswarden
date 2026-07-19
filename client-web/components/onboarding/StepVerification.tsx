@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "@/i18n/routing";
 import type { OnboardingData } from "./types";
+import { teamPath } from "@/lib/team-routing";
 
 interface StepProps {
   data: OnboardingData;
@@ -67,17 +68,19 @@ export function StepVerification({ data }: StepProps) {
           useAuthStore.getState().setUser(user);
 
           // 4. Create the Team (stationName)
+          let createdTeamId = "";
           if (data.stationName) {
-            await apiFetch("/api/teams", {
+            const teamRes = await apiFetch("/api/teams", {
               method: "POST",
               body: JSON.stringify({ name: data.stationName }),
             });
+            if (teamRes.ok) createdTeamId = await teamRes.text();
           }
 
           if (!isCancelled) {
             // Delay redirection slightly so user sees system online
             setTimeout(() => {
-              router.push("/");
+              router.push(createdTeamId ? teamPath(createdTeamId) : "/");
             }, 1200);
           }
         } else {

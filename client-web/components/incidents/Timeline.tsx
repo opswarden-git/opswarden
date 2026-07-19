@@ -4,6 +4,7 @@ import {
   useAddTimelineEntry,
   useEditTimelineEntry,
   useToggleTimelineReaction,
+  useAvailableReactions,
   type TimelineEntry,
 } from "@/lib/queries/incidents";
 import { useWsStore, useTypingUsers } from "@/lib/ws";
@@ -12,18 +13,21 @@ import { giphyEntryUrl } from "@/lib/queries/gifs";
 import { GifSearchPanel } from "./GifSearchPanel";
 import { Pencil, Send, Terminal } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
-
-const PRESET_REACTIONS = ["👍", "👀", "✅", "🚨"];
+import { Button, IconButton } from "@/components/ui/Button";
+import { ToggleButton } from "@/components/ui/ToggleButton";
+import { ReactionToggle } from "@/components/ui/ReactionToggle";
+import { Alert } from "@/components/ui/Alert";
 
 function TimelineEntryItem({
   entry,
   incidentId,
   currentUserId,
+  availableReactions,
 }: {
   entry: TimelineEntry;
   incidentId: string;
   currentUserId?: string;
+  availableReactions: string[];
 }) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
@@ -54,13 +58,17 @@ function TimelineEntryItem({
   // Be defensive for stale React Query/HMR data loaded before reactions existed.
   const reactions = entry.reactions ?? [];
   // Preset emojis plus any non-preset emoji that already carries a reaction.
-  const extraEmojis = reactions.map((r) => r.emoji).filter((e) => !PRESET_REACTIONS.includes(e));
-  const emojis = [...PRESET_REACTIONS, ...extraEmojis];
+  const extraEmojis = reactions
+    .map((reaction) => reaction.emoji)
+    .filter((emoji) => !availableReactions.includes(emoji));
+  const emojis = [...availableReactions, ...extraEmojis];
 
   return (
     <div className="surface-subtle border-border rounded-md border p-4">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-text text-xs font-medium">{entry.author_id.split("-")[0]}</span>
+        <span className="text-text text-xs font-medium">
+          {entry.author?.email ?? t("deletedUser")}
+        </span>
         <div className="flex items-center gap-2">
           {entry.edited_at ? (
             <span className="text-muted/50 text-[10px] italic">{t("edited")}</span>
@@ -69,15 +77,9 @@ function TimelineEntryItem({
             {new Date(entry.created_at).toLocaleTimeString()}
           </span>
           {isAuthor && !editing && !gifUrl ? (
-            <button
-              type="button"
-              onClick={startEdit}
-              title={t("edit")}
-              aria-label={t("edit")}
-              className="text-muted hover:text-text transition-colors"
-            >
-              <Pencil className="h-3 w-3" />
-            </button>
+            <IconButton onClick={startEdit} label={t("edit")} size="sm" variant="ghost">
+              <Pencil className="h-3.5 w-3.5" />
+            </IconButton>
           ) : null}
         </div>
       </div>
@@ -94,21 +96,18 @@ function TimelineEntryItem({
             <p className="text-sev-critical text-xs">{errorText(editEntry.error.message)}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="ow-secondary h-8 rounded-md px-3 text-xs font-medium transition-colors"
-            >
+            <Button size="sm" onClick={() => setEditing(false)}>
               {t("cancel")}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
               onClick={saveEdit}
               disabled={editEntry.isPending || !draft.trim()}
-              className="ow-primary h-8 rounded-md px-3 text-xs font-medium transition-colors disabled:opacity-50"
+              loading={editEntry.isPending}
             >
               {t("save")}
-            </button>
+            </Button>
           </div>
         </div>
       ) : gifUrl ? (
@@ -129,21 +128,15 @@ function TimelineEntryItem({
           const count = r?.count ?? 0;
           const reacted = r?.reacted ?? false;
           return (
-            <button
+            <ReactionToggle
               key={emoji}
-              type="button"
+              emoji={emoji}
+              count={count}
+              label={`${emoji} (${count})`}
+              pressed={reacted}
               onClick={() => toggleReaction.mutate({ incidentId, entryId: entry.id, emoji })}
-              disabled={toggleReaction.isPending}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors disabled:opacity-50",
-                reacted
-                  ? "border-gold/40 bg-gold/10 text-text"
-                  : "border-border text-muted hover:text-text hover:bg-white/[0.04]",
-              )}
-            >
-              <span>{emoji}</span>
-              {count > 0 ? <span className="tabular-nums">{count}</span> : null}
-            </button>
+              loading={toggleReaction.isPending}
+            />
           );
         })}
       </div>
@@ -151,8 +144,9 @@ function TimelineEntryItem({
   );
 }
 
-export function Timeline({ incidentId }: { incidentId: string }) {
+export function Timeline({ incidentId, canCompose }: { incidentId: string; canCompose: boolean }) {
   const { data, isLoading, error } = useTimeline(incidentId);
+  const { data: availableReactions = [] } = useAvailableReactions();
   const addEntry = useAddTimelineEntry();
   const [content, setContent] = useState("");
   const [showGifPanel, setShowGifPanel] = useState(false);
@@ -195,7 +189,11 @@ export function Timeline({ incidentId }: { incidentId: string }) {
   if (isLoading)
     return <div className="text-muted animate-pulse p-4 text-sm">{t("loadingTimeline")}</div>;
   if (error)
-    return <div className="text-sev-critical p-4 text-sm">{t("failedToLoadTimeline")}</div>;
+    return (
+      <Alert tone="danger" className="m-4">
+        {t("failedToLoadTimeline")}
+      </Alert>
+    );
 
   return (
     <div className="flex h-full flex-col">
@@ -217,6 +215,7 @@ export function Timeline({ incidentId }: { incidentId: string }) {
                 entry={entry}
                 incidentId={incidentId}
                 currentUserId={currentUserId}
+                availableReactions={availableReactions}
               />
             ))
           )}
@@ -231,44 +230,44 @@ export function Timeline({ incidentId }: { incidentId: string }) {
         </div>
       )}
 
-      <div className="surface-subtle border-border border-t p-4">
-        {showGifPanel ? (
-          <GifSearchPanel
-            onSelect={handleSelectGif}
-            onClose={() => setShowGifPanel(false)}
-            disabled={addEntry.isPending}
-          />
-        ) : null}
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowGifPanel((v) => !v)}
-            title={t("gifButton")}
-            aria-label={t("gifButton")}
-            aria-pressed={showGifPanel}
-            className={cn(
-              "flex h-10 shrink-0 items-center justify-center rounded-md px-3 text-xs font-bold transition-colors",
-              showGifPanel ? "border-gold/40 bg-gold/10 text-text border" : "ow-secondary",
-            )}
-          >
-            GIF
-          </button>
-          <input
-            type="text"
-            value={content}
-            onChange={handleContentChange}
-            placeholder={t("logEventPlaceholder")}
-            className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
-          />
-          <button
-            type="submit"
-            disabled={addEntry.isPending || !content.trim()}
-            className="ow-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
-      </div>
+      {canCompose ? (
+        <div className="surface-subtle border-border border-t p-4">
+          {showGifPanel ? (
+            <GifSearchPanel
+              onSelect={handleSelectGif}
+              onClose={() => setShowGifPanel(false)}
+              disabled={addEntry.isPending}
+            />
+          ) : null}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <ToggleButton
+              size="lg"
+              pressed={showGifPanel}
+              onClick={() => setShowGifPanel((v) => !v)}
+              aria-label={t("gifButton")}
+            >
+              GIF
+            </ToggleButton>
+            <input
+              type="text"
+              value={content}
+              onChange={handleContentChange}
+              placeholder={t("logEventPlaceholder")}
+              className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
+            />
+            <IconButton
+              type="submit"
+              label={t("send")}
+              size="lg"
+              variant="primary"
+              disabled={addEntry.isPending || !content.trim()}
+              loading={addEntry.isPending}
+            >
+              <Send className="h-4 w-4" />
+            </IconButton>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

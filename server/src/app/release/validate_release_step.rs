@@ -4,8 +4,10 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::{EventPublisher, ReleaseRepo, TeamRepo};
 
@@ -51,7 +53,7 @@ impl ValidateReleaseStepUseCase {
             .find_member_role(release.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_progress_release {
             return Err(DomainError::Forbidden);
         }
 

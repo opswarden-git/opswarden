@@ -8,8 +8,11 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
-use crate::domain::team::{Role, TeamBan};
+#[cfg(test)]
+use crate::domain::team::Role;
+use crate::domain::team::TeamBanView;
 use crate::ports::TeamRepo;
 
 pub struct ListBansCommand {
@@ -19,7 +22,7 @@ pub struct ListBansCommand {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ListBansResult {
-    pub bans: Vec<TeamBan>,
+    pub bans: Vec<TeamBanView>,
 }
 
 pub struct ListBansUseCase {
@@ -37,7 +40,7 @@ impl ListBansUseCase {
             .find_member_role(cmd.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
-        if requester_role != Role::Manager {
+        if !derive_capabilities(requester_role).can_manage_members {
             return Err(DomainError::NotManager);
         }
 
@@ -73,7 +76,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.bans.len(), 1);
-        assert_eq!(result.bans[0].user_id, banned);
+        assert_eq!(result.bans[0].ban.user_id, banned);
     }
 
     #[tokio::test]

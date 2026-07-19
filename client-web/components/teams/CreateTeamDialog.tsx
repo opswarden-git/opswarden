@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useCreateTeam } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
+import { Button, IconButton } from "@/components/ui/Button";
 
 export function CreateTeamDialog() {
   const [open, setOpen] = useState(false);
@@ -22,24 +23,23 @@ export function CreateTeamDialog() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="ow-primary flex inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors"
-      >
+      <Button onClick={() => setOpen(true)} variant="primary">
         <Plus className="h-4 w-4" />
         {t("createTeam")}
-      </button>
+      </Button>
 
       {open && (
         <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="surface relative w-full max-w-md rounded-md p-6 shadow-2xl">
-            <button
+            <IconButton
               onClick={() => setOpen(false)}
-              className="text-muted hover:text-text absolute top-4 right-4"
-              aria-label="Close dialog"
+              className="absolute top-3 right-3"
+              label="Close dialog"
+              size="sm"
+              variant="ghost"
             >
               <X className="h-5 w-5" />
-            </button>
+            </IconButton>
             <h2 className="text-text mb-4 font-sans text-lg font-bold">{t("createTitle")}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -57,20 +57,18 @@ export function CreateTeamDialog() {
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="ow-secondary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors"
-                >
+                <Button size="lg" onClick={() => setOpen(false)}>
                   {t("cancel")}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createTeam.isPending || !name.trim()}
-                  className="ow-primary inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-50"
+                  loading={createTeam.isPending}
+                  size="lg"
+                  variant="primary"
                 >
                   {createTeam.isPending ? t("creating") : t("create")}
-                </button>
+                </Button>
               </div>
               {createTeam.isError && (
                 <p className="text-sev-critical mt-2 text-sm">{createTeam.error.message}</p>

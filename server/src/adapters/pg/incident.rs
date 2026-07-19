@@ -1,9 +1,12 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
+use chrono::{DateTime, Utc};
+use serde_json::Value;
+use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
+use crate::domain::incident_event::{IncidentEvent, IncidentEventKind};
 use crate::ports::IncidentRepo;
 
 pub struct PgIncidentRepo {
@@ -13,6 +16,57 @@ pub struct PgIncidentRepo {
 impl PgIncidentRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
+    }
+}
+
+#[derive(FromRow)]
+struct IncidentRow {
+    id: Uuid,
+    team_id: Uuid,
+    title: String,
+    description: String,
+    status: String,
+    severity: String,
+    assignee_id: Option<Uuid>,
+    created_by: Option<Uuid>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+impl From<IncidentRow> for Incident {
+    fn from(row: IncidentRow) -> Self {
+        Self {
+            id: row.id,
+            team_id: row.team_id,
+            title: row.title,
+            description: row.description,
+            status: status_from_str(&row.status),
+            severity: severity_from_str(&row.severity),
+            assignee: row.assignee_id,
+            created_by: row.created_by,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
+#[derive(FromRow)]
+struct IncidentEventRow {
+    id: Uuid,
+    incident_id: Uuid,
+    kind: String,
+    actor_id: Option<Uuid>,
+    data: Value,
+    created_at: DateTime<Utc>,
+}
+
+fn event_kind_from_str(value: &str) -> Option<IncidentEventKind> {
+    match value {
+        "created" => Some(IncidentEventKind::Created),
+        "status_changed" => Some(IncidentEventKind::StatusChanged),
+        "assigned" => Some(IncidentEventKind::Assigned),
+        "severity_changed" => Some(IncidentEventKind::SeverityChanged),
+        _ => None,
     }
 }
 
@@ -55,66 +109,116 @@ fn severity_from_str(value: &str) -> Severity {
 #[async_trait]
 impl IncidentRepo for PgIncidentRepo {
     async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError> {
-        sqlx::query!(
+        sqlx::query(
             r#"
-            INSERT INTO incidents (id, team_id, title, status, severity, assignee_id, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO incidents (
+                id, team_id, title, description, status, severity, assignee_id,
+                created_by, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
-            incident.id,
-            incident.team_id,
-            incident.title,
-            status_to_str(incident.status),
-            severity_to_str(incident.severity),
-            incident.assignee,
-            incident.created_at,
         )
+        .bind(incident.id)
+        .bind(incident.team_id)
+        .bind(&incident.title)
+        .bind(&incident.description)
+        .bind(status_to_str(incident.status))
+        .bind(severity_to_str(incident.severity))
+        .bind(incident.assignee)
+        .bind(incident.created_by)
+        .bind(incident.created_at)
+        .bind(incident.updated_at)
         .execute(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
 
         Ok(())
+    }
+
+    async fn save_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        sqlx::query(
+            r#"
+            INSERT INTO incidents (
+                id, team_id, title, description, status, severity, assignee_id,
+                created_by, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "#,
+        )
+        .bind(incident.id)
+        .bind(incident.team_id)
+        .bind(&incident.title)
+        .bind(&incident.description)
+        .bind(status_to_str(incident.status))
+        .bind(severity_to_str(incident.severity))
+        .bind(incident.assignee)
+        .bind(incident.created_by)
+        .bind(incident.created_at)
+        .bind(incident.updated_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(event.id)
+        .bind(event.incident_id)
+        .bind(event.kind.to_string())
+        .bind(event.actor_id)
+        .bind(&event.data)
+        .bind(event.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        tx.commit().await.map_err(|_| DomainError::Storage)
     }
 
     async fn find_incident_by_id(
         &self,
         incident_id: Uuid,
     ) -> Result<Option<Incident>, DomainError> {
-        let record = sqlx::query!(
+        let record = sqlx::query_as::<_, IncidentRow>(
             r#"
-            SELECT id, team_id, title, status, severity, assignee_id, created_at
+            SELECT id, team_id, title, description, status, severity,
+                   assignee_id, created_by, created_at, updated_at
             FROM incidents
             WHERE id = $1
             "#,
-            incident_id,
         )
+        .bind(incident_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(record.map(|row| Incident {
-            id: row.id,
-            team_id: row.team_id,
-            title: row.title,
-            status: status_from_str(&row.status),
-            severity: severity_from_str(&row.severity),
-            assignee: row.assignee_id,
-            created_at: row.created_at,
-        }))
+        Ok(record.map(Incident::from))
     }
 
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
-        sqlx::query!(
+        sqlx::query(
             r#"
             UPDATE incidents
-            SET title = $2, status = $3, severity = $4, assignee_id = $5
+            SET title = $2, description = $3, status = $4, severity = $5,
+                assignee_id = $6, updated_at = $7
             WHERE id = $1
             "#,
-            incident.id,
-            incident.title,
-            status_to_str(incident.status),
-            severity_to_str(incident.severity),
-            incident.assignee,
         )
+        .bind(incident.id)
+        .bind(&incident.title)
+        .bind(&incident.description)
+        .bind(status_to_str(incident.status))
+        .bind(severity_to_str(incident.severity))
+        .bind(incident.assignee)
+        .bind(incident.updated_at)
         .execute(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
@@ -122,32 +226,101 @@ impl IncidentRepo for PgIncidentRepo {
         Ok(())
     }
 
-    async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError> {
-        let records = sqlx::query!(
+    async fn update_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        sqlx::query(
             r#"
-            SELECT id, team_id, title, status, severity, assignee_id, created_at
-            FROM incidents
-            WHERE team_id = $1
-            ORDER BY created_at DESC
+            UPDATE incidents
+            SET title = $2, description = $3, status = $4, severity = $5,
+                assignee_id = $6, updated_at = $7
+            WHERE id = $1
             "#,
-            team_id,
         )
+        .bind(incident.id)
+        .bind(&incident.title)
+        .bind(&incident.description)
+        .bind(status_to_str(incident.status))
+        .bind(severity_to_str(incident.severity))
+        .bind(incident.assignee)
+        .bind(incident.updated_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(event.id)
+        .bind(event.incident_id)
+        .bind(event.kind.to_string())
+        .bind(event.actor_id)
+        .bind(&event.data)
+        .bind(event.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        tx.commit().await.map_err(|_| DomainError::Storage)
+    }
+
+    async fn list_events_for_incident(
+        &self,
+        incident_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<IncidentEvent>, DomainError> {
+        let records = sqlx::query_as::<_, IncidentEventRow>(
+            r#"
+            SELECT id, incident_id, kind, actor_id, data, created_at
+            FROM incident_events
+            WHERE incident_id = $1
+            ORDER BY created_at DESC, id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(incident_id)
+        .bind(i64::from(limit))
         .fetch_all(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(records
+        records
             .into_iter()
-            .map(|row| Incident {
-                id: row.id,
-                team_id: row.team_id,
-                title: row.title,
-                status: status_from_str(&row.status),
-                severity: severity_from_str(&row.severity),
-                assignee: row.assignee_id,
-                created_at: row.created_at,
+            .map(|row| {
+                Ok(IncidentEvent {
+                    id: row.id,
+                    incident_id: row.incident_id,
+                    kind: event_kind_from_str(&row.kind).ok_or(DomainError::Storage)?,
+                    actor_id: row.actor_id,
+                    data: row.data,
+                    created_at: row.created_at,
+                })
             })
-            .collect())
+            .collect()
+    }
+
+    async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError> {
+        let records = sqlx::query_as::<_, IncidentRow>(
+            r#"
+            SELECT id, team_id, title, description, status, severity,
+                   assignee_id, created_by, created_at, updated_at
+            FROM incidents
+            WHERE team_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(team_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(records.into_iter().map(Incident::from).collect())
     }
 
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {
@@ -271,6 +444,76 @@ mod tests {
                 .unwrap()
                 .assignee,
             None
+        );
+    }
+
+    #[sqlx::test]
+    async fn incident_and_initial_event_are_committed_together(pool: PgPool) {
+        let repo = PgIncidentRepo::new(pool.clone());
+        let team_id = seed_team(&pool).await;
+        let incident = Incident::new(team_id, "API saturation", Severity::Critical).unwrap();
+        let event = IncidentEvent::created(&incident, None);
+
+        repo.save_incident_with_event(&incident, &event)
+            .await
+            .unwrap();
+
+        let events = repo
+            .list_events_for_incident(incident.id, 10)
+            .await
+            .unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, IncidentEventKind::Created);
+    }
+
+    #[sqlx::test]
+    async fn a_failed_event_rolls_back_the_incident_write(pool: PgPool) {
+        let repo = PgIncidentRepo::new(pool.clone());
+        let team_id = seed_team(&pool).await;
+        let incident = Incident::new(team_id, "Must roll back", Severity::High).unwrap();
+        let mut invalid_event = IncidentEvent::created(&incident, None);
+        invalid_event.incident_id = Uuid::new_v4();
+
+        assert_eq!(
+            repo.save_incident_with_event(&incident, &invalid_event)
+                .await
+                .unwrap_err(),
+            DomainError::Storage
+        );
+        assert!(repo
+            .find_incident_by_id(incident.id)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[sqlx::test]
+    async fn a_failed_event_rolls_back_the_incident_update(pool: PgPool) {
+        let repo = PgIncidentRepo::new(pool.clone());
+        let team_id = seed_team(&pool).await;
+        let mut incident = Incident::new(team_id, "Stable state", Severity::High).unwrap();
+        repo.save_incident(&incident).await.unwrap();
+        incident.acknowledge().unwrap();
+        let invalid_event = IncidentEvent::status_changed(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            IncidentStatus::Open,
+            IncidentStatus::Acknowledged,
+        );
+
+        assert_eq!(
+            repo.update_incident_with_event(&incident, &invalid_event)
+                .await
+                .unwrap_err(),
+            DomainError::Storage
+        );
+        assert_eq!(
+            repo.find_incident_by_id(incident.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            IncidentStatus::Open
         );
     }
 }

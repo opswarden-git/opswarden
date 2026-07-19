@@ -2,6 +2,7 @@
 pub mod ban_member;
 pub mod create_team;
 pub mod delete_team;
+pub mod get_invitation_code;
 pub mod join_team;
 pub mod kick_member;
 pub mod leave_team;
@@ -10,10 +11,14 @@ pub mod list_members;
 pub mod list_teams;
 pub mod set_member_role;
 pub mod transfer_manager;
+pub mod unban_member;
 
 pub use ban_member::{BanMemberCommand, BanMemberResult, BanMemberUseCase, BanRequest};
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
+pub use get_invitation_code::{
+    GetInvitationCodeCommand, GetInvitationCodeResult, GetInvitationCodeUseCase,
+};
 pub use join_team::{JoinTeamCommand, JoinTeamResult, JoinTeamUseCase};
 pub use kick_member::{KickMemberCommand, KickMemberUseCase};
 pub use leave_team::{LeaveTeamCommand, LeaveTeamUseCase};
@@ -22,6 +27,7 @@ pub use list_members::{ListTeamMembersCommand, ListTeamMembersResult, ListTeamMe
 pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
 pub use set_member_role::{SetMemberRoleCommand, SetMemberRoleUseCase};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
+pub use unban_member::{UnbanMemberCommand, UnbanMemberUseCase};
 
 // Shared in-memory mock for the team use-case tests (no DB in this run).
 #[cfg(test)]
@@ -33,8 +39,11 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
-    use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
+    use crate::domain::team::{
+        Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
+    };
     use crate::ports::TeamRepo;
+    use chrono::Utc;
 
     /// Configurable fake `TeamRepo`. Reads (`team`, `roles`) are preset via the
     /// builder helpers; writes are recorded so tests can assert on them.
@@ -134,6 +143,29 @@ pub(crate) mod tests {
             })
         }
 
+        async fn list_team_directory_for_user(
+            &self,
+            user_id: Uuid,
+        ) -> Result<Vec<TeamDirectoryItem>, DomainError> {
+            Ok(self
+                .list_teams_for_user(user_id)
+                .await?
+                .into_iter()
+                .map(|(team, role)| TeamDirectoryItem {
+                    team,
+                    role,
+                    member_count: self.roles.len() as u64,
+                    active_incident_count: 0,
+                    active_release_count: 0,
+                    blocked_release_count: 0,
+                })
+                .collect())
+        }
+
+        async fn find_team_by_id(&self, team_id: Uuid) -> Result<Option<Team>, DomainError> {
+            Ok(self.team.clone().filter(|team| team.id == team_id))
+        }
+
         async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError> {
             self.deleted.lock().unwrap().push(team_id);
             Ok(())
@@ -156,6 +188,7 @@ pub(crate) mod tests {
                     user_id: *user_id,
                     email: format!("user-{user_id}@test.local"),
                     role: *role,
+                    joined_at: Utc::now(),
                 })
                 .collect())
         }
@@ -195,8 +228,27 @@ pub(crate) mod tests {
                 .cloned())
         }
 
-        async fn list_bans(&self, _team_id: Uuid) -> Result<Vec<TeamBan>, DomainError> {
-            Ok(self.bans.lock().unwrap().clone())
+        async fn list_bans(&self, _team_id: Uuid) -> Result<Vec<TeamBanView>, DomainError> {
+            Ok(self
+                .bans
+                .lock()
+                .unwrap()
+                .iter()
+                .cloned()
+                .map(|ban| TeamBanView {
+                    user_email: format!("user-{}@test.local", ban.user_id),
+                    moderator_email: ban.created_by.map(|id| format!("user-{id}@test.local")),
+                    ban,
+                })
+                .collect())
+        }
+
+        async fn remove_ban(&self, _team_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+            self.bans
+                .lock()
+                .unwrap()
+                .retain(|ban| ban.user_id != user_id);
+            Ok(())
         }
     }
 }

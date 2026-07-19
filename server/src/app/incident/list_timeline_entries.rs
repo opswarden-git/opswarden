@@ -18,7 +18,7 @@ pub struct ListTimelineEntriesCommand {
 
 /// Aggregated reactions for one emoji on one entry: how many users reacted and
 /// whether the requesting user is among them.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReactionSummary {
     pub emoji: String,
     pub count: u64,

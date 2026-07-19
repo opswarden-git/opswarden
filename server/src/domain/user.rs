@@ -29,6 +29,23 @@ pub struct User {
     pub created_at: DateTime<Utc>,
 }
 
+/// Safe identity projection for API read models. Password and account metadata
+/// never leak through incident, timeline, or team resources.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserSummary {
+    pub user_id: Uuid,
+    pub email: String,
+}
+
+impl From<&User> for UserSummary {
+    fn from(user: &User) -> Self {
+        Self {
+            user_id: user.id,
+            email: user.email.as_str().to_string(),
+        }
+    }
+}
+
 impl User {
     pub fn new(email: Email, password_hash: impl Into<String>) -> Self {
         Self {

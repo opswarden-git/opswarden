@@ -16,8 +16,9 @@ use uuid::Uuid;
 use crate::app::release::{
     CancelReleaseCommand, CancelReleaseUseCase, CreateReleaseCommand, CreateReleaseUseCase,
     GetReleaseCommand, GetReleaseUseCase, LinkIncidentCommand, LinkIncidentUseCase,
-    ListReleasesCommand, ListReleasesUseCase, ReleaseDetail, UnlinkIncidentCommand,
-    UnlinkIncidentUseCase, ValidateReleaseStepCommand, ValidateReleaseStepUseCase,
+    ListReleasesCommand, ListReleasesUseCase, ReleaseBlocker, ReleaseDetail, ReleaseListItem,
+    UnlinkIncidentCommand, UnlinkIncidentUseCase, ValidateReleaseStepCommand,
+    ValidateReleaseStepUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
@@ -25,6 +26,7 @@ use crate::AppState;
 
 #[derive(Serialize)]
 pub struct ReleaseStepView {
+    pub position: i32,
     pub name: String,
     pub validated: bool,
     pub validated_by: Option<Uuid>,
@@ -41,6 +43,7 @@ pub struct ReleaseView {
     pub steps: Vec<ReleaseStepView>,
     pub linked_incident_ids: Vec<Uuid>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl From<ReleaseDetail> for ReleaseView {
@@ -59,6 +62,7 @@ impl From<ReleaseDetail> for ReleaseView {
                 .steps
                 .into_iter()
                 .map(|step| ReleaseStepView {
+                    position: step.position,
                     name: step.name,
                     validated: step.validated_at.is_some(),
                     validated_by: step.validated_by,
@@ -67,6 +71,82 @@ impl From<ReleaseDetail> for ReleaseView {
                 .collect(),
             linked_incident_ids,
             created_at: release.created_at,
+            updated_at: release.updated_at,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct ReleaseProgressView {
+    pub completed: usize,
+    pub total: usize,
+}
+
+#[derive(Serialize)]
+pub struct ReleaseNextStepView {
+    pub position: i32,
+    pub name: String,
+}
+
+#[derive(Serialize)]
+pub struct ReleaseBlockerView {
+    pub incident_id: Uuid,
+    pub title: String,
+    pub status: String,
+    pub severity: String,
+}
+
+impl From<ReleaseBlocker> for ReleaseBlockerView {
+    fn from(blocker: ReleaseBlocker) -> Self {
+        Self {
+            incident_id: blocker.incident_id,
+            title: blocker.title,
+            status: blocker.status.to_string(),
+            severity: blocker.severity.to_string(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct ReleaseListItemView {
+    pub release_id: Uuid,
+    pub team_id: Uuid,
+    pub title: String,
+    pub state: String,
+    pub progress: ReleaseProgressView,
+    pub next_step: Option<ReleaseNextStepView>,
+    pub blockers: Vec<ReleaseBlockerView>,
+    pub linked_incident_ids: Vec<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<ReleaseListItem> for ReleaseListItemView {
+    fn from(item: ReleaseListItem) -> Self {
+        let ReleaseListItem {
+            detail,
+            completed_steps,
+            total_steps,
+            next_step,
+            blockers,
+        } = item;
+        Self {
+            release_id: detail.release.id,
+            team_id: detail.release.team_id,
+            title: detail.release.title,
+            state: detail.effective_state.to_string(),
+            progress: ReleaseProgressView {
+                completed: completed_steps,
+                total: total_steps,
+            },
+            next_step: next_step.map(|step| ReleaseNextStepView {
+                position: step.position,
+                name: step.name,
+            }),
+            blockers: blockers.into_iter().map(ReleaseBlockerView::from).collect(),
+            linked_incident_ids: detail.linked_incident_ids,
+            created_at: detail.release.created_at,
+            updated_at: detail.release.updated_at,
         }
     }
 }
@@ -108,15 +188,24 @@ pub async fn list_releases(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
     Query(query): Query<ListReleasesQuery>,
-) -> Result<Json<Vec<ReleaseView>>, DomainError> {
-    let use_case = ListReleasesUseCase::new(state.teams.clone(), state.releases.clone());
+) -> Result<Json<Vec<ReleaseListItemView>>, DomainError> {
+    let use_case = ListReleasesUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.releases.clone(),
+    );
     let releases = use_case
         .list(ListReleasesCommand {
             team_id: query.team_id,
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(releases.into_iter().map(ReleaseView::from).collect()))
+    Ok(Json(
+        releases
+            .into_iter()
+            .map(ReleaseListItemView::from)
+            .collect(),
+    ))
 }
 
 pub async fn get_release(

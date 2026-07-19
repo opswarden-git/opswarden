@@ -2,7 +2,9 @@
 use std::sync::Arc;
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::TeamRepo;
 
@@ -28,7 +30,7 @@ impl DeleteTeamUseCase {
             .await?
             .ok_or(DomainError::NotManager)?;
 
-        if role != Role::Manager {
+        if !derive_capabilities(role).can_delete_team {
             return Err(DomainError::NotManager);
         }
 

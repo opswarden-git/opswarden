@@ -5,6 +5,7 @@ pub mod create_incident;
 pub mod delete_incident;
 pub mod edit_timeline_entry;
 pub mod get_incident;
+pub mod list_activity;
 pub mod list_incidents;
 pub mod list_timeline_entries;
 pub mod toggle_timeline_reaction;
@@ -22,7 +23,14 @@ pub use edit_timeline_entry::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
 };
 pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
-pub use list_incidents::{ListIncidentsCommand, ListIncidentsResult, ListIncidentsUseCase};
+pub use list_activity::{
+    IncidentActivityItem, ListIncidentActivityCommand, ListIncidentActivityResult,
+    ListIncidentActivityUseCase, DEFAULT_ACTIVITY_LIMIT, MAX_ACTIVITY_LIMIT,
+};
+pub use list_incidents::{
+    IncidentAssigneeFilter, IncidentCounts, IncidentListItem, IncidentSort, ListIncidentsCommand,
+    ListIncidentsResult, ListIncidentsUseCase,
+};
 pub use list_timeline_entries::{
     ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
     ReactionSummary, TimelineEntryView, DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
@@ -37,12 +45,14 @@ pub(crate) mod tests {
     use std::sync::Mutex;
 
     use async_trait::async_trait;
+    use chrono::Utc;
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
     use crate::domain::event::DomainEvent;
     use crate::domain::incident::Incident;
-    use crate::domain::team::{Role, TeamMemberView};
+    use crate::domain::incident_event::IncidentEvent;
+    use crate::domain::team::{Role, TeamBanView, TeamDirectoryItem, TeamMemberView};
     use crate::domain::timeline::{ReactionRecord, TimelineEntry};
     use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, TimelineRepo};
 
@@ -121,11 +131,38 @@ pub(crate) mod tests {
                             id: *t,
                             name: format!("team-{t}"),
                             invitation_code: InvitationCode::from_existing("OPS-TEST00"),
+                            created_at: Utc::now(),
                         },
                         *role,
                     )
                 })
                 .collect())
+        }
+
+        async fn list_team_directory_for_user(
+            &self,
+            user_id: Uuid,
+        ) -> Result<Vec<TeamDirectoryItem>, DomainError> {
+            Ok(self
+                .list_teams_for_user(user_id)
+                .await?
+                .into_iter()
+                .map(|(team, role)| TeamDirectoryItem {
+                    team,
+                    role,
+                    member_count: self.roles.len() as u64,
+                    active_incident_count: 0,
+                    active_release_count: 0,
+                    blocked_release_count: 0,
+                })
+                .collect())
+        }
+
+        async fn find_team_by_id(
+            &self,
+            _team_id: Uuid,
+        ) -> Result<Option<crate::domain::team::Team>, DomainError> {
+            Ok(None)
         }
 
         async fn delete_team(&self, _team_id: Uuid) -> Result<(), DomainError> {
@@ -149,6 +186,7 @@ pub(crate) mod tests {
                     user_id: *user_id,
                     email: format!("user-{user_id}@test.local"),
                     role: *role,
+                    joined_at: Utc::now(),
                 })
                 .collect())
         }
@@ -174,11 +212,12 @@ pub(crate) mod tests {
             Ok(None)
         }
 
-        async fn list_bans(
-            &self,
-            _team_id: Uuid,
-        ) -> Result<Vec<crate::domain::team::TeamBan>, DomainError> {
+        async fn list_bans(&self, _team_id: Uuid) -> Result<Vec<TeamBanView>, DomainError> {
             Ok(Vec::new())
+        }
+
+        async fn remove_ban(&self, _team_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
         }
     }
 
@@ -196,9 +235,10 @@ pub(crate) mod tests {
 
     #[derive(Default)]
     pub struct MockIncidentRepo {
-        pub incident: Option<Incident>,
+        pub incidents: Vec<Incident>,
         pub saved: Mutex<Vec<Incident>>,
         pub updated: Mutex<Vec<Incident>>,
+        pub incident_events: Mutex<Vec<IncidentEvent>>,
         pub deleted: Mutex<Vec<Uuid>>,
         pub cleared: Mutex<Vec<(Uuid, Uuid)>>,
     }
@@ -206,7 +246,14 @@ pub(crate) mod tests {
     impl MockIncidentRepo {
         pub fn with_incident(incident: Incident) -> Self {
             Self {
-                incident: Some(incident),
+                incidents: vec![incident],
+                ..Self::default()
+            }
+        }
+
+        pub fn with_incidents(incidents: Vec<Incident>) -> Self {
+            Self {
+                incidents,
                 ..Self::default()
             }
         }
@@ -219,14 +266,25 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn save_incident_with_event(
+            &self,
+            incident: &Incident,
+            event: &IncidentEvent,
+        ) -> Result<(), DomainError> {
+            self.saved.lock().unwrap().push(incident.clone());
+            self.incident_events.lock().unwrap().push(event.clone());
+            Ok(())
+        }
+
         async fn find_incident_by_id(
             &self,
             incident_id: Uuid,
         ) -> Result<Option<Incident>, DomainError> {
             Ok(self
-                .incident
-                .clone()
-                .filter(|incident| incident.id == incident_id))
+                .incidents
+                .iter()
+                .find(|incident| incident.id == incident_id)
+                .cloned())
         }
 
         async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
@@ -234,15 +292,43 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn update_incident_with_event(
+            &self,
+            incident: &Incident,
+            event: &IncidentEvent,
+        ) -> Result<(), DomainError> {
+            self.updated.lock().unwrap().push(incident.clone());
+            self.incident_events.lock().unwrap().push(event.clone());
+            Ok(())
+        }
+
+        async fn list_events_for_incident(
+            &self,
+            incident_id: Uuid,
+            limit: u32,
+        ) -> Result<Vec<IncidentEvent>, DomainError> {
+            let mut events: Vec<_> = self
+                .incident_events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|event| event.incident_id == incident_id)
+                .cloned()
+                .collect();
+            events.sort_by_key(|event| std::cmp::Reverse((event.created_at, event.id)));
+            events.truncate(limit as usize);
+            Ok(events)
+        }
+
         async fn list_incidents_for_team(
             &self,
             team_id: Uuid,
         ) -> Result<Vec<Incident>, DomainError> {
             Ok(self
-                .incident
-                .clone()
-                .into_iter()
+                .incidents
+                .iter()
                 .filter(|incident| incident.team_id == team_id)
+                .cloned()
                 .collect())
         }
 

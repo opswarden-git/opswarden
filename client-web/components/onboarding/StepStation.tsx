@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronLeft, Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
+import { Button } from "@/components/ui/Button";
 
 interface StepProps {
   data: OnboardingData;
@@ -59,20 +60,13 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
       </div>
 
       <div className="mt-2 flex items-center justify-between pt-4">
-        <button
-          type="button"
-          onClick={back}
-          className="text-muted hover:text-text focus-visible:ring-gold flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none"
-        >
-          <ChevronLeft className="mr-1 size-4" />
+        <Button variant="ghost" size="lg" onClick={back}>
+          <ChevronLeft className="size-4" />
           {t("back")}
-        </button>
-        <button
-          type="submit"
-          className="ow-primary focus-visible:ring-gold focus-visible:ring-offset-bg inline-flex h-10 items-center justify-center rounded-md px-6 text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
+        </Button>
+        <Button type="submit" variant="primary" size="lg">
           {t("next")}
-        </button>
+        </Button>
       </div>
     </form>
   );

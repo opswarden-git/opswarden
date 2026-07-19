@@ -4,10 +4,32 @@ import { apiFetch } from "../api";
 export type ReleaseState = "created" | "in_progress" | "blocked" | "completed" | "cancelled";
 
 export interface ReleaseStep {
+  position: number;
   name: string;
   validated: boolean;
   validated_by: string | null;
   validated_at: string | null;
+}
+
+export interface ReleaseBlocker {
+  incident_id: string;
+  title: string;
+  status: "open" | "acknowledged" | "escalated";
+  severity: "low" | "medium" | "high" | "critical";
+}
+
+export interface ReleaseListItem {
+  release_id: string;
+  team_id: string;
+  title: string;
+  /** Effective state (with `blocked` already resolved from linked incidents). */
+  state: ReleaseState;
+  progress: { completed: number; total: number };
+  next_step: Pick<ReleaseStep, "position" | "name"> | null;
+  blockers: ReleaseBlocker[];
+  linked_incident_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Release {
@@ -19,10 +41,11 @@ export interface Release {
   steps: ReleaseStep[];
   linked_incident_ids: string[];
   created_at: string;
+  updated_at: string;
 }
 
 export function useReleases(teamId: string) {
-  return useQuery<Release[]>({
+  return useQuery<ReleaseListItem[]>({
     queryKey: ["releases", { teamId }],
     queryFn: async () => {
       const res = await apiFetch(`/api/releases?team_id=${teamId}`);
@@ -82,11 +105,6 @@ export function useCreateRelease() {
       return res.json() as Promise<Release>;
     },
     onSuccess: (created, variables) => {
-      queryClient.setQueryData<Release[]>(releasesKey(variables.team_id), (current) => {
-        if (!current) return [created];
-        if (current.some((release) => release.release_id === created.release_id)) return current;
-        return [created, ...current];
-      });
       queryClient.setQueryData(["release", created.release_id], created);
       queryClient.invalidateQueries({ queryKey: releasesKey(variables.team_id) });
     },

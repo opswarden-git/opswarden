@@ -50,10 +50,13 @@ pub struct Incident {
     pub id: Uuid,
     pub team_id: Uuid,
     pub title: String,
+    pub description: String,
     pub status: IncidentStatus,
     pub severity: Severity,
     pub assignee: Option<Uuid>,
+    pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Incident {
@@ -67,15 +70,45 @@ impl Incident {
             return Err(DomainError::InvalidIncidentTitle);
         }
 
+        let now = Utc::now();
         Ok(Self {
             id: Uuid::new_v4(),
             team_id,
             title,
+            description: String::new(),
             status: IncidentStatus::Open,
             severity,
             assignee: None,
-            created_at: Utc::now(),
+            created_by: None,
+            created_at: now,
+            updated_at: now,
         })
+    }
+
+    pub fn new_by(
+        team_id: Uuid,
+        title: impl Into<String>,
+        description: impl Into<String>,
+        severity: Severity,
+        created_by: Uuid,
+    ) -> Result<Self, DomainError> {
+        let mut incident = Self::new(team_id, title, severity)?;
+        incident.description = description.into().trim().to_string();
+        incident.created_by = Some(created_by);
+        Ok(incident)
+    }
+
+    /// System-created incidents (for example automation reactions) have no
+    /// human actor but may still carry normalized operational context.
+    pub fn new_with_description(
+        team_id: Uuid,
+        title: impl Into<String>,
+        description: impl Into<String>,
+        severity: Severity,
+    ) -> Result<Self, DomainError> {
+        let mut incident = Self::new(team_id, title, severity)?;
+        incident.description = description.into().trim().to_string();
+        Ok(incident)
     }
 
     /// Assign a responder. Idempotent: returns `true` only when the assignee
@@ -83,6 +116,9 @@ impl Incident {
     pub fn assign(&mut self, user_id: Uuid) -> bool {
         let changed = self.assignee != Some(user_id);
         self.assignee = Some(user_id);
+        if changed {
+            self.updated_at = Utc::now();
+        }
         changed
     }
 
@@ -90,6 +126,7 @@ impl Incident {
         match self.status {
             IncidentStatus::Open => {
                 self.status = IncidentStatus::Acknowledged;
+                self.updated_at = Utc::now();
                 Ok(true)
             }
             IncidentStatus::Acknowledged => Ok(false),
@@ -103,6 +140,7 @@ impl Incident {
         match self.status {
             IncidentStatus::Acknowledged => {
                 self.status = IncidentStatus::Escalated;
+                self.updated_at = Utc::now();
                 Ok(true)
             }
             IncidentStatus::Escalated => Ok(false),
@@ -116,6 +154,7 @@ impl Incident {
         match self.status {
             IncidentStatus::Acknowledged | IncidentStatus::Escalated => {
                 self.status = IncidentStatus::Resolved;
+                self.updated_at = Utc::now();
                 Ok(true)
             }
             IncidentStatus::Resolved => Ok(false),

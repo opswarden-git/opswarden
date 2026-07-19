@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { useGifSearch } from "@/lib/queries/gifs";
+import { IconButton } from "@/components/ui/Button";
+import { MediaButton } from "@/components/ui/MediaButton";
 
 /**
  * Dense GIPHY search grid shown above the timeline composer. Debounces the
@@ -41,14 +43,9 @@ export function GifSearchPanel({
           placeholder={t("gifSearchPlaceholder")}
           className="ow-input flex h-9 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
         />
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("gifClose")}
-          className="text-muted hover:text-text transition-colors"
-        >
+        <IconButton label={t("gifClose")} size="sm" variant="ghost" onClick={onClose}>
           <X className="h-4 w-4" />
-        </button>
+        </IconButton>
       </div>
 
       <div className="min-h-[6rem]">
@@ -63,13 +60,12 @@ export function GifSearchPanel({
         ) : (
           <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
             {data?.map((gif) => (
-              <button
+              <MediaButton
                 key={gif.id}
-                type="button"
+                label={gif.title}
                 disabled={disabled}
                 onClick={() => onSelect(gif.url)}
                 title={gif.title}
-                className="border-border hover:border-gold/50 aspect-[4/3] overflow-hidden rounded-md border transition-colors disabled:opacity-50"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -78,7 +74,7 @@ export function GifSearchPanel({
                   loading="lazy"
                   className="h-full w-full object-cover"
                 />
-              </button>
+              </MediaButton>
             ))}
           </div>
         )}

@@ -20,6 +20,21 @@ up:
 down:
     docker compose down
 
+# reconstruit la stack et restaure une démo complète avec un Run d'automatisation
+demo:
+    docker compose up --build --detach --wait db server
+    docker compose up --build --detach --wait --no-deps client_web
+    ./tooling/seed_demo.sh
+    ./tooling/test_github_webhook.sh
+
+# remplit la base locale avec un dataset UX réaliste et rejouable
+demo-seed:
+    ./tooling/seed_demo.sh
+
+# simule un workflow GitHub échoué avec une signature HMAC valide
+demo-webhook:
+    ./tooling/test_github_webhook.sh
+
 # ----- Server (Rust) -----
 
 # serveur en mode développement
@@ -83,6 +98,10 @@ web-check:
     npm run lint --workspace client-web
     npm run format:check --workspace client-web
     npm run typecheck --workspace client-web
+
+# parcours navigateur sur la stack locale ; le dataset démo est restauré après le run
+web-e2e:
+    npm run test:e2e
 
 # ----- Repo -----
 

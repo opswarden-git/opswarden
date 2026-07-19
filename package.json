@@ -8,14 +8,17 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "baseline:visual": "node tooling/capture-visual-baseline.mjs",
+    "test:e2e": "playwright test",
     "lint:css": "stylelint \"client-web/**/*.css\" --config client-web/stylelint.config.mjs",
     "knip": "knip --config client-web/knip.json"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "knip": "^5.30.0",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "stylelint": "^16.9.0",
-    "stylelint-config-standard": "^36.0.1",
-    "knip": "^5.30.0"
+    "stylelint-config-standard": "^36.0.1"
   }
 }

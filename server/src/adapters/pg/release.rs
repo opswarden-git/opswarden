@@ -44,14 +44,15 @@ impl ReleaseRepo for PgReleaseRepo {
 
         sqlx::query!(
             r#"
-            INSERT INTO releases (id, team_id, title, base_state, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO releases (id, team_id, title, base_state, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
             "#,
             release.id,
             release.team_id,
             release.title,
             base_state_to_str(release.base_state),
             release.created_at,
+            release.updated_at,
         )
         .execute(&mut *tx)
         .await
@@ -80,7 +81,7 @@ impl ReleaseRepo for PgReleaseRepo {
 
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError> {
         let row = sqlx::query!(
-            r#"SELECT id, team_id, title, base_state, created_at FROM releases WHERE id = $1"#,
+            r#"SELECT id, team_id, title, base_state, created_at, updated_at FROM releases WHERE id = $1"#,
             release_id,
         )
         .fetch_optional(&self.pool)
@@ -119,13 +120,14 @@ impl ReleaseRepo for PgReleaseRepo {
                 })
                 .collect(),
             created_at: row.created_at,
+            updated_at: row.updated_at,
         }))
     }
 
     async fn list_releases_for_team(&self, team_id: Uuid) -> Result<Vec<Release>, DomainError> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, team_id, title, base_state, created_at
+            SELECT id, team_id, title, base_state, created_at, updated_at
             FROM releases
             WHERE team_id = $1
             ORDER BY created_at DESC
@@ -172,6 +174,7 @@ impl ReleaseRepo for PgReleaseRepo {
                     base_state: ReleaseState::from_base_str(&row.base_state)?,
                     steps: steps_by_release.remove(&row.id).unwrap_or_default(),
                     created_at: row.created_at,
+                    updated_at: row.updated_at,
                 })
             })
             .collect()
@@ -181,9 +184,10 @@ impl ReleaseRepo for PgReleaseRepo {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
 
         sqlx::query!(
-            r#"UPDATE releases SET base_state = $2 WHERE id = $1"#,
+            r#"UPDATE releases SET base_state = $2, updated_at = $3 WHERE id = $1"#,
             release.id,
             base_state_to_str(release.base_state),
+            release.updated_at,
         )
         .execute(&mut *tx)
         .await
@@ -210,7 +214,8 @@ impl ReleaseRepo for PgReleaseRepo {
     }
 
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
-        sqlx::query!(
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let linked = sqlx::query!(
             r#"
             INSERT INTO release_incidents (release_id, incident_id)
             VALUES ($1, $2)
@@ -219,9 +224,19 @@ impl ReleaseRepo for PgReleaseRepo {
             release_id,
             incident_id,
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if linked.rows_affected() > 0 {
+            sqlx::query!(
+                r#"UPDATE releases SET updated_at = now() WHERE id = $1"#,
+                release_id,
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        }
+        tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
     }
 
@@ -230,14 +245,25 @@ impl ReleaseRepo for PgReleaseRepo {
         release_id: Uuid,
         incident_id: Uuid,
     ) -> Result<(), DomainError> {
-        sqlx::query!(
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let unlinked = sqlx::query!(
             r#"DELETE FROM release_incidents WHERE release_id = $1 AND incident_id = $2"#,
             release_id,
             incident_id,
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if unlinked.rows_affected() > 0 {
+            sqlx::query!(
+                r#"UPDATE releases SET updated_at = now() WHERE id = $1"#,
+                release_id,
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        }
+        tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
     }
 
@@ -368,11 +394,27 @@ mod tests {
             .link_incident(release.id, incident.id)
             .await
             .unwrap();
+        let linked_at = releases
+            .find_release_by_id(release.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .updated_at;
+        assert!(linked_at > release.updated_at);
         // idempotent re-link
         releases
             .link_incident(release.id, incident.id)
             .await
             .unwrap();
+        assert_eq!(
+            releases
+                .find_release_by_id(release.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .updated_at,
+            linked_at
+        );
 
         assert_eq!(
             releases
@@ -411,10 +453,26 @@ mod tests {
             .unlink_incident(release.id, incident.id)
             .await
             .unwrap();
+        let unlinked_at = releases
+            .find_release_by_id(release.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .updated_at;
+        assert!(unlinked_at > linked_at);
         releases
             .unlink_incident(release.id, incident.id)
             .await
             .unwrap();
+        assert_eq!(
+            releases
+                .find_release_by_id(release.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .updated_at,
+            unlinked_at
+        );
         assert!(releases
             .list_linked_incident_ids(release.id)
             .await

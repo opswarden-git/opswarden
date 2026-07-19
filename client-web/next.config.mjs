@@ -23,6 +23,10 @@ const nextConfig = {
         source: "/api/:path*",
         destination: `${apiOrigin}/api/:path*`,
       },
+      {
+        source: "/about.json",
+        destination: `${apiOrigin}/about.json`,
+      },
     ];
   },
 };

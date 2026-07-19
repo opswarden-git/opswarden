@@ -3,9 +3,12 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::app::release::{emit_release_state_changes, snapshot_linked_releases};
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::{IncidentStatus, Severity};
+use crate::domain::incident_event::IncidentEvent;
+#[cfg(test)]
 use crate::domain::team::Role;
 use crate::ports::{EventPublisher, IncidentRepo, ReleaseRepo, TeamRepo};
 
@@ -61,10 +64,11 @@ impl ChangeIncidentStatusUseCase {
             .await?
             .ok_or(DomainError::Forbidden)?;
 
-        if !role.can_act_as(Role::Responder) {
+        if !derive_capabilities(role).can_transition_incident {
             return Err(DomainError::Forbidden);
         }
 
+        let previous_status = incident.status;
         let changed = match cmd.new_status {
             IncidentStatus::Open => Err(DomainError::InvalidIncidentTransition),
             IncidentStatus::Acknowledged => incident.acknowledge(),
@@ -79,7 +83,15 @@ impl ChangeIncidentStatusUseCase {
             // release). The snapshot reads the still-old status from the DB.
             let release_snapshot = snapshot_linked_releases(&self.releases, incident.id).await?;
 
-            self.incidents.update_incident(&incident).await?;
+            let event = IncidentEvent::status_changed(
+                incident.id,
+                cmd.requester_id,
+                previous_status,
+                incident.status,
+            );
+            self.incidents
+                .update_incident_with_event(&incident, &event)
+                .await?;
             self.events
                 .publish(DomainEvent::IncidentStateChanged {
                     team_id: incident.team_id,
@@ -150,6 +162,7 @@ mod tests {
 
         assert_eq!(result.status, IncidentStatus::Acknowledged);
         assert_eq!(incidents.updated.lock().unwrap().len(), 1);
+        assert_eq!(incidents.incident_events.lock().unwrap().len(), 1);
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
             [DomainEvent::IncidentStateChanged {

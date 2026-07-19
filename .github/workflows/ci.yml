@@ -80,7 +80,9 @@ jobs:
       - name: Install cargo-deny
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny
+          # Keep CI aligned with the Nix development shell. cargo-deny 0.20
+          # moved --config in its CLI and broke the shared `just ci` command.
+          tool: cargo-deny@0.19.7
       - name: License & supply-chain policy (cargo-deny)
         run: cargo deny check --config tooling/deny.toml
 

@@ -8,6 +8,7 @@ use common::test_context;
 use opswarden_server::domain::incident::{Incident, Severity};
 use opswarden_server::domain::team::Role;
 use opswarden_server::domain::timeline::TimelineEntry;
+use opswarden_server::domain::user::{Email, User};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -46,6 +47,149 @@ async fn create_incident_returns_created_for_team_manager() {
     assert_eq!(json["title"], "Primary DB latency");
     assert_eq!(json["status"], "open");
     assert_eq!(json["severity"], "high");
+}
+
+#[tokio::test]
+async fn activity_reconstructs_system_events_and_human_notes() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Manager);
+    let responder = User::new(
+        Email::new("responder@test.com").unwrap(),
+        "unused-password-hash",
+    );
+    ctx.users.seed_user(responder.clone());
+    ctx.teams
+        .seed_member(team_id, responder.id, Role::Responder);
+
+    let create = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/incidents")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "team_id": team_id,
+                        "title": "Reconstruct me",
+                        "description": "Durable activity",
+                        "severity": "high"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let create_body = axum::body::to_bytes(create.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let created: serde_json::Value = serde_json::from_slice(&create_body).unwrap();
+    let incident_id = created["incident_id"].as_str().unwrap();
+
+    for (uri, method, payload) in [
+        (
+            format!("/api/incidents/{incident_id}/timeline"),
+            "POST",
+            serde_json::json!({ "content": "Investigating database saturation" }),
+        ),
+        (
+            format!("/api/incidents/{incident_id}/status"),
+            "PUT",
+            serde_json::json!({ "status": "acknowledged" }),
+        ),
+        (
+            format!("/api/incidents/{incident_id}/assign"),
+            "PUT",
+            serde_json::json!({ "assignee_id": responder.id }),
+        ),
+    ] {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .header("Authorization", "Bearer mock_jwt_token")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(payload.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+    }
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents/{incident_id}/activity"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let items = json["items"].as_array().unwrap();
+
+    assert_eq!(items.len(), 4);
+    assert!(items
+        .iter()
+        .any(|item| item["type"] == "system_event" && item["kind"] == "created"));
+    assert!(items.iter().any(|item| {
+        item["type"] == "system_event"
+            && item["kind"] == "status_changed"
+            && item["actor"]["email"] == "existing@test.com"
+    }));
+    assert!(items.iter().any(|item| {
+        item["type"] == "human_note"
+            && item["content"] == "Investigating database saturation"
+            && item["author"]["email"] == "existing@test.com"
+    }));
+    assert!(items.iter().any(|item| {
+        item["type"] == "system_event"
+            && item["kind"] == "assigned"
+            && item["actor"]["email"] == "existing@test.com"
+            && item["subject"]["email"] == "responder@test.com"
+    }));
+}
+
+#[tokio::test]
+async fn available_reactions_are_server_driven() {
+    let ctx = test_context();
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/incidents/reactions/available")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(
+        json["reactions"],
+        serde_json::json!(["👍", "👀", "✅", "🚨"])
+    );
 }
 
 #[tokio::test]
@@ -316,11 +460,58 @@ async fn list_incidents_returns_team_incidents_for_a_member() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    let incidents = json.as_array().unwrap();
+    let incidents = json["items"].as_array().unwrap();
     assert_eq!(incidents.len(), 1);
     assert_eq!(incidents[0]["title"], "DB latency");
     assert_eq!(incidents[0]["severity"], "high");
     assert_eq!(incidents[0]["status"], "open");
+    assert_eq!(json["counts"]["all"], 1);
+    assert_eq!(json["counts"]["open"], 1);
+}
+
+#[tokio::test]
+async fn list_incidents_applies_url_filters_without_losing_view_counts() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let requester = Uuid::nil();
+    let responder = Uuid::new_v4();
+    let mut matching =
+        Incident::new(team_id, "Primary database latency", Severity::Critical).unwrap();
+    matching.assign(responder);
+    let other = Incident::new(team_id, "API timeout", Severity::Low).unwrap();
+    ctx.teams.seed_member(team_id, requester, Role::Observer);
+    ctx.teams.seed_member(team_id, responder, Role::Responder);
+    ctx.incidents.seed_incident(matching);
+    ctx.incidents.seed_incident(other);
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/incidents?team_id={team_id}&status=open&severity=critical&assignee={responder}&q=database&sort=severity"
+                ))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        json["items"][0]["assignee"]["user_id"],
+        responder.to_string()
+    );
+    assert_eq!(json["counts"]["all"], 2);
+    assert_eq!(json["counts"]["open"], 2);
 }
 
 #[tokio::test]

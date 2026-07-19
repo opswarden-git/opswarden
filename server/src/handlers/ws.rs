@@ -14,6 +14,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::AppState;
 
 /// `GET /ws` — upgrade to a WebSocket. This route is public: authentication
@@ -128,7 +129,14 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(ClientCommand::StatusTyping { incident_id }) => {
                         if let Ok(Some(incident)) = incidents.find_incident_by_id(incident_id).await
                         {
-                            if teams.contains(&incident.team_id) {
+                            let may_type = teams.contains(&incident.team_id)
+                                && matches!(
+                                    teams_repo
+                                        .find_member_role(incident.team_id, user_id)
+                                        .await,
+                                    Ok(Some(role)) if derive_capabilities(role).can_signal_typing
+                                );
+                            if may_type {
                                 use crate::domain::event::DomainEvent;
                                 use crate::ports::EventPublisher;
                                 let _ = hub

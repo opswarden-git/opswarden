@@ -2,43 +2,30 @@
 
 import React from "react";
 import { Link, usePathname } from "@/i18n/routing";
-import {
-  LayoutDashboard,
-  ShieldAlert,
-  Rocket,
-  Users,
-  Settings,
-  BotMessageSquare,
-  CircleUser,
-  LogOut,
-} from "lucide-react";
+import { CircleUser, LogOut, Settings } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
-import { useTeams } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
+import { primaryNavigationItems } from "./navigation";
+import { IconButton } from "@/components/ui/Button";
+import { useTeamScope } from "@/components/teams/TeamScope";
+import { parseTeamPath } from "@/lib/team-routing";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const t = useTranslations("Sidebar");
   const user = useAuthStore((state) => state.user);
-  const { data: teams } = useTeams();
-  const primaryTeam = teams?.[0];
-
-  const links = [
-    { href: "/", icon: LayoutDashboard, label: t("dashboard") },
-    { href: "/incidents", icon: ShieldAlert, label: t("incidents") },
-    { href: "/releases", icon: Rocket, label: t("releases") },
-    { href: "/teams", icon: Users, label: t("teams") },
-    { href: "/ai", icon: BotMessageSquare, label: t("ai") },
-  ];
+  const { activeTeam, hrefFor } = useTeamScope();
+  const navigationItems = primaryNavigationItems(activeTeam?.team_id);
+  const teamRoute = parseTeamPath(pathname);
 
   const isSettingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
 
   return (
     <aside className={cn("glass flex w-80 flex-col", className)}>
       <Link
-        href="/"
+        href={activeTeam ? hrefFor("incidents") : "/teams"}
         className="flex h-28 w-full shrink-0 items-center justify-start gap-4 px-8 pt-4 transition-opacity hover:opacity-80"
       >
         <Image
@@ -60,12 +47,14 @@ export function Sidebar({ className }: { className?: string }) {
       </Link>
 
       <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
-        {links.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+        {navigationItems.map((link) => {
+          const isActive = teamRoute
+            ? link.activeSections.some((section) => section === teamRoute.section)
+            : pathname === link.href || pathname.startsWith(link.href + "/");
 
           return (
             <Link
-              key={link.href}
+              key={link.labelKey}
               href={link.href}
               className={cn(
                 "group flex items-center gap-4 px-4 py-3 text-lg transition-colors",
@@ -73,7 +62,7 @@ export function Sidebar({ className }: { className?: string }) {
               )}
             >
               <link.icon className="h-6 w-6" />
-              <span>{link.label}</span>
+              <span>{t(link.labelKey)}</span>
             </Link>
           );
         })}
@@ -94,12 +83,16 @@ export function Sidebar({ className }: { className?: string }) {
               {user?.email?.split("@")[0] || t("operator")}
             </span>
             <span className="truncate text-base capitalize">
-              {primaryTeam?.role || t("noStation")}
+              {activeTeam?.role || t("noStation")}
             </span>
           </div>
           <Settings className="h-5 w-5 shrink-0" />
         </Link>
-        <button
+        <IconButton
+          label={t("logout")}
+          variant="ghost"
+          tone="danger"
+          size="sm"
           onClick={async () => {
             const { useAuthStore } = await import("@/store/auth");
             const { apiFetch } = await import("@/lib/api");
@@ -108,11 +101,11 @@ export function Sidebar({ className }: { className?: string }) {
             // 2. Clear store and let AuthGuard do the redirect
             useAuthStore.getState().logout();
           }}
-          className="text-muted hover:text-sev-critical ml-4 rounded-md p-2 transition-colors"
+          className="ml-4"
           title={t("logout")}
         >
           <LogOut className="h-5 w-5" />
-        </button>
+        </IconButton>
       </div>
     </aside>
   );

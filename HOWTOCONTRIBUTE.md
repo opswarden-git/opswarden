@@ -123,10 +123,8 @@ Common variables:
 - `DATABASE_URL` — Postgres connection string.
 - `JWT_SECRET` — required in release-like runs.
 - `OPSWARDEN_VAULT_KEY` — AES-GCM vault key; dev fallback exists only for local
-  demos.
-- `GITHUB_WEBHOOK_SECRET` — optional bootstrap secret for GitHub webhooks.
-- `OPSWARDEN_AUTOMATION_TEAM_ID` — required for automation rules to create
-  incidents in a team.
+  demos. Provider credentials and automation rules are configured inside the
+  owning Team, never through global environment variables.
 - `GIPHY_API_KEY` — optional server-side key for GIF search. Never expose it as
   `NEXT_PUBLIC_*`.
 

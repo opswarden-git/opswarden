@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::domain::error::DomainError;
 use crate::domain::team::Role;
 use crate::ports::TeamRepo;
+use chrono::{DateTime, Utc};
 
 pub struct ListTeamsCommand {
     pub user_id: Uuid,
@@ -20,8 +21,12 @@ pub struct ListTeamsCommand {
 pub struct TeamSummary {
     pub team_id: Uuid,
     pub name: String,
-    pub invitation_code: String,
     pub role: Role,
+    pub created_at: DateTime<Utc>,
+    pub member_count: u64,
+    pub active_incident_count: u64,
+    pub active_release_count: u64,
+    pub blocked_release_count: u64,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -39,15 +44,19 @@ impl ListTeamsUseCase {
     }
 
     pub async fn list_teams(&self, cmd: ListTeamsCommand) -> Result<ListTeamsResult, DomainError> {
-        let teams = self.teams.list_teams_for_user(cmd.user_id).await?;
+        let teams = self.teams.list_team_directory_for_user(cmd.user_id).await?;
         Ok(ListTeamsResult {
             teams: teams
                 .into_iter()
-                .map(|(team, role)| TeamSummary {
-                    team_id: team.id,
-                    name: team.name,
-                    invitation_code: team.invitation_code.as_str().to_string(),
-                    role,
+                .map(|item| TeamSummary {
+                    team_id: item.team.id,
+                    name: item.team.name,
+                    role: item.role,
+                    created_at: item.team.created_at,
+                    member_count: item.member_count,
+                    active_incident_count: item.active_incident_count,
+                    active_release_count: item.active_release_count,
+                    blocked_release_count: item.blocked_release_count,
                 })
                 .collect(),
         })

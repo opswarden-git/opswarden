@@ -96,20 +96,9 @@ impl UserRepo for PgUserRepo {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
 
         // Teams are deliberately NOT deleted here: the use-case refuses account
-        // deletion while the user still manages a team, so we never orphan a team
-        // or destroy other members' data. Memberships cascade and incident
-        // assignments are set null by the FKs; only the user's timeline entries
-        // (FK is ON DELETE RESTRICT) must be removed explicitly, first.
-        sqlx::query!(
-            r#"
-            DELETE FROM timeline_entries
-            WHERE author_id = $1
-            "#,
-            user_id
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?;
+        // deletion while the user still manages a team. Memberships cascade;
+        // incident assignments, durable events and timeline authors are set null
+        // by their FKs so operational history survives pseudonymized.
 
         let deleted = sqlx::query!(
             r#"
@@ -165,7 +154,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn delete_account_removes_user_and_timeline_but_keeps_the_team_in_postgres(pool: PgPool) {
+    async fn delete_account_pseudonymizes_notes_and_keeps_operational_history(pool: PgPool) {
         let users = PgUserRepo::new(pool.clone());
         let teams = PgTeamRepo::new(pool.clone());
         let incidents = PgIncidentRepo::new(pool.clone());
@@ -176,8 +165,8 @@ mod tests {
         users.save(&user).await.unwrap();
 
         // A plain member (Manager-gating lives in the use-case): deleting the
-        // account removes the user, their timeline entries and their membership
-        // (FK cascade) — but never the team or its incidents.
+        // account removes the user and membership (FK cascade), but never the
+        // team, incident, or operational note.
         let team = Team::new(format!("Delete {}", uuid::Uuid::new_v4())).unwrap();
         teams.save_team(&team).await.unwrap();
         teams
@@ -210,5 +199,12 @@ mod tests {
             .await
             .unwrap()
             .is_some());
+        let notes = timeline
+            .list_entries_for_incident(incident.id, 10)
+            .await
+            .unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].content, "owned by deleted user");
+        assert_eq!(notes[0].author_id, None);
     }
 }

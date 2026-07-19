@@ -9,10 +9,11 @@ use uuid::Uuid;
 
 use crate::app::team::{
     BanMemberCommand, BanMemberUseCase, BanRequest, CreateTeamCommand, CreateTeamUseCase,
-    JoinTeamCommand, JoinTeamUseCase, KickMemberCommand, KickMemberUseCase, ListBansCommand,
-    ListBansUseCase, ListTeamMembersCommand, ListTeamMembersUseCase, ListTeamsCommand,
-    ListTeamsUseCase, SetMemberRoleCommand, SetMemberRoleUseCase, TransferManagerCommand,
-    TransferManagerUseCase,
+    GetInvitationCodeCommand, GetInvitationCodeUseCase, JoinTeamCommand, JoinTeamUseCase,
+    KickMemberCommand, KickMemberUseCase, ListBansCommand, ListBansUseCase, ListTeamMembersCommand,
+    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, SetMemberRoleCommand,
+    SetMemberRoleUseCase, TransferManagerCommand, TransferManagerUseCase, UnbanMemberCommand,
+    UnbanMemberUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::team::{BanKind, Role};
@@ -23,8 +24,12 @@ use crate::AppState;
 pub struct TeamSummaryResponse {
     pub team_id: Uuid,
     pub name: String,
-    pub invitation_code: String,
     pub role: String,
+    pub created_at: DateTime<Utc>,
+    pub member_count: u64,
+    pub active_incident_count: u64,
+    pub active_release_count: u64,
+    pub blocked_release_count: u64,
 }
 
 pub async fn list_teams(
@@ -45,8 +50,12 @@ pub async fn list_teams(
             .map(|team| TeamSummaryResponse {
                 team_id: team.team_id,
                 name: team.name,
-                invitation_code: team.invitation_code,
                 role: team.role.to_string(),
+                created_at: team.created_at,
+                member_count: team.member_count,
+                active_incident_count: team.active_incident_count,
+                active_release_count: team.active_release_count,
+                blocked_release_count: team.blocked_release_count,
             })
             .collect(),
     ))
@@ -57,6 +66,7 @@ pub struct TeamMemberResponse {
     pub user_id: Uuid,
     pub email: String,
     pub role: String,
+    pub joined_at: DateTime<Utc>,
 }
 
 pub async fn list_members(
@@ -80,9 +90,34 @@ pub async fn list_members(
                 user_id: member.user_id,
                 email: member.email,
                 role: member.role.to_string(),
+                joined_at: member.joined_at,
             })
             .collect(),
     ))
+}
+
+#[derive(Serialize)]
+pub struct InvitationCodeResponse {
+    pub invitation_code: String,
+}
+
+/// The invitation secret is deliberately absent from the directory DTO. Only
+/// a Manager may request it from this scoped endpoint.
+pub async fn get_invitation_code(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+) -> Result<Json<InvitationCodeResponse>, DomainError> {
+    let result = GetInvitationCodeUseCase::new(state.teams.clone())
+        .get(GetInvitationCodeCommand {
+            team_id,
+            requester_id: session.user_id,
+        })
+        .await?;
+
+    Ok(Json(InvitationCodeResponse {
+        invitation_code: result.invitation_code,
+    }))
 }
 
 #[derive(Deserialize)]
@@ -332,13 +367,19 @@ pub async fn ban_member(
 
 #[derive(Serialize)]
 pub struct BanResponse {
-    pub user_id: Uuid,
+    pub user: UserSummaryResponse,
     pub kind: String,
     pub expires_at: Option<DateTime<Utc>>,
     pub reason: Option<String>,
-    pub created_by: Option<Uuid>,
+    pub moderator: Option<UserSummaryResponse>,
     pub created_at: DateTime<Utc>,
     pub active: bool,
+}
+
+#[derive(Serialize)]
+pub struct UserSummaryResponse {
+    pub user_id: Uuid,
+    pub email: String,
 }
 
 /// List a team's bans: `GET /api/teams/{team_id}/bans`. Manager-only.
@@ -360,24 +401,48 @@ pub async fn list_bans(
         result
             .bans
             .into_iter()
-            .map(|ban| {
-                let active = ban.is_active(now);
-                let expires_at = ban.expires_at();
-                let kind = match &ban.kind {
+            .map(|view| {
+                let active = view.ban.is_active(now);
+                let expires_at = view.ban.expires_at();
+                let kind = match &view.ban.kind {
                     BanKind::Temporary { .. } => "temporary",
                     BanKind::Permanent => "permanent",
                 }
                 .to_string();
                 BanResponse {
-                    user_id: ban.user_id,
+                    user: UserSummaryResponse {
+                        user_id: view.ban.user_id,
+                        email: view.user_email,
+                    },
                     kind,
                     expires_at,
-                    reason: ban.reason,
-                    created_by: ban.created_by,
-                    created_at: ban.created_at,
+                    reason: view.ban.reason,
+                    moderator: view
+                        .ban
+                        .created_by
+                        .zip(view.moderator_email)
+                        .map(|(user_id, email)| UserSummaryResponse { user_id, email }),
+                    created_at: view.ban.created_at,
                     active,
                 }
             })
             .collect(),
     ))
+}
+
+/// Lift either an active or expired ban. Manager-only, like the rest of the
+/// moderation surface.
+pub async fn unban_member(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path((team_id, user_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, DomainError> {
+    UnbanMemberUseCase::new(state.teams.clone())
+        .unban(UnbanMemberCommand {
+            team_id,
+            requester_id: session.user_id,
+            target_user_id: user_id,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }

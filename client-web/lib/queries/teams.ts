@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { useWsStore } from "../ws";
+import type { TeamRole } from "../capabilities";
 
 /** Tell the server to re-resolve this connection's team scope after the current
  *  user's membership changed (create/join/leave/delete), so team presence and
@@ -13,14 +14,29 @@ function notifyTeamMembershipChanged() {
 export interface Team {
   team_id: string;
   name: string;
-  invitation_code?: string;
-  role: "manager" | "responder" | "observer";
+  role: TeamRole;
+  created_at: string;
+  member_count: number;
+  active_incident_count: number;
+  active_release_count: number;
+  blocked_release_count: number;
 }
 
 export interface TeamMember {
   user_id: string;
   email: string;
-  role: "manager" | "responder" | "observer";
+  role: TeamRole;
+  joined_at: string;
+}
+
+export interface TeamBan {
+  user: { user_id: string; email: string };
+  kind: "temporary" | "permanent";
+  expires_at: string | null;
+  reason: string | null;
+  moderator: { user_id: string; email: string } | null;
+  created_at: string;
+  active: boolean;
 }
 
 export function useTeams() {
@@ -44,6 +60,30 @@ export function useTeamMembers(teamId: string | undefined) {
       return res.json();
     },
     enabled: !!teamId,
+  });
+}
+
+export function useInvitationCode(teamId: string | undefined, enabled: boolean) {
+  return useQuery<{ invitation_code: string }>({
+    queryKey: ["team-invitation", teamId],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/teams/${teamId}/invitation`);
+      if (!res.ok) throw new Error("invitation_code_failed");
+      return res.json();
+    },
+    enabled: !!teamId && enabled,
+  });
+}
+
+export function useTeamBans(teamId: string | undefined, enabled: boolean) {
+  return useQuery<TeamBan[]>({
+    queryKey: ["team-bans", teamId],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/teams/${teamId}/bans`);
+      if (!res.ok) throw new Error("list_bans_failed");
+      return res.json();
+    },
+    enabled: !!teamId && enabled,
   });
 }
 
@@ -94,6 +134,7 @@ export function useJoinTeam() {
 function invalidateTeamScope(queryClient: ReturnType<typeof useQueryClient>, teamId: string) {
   queryClient.invalidateQueries({ queryKey: ["teams"] });
   queryClient.invalidateQueries({ queryKey: ["team-members", teamId] });
+  queryClient.invalidateQueries({ queryKey: ["team-bans", teamId] });
   queryClient.invalidateQueries({ queryKey: ["incidents"] });
 }
 
@@ -199,6 +240,20 @@ export function useBanMember(teamId: string) {
         throw new Error(body?.code ?? "ban_member_failed");
       }
       return res.json();
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}
+
+export function useUnbanMember(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiFetch(`/api/teams/${teamId}/bans/${userId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "unban_member_failed");
+      }
     },
     onSuccess: () => invalidateTeamScope(queryClient, teamId),
   });

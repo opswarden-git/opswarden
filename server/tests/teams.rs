@@ -6,6 +6,7 @@ use axum::{
 };
 use common::test_context;
 use opswarden_server::domain::team::{Role, Team, TeamBan};
+use opswarden_server::ports::TeamRepo;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -141,6 +142,7 @@ async fn list_members_returns_the_roster_for_a_team_member() {
     assert!(members
         .iter()
         .all(|m| m["email"].as_str().unwrap().contains('@')));
+    assert!(members.iter().all(|m| m["joined_at"].is_string()));
     assert!(members
         .iter()
         .any(|m| m["user_id"] == teammate.to_string() && m["role"] == "responder"));
@@ -360,8 +362,12 @@ async fn manager_can_delete_team() {
 async fn list_teams_returns_the_users_teams_with_roles() {
     let ctx = test_context();
     let team = Team::new("SRE Core").unwrap();
+    let observed_team = Team::new("Read only").unwrap();
     ctx.teams.seed_team(team.clone());
+    ctx.teams.seed_team(observed_team.clone());
     ctx.teams.seed_member(team.id, Uuid::nil(), Role::Manager);
+    ctx.teams
+        .seed_member(observed_team.id, Uuid::nil(), Role::Observer);
 
     let response = ctx
         .app
@@ -384,10 +390,46 @@ async fn list_teams_returns_the_users_teams_with_roles() {
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let teams = json.as_array().unwrap();
-    assert_eq!(teams.len(), 1);
-    assert_eq!(teams[0]["name"], "SRE Core");
-    assert_eq!(teams[0]["role"], "manager");
-    assert_eq!(teams[0]["invitation_code"], team.invitation_code.as_str());
+    assert_eq!(teams.len(), 2);
+    let manager_team = teams.iter().find(|row| row["name"] == "SRE Core").unwrap();
+    assert_eq!(manager_team["role"], "manager");
+    assert!(manager_team.get("invitation_code").is_none());
+    assert!(manager_team["created_at"].is_string());
+    assert_eq!(manager_team["member_count"], 1);
+    assert_eq!(manager_team["active_incident_count"], 0);
+    assert_eq!(manager_team["active_release_count"], 0);
+    assert_eq!(manager_team["blocked_release_count"], 0);
+
+    let observer_team = teams.iter().find(|row| row["name"] == "Read only").unwrap();
+    assert_eq!(observer_team["role"], "observer");
+    assert!(observer_team.get("invitation_code").is_none());
+}
+
+#[tokio::test]
+async fn invitation_code_uses_a_manager_only_endpoint() {
+    let ctx = test_context();
+    let team = Team::new("SRE Core").unwrap();
+    ctx.teams.seed_team(team.clone());
+    ctx.teams.seed_member(team.id, Uuid::nil(), Role::Manager);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/teams/{}/invitation", team.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json["invitation_code"], team.invitation_code.as_str());
 }
 
 // The integration harness authenticates every request as `Uuid::nil()`, so the
@@ -532,7 +574,8 @@ async fn the_ban_list_is_manager_only() {
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(json.as_array().unwrap().len(), 1);
-    assert_eq!(json[0]["user_id"], banned.to_string());
+    assert_eq!(json[0]["user"]["user_id"], banned.to_string());
+    assert!(json[0]["user"]["email"].as_str().unwrap().contains('@'));
     assert_eq!(json[0]["kind"], "permanent");
     assert_eq!(json[0]["active"], true);
 
@@ -553,4 +596,30 @@ async fn the_ban_list_is_manager_only() {
         .await
         .unwrap();
     assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn manager_can_lift_a_ban() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let banned = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Manager);
+    ctx.teams
+        .seed_ban(TeamBan::permanent(team_id, banned, Uuid::nil(), None));
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/teams/{team_id}/bans/{banned}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(ctx.teams.list_bans(team_id).await.unwrap().is_empty());
 }

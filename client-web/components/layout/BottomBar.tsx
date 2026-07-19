@@ -2,19 +2,16 @@
 
 import React from "react";
 import { Link, usePathname } from "@/i18n/routing";
-import { LayoutDashboard, ShieldAlert, Users, Settings, BotMessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { primaryNavigationItems, settingsNavigationItem } from "./navigation";
+import { useTeamScope } from "@/components/teams/TeamScope";
 
 export function BottomBar({ className }: { className?: string }) {
   const pathname = usePathname();
-
-  const links = [
-    { href: "/", icon: LayoutDashboard, label: "Dash" },
-    { href: "/incidents", icon: ShieldAlert, label: "Incidents" },
-    { href: "/teams", icon: Users, label: "Teams" },
-    { href: "/ai", icon: BotMessageSquare, label: "AI" },
-    { href: "/settings", icon: Settings, label: "Settings" },
-  ];
+  const t = useTranslations("Sidebar");
+  const { activeTeam } = useTeamScope();
+  const links = [...primaryNavigationItems(activeTeam?.team_id), settingsNavigationItem];
 
   return (
     <nav
@@ -28,15 +25,17 @@ export function BottomBar({ className }: { className?: string }) {
 
         return (
           <Link
-            key={link.href}
+            key={link.labelKey}
             href={link.href}
             className={cn(
-              "flex h-full w-16 flex-col items-center justify-center gap-1 transition-colors",
+              "flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
               isActive ? "text-gold" : "text-muted hover:text-gold",
             )}
           >
             <link.icon className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{link.label}</span>
+            <span className="w-full truncate px-0.5 text-center text-[10px] font-medium">
+              {t(link.labelKey)}
+            </span>
           </Link>
         );
       })}

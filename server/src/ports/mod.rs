@@ -1,12 +1,16 @@
 // --- server/src/ports/mod.rs ---
 
-use crate::domain::automation::{ExternalEvent, Rule};
+use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_config::{
+    AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,
+};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
+use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::PrivateMessage;
 use crate::domain::release::{Release, ReleaseState};
-use crate::domain::team::{Role, Team, TeamBan, TeamMemberView};
+use crate::domain::team::{Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::User;
 use async_trait::async_trait;
@@ -51,6 +55,14 @@ pub trait TeamRepo: Send + Sync {
     /// Every team a user belongs to, paired with the role they hold there.
     /// Powers the dashboard's team list and lets the client gate actions by role.
     async fn list_teams_for_user(&self, user_id: Uuid) -> Result<Vec<(Team, Role)>, DomainError>;
+    /// Directory read model with operational counters for every team the user
+    /// belongs to.
+    async fn list_team_directory_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<TeamDirectoryItem>, DomainError>;
+    /// Resolve a team by its technical id for scoped detail endpoints.
+    async fn find_team_by_id(&self, team_id: Uuid) -> Result<Option<Team>, DomainError>;
     /// Delete a team completely from the system.
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
     /// Remove a user from a team.
@@ -75,15 +87,35 @@ pub trait TeamRepo: Send + Sync {
     /// expired; the caller decides via `TeamBan::is_active`.
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError>;
     /// Every ban recorded for a team, for the Manager's moderation list.
-    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBan>, DomainError>;
+    async fn list_bans(&self, team_id: Uuid) -> Result<Vec<TeamBanView>, DomainError>;
+    /// Explicitly lift a ban. Expired rows may also be removed to keep the
+    /// moderation history intentional rather than silently reactivatable.
+    async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]
 pub trait IncidentRepo: Send + Sync {
     async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError>;
+    /// Persist the initial incident and its audit event atomically.
+    async fn save_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError>;
     async fn find_incident_by_id(&self, incident_id: Uuid)
         -> Result<Option<Incident>, DomainError>;
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
+    /// Persist a mutation and the event describing it in one transaction.
+    async fn update_incident_with_event(
+        &self,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError>;
+    async fn list_events_for_incident(
+        &self,
+        incident_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<IncidentEvent>, DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError>;
     /// Clear the assignee on every incident of `team_id` currently assigned to
@@ -222,18 +254,126 @@ pub trait Clock: Send + Sync {}
 
 // --- Phase 2: automation & secrets -----------------------------------------
 
-/// Encrypted storage for third-party secrets (webhook HMAC keys, outbound API
-/// tokens). The persisted form is ciphertext only — a raw `SELECT` reveals
-/// nothing. The cipher (AES-GCM) and the storage backend are adapter concerns.
+/// Non-secret metadata for provider connections owned by a Team. Every lookup
+/// used by authenticated application code carries `team_id` explicitly so an
+/// unscoped list cannot be called by accident.
 #[async_trait]
-pub trait SecretVault: Send + Sync {
-    /// Encrypt and persist the secret for `service` (idempotent upsert).
-    async fn store(&self, service: &str, secret: &str) -> Result<(), DomainError>;
-    /// Decrypt and return the secret for `service`, or `None` if none is stored.
-    async fn reveal(&self, service: &str) -> Result<Option<String>, DomainError>;
-    /// Remove the stored secret for `service` (idempotent: deleting a missing
-    /// service is not an error).
-    async fn delete(&self, service: &str) -> Result<(), DomainError>;
+pub trait ServiceConnectionRepo: Send + Sync {
+    async fn insert_connection(&self, connection: &ServiceConnection) -> Result<(), DomainError>;
+    /// Public webhook routing starts from an opaque connection UUID, before a
+    /// Team id is known. Authenticated API reads keep using the scoped methods.
+    async fn find_connection_by_id(
+        &self,
+        connection_id: Uuid,
+    ) -> Result<Option<ServiceConnection>, DomainError>;
+    async fn find_connection_for_team(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+    ) -> Result<Option<ServiceConnection>, DomainError>;
+    async fn find_connection_by_service(
+        &self,
+        team_id: Uuid,
+        service: &str,
+    ) -> Result<Option<ServiceConnection>, DomainError>;
+    async fn list_connections_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> Result<Vec<ServiceConnection>, DomainError>;
+    /// Record health only after a request passed provider authentication.
+    async fn record_delivery_result(
+        &self,
+        connection_id: Uuid,
+        error_code: Option<&str>,
+    ) -> Result<(), DomainError>;
+    /// Record an outbound check or reaction without changing inbound delivery
+    /// timestamps. A successful result verifies the destination once.
+    async fn record_reaction_result(
+        &self,
+        connection_id: Uuid,
+        error_code: Option<&str>,
+    ) -> Result<(), DomainError>;
+    /// A replaced credential must not inherit the verification state of the
+    /// previous remote endpoint.
+    async fn reset_connection_health(&self, connection_id: Uuid) -> Result<(), DomainError>;
+    async fn delete_connection(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+    ) -> Result<bool, DomainError>;
+}
+
+/// Encrypted values attached to a connection. This is intentionally separate
+/// from `ServiceConnectionRepo`: ordinary metadata reads have no API capable of
+/// returning credential material.
+#[async_trait]
+pub trait ConnectionCredentialVault: Send + Sync {
+    async fn store_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+        secret: &str,
+    ) -> Result<(), DomainError>;
+    async fn reveal_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+    ) -> Result<Option<String>, DomainError>;
+    async fn delete_credential(
+        &self,
+        connection_id: Uuid,
+        kind: CredentialKind,
+    ) -> Result<(), DomainError>;
+    async fn configured_credential_kinds(
+        &self,
+        connection_id: Uuid,
+    ) -> Result<Vec<CredentialKind>, DomainError>;
+}
+
+/// Durable, Team-owned Action -> REAction rules.
+#[async_trait]
+pub trait AutomationRuleRepo: Send + Sync {
+    async fn insert_rule(&self, rule: &AutomationRule) -> Result<(), DomainError>;
+    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError>;
+    async fn find_rule_for_team(
+        &self,
+        team_id: Uuid,
+        rule_id: Uuid,
+    ) -> Result<Option<AutomationRule>, DomainError>;
+    async fn list_rules_for_team(&self, team_id: Uuid) -> Result<Vec<AutomationRule>, DomainError>;
+    async fn list_enabled_rules_for_trigger(
+        &self,
+        team_id: Uuid,
+        connection_id: Uuid,
+        trigger_kind: &str,
+    ) -> Result<Vec<AutomationRule>, DomainError>;
+    async fn delete_rule(&self, team_id: Uuid, rule_id: Uuid) -> Result<bool, DomainError>;
+}
+
+/// Idempotency ledger for inbound provider deliveries.
+#[async_trait]
+pub trait WebhookDeliveryRepo: Send + Sync {
+    /// Atomically reserve a provider delivery. Returns false when this
+    /// connection already received the same provider id.
+    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
+    async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
+    async fn list_deliveries_for_team(
+        &self,
+        team_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<WebhookDelivery>, DomainError>;
+}
+
+/// Durable result of running one rule for one delivery.
+#[async_trait]
+pub trait AutomationRunRepo: Send + Sync {
+    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError>;
+    async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError>;
+    async fn list_runs_for_team(
+        &self,
+        team_id: Uuid,
+        limit: u32,
+    ) -> Result<Vec<AutomationRun>, DomainError>;
 }
 
 /// Verifies that an inbound webhook body carries a valid signature for a given
@@ -246,13 +386,7 @@ pub trait WebhookVerifier: Send + Sync {
 /// Returns `None` for payloads we don't act on (so they're acknowledged, not
 /// rejected). Provider-specific JSON shapes live in the adapter, never the app.
 pub trait WebhookParser: Send + Sync {
-    fn parse(&self, service: &str, body: &[u8]) -> Option<ExternalEvent>;
-}
-
-/// Supplies the configured automation rules to the hook engine.
-#[async_trait]
-pub trait RuleRepo: Send + Sync {
-    async fn list_rules(&self) -> Result<Vec<Rule>, DomainError>;
+    fn parse(&self, service: &str, provider_event: &str, body: &[u8]) -> Option<ExternalEvent>;
 }
 
 /// Outbound notification REAction: POST a `message` to a `url`. One generic
@@ -260,6 +394,9 @@ pub trait RuleRepo: Send + Sync {
 /// just a URL. The transport (reqwest, payload shape) is an adapter concern.
 #[async_trait]
 pub trait Notifier: Send + Sync {
+    /// Validate syntax, DNS and the resolved network target without sending a
+    /// business notification. Configuration and execution share this boundary.
+    async fn validate_endpoint(&self, url: &str) -> Result<(), DomainError>;
     async fn notify(&self, url: &str, message: &str) -> Result<(), DomainError>;
 }
 
