@@ -7,17 +7,17 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useRouter } from "@/i18n/routing";
 import { useTeams } from "@/lib/queries/teams";
-import { teamPath, type TeamSection } from "@/lib/team-routing";
+import { teamPath } from "@/lib/team-routing";
 
-export function LegacyTeamRedirect({ section = "incidents" }: { section?: TeamSection }) {
+export function DefaultTeamRedirect() {
   const t = useTranslations("TeamSwitcher");
   const router = useRouter();
   const { data: teams, isLoading } = useTeams();
 
   React.useEffect(() => {
     if (isLoading || !teams) return;
-    router.replace(teams[0] ? teamPath(teams[0].team_id, section) : "/teams");
-  }, [isLoading, router, section, teams]);
+    router.replace(teams[0] ? teamPath(teams[0].team_id, "incidents") : "/teams");
+  }, [isLoading, router, teams]);
 
   return (
     <PageLayout>

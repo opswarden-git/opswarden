@@ -1,30 +1,31 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/routing";
 import { useAuthStore } from "@/store/auth";
 
-export function AuthGuard({ children }: { children: React.ReactNode }) {
+const PUBLIC_AUTH_ROUTES = new Set(["/login", "/signup"]);
+
+export function isPublicAuthRoute(pathname: string) {
+  return PUBLIC_AUTH_ROUTES.has(pathname);
+}
+
+export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { token, hasHydrated } = useAuthStore();
+  const isAuthRoute = isPublicAuthRoute(pathname);
 
   useEffect(() => {
     if (!hasHydrated) return;
 
-    // We don't want to redirect if they are already on login or signup
-    const isAuthRoute = pathname.includes("/login") || pathname.includes("/signup");
-
     if (!token && !isAuthRoute) {
-      // Extract locale (e.g., "/fr/teams" -> "/fr")
-      const locale = pathname.startsWith("/fr") ? "/fr" : "/en";
-      router.replace(`${locale}/login`);
+      router.replace("/login");
     }
-  }, [token, hasHydrated, pathname, router]);
+  }, [hasHydrated, isAuthRoute, router, token]);
 
-  // Optionally show a loading spinner while waiting for hydration,
-  // but keeping it null prevents hydration mismatch flashes.
-  if (!hasHydrated) {
+  if (!hasHydrated || (!token && !isAuthRoute)) {
     return null;
   }
 

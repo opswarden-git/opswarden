@@ -8,7 +8,7 @@ export default async function TeamReleaseDetailRoute({
   params: Promise<{ teamId: string; releaseId: string }>;
 }) {
   const { teamId, releaseId } = await params;
-  if (!isUuid(teamId) || !isUuid(releaseId)) notFound();
+  if (!isUuid(releaseId)) notFound();
 
   return <ReleaseDetailPage teamId={teamId} releaseId={releaseId} />;
 }

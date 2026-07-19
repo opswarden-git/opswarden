@@ -194,7 +194,6 @@ export function useRealtime() {
     queryClient.invalidateQueries({ queryKey: ["incidents"] });
     for (const incidentId of activeWatches) {
       queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
-      queryClient.invalidateQueries({ queryKey: ["timeline", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["activity", incidentId] });
       sendJsonMessage({ type: "watch", incident_id: incidentId });
     }
@@ -252,7 +251,6 @@ export function useRealtime() {
       case "timeline_entry_edited":
       case "reaction_added":
       case "reaction_removed":
-        queryClient.invalidateQueries({ queryKey: ["timeline", event.incident_id] });
         queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
         break;
       case "presence_update":

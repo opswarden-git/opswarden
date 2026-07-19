@@ -1,82 +1,94 @@
-# OpsWarden Desktop (Tauri v2) — N1 spike
+# OpsWarden Desktop
 
-A **thin native shell** around the existing OpsWarden web client. It does not
-reimplement any UI: it opens a WebKit window pointed at the running Next app and
-adds native-OS capabilities (notifications, later a tray). This is the N1
-**capability spike** — proven to build, not yet visually validated.
+OpsWarden Desktop is a thin Tauri v2 shell around the existing web client. It
+keeps one UI implementation and adds the operating-system capabilities that are
+useful during incident response: native notifications and background presence
+through a tray icon.
 
-## Architecture (N1: URL mode)
+## Architecture
 
+```text
+Tauri webview ──▶ Next web client ── /api/* ──▶ Rust API
+                       └──────── WebSocket ───▶ Rust API
 ```
-Tauri window ── loads ──▶ http://localhost:4242  (Next dev/start, client-web)
-                                   └── /api/* proxied ──▶ http://localhost:8080 (Rust server)
-                                   └── ws://localhost:8080/ws (realtime)
-```
 
-- The desktop **loads a URL**; it does **not** bundle the web app.
-  `frontendDist` in `tauri.conf.json` is a URL, so the produced binary is
-  **not self-contained** — it needs the web client reachable at `:4242`.
-- A self-contained, installable artifact (AppImage/deb that bundles the UI)
-  requires Next **static export**, which `client-web` cannot do as-is
-  (`next-intl` `[locale]` routing + the `/api/*` rewrite-proxy). That is a
-  deliberate **out-of-scope** decision for N1 — see "Next steps".
+The shell operates in URL mode; it does not bundle a second copy of the Next
+application:
 
-## Prerequisites (NixOS)
+- development loads `http://localhost:4242`;
+- packaged builds load `http://localhost:8081`;
+- the web client proxies HTTP API calls and connects to the realtime WebSocket.
 
-The WebKit/GTK toolchain lives in a dedicated Nix dev shell:
+Consequently, an installed desktop package still needs a reachable OpsWarden
+web deployment. It is not an offline or self-contained distribution.
+
+## Native capabilities
+
+The current shell provides:
+
+- a launch notification to prove native notification delivery;
+- live notifications for incidents assigned to the current user;
+- live notifications for high or critical incident escalations;
+- live notifications when an active incident blocks a release;
+- a tray icon with **Show** and **Quit** actions;
+- hide-to-tray when the main window is closed;
+- restoration and focus from the tray icon.
+
+Notification permission is requested lazily by the web client. In a normal
+browser, the same notification adapter is a no-op.
+
+## Development
+
+A real Wayland or X session is required to display and validate the window.
 
 ```bash
-nix develop .#tauri      # from the repo root (opswarden-app/)
-```
+# From the repository root. Reuses an existing web server on :4242 or starts it.
+just desktop-dev
 
-Running the **window** additionally needs a real Wayland/X session (e.g.
-Hyprland). A headless machine can build the binary but cannot display it.
-
-## Commands
-
-```bash
-# Dev (display-required): reuses/starts client-web on :4242, then opens the window.
+# Equivalent direct entrypoint.
 ./client-desktop/dev.sh
-#   └ equivalently, inside `nix develop .#tauri`:
-#     cd client-desktop && npm run tauri dev
-
-# Build the desktop binary (compiles + links WebKit; headless-OK):
-nix develop .#tauri --command bash -c 'cd client-desktop/src-tauri && cargo build'
 ```
 
-> `npm run tauri build` (deb/AppImage packaging) is intentionally **not** part of
-> N1 — see the static-export caveat above.
+The dedicated Nix shell contains the WebKit/GTK toolchain:
 
-## What N1 proves (headless, on this machine)
+```bash
+nix develop .#tauri
+```
 
-- `nix develop .#tauri` resolves `webkit2gtk-4.1`, `javascriptcoregtk-4.1`,
-  `libsoup-3.0`, `gtk+-3.0` via `pkg-config`.
-- `client-desktop/src-tauri` **compiles and links** against WebKit/GTK
-  (`cargo build` → `opswarden-desktop` binary).
-- `tauri.conf.json` validates and `generate_context!` embeds the icon set.
-- `tauri-plugin-notification` compiles and is registered.
+## Build and distribution
 
-## What still needs a real display (Romeo / Hyprland)
+The local Compose build produces a Debian package in `./artifacts` and exposes
+it from the running web client at `http://localhost:8081/client.deb`:
 
-- The window actually **renders** `http://localhost:4242`.
-- The **launch notification** ("Desktop shell connected.") appears.
-- Window controls / future tray behavior.
+```bash
+just demo
+```
 
-Use `./client-desktop/dev.sh` on a Wayland session to verify these.
+Release CI builds an AppImage on Ubuntu and attaches it to tagged GitHub
+releases. Building only the linked Rust binary, without packaging, remains
+useful as a headless compile check:
 
-## Non-goals (N1)
+```bash
+nix develop .#tauri --command bash -lc \
+  'cd client-desktop/src-tauri && cargo build'
+```
 
-No release lifecycle, no blocked-release notification, no PM/moderation, no
-offline support, no auto-updater, no desktop-specific redesign, no static-export
-refactor, no AppImage/release claim, no `ws.ts` event hook (the launch
-notification is fired from Rust `setup()` as a pure capability proof).
+## Manual display checks
 
-## Next steps (beyond N1)
+Run these checks in a real desktop session:
 
-1. Verify launch + notification on a Wayland session (display gate).
-2. Tie a notification to a live event (`incident_assigned`, critical
-   `incident_escalated`) — either a guarded `client-web/lib/ws.ts` call when
-   `window.__TAURI__` is present, or a desktop-side WS listener.
-3. Add the tray icon (VIGIL background-presence requirement).
-4. Decide the build/installable strategy (static export vs. deployed URL vs.
-   bundled `next start`) before promising AppImage + CI artifact.
+1. the login page renders and authentication stays inside the webview;
+2. the launch notification appears;
+3. closing the window hides it without ending the process;
+4. clicking **Show** or the tray icon restores and focuses the window;
+5. **Quit** terminates the process;
+6. assignment, escalation and blocked-release events produce notifications.
+
+## Current limits
+
+- no offline mode or bundled Next server;
+- no auto-updater;
+- no desktop-specific redesign;
+- Linux packaging is the currently exercised distribution path;
+- visual behavior and notification delivery still depend on the host desktop,
+  notification daemon and granted permissions.

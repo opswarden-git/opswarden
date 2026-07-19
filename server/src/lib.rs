@@ -176,8 +176,7 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/api/incidents/{incident_id}/timeline",
-            post(handlers::incident::add_timeline_entry)
-                .get(handlers::incident::list_timeline_entries),
+            post(handlers::incident::add_timeline_entry),
         )
         .route(
             "/api/incidents/{incident_id}/activity",

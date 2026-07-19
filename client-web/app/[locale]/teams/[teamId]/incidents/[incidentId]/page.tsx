@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { WarRoomClient } from "@/app/[locale]/incidents/[id]/WarRoomClient";
+import { IncidentDetailPage } from "@/components/incidents/IncidentDetailPage";
 import { isUuid } from "@/lib/uuid";
 
 export default async function TeamIncidentPage({
@@ -8,7 +8,7 @@ export default async function TeamIncidentPage({
   params: Promise<{ teamId: string; incidentId: string }>;
 }) {
   const { teamId, incidentId } = await params;
-  if (!isUuid(teamId) || !isUuid(incidentId)) notFound();
+  if (!isUuid(incidentId)) notFound();
 
-  return <WarRoomClient id={incidentId} teamId={teamId} />;
+  return <IncidentDetailPage incidentId={incidentId} teamId={teamId} />;
 }

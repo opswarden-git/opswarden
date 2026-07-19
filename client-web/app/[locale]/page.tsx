@@ -1,5 +1,5 @@
-import { LegacyTeamRedirect } from "@/components/teams/LegacyTeamRedirect";
+import { DefaultTeamRedirect } from "@/components/teams/DefaultTeamRedirect";
 
 export default function HomePage() {
-  return <LegacyTeamRedirect />;
+  return <DefaultTeamRedirect />;
 }

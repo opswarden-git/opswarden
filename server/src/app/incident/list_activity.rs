@@ -4,7 +4,6 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::ReactionSummary;
 use crate::domain::error::DomainError;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::timeline::TimelineEntry;
@@ -13,6 +12,14 @@ use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo, UserRepo};
 
 pub const DEFAULT_ACTIVITY_LIMIT: u32 = 50;
 pub const MAX_ACTIVITY_LIMIT: u32 = 100;
+
+/// Aggregated reactions for one emoji on one note.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReactionSummary {
+    pub emoji: String,
+    pub count: u64,
+    pub reacted: bool,
+}
 
 pub struct ListIncidentActivityCommand {
     pub incident_id: Uuid,

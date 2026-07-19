@@ -75,32 +75,6 @@ export interface TimelineReaction {
   reacted: boolean;
 }
 
-export interface TimelineEntry {
-  id: string;
-  incident_id: string;
-  author_id: string | null;
-  author: UserSummary | null;
-  content: string;
-  created_at: string;
-  edited_at: string | null;
-  reactions: TimelineReaction[];
-}
-
-interface TimelineEntryResponse {
-  entry_id: string;
-  incident_id: string;
-  author_id: string | null;
-  author: UserSummary | null;
-  content: string;
-  created_at: string;
-  edited_at: string | null;
-  reactions: TimelineReaction[];
-}
-
-interface TimelineResponse {
-  entries: TimelineEntryResponse[];
-}
-
 export interface UserSummary {
   user_id: string;
   email: string;
@@ -153,19 +127,6 @@ function normalizeIncidentListItem(incident: IncidentListItemResponse): Incident
     created_at: incident.created_at,
     created_by: incident.created_by,
     updated_at: incident.updated_at,
-  };
-}
-
-function normalizeTimelineEntry(entry: TimelineEntryResponse): TimelineEntry {
-  return {
-    id: entry.entry_id,
-    incident_id: entry.incident_id,
-    author_id: entry.author_id,
-    author: entry.author,
-    content: entry.content,
-    created_at: entry.created_at,
-    edited_at: entry.edited_at,
-    reactions: entry.reactions ?? [],
   };
 }
 
@@ -270,18 +231,6 @@ export function useIncidentActivity(incidentId: string) {
   });
 }
 
-export function useTimeline(incidentId: string) {
-  return useQuery<{ entries: TimelineEntry[] }>({
-    queryKey: ["timeline", incidentId],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/incidents/${incidentId}/timeline`);
-      if (!res.ok) throw new Error("Failed to fetch timeline");
-      const timeline = (await res.json()) as TimelineResponse;
-      return { entries: timeline.entries.map(normalizeTimelineEntry) };
-    },
-  });
-}
-
 export function useAddTimelineEntry() {
   const queryClient = useQueryClient();
 
@@ -295,7 +244,6 @@ export function useAddTimelineEntry() {
       return res.text();
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
@@ -326,7 +274,6 @@ export function useEditTimelineEntry() {
       return res.json();
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
@@ -357,7 +304,6 @@ export function useToggleTimelineReaction() {
       return res.json();
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["timeline", variables.incidentId] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });

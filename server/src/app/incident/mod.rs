@@ -7,7 +7,6 @@ pub mod edit_timeline_entry;
 pub mod get_incident;
 pub mod list_activity;
 pub mod list_incidents;
-pub mod list_timeline_entries;
 pub mod toggle_timeline_reaction;
 
 pub use add_timeline_entry::{
@@ -25,15 +24,11 @@ pub use edit_timeline_entry::{
 pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
 pub use list_activity::{
     IncidentActivityItem, ListIncidentActivityCommand, ListIncidentActivityResult,
-    ListIncidentActivityUseCase, DEFAULT_ACTIVITY_LIMIT, MAX_ACTIVITY_LIMIT,
+    ListIncidentActivityUseCase, ReactionSummary, DEFAULT_ACTIVITY_LIMIT, MAX_ACTIVITY_LIMIT,
 };
 pub use list_incidents::{
     IncidentAssigneeFilter, IncidentCounts, IncidentListItem, IncidentSort, ListIncidentsCommand,
     ListIncidentsResult, ListIncidentsUseCase,
-};
-pub use list_timeline_entries::{
-    ListTimelineEntriesCommand, ListTimelineEntriesResult, ListTimelineEntriesUseCase,
-    ReactionSummary, TimelineEntryView, DEFAULT_TIMELINE_LIMIT, MAX_TIMELINE_LIMIT,
 };
 pub use toggle_timeline_reaction::{
     ToggleReactionCommand, ToggleReactionResult, ToggleReactionUseCase,

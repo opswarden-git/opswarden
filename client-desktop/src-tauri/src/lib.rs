@@ -26,9 +26,8 @@ pub fn run() {
                 )?;
             }
 
-            // N1 capability proof: fire one native OS notification on launch.
-            // This links and runs headlessly, but the notification only *appears*
-            // on a real desktop session (see client-desktop/README.md).
+            // Confirm that the shell can reach the host notification service.
+            // The notification only appears in a real desktop session.
             if let Err(e) = app
                 .notification()
                 .builder()
@@ -39,9 +38,8 @@ pub fn run() {
                 log::warn!("launch notification failed: {e}");
             }
 
-            // N3 background presence: a minimal tray with Show/Quit. Left-click
-            // restores the window; the menu is the reliable cross-platform path
-            // (on Linux/appindicator a left-click may surface the menu instead).
+            // Keep the app available during incident response. Left-click restores
+            // the window; the menu remains the reliable cross-platform path.
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
