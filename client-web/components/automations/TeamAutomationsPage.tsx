@@ -63,7 +63,7 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
   const state: PageContentState = isLoading ? "loading" : hasError ? "error" : "ready";
 
   return (
-    <PageLayout width="workspace">
+    <PageLayout>
       {team ? <TeamHeader team={team} /> : null}
       <PageContent
         state={state}

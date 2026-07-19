@@ -9,6 +9,7 @@ const screenshotRoot = resolve(outputRoot, "screenshots");
 const teamId = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
 
 const routes = [
+  { name: "teams-directory", path: "/en/teams" },
   { name: "incidents-queue", path: `/en/teams/${teamId}/incidents` },
   {
     name: "incident-detail",
@@ -21,7 +22,9 @@ const routes = [
   },
   { name: "team-overview", path: `/en/teams/${teamId}/overview` },
   { name: "team-members", path: `/en/teams/${teamId}/members` },
+  { name: "team-automations", path: `/en/teams/${teamId}/automations` },
   { name: "team-settings", path: `/en/teams/${teamId}/settings` },
+  { name: "account-settings", path: "/en/settings" },
 ];
 const widths = [320, 768, 1280, 1920];
 
