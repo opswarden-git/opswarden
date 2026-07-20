@@ -60,7 +60,7 @@ function IncidentSearch({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
-        className="border-border bg-panel text-text placeholder:text-muted/60 focus:border-gold h-9 w-full rounded-md border pr-3 pl-9 text-sm outline-none"
+        className="border-border bg-panel text-text placeholder:text-muted-2 focus:border-gold h-9 w-full rounded-md border pr-3 pl-9 text-sm outline-none"
       />
     </label>
   );

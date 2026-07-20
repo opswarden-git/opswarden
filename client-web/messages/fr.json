@@ -24,7 +24,9 @@
     "logout": "Déconnexion",
     "operator": "Opérateur",
     "noStation": "Aucune organisation",
-    "releases": "Releases"
+    "releases": "Releases",
+    "primaryNavigation": "Navigation principale",
+    "mobileNavigation": "Navigation mobile"
   },
   "TeamSwitcher": {
     "label": "Équipe active",
@@ -263,11 +265,13 @@
     "cancel": "Annuler",
     "createDesc": "Créez une nouvelle organisation pour coordonner vos opérations.",
     "name": "Nom de l'organisation",
+    "namePlaceholder": "ex. NOC Alpha",
     "creating": "Création...",
     "joinTitle": "Rejoindre une équipe existante",
     "createTitle": "Créer une nouvelle équipe",
     "join": "Rejoindre",
     "create": "Créer",
+    "close": "Fermer la boîte de dialogue",
     "openWorkspace": "Ouvrir les membres et les paramètres de l’équipe",
     "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre."
   },
@@ -425,6 +429,7 @@
     "declaring": "Déclaration...",
     "declareTitle": "Déclarer un nouvel incident",
     "declareWarning": "Cela alertera immédiatement les ingénieurs d'astreinte.",
+    "close": "Fermer la boîte de dialogue",
     "titlePlaceholder": "ex: Pic de latence sur la base de données",
     "sevLowDesc": "Basse - Impact mineur",
     "sevMediumDesc": "Moyenne - Dégradation partielle",

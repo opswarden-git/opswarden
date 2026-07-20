@@ -54,7 +54,7 @@ export function DirectMessageDialog({
         <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-3">
           <div className="min-w-0">
             <h2 className="text-text truncate text-sm font-semibold">{t("title")}</h2>
-            <p className="text-muted/70 truncate text-xs">{peer.email}</p>
+            <p className="text-muted-2 truncate text-xs">{peer.email}</p>
           </div>
           <IconButton onClick={onClose} label={t("close")} size="sm" variant="ghost">
             <X className="h-4 w-4" />

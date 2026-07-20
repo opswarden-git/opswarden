@@ -37,7 +37,7 @@ export function ActionMenu({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="surface z-50 min-w-48 rounded-md p-1 shadow-xl outline-none"
+          className="ow-action-menu surface z-50 min-w-48 rounded-md p-1 shadow-xl outline-none"
         >
           {items.map((item) => {
             if ("separator" in item) {
@@ -49,9 +49,10 @@ export function ActionMenu({
               <DropdownMenu.Item
                 key={item.id}
                 disabled={item.disabled}
+                data-tone={item.tone ?? "neutral"}
                 onSelect={item.onSelect}
                 className={cn(
-                  "data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                   item.tone === "danger"
                     ? "text-sev-critical data-[highlighted]:bg-sev-critical/10"
                     : "text-text",

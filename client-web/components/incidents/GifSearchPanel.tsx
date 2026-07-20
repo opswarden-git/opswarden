@@ -80,7 +80,7 @@ export function GifSearchPanel({
         )}
       </div>
 
-      <div className="text-muted/60 mt-2 text-right text-[10px] tracking-wide uppercase">
+      <div className="text-muted-2 mt-2 text-right text-[10px] tracking-wide uppercase">
         {t("poweredByGiphy")}
       </div>
     </div>

@@ -77,19 +77,19 @@ export function ProfilePanel() {
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
           <div>
-            <span className="text-muted/70 mb-1 block text-xs font-medium tracking-wider uppercase">
+            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
               {t("emailLabel")}
             </span>
             <span className="text-text font-medium">{user?.email ?? t("unknown")}</span>
           </div>
           <div>
-            <span className="text-muted/70 mb-1 block text-xs font-medium tracking-wider uppercase">
+            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
               {t("userId")}
             </span>
             <span className="text-text font-mono text-xs">{user?.id ?? t("unknown")}</span>
           </div>
           <div>
-            <span className="text-muted/70 mb-1 block text-xs font-medium tracking-wider uppercase">
+            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
               {t("role")}
             </span>
             <span className="text-text font-medium capitalize">
@@ -97,7 +97,7 @@ export function ProfilePanel() {
             </span>
           </div>
           <div>
-            <span className="text-muted/70 mb-1 block text-xs font-medium tracking-wider uppercase">
+            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
               {t("organization")}
             </span>
             <span className="text-text font-medium">

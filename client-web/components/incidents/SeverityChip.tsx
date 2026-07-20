@@ -31,7 +31,7 @@ export function SeverityChip({ severity }: { severity: IncidentSeverity }) {
     case "critical":
       return (
         <span className="text-sev-critical inline-flex items-center gap-1 text-xs font-bold uppercase">
-          <Flame className="h-3.5 w-3.5 animate-pulse" />
+          <Flame className="ow-decorative-motion h-3.5 w-3.5 animate-pulse" />
           {t("severityCritical")}
         </span>
       );

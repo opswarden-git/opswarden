@@ -23,6 +23,8 @@ describe("ActionMenu", () => {
       ctrlKey: false,
     });
     const item = await screen.findByRole("menuitem", { name: "Change role" });
+    expect(item).toHaveClass("ow-action-menu-item");
+    expect(screen.getByRole("menu")).toHaveClass("ow-action-menu");
     fireEvent.click(item);
 
     expect(onSelect).toHaveBeenCalledOnce();
