@@ -90,6 +90,38 @@ test("root resolves to the canonical incident queue", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/en/teams/${TEAM_ID}/incidents$`));
 });
 
+test("desktop and mobile navigation expose one current product area", async ({ page }) => {
+  test.setTimeout(90_000);
+  await login(page);
+
+  const navigationCases = [
+    { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
+    { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
+    { path: `/en/teams/${TEAM_ID}/members`, current: "Teams" },
+    { path: "/en/teams", current: "Teams" },
+    { path: "/en/settings", current: "Settings" },
+  ];
+
+  for (const viewportWidth of [320, 1280]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
+    const navigationName = viewportWidth < 768 ? "Mobile navigation" : "Primary navigation";
+
+    for (const navigationCase of navigationCases) {
+      await test.step(`${navigationCase.current} at ${viewportWidth}px`, async () => {
+        await page.goto(navigationCase.path);
+
+        const navigation = page.getByRole("navigation", { name: navigationName });
+        await expect(navigation).toBeVisible();
+        const currentItem = page.locator(
+          'a[data-app-navigation-item="true"]:visible[aria-current="page"]',
+        );
+        await expect(currentItem).toHaveCount(1);
+        await expect(currentItem).toHaveAccessibleName(navigationCase.current);
+      });
+    }
+  }
+});
+
 test("expired product routes are no longer exposed", async ({ page }) => {
   await login(page);
 

@@ -24,7 +24,9 @@
     "logout": "Déconnexion",
     "operator": "Opérateur",
     "noStation": "Aucune organisation",
-    "releases": "Releases"
+    "releases": "Releases",
+    "primaryNavigation": "Navigation principale",
+    "mobileNavigation": "Navigation mobile"
   },
   "TeamSwitcher": {
     "label": "Équipe active",

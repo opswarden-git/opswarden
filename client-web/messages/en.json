@@ -24,7 +24,9 @@
     "logout": "Log out",
     "operator": "Operator",
     "noStation": "No Organization",
-    "releases": "Releases"
+    "releases": "Releases",
+    "primaryNavigation": "Primary navigation",
+    "mobileNavigation": "Mobile navigation"
   },
   "TeamSwitcher": {
     "label": "Current team",

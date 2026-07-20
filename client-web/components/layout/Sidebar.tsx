@@ -7,10 +7,13 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useTranslations } from "next-intl";
-import { primaryNavigationItems } from "./navigation";
+import {
+  isNavigationItemActive,
+  primaryNavigationItems,
+  settingsNavigationItem,
+} from "./navigation";
 import { IconButton } from "@/components/ui/Button";
 import { useTeamScope } from "@/components/teams/TeamScope";
-import { parseTeamPath } from "@/lib/team-routing";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -18,9 +21,7 @@ export function Sidebar({ className }: { className?: string }) {
   const user = useAuthStore((state) => state.user);
   const { activeTeam, hrefFor } = useTeamScope();
   const navigationItems = primaryNavigationItems(activeTeam?.team_id);
-  const teamRoute = parseTeamPath(pathname);
-
-  const isSettingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
+  const isSettingsActive = isNavigationItemActive(pathname, settingsNavigationItem);
 
   return (
     <aside className={cn("glass flex w-80 flex-col", className)}>
@@ -46,22 +47,25 @@ export function Sidebar({ className }: { className?: string }) {
         />
       </Link>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
+      <nav
+        aria-label={t("primaryNavigation")}
+        className="flex-1 space-y-2 overflow-y-auto px-4 py-6"
+      >
         {navigationItems.map((link) => {
-          const isActive = teamRoute
-            ? link.activeSections.some((section) => section === teamRoute.section)
-            : pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive = isNavigationItemActive(pathname, link);
 
           return (
             <Link
               key={link.labelKey}
               href={link.href}
+              aria-current={isActive ? "page" : undefined}
+              data-app-navigation-item="true"
               className={cn(
                 "group flex items-center gap-4 px-4 py-3 text-lg transition-colors",
                 isActive ? "text-gold font-medium" : "text-muted hover:text-gold",
               )}
             >
-              <link.icon className="h-6 w-6" />
+              <link.icon className="h-6 w-6" aria-hidden="true" />
               <span>{t(link.labelKey)}</span>
             </Link>
           );
@@ -72,12 +76,15 @@ export function Sidebar({ className }: { className?: string }) {
         <Link
           href="/settings"
           title={t("settings")}
+          aria-label={t("settings")}
+          aria-current={isSettingsActive ? "page" : undefined}
+          data-app-navigation-item="true"
           className={cn(
             "flex min-w-0 flex-1 items-center gap-4 px-2 transition-colors",
             isSettingsActive ? "text-gold" : "text-text hover:text-gold",
           )}
         >
-          <CircleUser className="h-9 w-9 shrink-0" strokeWidth={1.5} />
+          <CircleUser className="h-9 w-9 shrink-0" strokeWidth={1.5} aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-lg font-medium capitalize">
               {user?.email?.split("@")[0] || t("operator")}
@@ -86,7 +93,7 @@ export function Sidebar({ className }: { className?: string }) {
               {activeTeam?.role || t("noStation")}
             </span>
           </div>
-          <Settings className="h-5 w-5 shrink-0" />
+          <Settings className="h-5 w-5 shrink-0" aria-hidden="true" />
         </Link>
         <IconButton
           label={t("logout")}
@@ -104,7 +111,7 @@ export function Sidebar({ className }: { className?: string }) {
           className="ml-4"
           title={t("logout")}
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-5 w-5" aria-hidden="true" />
         </IconButton>
       </div>
     </aside>
