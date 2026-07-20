@@ -303,7 +303,7 @@
     "endpointUrl": "URL du endpoint",
     "endpointSecurityHint": "Destinations HTTPS publiques uniquement. Les redirections, réseaux locaux et URL avec identifiants sont refusés.",
     "saveConnection": "Enregistrer la connexion",
-    "close": "Fermer",
+    "close": "Fermer le message privé",
     "cancel": "Annuler",
     "requestFailed": "La requête a échoué ({code}).",
     "webhookUrl": "URL du webhook",
@@ -514,7 +514,8 @@
     "empty": "Aucun message. Dites bonjour.",
     "loading": "Chargement de la conversation…",
     "loadFailed": "Échec du chargement de la conversation",
-    "sendFailed": "Échec de l’envoi du message"
+    "sendFailed": "Échec de l’envoi du message",
+    "received": "{count, plural, one {Nouveau message de {email}.} other {# nouveaux messages de {email}.}}"
   },
   "Releases": {
     "title": "Releases",

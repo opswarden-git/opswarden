@@ -63,7 +63,6 @@ export function TeamRoster({ team }: { team: Team }) {
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [target, setTarget] = useState<TeamMember | null>(null);
-  const [messageTarget, setMessageTarget] = useState<TeamMember | null>(null);
   const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
 
   const visibleMembers = useMemo(() => {
@@ -171,14 +170,14 @@ export function TeamRoster({ team }: { team: Team }) {
                 <RoleChip role={member.role} />
                 <div className="flex items-center gap-1">
                   {member.user_id !== currentUserId && capabilities.canSendPrivateMessage ? (
-                    <IconButton
-                      onClick={() => setMessageTarget(member)}
-                      label={tDm("message")}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </IconButton>
+                    <DirectMessageDialog
+                      peer={{ user_id: member.user_id, email: member.email }}
+                      trigger={
+                        <IconButton label={tDm("message")} size="sm" variant="ghost">
+                          <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                        </IconButton>
+                      }
+                    />
                   ) : null}
                   {capabilities.canManageMembers ? (
                     <MemberRowActions
@@ -257,13 +256,6 @@ export function TeamRoster({ team }: { team: Team }) {
           </select>
         </label>
       </ConfirmDialog>
-
-      {messageTarget ? (
-        <DirectMessageDialog
-          peer={{ user_id: messageTarget.user_id, email: messageTarget.email }}
-          onClose={() => setMessageTarget(null)}
-        />
-      ) : null}
     </div>
   );
 }

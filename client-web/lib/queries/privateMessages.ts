@@ -18,7 +18,7 @@ interface ConversationResponse {
  * it). Keyed by the peer so the WS `private_message_received` handler can
  * invalidate exactly this conversation and nothing team-wide.
  */
-export function usePrivateMessages(peerId: string) {
+export function usePrivateMessages(peerId: string, enabled = true) {
   return useQuery<PrivateMessage[]>({
     queryKey: ["private-messages", peerId],
     queryFn: async () => {
@@ -30,7 +30,7 @@ export function usePrivateMessages(peerId: string) {
       const body = (await res.json()) as ConversationResponse;
       return body.messages;
     },
-    enabled: !!peerId,
+    enabled: !!peerId && enabled,
   });
 }
 

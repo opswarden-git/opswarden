@@ -22,6 +22,17 @@ afterEach(() => {
 });
 
 describe("private message mutations", () => {
+  it("does not load a conversation before its dialog opens", () => {
+    const queryClient = createTestQueryClient();
+
+    const { result } = renderHook(() => usePrivateMessages("peer-1", false), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+
   it("loads a peer conversation newest-first from the backend", async () => {
     const queryClient = createTestQueryClient();
     const messages = [
