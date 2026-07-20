@@ -40,7 +40,7 @@ export function IncidentRow({ incident }: { incident: IncidentListItem }) {
         >
           {incident.title}
         </Link>
-        <div className="text-muted/70 mt-1 font-mono text-xs">
+        <div className="text-muted-2 mt-1 font-mono text-xs">
           {t("shortId", { id: incident.id.split("-")[0] })}
         </div>
       </td>

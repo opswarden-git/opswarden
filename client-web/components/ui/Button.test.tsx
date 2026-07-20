@@ -10,7 +10,7 @@ describe("Button", () => {
 
     const button = screen.getByRole("button", { name: "Cancel" });
     expect(button).toHaveAttribute("type", "button");
-    expect(button).toHaveClass("bg-panel", "border-border", "h-9");
+    expect(button).toHaveClass("ow-button", "bg-panel", "border-border", "h-9");
   });
 
   it("forwards clicks and supports explicit variants and sizes", () => {
@@ -41,6 +41,7 @@ describe("Button", () => {
 
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button.querySelector(".ow-progress-spinner")).toBeInTheDocument();
     expect(onClick).not.toHaveBeenCalled();
   });
 });

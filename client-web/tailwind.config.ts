@@ -46,6 +46,7 @@ const config = {
           DEFAULT: "var(--danger)",
           hover: "var(--danger-hover)",
           ink: "var(--danger-ink)",
+          text: "var(--danger-text)",
         },
         sev: {
           low: "var(--sev-low)",

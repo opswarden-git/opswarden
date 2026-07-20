@@ -41,7 +41,7 @@ export function ReleaseStateChip({ state }: { state: ReleaseState }) {
       );
     case "cancelled":
       return (
-        <span className={`${base} border-border text-muted/60 bg-white/[0.03]`}>
+        <span className={`${base} border-border text-muted-2 bg-white/[0.03]`}>
           <XCircle className="h-3 w-3" />
           {t("stateCancelled")}
         </span>

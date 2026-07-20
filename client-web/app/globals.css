@@ -12,24 +12,25 @@
     --ow-border-2: rgb(255 255 255 / 12%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
-    --ow-muted-2: #6f737a;
+    --ow-muted-2: #878b93;
     --gold: #fbc02d;
     --gold-hover: #f9a825;
     --gold-dim: #fbc02d;
     --gold-ink: #1a1405;
-    --danger: #ff2d2d;
-    --danger-hover: #e91919;
+    --danger: #c62828;
+    --danger-hover: #b71c1c;
     --danger-ink: #fff;
+    --danger-text: #f55;
 
     /* severities */
-    --sev-low: #3b82f6;
+    --sev-low: #5798f5;
     --sev-medium: #f59e0b;
     --sev-high: #fb7d3c;
-    --sev-critical: #ef4444;
+    --sev-critical: #f55;
 
     /* states */
-    --st-open: #ef4444;
-    --st-ack: #3b82f6;
+    --st-open: #f55;
+    --st-ack: #5798f5;
     --st-esc: #c084fc;
     --st-res: #22c55e;
   }
@@ -110,8 +111,69 @@
 
   .ow-input:focus-visible {
     border-color: color-mix(in srgb, var(--gold) 70%, transparent);
-    outline: none;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *:not(.ow-progress-spinner),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  body {
+    background-image: none;
+  }
+
+  .glass,
+  .surface,
+  .ow-action-menu {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .ow-input {
+    color: FieldText;
+    background: Field;
+    border-color: FieldText;
+    forced-color-adjust: auto;
+  }
+
+  select.ow-input {
+    background-image: none;
+  }
+
+  .ow-button {
+    border: 1px solid ButtonText;
+    forced-color-adjust: auto;
+  }
+
+  .ow-input:focus-visible,
+  .ow-button:focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .ow-action-menu-item[data-highlighted],
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-pressed="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }
 
