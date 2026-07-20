@@ -265,11 +265,13 @@
     "cancel": "Annuler",
     "createDesc": "Créez une nouvelle organisation pour coordonner vos opérations.",
     "name": "Nom de l'organisation",
+    "namePlaceholder": "ex. NOC Alpha",
     "creating": "Création...",
     "joinTitle": "Rejoindre une équipe existante",
     "createTitle": "Créer une nouvelle équipe",
     "join": "Rejoindre",
     "create": "Créer",
+    "close": "Fermer la boîte de dialogue",
     "openWorkspace": "Ouvrir les membres et les paramètres de l’équipe",
     "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre."
   },

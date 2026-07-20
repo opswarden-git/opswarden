@@ -2,6 +2,10 @@
 
 begin;
 
+-- Team dialog E2E scenarios create real workspaces. Remove only their
+-- namespaced fixtures before restoring the deterministic demo directory.
+delete from teams where name like 'E2E team dialog %';
+
 -- Stable Team IDs make demo URLs, screenshots and webhook configuration
 -- reproducible across runs. Existing rows are refreshed, never duplicated.
 insert into teams (id, name, invitation_code, created_at) values
