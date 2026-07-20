@@ -427,6 +427,7 @@
     "declaring": "Déclaration...",
     "declareTitle": "Déclarer un nouvel incident",
     "declareWarning": "Cela alertera immédiatement les ingénieurs d'astreinte.",
+    "close": "Fermer la boîte de dialogue",
     "titlePlaceholder": "ex: Pic de latence sur la base de données",
     "sevLowDesc": "Basse - Impact mineur",
     "sevMediumDesc": "Moyenne - Dégradation partielle",

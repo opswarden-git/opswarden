@@ -49,7 +49,10 @@ where rule_id in (
 
 delete from incidents
 where team_id = '39aa8884-22cc-4764-a9e7-7df7c7619ba6'
-  and title in ('CI failed on GitHub', 'CI failed on opswarden/demo');
+  and (
+    title in ('CI failed on GitHub', 'CI failed on opswarden/demo')
+    or title like 'E2E dialog contract %'
+  );
 
 insert into incidents (id, team_id, title, status, severity, assignee_id, created_at) values
   ('10000000-0000-4000-8000-000000000001', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'Payment API returning 502 in Europe', 'open', 'critical', :'responder_id', now() - interval '18 minutes'),

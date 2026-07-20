@@ -427,6 +427,7 @@
     "declaring": "Declaring...",
     "declareTitle": "Declare New Incident",
     "declareWarning": "This will immediately alert the on-call engineers.",
+    "close": "Close dialog",
     "titlePlaceholder": "e.g. Primary database latency spike",
     "sevLowDesc": "Low - Minor impact",
     "sevMediumDesc": "Medium - Partial degradation",
