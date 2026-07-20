@@ -303,7 +303,7 @@
     "endpointUrl": "Endpoint URL",
     "endpointSecurityHint": "Public HTTPS destinations only. Redirects, local networks and credentialed URLs are rejected.",
     "saveConnection": "Save connection",
-    "close": "Close",
+    "close": "Close direct message",
     "cancel": "Cancel",
     "requestFailed": "The request failed ({code}).",
     "webhookUrl": "Webhook URL",
@@ -514,7 +514,8 @@
     "empty": "No messages yet. Say hello.",
     "loading": "Loading conversation…",
     "loadFailed": "Failed to load the conversation",
-    "sendFailed": "Failed to send the message"
+    "sendFailed": "Failed to send the message",
+    "received": "{count, plural, one {New message from {email}.} other {# new messages from {email}.}}"
   },
   "Releases": {
     "title": "Releases",

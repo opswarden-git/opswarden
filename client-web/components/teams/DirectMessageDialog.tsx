@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
-import { Send, X } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { usePrivateMessages, useSendPrivateMessage } from "@/lib/queries/privateMessages";
 import { IconButton } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 
 /**
  * A small, operational 1-to-1 conversation modal launched from the team roster.
@@ -15,19 +16,24 @@ import { IconButton } from "@/components/ui/Button";
  */
 export function DirectMessageDialog({
   peer,
-  onClose,
+  trigger,
 }: {
   peer: { user_id: string; email: string };
-  onClose: () => void;
+  trigger: ReactElement;
 }) {
   const t = useTranslations("DirectMessages");
   const tErr = useTranslations("errors");
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const { data: messages, isLoading, error } = usePrivateMessages(peer.user_id);
+  const [open, setOpen] = useState(false);
+  const { data: messages, isLoading, isFetching, error } = usePrivateMessages(peer.user_id, open);
   const send = useSendPrivateMessage();
   const [content, setContent] = useState("");
+  const [announcement, setAnnouncement] = useState("");
   const inputId = useId();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const endOfThreadRef = useRef<HTMLDivElement>(null);
+  const hasMessageBaseline = useRef(false);
+  const knownMessageIds = useRef(new Set<string>());
 
   const errText = (code: string, fallback: string) => (tErr.has(code) ? tErr(code) : fallback);
 
@@ -37,9 +43,44 @@ export function DirectMessageDialog({
 
   // Keep the latest message in view whenever the conversation changes.
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    endOfThreadRef.current?.scrollIntoView?.({ block: "end" });
   }, [messages]);
+
+  // The first loaded page is history, not a notification. Afterwards, announce
+  // only unseen messages sent by the peer while this exact dialog is open.
+  // IDs make repeated invalidations harmless and a batch becomes one bounded
+  // live-region update instead of one announcement per transport event.
+  useEffect(() => {
+    if (!open) return;
+    if (!messages || (!hasMessageBaseline.current && isFetching)) return;
+
+    if (!hasMessageBaseline.current) {
+      knownMessageIds.current = new Set(messages.map((message) => message.id));
+      hasMessageBaseline.current = true;
+      return;
+    }
+
+    const received = messages.filter(
+      (message) => message.sender_id === peer.user_id && !knownMessageIds.current.has(message.id),
+    );
+    for (const message of messages) knownMessageIds.current.add(message.id);
+    if (received.length > 0) {
+      setAnnouncement(t("received", { count: received.length, email: peer.email }));
+    }
+  }, [isFetching, messages, open, peer.email, peer.user_id, t]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setContent("");
+      setAnnouncement("");
+      send.reset();
+      hasMessageBaseline.current = false;
+      knownMessageIds.current.clear();
+    } else {
+      setAnnouncement("");
+    }
+    setOpen(nextOpen);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,78 +90,89 @@ export function DirectMessageDialog({
   };
 
   return (
-    <div className="bg-bg/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="surface flex h-[32rem] w-full max-w-md flex-col rounded-md shadow-2xl">
-        <div className="border-border flex items-center justify-between gap-2 border-b px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="text-text truncate text-sm font-semibold">{t("title")}</h2>
-            <p className="text-muted-2 truncate text-xs">{peer.email}</p>
-          </div>
-          <IconButton onClick={onClose} label={t("close")} size="sm" variant="ghost">
-            <X className="h-4 w-4" />
-          </IconButton>
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={trigger}
+      title={t("title")}
+      description={peer.email}
+      closeLabel={t("close")}
+      initialFocus={inputRef}
+      size="sm"
+      contentClassName="h-[min(32rem,calc(100dvh-2rem))]"
+      bodyClassName="space-y-2 p-4"
+      icon={
+        <div className="bg-panel-2 text-text flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+          <MessageSquare className="h-5 w-5" aria-hidden="true" />
         </div>
-
-        <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
-          {isLoading ? (
-            <p className="text-muted animate-pulse py-8 text-center text-xs">{t("loading")}</p>
-          ) : error ? (
-            <p className="text-sev-critical py-8 text-center text-xs">
-              {errText(error.message, t("loadFailed"))}
-            </p>
-          ) : ordered.length === 0 ? (
-            <p className="text-muted py-8 text-center text-xs">{t("empty")}</p>
-          ) : (
-            ordered.map((message) => {
-              const mine = message.sender_id === currentUserId;
-              return (
-                <div key={message.id} className={mine ? "flex justify-end" : "flex justify-start"}>
-                  <div
-                    className={`max-w-[80%] rounded-md px-3 py-2 text-sm break-words whitespace-pre-wrap ${
-                      mine
-                        ? "bg-gold/15 text-text"
-                        : "surface-subtle text-text border-border border"
-                    }`}
-                  >
-                    {message.content}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {send.error ? (
-          <p className="text-sev-critical px-4 pb-1 text-xs">
-            {errText(send.error.message, t("sendFailed"))}
+      }
+      footer={
+        <div className="w-full">
+          <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {announcement}
           </p>
-        ) : null}
-
-        <form onSubmit={handleSubmit} className="border-border flex gap-2 border-t p-3">
-          <label htmlFor={inputId} className="sr-only">
-            {t("placeholder")}
-          </label>
-          <input
-            id={inputId}
-            type="text"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={t("placeholder")}
-            autoFocus
-            className="ow-input flex h-10 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
-          />
-          <IconButton
-            type="submit"
-            disabled={send.isPending || !content.trim()}
-            label={t("send")}
-            loading={send.isPending}
-            size="lg"
-            variant="primary"
-          >
-            <Send className="h-4 w-4" />
-          </IconButton>
-        </form>
+          {send.error ? (
+            <p className="text-sev-critical mb-2 text-xs" role="alert">
+              {errText(send.error.message, t("sendFailed"))}
+            </p>
+          ) : null}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <label htmlFor={inputId} className="sr-only">
+              {t("placeholder")}
+            </label>
+            <input
+              ref={inputRef}
+              id={inputId}
+              type="text"
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              placeholder={t("placeholder")}
+              className="ow-input flex h-10 min-w-0 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
+            />
+            <IconButton
+              type="submit"
+              disabled={send.isPending || !content.trim()}
+              label={t("send")}
+              loading={send.isPending}
+              size="lg"
+              variant="primary"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+            </IconButton>
+          </form>
+        </div>
+      }
+    >
+      <div>
+        {isLoading ? (
+          <p className="text-muted animate-pulse py-8 text-center text-xs">{t("loading")}</p>
+        ) : error ? (
+          <p className="text-sev-critical py-8 text-center text-xs" role="alert">
+            {errText(error.message, t("loadFailed"))}
+          </p>
+        ) : ordered.length === 0 ? (
+          <p className="text-muted py-8 text-center text-xs">{t("empty")}</p>
+        ) : (
+          ordered.map((message) => {
+            const mine = message.sender_id === currentUserId;
+            return (
+              <div
+                key={message.id}
+                className={mine ? "mb-2 flex justify-end" : "mb-2 flex justify-start"}
+              >
+                <div
+                  className={`max-w-[80%] rounded-md px-3 py-2 text-sm break-words whitespace-pre-wrap ${
+                    mine ? "bg-gold/15 text-text" : "surface-subtle text-text border-border border"
+                  }`}
+                >
+                  {message.content}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={endOfThreadRef} aria-hidden="true" />
       </div>
-    </div>
+    </Dialog>
   );
 }
