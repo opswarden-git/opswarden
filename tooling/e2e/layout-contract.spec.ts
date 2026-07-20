@@ -176,3 +176,41 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
     }
   }
 });
+
+test("incident records switch morphology without losing operational context", async ({ page }) => {
+  await login(page);
+
+  for (const viewportWidth of [320, 768, 1280, 1920]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
+    await page.goto(`/en/teams/${TEAM_ID}/incidents`);
+
+    const mobile = page.locator('[data-incident-layout="mobile"]');
+    const desktop = page.locator('[data-incident-layout="desktop"]');
+    if (viewportWidth < 1024) {
+      await expect(mobile).toBeVisible();
+      await expect(desktop).toBeHidden();
+      const record = mobile
+        .getByRole("listitem")
+        .filter({ hasText: "Payment API returning 502 in Europe" });
+      await expect(record.locator('[data-incident-field="identity"]')).toContainText("ID:");
+      await expect(record.locator('[data-incident-field="state"]')).toContainText("Open");
+      await expect(record.locator('[data-incident-field="assignee"]')).toContainText(
+        "responder@opswarden.local",
+      );
+      await expect(record.locator('[data-incident-field="age"]')).not.toBeEmpty();
+      await expect(record.getByRole("link")).toHaveCount(1);
+    } else {
+      await expect(desktop).toBeVisible();
+      await expect(mobile).toBeHidden();
+      const table = desktop.getByRole("table", { name: "Incident queue" });
+      const rowHeaders = table.getByRole("rowheader");
+      await expect(rowHeaders.first()).toBeVisible();
+      expect(await table.getByRole("link").count()).toBe(await rowHeaders.count());
+    }
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+      `incident morphology overflow at ${viewportWidth}px`,
+    ).toBeLessThanOrEqual(1);
+  }
+});

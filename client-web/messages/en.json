@@ -381,6 +381,7 @@
   "Incidents": {
     "title": "Incidents",
     "queueDescription": "Triage, assign and follow your team's operational incidents.",
+    "tableLabel": "Incident queue",
     "viewsLabel": "Incident views",
     "viewOpen": "Open",
     "viewAcknowledged": "Acknowledged",
@@ -415,7 +416,6 @@
     "colAssignee": "Assignee",
     "colCreatedAt": "Created",
     "colAge": "Age",
-    "colAction": "Action",
     "severityCritical": "Critical",
     "severityHigh": "High",
     "severityMedium": "Medium",
@@ -439,7 +439,6 @@
     "declare": "Declare",
     "noStation": "No active organization",
     "goToTeams": "Go to teams",
-    "openIncident": "Open",
     "shortId": "ID: {id}",
     "typingOne": "{user} is typing…",
     "typingMany": "{count} operators are typing…",
