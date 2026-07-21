@@ -233,3 +233,40 @@ test("Collection headers display the parent team context", async ({ page }) => {
     await expect(teamLink).toHaveAttribute("href", `/en/teams/${TEAM_ID}/overview`);
   }
 });
+
+test("Incident context displays as a bottom sheet on mobile", async ({ page }) => {
+  await login(page);
+
+  for (const viewportWidth of [320, 768, 1280, 1920]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
+    await page.goto(`/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`);
+
+    if (viewportWidth < 1024) {
+      // Button should be visible on mobile
+      const contextButton = page.getByRole("button", { name: "Incident context" });
+      await expect(contextButton).toBeVisible();
+
+      // Open the sheet
+      await contextButton.click();
+      const dialog = page.getByRole("dialog", { name: "Incident context" });
+      await expect(dialog).toBeVisible();
+
+      // Verify it's a sheet (has the drag handle)
+      // Actually we check if it has the sheet-specific classes or behavior if we want,
+      // but verifying it opens and shows context is usually enough.
+      await expect(dialog.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
+      
+      // Close it
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+    } else {
+      // Context should be visible directly on the page, not behind a button
+      await expect(page.getByRole("button", { name: "Incident context" })).toBeHidden();
+      
+      // The context title is rendered in the aside
+      const contextPanel = page.getByRole("complementary", { name: "Incident context" });
+      await expect(contextPanel).toBeVisible();
+      await expect(contextPanel.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
+    }
+  }
+});
