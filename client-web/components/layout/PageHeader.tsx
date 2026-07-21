@@ -2,6 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  context?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   metadata?: ReactNode;
@@ -12,6 +13,7 @@ export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "titl
 export function PageHeader({
   actions,
   className,
+  context,
   description,
   metadata,
   title,
@@ -26,6 +28,7 @@ export function PageHeader({
       {...props}
     >
       <div className="min-w-0 space-y-1.5">
+        {context ? <div className="text-muted mb-1 text-sm font-medium">{context}</div> : null}
         <h1 className="text-text text-2xl font-bold tracking-tight">{title}</h1>
         {description ? <p className="text-muted max-w-3xl text-sm">{description}</p> : null}
         {metadata ? <div className="text-muted text-sm">{metadata}</div> : null}

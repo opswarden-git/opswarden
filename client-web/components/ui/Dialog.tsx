@@ -29,6 +29,7 @@ interface DialogProps {
   size?: DialogSize;
   title: ReactNode;
   trigger?: ReactElement;
+  variant?: "modal" | "sheet";
 }
 
 /**
@@ -49,6 +50,7 @@ export function Dialog({
   size = "md",
   title,
   trigger,
+  variant = "modal",
 }: DialogProps) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -59,8 +61,11 @@ export function Dialog({
         <RadixDialog.Content
           data-dialog-part="content"
           className={cn(
-            "surface fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-md shadow-2xl outline-none",
-            sizeClasses[size],
+            "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
+            variant === "modal"
+              ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] rounded-md"
+              : "bottom-0 left-0 right-0 w-full rounded-t-2xl mt-auto",
+            variant === "modal" && sizeClasses[size],
             contentClassName,
           )}
           onOpenAutoFocus={(event) => {

@@ -12,6 +12,7 @@ interface RouteContract {
   path: string;
   width: LayoutWidth;
   kind: PageKind;
+  hasContext?: boolean;
 }
 
 const routes: RouteContract[] = [
@@ -21,6 +22,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/incidents`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "incident detail",
@@ -33,6 +35,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/releases`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "release detail",
@@ -155,7 +158,9 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
 
         const expectedPadding = viewportWidth < 640 ? 16 : viewportWidth < 768 ? 24 : 32;
         const expectedHeadingY =
-          (viewportWidth < 768 ? 24 : 32) + (route.kind === "detail" ? 44 : 0);
+          (viewportWidth < 768 ? 24 : 32) +
+          (route.kind === "detail" ? 44 : 0) +
+          (route.hasContext ? 24 : 0);
         expect(
           Math.round(headingBox!.x - layoutBox!.x),
           `${route.name} horizontal heading offset at ${viewportWidth}px`,
@@ -212,5 +217,19 @@ test("incident records switch morphology without losing operational context", as
       await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
       `incident morphology overflow at ${viewportWidth}px`,
     ).toBeLessThanOrEqual(1);
+  }
+});
+
+test("Collection headers display the parent team context", async ({ page }) => {
+  await login(page);
+
+  for (const path of [
+    `/en/teams/${TEAM_ID}/incidents`,
+    `/en/teams/${TEAM_ID}/releases`,
+  ]) {
+    await page.goto(path);
+    const teamLink = page.getByRole("link", { name: "OpsWarden Demo" });
+    await expect(teamLink).toBeVisible();
+    await expect(teamLink).toHaveAttribute("href", `/en/teams/${TEAM_ID}/overview`);
   }
 });

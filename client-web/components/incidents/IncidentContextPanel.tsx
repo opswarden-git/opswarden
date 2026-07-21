@@ -18,12 +18,14 @@ export function IncidentContextPanel({
   members,
   team,
   watcherIds,
+  inDialog = false,
 }: {
   canAssign: boolean;
   incident: Incident;
   members: TeamMember[];
   team: Team | undefined;
   watcherIds: string[];
+  inDialog?: boolean;
 }) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
@@ -62,14 +64,20 @@ export function IncidentContextPanel({
 
   return (
     <aside
-      className="surface border-border min-w-0 rounded-md border p-4 sm:p-5"
+      className={
+        inDialog
+          ? "min-w-0"
+          : "surface border-border min-w-0 rounded-md border p-4 sm:p-5"
+      }
       aria-labelledby="context-title"
     >
-      <h2 id="context-title" className="text-text text-base font-semibold">
-        {t("incidentContext")}
-      </h2>
+      {!inDialog && (
+        <h2 id="context-title" className="text-text text-base font-semibold">
+          {t("incidentContext")}
+        </h2>
+      )}
 
-      <dl className="mt-5 space-y-5 text-sm">
+      <dl className={inDialog ? "space-y-5 text-sm" : "mt-5 space-y-5 text-sm"}>
         <div>
           <dt className="text-muted text-xs font-medium">{t("teamLabel")}</dt>
           <dd className="mt-1 min-w-0">
