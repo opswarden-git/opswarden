@@ -17,6 +17,14 @@ import {
   useDeleteAutomationRule,
   useUpdateAutomationRule,
 } from "@/lib/queries/automations";
+import {
+  OperationalTable,
+  OperationalTableBody,
+  OperationalTableCell,
+  OperationalTableHead,
+  OperationalTableHeaderCell,
+  OperationalTableRow,
+} from "@/components/ui/OperationalTable";
 import { AutomationDialog } from "./AutomationDialog";
 
 const FILTER_FIELDS = ["repository", "workflow", "branch", "conclusion"] as const;
@@ -133,9 +141,27 @@ function RuleForm({
       initialFocus={nameRef}
       title={rule ? t("editRule") : t("newRule")}
       description={t("ruleFormDescription")}
+      footer={
+        <>
+          <Button size="lg" onClick={onClose}>
+            {t("cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="rule-form"
+            size="lg"
+            variant="primary"
+            disabled={!valid}
+            loading={mutation.isPending}
+          >
+            {rule ? t("saveChanges") : t("createRule")}
+          </Button>
+        </>
+      }
     >
       <form
-        className="min-h-0 space-y-6 overflow-y-auto p-6"
+        id="rule-form"
+        className="space-y-6 p-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (!valid) return;
@@ -286,20 +312,6 @@ function RuleForm({
         {mutation.error ? (
           <Alert tone="danger">{t("requestFailed", { code: mutation.error.message })}</Alert>
         ) : null}
-        <div className="border-border flex justify-end gap-2 border-t pt-5">
-          <Button size="lg" onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button
-            type="submit"
-            size="lg"
-            variant="primary"
-            disabled={!valid}
-            loading={mutation.isPending}
-          >
-            {rule ? t("saveChanges") : t("createRule")}
-          </Button>
-        </div>
       </form>
     </AutomationDialog>
   );
@@ -310,15 +322,19 @@ export function RulesView({
   connections,
   rules,
   teamId,
+  isCreatingRule,
+  setIsCreatingRule,
 }: {
   catalog: AutomationService[];
   connections: TeamConnection[];
   rules: AutomationRule[];
   teamId: string;
+  isCreatingRule: boolean;
+  setIsCreatingRule: (creating: boolean) => void;
 }) {
   const t = useTranslations("Automations");
   const locale = useLocale();
-  const [editing, setEditing] = useState<AutomationRule | "new" | null>(null);
+  const [editing, setEditing] = useState<AutomationRule | null>(null);
   const [deleting, setDeleting] = useState<AutomationRule | null>(null);
   const updateRule = useUpdateAutomationRule(teamId);
   const deleteRule = useDeleteAutomationRule(teamId);
@@ -332,17 +348,14 @@ export function RulesView({
           <Power className="text-muted mx-auto h-8 w-8" aria-hidden="true" />
           <h3 className="text-text mt-4 font-semibold">{t("noRules")}</h3>
           <p className="text-muted mx-auto mt-1 max-w-lg text-sm">{t("noRulesDescription")}</p>
-          <Button className="mt-5" variant="primary" onClick={() => setEditing("new")}>
-            <Plus className="h-4 w-4" /> {t("newRule")}
-          </Button>
         </section>
-        {editing === "new" ? (
+        {isCreatingRule ? (
           <RuleForm
             teamId={teamId}
             actions={actions}
             reactions={reactions}
             connections={connections}
-            onClose={() => setEditing(null)}
+            onClose={() => setIsCreatingRule(false)}
           />
         ) : null}
       </>
@@ -351,51 +364,48 @@ export function RulesView({
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button variant="primary" onClick={() => setEditing("new")}>
-          <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
-        </Button>
-      </div>
       {updateRule.error ? (
         <Alert tone="danger" className="mb-4">
           {t("requestFailed", { code: updateRule.error.message })}
         </Alert>
       ) : null}
-      <div className="surface overflow-x-auto rounded-md">
-        <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="surface-subtle border-border border-b text-xs uppercase">
+      
+      {/* Desktop view */}
+      <div className="pt-6 hidden lg:block">
+        <OperationalTable label={t("rulesList")}>
+          <OperationalTableHead>
             <tr>
               {["colRule", "colAction", "colReaction", "colStatus", "colUpdated"].map((column) => (
-                <th key={column} className="text-muted px-5 py-3.5 font-medium">
+                <OperationalTableHeaderCell key={column}>
                   {t(column)}
-                </th>
+                </OperationalTableHeaderCell>
               ))}
               <th className="px-5 py-3.5">
                 <span className="sr-only">{t("actionsMenu")}</span>
               </th>
             </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
+          </OperationalTableHead>
+          <OperationalTableBody>
             {rules.map((rule) => (
-              <tr key={rule.id} className="hover:bg-white/[0.04]">
-                <td className="text-text px-5 py-4 font-medium">{rule.name}</td>
-                <td className="text-muted px-5 py-4">
+              <OperationalTableRow key={rule.id}>
+                <OperationalTableCell className="text-text font-medium">{rule.name}</OperationalTableCell>
+                <OperationalTableCell className="text-muted">
                   {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
-                </td>
-                <td className="text-muted px-5 py-4">
+                </OperationalTableCell>
+                <OperationalTableCell className="text-muted">
                   {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
-                </td>
-                <td className="px-5 py-4">
+                </OperationalTableCell>
+                <OperationalTableCell>
                   <span className={rule.enabled ? "text-st-res" : "text-muted"}>
                     {rule.enabled ? t("enabled") : t("disabled")}
                   </span>
-                </td>
-                <td className="text-muted px-5 py-4 whitespace-nowrap">
+                </OperationalTableCell>
+                <OperationalTableCell className="text-muted whitespace-nowrap">
                   {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
                     new Date(rule.updated_at),
                   )}
-                </td>
-                <td className="px-5 py-4 text-right">
+                </OperationalTableCell>
+                <OperationalTableCell className="text-right">
                   <ActionMenu
                     label={t("actionsMenu")}
                     disabled={updateRule.isPending}
@@ -423,21 +433,95 @@ export function RulesView({
                       },
                     ]}
                   />
-                </td>
-              </tr>
+                </OperationalTableCell>
+              </OperationalTableRow>
             ))}
-          </tbody>
-        </table>
+          </OperationalTableBody>
+        </OperationalTable>
       </div>
 
-      {editing ? (
+      {/* Mobile view */}
+      <div className="pt-6 surface overflow-hidden rounded-md lg:hidden">
+        <ul aria-label={t("rulesList")} className="divide-border divide-y">
+          {rules.map((rule) => (
+            <li key={rule.id} className="flex flex-col gap-3 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-text font-medium">{rule.name}</h3>
+                  <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                    <span className={rule.enabled ? "text-st-res" : "text-muted"}>
+                      {rule.enabled ? t("enabled") : t("disabled")}
+                    </span>
+                    <span className="text-muted">•</span>
+                    <span className="text-muted">
+                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                        new Date(rule.updated_at),
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <ActionMenu
+                    label={t("actionsMenu")}
+                    disabled={updateRule.isPending}
+                    items={[
+                      {
+                        id: "toggle",
+                        label: rule.enabled ? t("disable") : t("enable"),
+                        icon: rule.enabled ? PowerOff : Power,
+                        onSelect: () =>
+                          updateRule.mutate({ ruleId: rule.id, enabled: !rule.enabled }),
+                      },
+                      {
+                        id: "edit",
+                        label: t("edit"),
+                        icon: Pencil,
+                        onSelect: () => setEditing(rule),
+                      },
+                      { id: "separator", separator: true },
+                      {
+                        id: "delete",
+                        label: t("delete"),
+                        icon: Trash2,
+                        tone: "danger",
+                        onSelect: () => setDeleting(rule),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div className="surface-subtle border-border rounded border px-3 py-2 text-sm">
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted shrink-0 text-xs uppercase">{t("colAction")}</span>
+                    <span className="text-text truncate text-right">
+                      {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted shrink-0 text-xs uppercase">{t("colReaction")}</span>
+                    <span className="text-text truncate text-right">
+                      {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {isCreatingRule || editing ? (
         <RuleForm
           teamId={teamId}
           actions={actions}
           reactions={reactions}
           connections={connections}
-          rule={editing === "new" ? undefined : editing}
-          onClose={() => setEditing(null)}
+          rule={editing ?? undefined}
+          onClose={() => {
+            setEditing(null);
+            setIsCreatingRule(false);
+          }}
         />
       ) : null}
       <ConfirmDialog
