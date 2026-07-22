@@ -20,5 +20,9 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "stylelint": "^16.9.0",
     "stylelint-config-standard": "^36.0.1"
+  },
+  "overrides": {
+    "sharp": "$sharp",
+    "postcss": "^8.5.15"
   }
 }
