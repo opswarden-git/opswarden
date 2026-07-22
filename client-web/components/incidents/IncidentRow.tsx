@@ -9,22 +9,7 @@ import type { IncidentListItem } from "@/lib/queries/incidents";
 import { SeverityChip } from "./SeverityChip";
 import { StateChip } from "./StateChip";
 
-function formatAge(createdAt: string, locale: string) {
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000),
-  );
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (elapsedSeconds < 60) return formatter.format(-elapsedSeconds, "second");
-  const minutes = Math.floor(elapsedSeconds / 60);
-  if (minutes < 60) return formatter.format(-minutes, "minute");
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return formatter.format(-hours, "hour");
-  const days = Math.floor(hours / 24);
-  if (days < 30) return formatter.format(-days, "day");
-  const months = Math.floor(days / 30);
-  return formatter.format(-months, "month");
-}
+import { formatRelativeAge } from "@/lib/utils";
 
 function incidentHref(incident: IncidentListItem) {
   return `/teams/${incident.team_id}/incidents/${incident.id}`;
@@ -83,7 +68,7 @@ export function IncidentRow({ incident }: { incident: IncidentListItem }) {
       </OperationalTableCell>
       <OperationalTableCell className="text-muted text-sm">
         <time dateTime={incident.created_at} title={createdAt.toLocaleString(locale)}>
-          {formatAge(incident.created_at, locale)}
+          {formatRelativeAge(incident.created_at, locale)}
         </time>
       </OperationalTableCell>
     </OperationalTableRow>
@@ -121,7 +106,7 @@ export function IncidentMobileRecord({ incident }: { incident: IncidentListItem 
           dateTime={incident.created_at}
           title={createdAt.toLocaleString(locale)}
         >
-          {formatAge(incident.created_at, locale)}
+          {formatRelativeAge(incident.created_at, locale)}
         </time>
       </div>
     </li>

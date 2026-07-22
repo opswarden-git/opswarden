@@ -23,21 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
 
-function relativeAge(value: string, locale: string) {
-  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
-  const ranges: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ["day", 86_400],
-    ["hour", 3_600],
-    ["minute", 60],
-  ];
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-
-  for (const [unit, size] of ranges) {
-    if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit);
-  }
-
-  return formatter.format(seconds, "second");
-}
+import { formatRelativeAge } from "@/lib/utils";
 
 function IncidentBreadcrumb({
   currentHref,
@@ -205,7 +191,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             <span className="text-muted">·</span>
             <span>{assignee?.email ?? t("unassigned")}</span>
             <span className="text-muted">·</span>
-            <time dateTime={incident.created_at}>{relativeAge(incident.created_at, locale)}</time>
+            <time dateTime={incident.created_at}>{formatRelativeAge(incident.created_at, locale)}</time>
           </div>
         }
         actions={

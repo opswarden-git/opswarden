@@ -8,21 +8,8 @@ import { Link } from "@/i18n/routing";
 import type { ReleaseListItem } from "@/lib/queries/releases";
 import { ReleaseStateChip } from "./ReleaseStateChip";
 
-export function formatAge(createdAt: string, locale: string) {
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000),
-  );
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (elapsedSeconds < 60) return formatter.format(-elapsedSeconds, "second");
-  const minutes = Math.floor(elapsedSeconds / 60);
-  if (minutes < 60) return formatter.format(-minutes, "minute");
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return formatter.format(-hours, "hour");
-  const days = Math.floor(hours / 24);
-  if (days < 30) return formatter.format(-days, "day");
-  return formatter.format(-Math.floor(days / 30), "month");
-}
+import { formatRelativeAge } from "@/lib/utils";
+export const formatAge = formatRelativeAge;
 
 function ReleaseIdentity({
   release,
