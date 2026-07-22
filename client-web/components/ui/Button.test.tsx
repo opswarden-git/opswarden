@@ -44,6 +44,11 @@ describe("Button", () => {
     expect(button.querySelector(".ow-progress-spinner")).toBeInTheDocument();
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("applies the ow-button class for coarse touch-target min geometry", () => {
+    render(<Button size="xs">Touch Target Test</Button>);
+    expect(screen.getByRole("button")).toHaveClass("ow-button", "h-6");
+  });
 });
 
 describe("IconButton", () => {

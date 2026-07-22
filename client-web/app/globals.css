@@ -115,6 +115,13 @@
     outline-offset: 2px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent);
   }
+
+  @media (pointer: coarse) {
+    .ow-button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
