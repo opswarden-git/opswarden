@@ -170,11 +170,7 @@ function HttpForm({
           configure.mutate(endpoint.trim(), { onSuccess: onClose });
         }}
       >
-        <FormField
-          label={t("endpointUrl")}
-          caption={t("endpointSecurityHint")}
-          required
-        >
+        <FormField label={t("endpointUrl")} caption={t("endpointSecurityHint")} required>
           <input
             ref={inputRef}
             type="url"

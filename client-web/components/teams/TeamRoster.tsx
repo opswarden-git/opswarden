@@ -138,7 +138,7 @@ export function TeamRoster({ team }: { team: Team }) {
                   </div>
                   <div className="bg-muted/20 h-8 w-16 shrink-0 animate-pulse rounded md:hidden" />
                 </div>
-                
+
                 <div className="hidden min-w-0 md:block">
                   <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
                   <div className="bg-muted/20 mt-1 h-3 w-32 animate-pulse rounded" />
@@ -218,10 +218,8 @@ export function TeamRoster({ team }: { team: Team }) {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex shrink-0 items-center gap-1 md:hidden">
-                      {rowActions}
-                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1 md:hidden">{rowActions}</div>
                   </div>
 
                   <div className="hidden min-w-0 md:block">
@@ -244,9 +242,7 @@ export function TeamRoster({ team }: { team: Team }) {
                     </div>
                   </div>
 
-                  <div className="hidden items-center gap-1 md:flex">
-                    {rowActions}
-                  </div>
+                  <div className="hidden items-center gap-1 md:flex">{rowActions}</div>
                 </li>
               );
             })}

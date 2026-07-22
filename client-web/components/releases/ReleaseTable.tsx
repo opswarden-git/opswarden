@@ -10,14 +10,7 @@ import {
 import type { ReleaseListItem } from "@/lib/queries/releases";
 import { ReleaseMobileRecord, ReleaseRow } from "./ReleaseRow";
 
-const columns = [
-  "colRelease",
-  "colState",
-  "colProgress",
-  "colNextStep",
-  "colAge",
-  "colBlockers",
-];
+const columns = ["colRelease", "colState", "colProgress", "colNextStep", "colAge", "colBlockers"];
 
 export function ReleaseTable({
   hrefFor,
@@ -35,34 +28,21 @@ export function ReleaseTable({
           <OperationalTableHead>
             <tr>
               {columns.map((column) => (
-                <OperationalTableHeaderCell key={column}>
-                  {t(column)}
-                </OperationalTableHeaderCell>
+                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
               ))}
             </tr>
           </OperationalTableHead>
           <OperationalTableBody>
             {releases.map((release) => (
-              <ReleaseRow
-                key={release.release_id}
-                release={release}
-                hrefFor={hrefFor}
-              />
+              <ReleaseRow key={release.release_id} release={release} hrefFor={hrefFor} />
             ))}
           </OperationalTableBody>
         </OperationalTable>
       </div>
-      <div
-        data-release-layout="mobile"
-        className="surface overflow-hidden rounded-md lg:hidden"
-      >
+      <div data-release-layout="mobile" className="surface overflow-hidden rounded-md lg:hidden">
         <ul aria-label={t("tableLabel")} className="divide-border divide-y">
           {releases.map((release) => (
-            <ReleaseMobileRecord
-              key={release.release_id}
-              release={release}
-              hrefFor={hrefFor}
-            />
+            <ReleaseMobileRecord key={release.release_id} release={release} hrefFor={hrefFor} />
           ))}
         </ul>
       </div>

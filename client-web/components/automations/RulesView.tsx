@@ -369,16 +369,14 @@ export function RulesView({
           {t("requestFailed", { code: updateRule.error.message })}
         </Alert>
       ) : null}
-      
+
       {/* Desktop view */}
-      <div className="pt-6 hidden lg:block">
+      <div className="hidden pt-6 lg:block">
         <OperationalTable label={t("rulesList")}>
           <OperationalTableHead>
             <tr>
               {["colRule", "colAction", "colReaction", "colStatus", "colUpdated"].map((column) => (
-                <OperationalTableHeaderCell key={column}>
-                  {t(column)}
-                </OperationalTableHeaderCell>
+                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
               ))}
               <th className="px-5 py-3.5">
                 <span className="sr-only">{t("actionsMenu")}</span>
@@ -388,7 +386,9 @@ export function RulesView({
           <OperationalTableBody>
             {rules.map((rule) => (
               <OperationalTableRow key={rule.id}>
-                <OperationalTableCell className="text-text font-medium">{rule.name}</OperationalTableCell>
+                <OperationalTableCell className="text-text font-medium">
+                  {rule.name}
+                </OperationalTableCell>
                 <OperationalTableCell className="text-muted">
                   {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
                 </OperationalTableCell>
@@ -441,7 +441,7 @@ export function RulesView({
       </div>
 
       {/* Mobile view */}
-      <div className="pt-6 surface overflow-hidden rounded-md lg:hidden">
+      <div className="surface overflow-hidden rounded-md pt-6 lg:hidden">
         <ul aria-label={t("rulesList")} className="divide-border divide-y">
           {rules.map((rule) => (
             <li key={rule.id} className="flex flex-col gap-3 p-4">
@@ -499,7 +499,9 @@ export function RulesView({
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">{t("colReaction")}</span>
+                    <span className="text-muted shrink-0 text-xs uppercase">
+                      {t("colReaction")}
+                    </span>
                     <span className="text-text truncate text-right">
                       {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
                     </span>

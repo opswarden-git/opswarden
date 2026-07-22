@@ -191,7 +191,9 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             <span className="text-muted">·</span>
             <span>{assignee?.email ?? t("unassigned")}</span>
             <span className="text-muted">·</span>
-            <time dateTime={incident.created_at}>{formatRelativeAge(incident.created_at, locale)}</time>
+            <time dateTime={incident.created_at}>
+              {formatRelativeAge(incident.created_at, locale)}
+            </time>
           </div>
         }
         actions={

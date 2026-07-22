@@ -163,7 +163,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
           ) : activeTeam ? (
             <Link
               href={teamPath(teamId, "overview")}
-              className="hover:text-text hover:underline transition-colors"
+              className="hover:text-text transition-colors hover:underline"
             >
               {activeTeam.name}
             </Link>

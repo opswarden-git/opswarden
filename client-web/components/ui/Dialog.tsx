@@ -63,8 +63,8 @@ export function Dialog({
           className={cn(
             "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
             variant === "modal"
-              ? "data-[state=closed]:animate-dialog-content-hide data-[state=open]:animate-dialog-content-show top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] rounded-md"
-              : "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show bottom-0 left-0 right-0 mt-auto w-full rounded-t-2xl",
+              ? "data-[state=closed]:animate-dialog-content-hide data-[state=open]:animate-dialog-content-show top-1/2 left-1/2 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-md"
+              : "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full rounded-t-2xl",
             variant === "modal" && sizeClasses[size],
             contentClassName,
           )}
@@ -75,7 +75,10 @@ export function Dialog({
           }}
         >
           {variant === "sheet" ? (
-            <div className="bg-border mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full" aria-hidden="true" />
+            <div
+              className="bg-border mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full"
+              aria-hidden="true"
+            />
           ) : null}
           <header className="border-border relative flex shrink-0 items-start gap-3 border-b p-6 pr-14">
             {icon}

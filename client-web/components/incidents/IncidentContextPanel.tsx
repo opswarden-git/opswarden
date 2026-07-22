@@ -65,9 +65,7 @@ export function IncidentContextPanel({
   return (
     <aside
       className={
-        inDialog
-          ? "min-w-0"
-          : "surface border-border min-w-0 rounded-md border p-4 sm:p-5"
+        inDialog ? "min-w-0" : "surface border-border min-w-0 rounded-md border p-4 sm:p-5"
       }
       aria-labelledby="context-title"
     >

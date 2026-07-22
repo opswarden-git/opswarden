@@ -45,10 +45,7 @@ function ReleaseProgress({ release }: { release: ReleaseListItem }) {
         aria-valuenow={release.progress.completed}
         className="bg-panel-2 h-1.5 min-w-20 flex-1 overflow-hidden rounded-full"
       >
-        <span
-          className="bg-gold block h-full rounded-full"
-          style={{ width: `${percentage}%` }}
-        />
+        <span className="bg-gold block h-full rounded-full" style={{ width: `${percentage}%` }} />
       </div>
       <span className="text-muted text-xs tabular-nums">
         {t("progressCount", release.progress)}
@@ -137,7 +134,7 @@ export function ReleaseMobileRecord({
       </div>
       {release.blockers.length > 0 && (
         <div data-release-field="blockers" className="mt-3">
-          <span className="text-muted text-xs block mb-1">{t("colBlockers")}</span>
+          <span className="text-muted mb-1 block text-xs">{t("colBlockers")}</span>
           <ReleaseBlockers release={release} />
         </div>
       )}

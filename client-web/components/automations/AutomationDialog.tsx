@@ -22,7 +22,7 @@ export function AutomationDialog({
   footer?: ReactNode;
 }) {
   const t = useTranslations("Automations");
-  
+
   return (
     <Dialog
       open={open}
