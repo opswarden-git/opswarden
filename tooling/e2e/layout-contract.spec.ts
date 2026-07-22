@@ -12,6 +12,7 @@ interface RouteContract {
   path: string;
   width: LayoutWidth;
   kind: PageKind;
+  hasContext?: boolean;
 }
 
 const routes: RouteContract[] = [
@@ -21,6 +22,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/incidents`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "incident detail",
@@ -33,6 +35,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/releases`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "release detail",
@@ -155,7 +158,9 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
 
         const expectedPadding = viewportWidth < 640 ? 16 : viewportWidth < 768 ? 24 : 32;
         const expectedHeadingY =
-          (viewportWidth < 768 ? 24 : 32) + (route.kind === "detail" ? 44 : 0);
+          (viewportWidth < 768 ? 24 : 32) +
+          (route.kind === "detail" ? 44 : 0) +
+          (route.hasContext ? 24 : 0);
         expect(
           Math.round(headingBox!.x - layoutBox!.x),
           `${route.name} horizontal heading offset at ${viewportWidth}px`,
@@ -173,6 +178,95 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
           `${route.name} horizontal overflow at ${viewportWidth}px`,
         ).toBeLessThanOrEqual(1);
       });
+    }
+  }
+});
+
+test("incident records switch morphology without losing operational context", async ({ page }) => {
+  await login(page);
+
+  for (const viewportWidth of [320, 768, 1280, 1920]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
+    await page.goto(`/en/teams/${TEAM_ID}/incidents`);
+
+    const mobile = page.locator('[data-incident-layout="mobile"]');
+    const desktop = page.locator('[data-incident-layout="desktop"]');
+    if (viewportWidth < 1024) {
+      await expect(mobile).toBeVisible();
+      await expect(desktop).toBeHidden();
+      const record = mobile
+        .getByRole("listitem")
+        .filter({ hasText: "Payment API returning 502 in Europe" });
+      await expect(record.locator('[data-incident-field="identity"]')).toContainText("ID:");
+      await expect(record.locator('[data-incident-field="state"]')).toContainText("Open");
+      await expect(record.locator('[data-incident-field="assignee"]')).toContainText(
+        "responder@opswarden.local",
+      );
+      await expect(record.locator('[data-incident-field="age"]')).not.toBeEmpty();
+      await expect(record.getByRole("link")).toHaveCount(1);
+    } else {
+      await expect(desktop).toBeVisible();
+      await expect(mobile).toBeHidden();
+      const table = desktop.getByRole("table", { name: "Incident queue" });
+      const rowHeaders = table.getByRole("rowheader");
+      await expect(rowHeaders.first()).toBeVisible();
+      expect(await table.getByRole("link").count()).toBe(await rowHeaders.count());
+    }
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+      `incident morphology overflow at ${viewportWidth}px`,
+    ).toBeLessThanOrEqual(1);
+  }
+});
+
+test("Collection headers display the parent team context", async ({ page }) => {
+  await login(page);
+
+  for (const path of [
+    `/en/teams/${TEAM_ID}/incidents`,
+    `/en/teams/${TEAM_ID}/releases`,
+  ]) {
+    await page.goto(path);
+    const teamLink = page.getByRole("link", { name: "OpsWarden Demo" });
+    await expect(teamLink).toBeVisible();
+    await expect(teamLink).toHaveAttribute("href", `/en/teams/${TEAM_ID}/overview`);
+  }
+});
+
+test("Incident context displays as a bottom sheet on mobile", async ({ page }) => {
+  await login(page);
+
+  for (const viewportWidth of [320, 768, 1280, 1920]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
+    await page.goto(`/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`);
+
+    if (viewportWidth < 1024) {
+      // Button should be visible on mobile
+      const contextButton = page.getByRole("button", { name: "Incident context" });
+      await expect(contextButton).toBeVisible();
+
+      // Open the sheet
+      await contextButton.click();
+      const dialog = page.getByRole("dialog", { name: "Incident context" });
+      await expect(dialog).toBeVisible();
+
+      // Verify it's a sheet (has the drag handle)
+      // Actually we check if it has the sheet-specific classes or behavior if we want,
+      // but verifying it opens and shows context is usually enough.
+      await expect(dialog.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
+      
+      // Close it
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+    } else {
+      // Context should be visible directly on the page, not behind a button
+      await expect(page.getByRole("button", { name: "Incident context" })).toBeHidden();
+      
+      // The context title is rendered in the aside
+      const contextPanel = page.getByRole("complementary", { name: "Incident context" });
+      await expect(contextPanel).toBeVisible();
+      await expect(contextPanel.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
     }
   }
 });

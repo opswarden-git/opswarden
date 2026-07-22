@@ -124,10 +124,34 @@ export function TeamRoster({ team }: { team: Team }) {
         {isLoading ? (
           <div className="divide-border divide-y">
             {[0, 1, 2].map((index) => (
-              <div key={index} className="flex items-center gap-3 px-5 py-4">
-                <div className="bg-muted/20 h-9 w-9 animate-pulse rounded-full" />
-                <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
-                <div className="bg-muted/20 ml-auto h-5 w-20 animate-pulse rounded-full" />
+              <div
+                key={index}
+                className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
+              >
+                <div className="flex items-start justify-between gap-3 md:contents">
+                  <div className="flex items-center gap-3 md:contents">
+                    <div className="bg-muted/20 h-9 w-9 shrink-0 animate-pulse rounded-full" />
+                    <div className="min-w-0 md:hidden">
+                      <div className="bg-muted/20 h-4 w-32 animate-pulse rounded" />
+                      <div className="bg-muted/20 mt-1 h-3 w-16 animate-pulse rounded" />
+                    </div>
+                  </div>
+                  <div className="bg-muted/20 h-8 w-16 shrink-0 animate-pulse rounded md:hidden" />
+                </div>
+
+                <div className="hidden min-w-0 md:block">
+                  <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
+                  <div className="bg-muted/20 mt-1 h-3 w-32 animate-pulse rounded" />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 md:contents">
+                  <div className="bg-muted/20 h-5 w-20 animate-pulse rounded-full" />
+                  <div className="bg-muted/20 h-4 w-24 animate-pulse rounded md:hidden" />
+                </div>
+
+                <div className="hidden items-center gap-1 md:flex">
+                  <div className="bg-muted/20 h-8 w-16 animate-pulse rounded" />
+                </div>
               </div>
             ))}
           </div>
@@ -141,34 +165,9 @@ export function TeamRoster({ team }: { team: Team }) {
           </div>
         ) : (
           <ul className="divide-border divide-y">
-            {visibleMembers.map((member) => (
-              <li
-                key={member.user_id}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03]"
-              >
-                <span className="relative shrink-0">
-                  <span className="surface-subtle text-muted border-border flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold">
-                    {initials(member.email)}
-                  </span>
-                  <span
-                    title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
-                    className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
-                      onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
-                    }`}
-                  />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-text truncate font-medium">{member.email}</div>
-                  <div className="text-muted mt-0.5 text-xs">
-                    {t("joinedOn", {
-                      date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                        new Date(member.joined_at),
-                      ),
-                    })}
-                  </div>
-                </div>
-                <RoleChip role={member.role} />
-                <div className="flex items-center gap-1">
+            {visibleMembers.map((member) => {
+              const rowActions = (
+                <>
                   {member.user_id !== currentUserId && capabilities.canSendPrivateMessage ? (
                     <DirectMessageDialog
                       peer={{ user_id: member.user_id, email: member.email }}
@@ -191,9 +190,62 @@ export function TeamRoster({ team }: { team: Team }) {
                       onBan={() => openDialog("ban", member)}
                     />
                   ) : null}
-                </div>
-              </li>
-            ))}
+                </>
+              );
+
+              return (
+                <li
+                  key={member.user_id}
+                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03] md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
+                >
+                  <div className="flex items-start justify-between gap-3 md:contents">
+                    <div className="flex items-center gap-3 md:contents">
+                      <span className="relative shrink-0">
+                        <span className="surface-subtle text-muted border-border flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold">
+                          {initials(member.email)}
+                        </span>
+                        <span
+                          title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
+                          className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
+                            onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
+                          }`}
+                        />
+                      </span>
+                      <div className="min-w-0 md:hidden">
+                        <div className="text-text truncate font-medium">{member.email}</div>
+                        <div className="text-muted mt-0.5 text-xs">
+                          {onlineSet.has(member.user_id) ? t("online") : t("offline")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1 md:hidden">{rowActions}</div>
+                  </div>
+
+                  <div className="hidden min-w-0 md:block">
+                    <div className="text-text truncate font-medium">{member.email}</div>
+                    <div className="text-muted mt-0.5 text-xs">
+                      {t("joinedOn", {
+                        date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                          new Date(member.joined_at),
+                        ),
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 md:contents">
+                    <RoleChip role={member.role} />
+                    <div className="text-muted text-sm md:hidden">
+                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                        new Date(member.joined_at),
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="hidden items-center gap-1 md:flex">{rowActions}</div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

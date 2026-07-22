@@ -23,30 +23,11 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { RoleChip } from "./RoleChip";
+import { SettingsSection } from "./SettingsSection";
 import { TeamHeader } from "./TeamHeader";
 
 type Dialog = "transfer" | "leave" | "delete" | null;
 type BanView = "active" | "expired";
-
-function SettingsSection({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="surface rounded-md">
-      <div className="border-border border-b px-6 py-4">
-        <h2 className="text-text font-semibold">{title}</h2>
-        <p className="text-muted mt-1 text-sm">{description}</p>
-      </div>
-      <div className="p-6">{children}</div>
-    </section>
-  );
-}
 
 function TeamSettings({ team }: { team: Team }) {
   const t = useTranslations("Teams");
@@ -119,7 +100,14 @@ function TeamSettings({ team }: { team: Team }) {
       ) : null}
 
       {capabilities.canManageMembers ? (
-        <SettingsSection title={t("ownership")} description={t("ownershipDescription")}>
+        <SettingsSection
+          title={t("ownership")}
+          description={t("ownershipDescription")}
+          collapsible
+          defaultOpen={false}
+          hasActiveError={Boolean(transfer.error)}
+          isPending={transfer.isPending}
+        >
           <div className="flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-end">
             <label className="min-w-0 flex-1 space-y-2">
               <span className="text-muted text-sm">{t("transferPickMember")}</span>
@@ -154,7 +142,14 @@ function TeamSettings({ team }: { team: Team }) {
       ) : null}
 
       {capabilities.canManageMembers ? (
-        <SettingsSection title={t("bannedMembers")} description={t("bannedMembersDescription")}>
+        <SettingsSection
+          title={t("bannedMembers")}
+          description={t("bannedMembersDescription")}
+          collapsible
+          defaultOpen={false}
+          hasActiveError={Boolean(bans.error || unban.error)}
+          isPending={bans.isLoading || unban.isPending}
+        >
           <div
             className="border-border mb-4 flex gap-1 border-b"
             role="tablist"

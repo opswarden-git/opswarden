@@ -81,7 +81,11 @@ test("two queues absorb a simultaneous WebSocket burst without visual agitation"
     await Promise.all(
       [manager, responder].flatMap((page) =>
         INCIDENT_TITLES.map((title) =>
-          expect(page.getByText(title, { exact: true })).toBeVisible(),
+          expect(
+            page
+              .locator("[data-incident-layout]:visible")
+              .getByRole("link", { name: title, exact: true }),
+          ).toBeVisible(),
         ),
       ),
     );

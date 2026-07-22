@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, Clock, ShieldAlert, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, Info, ShieldAlert, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
@@ -21,22 +21,9 @@ import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Dialog } from "@/components/ui/Dialog";
 
-function relativeAge(value: string, locale: string) {
-  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
-  const ranges: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ["day", 86_400],
-    ["hour", 3_600],
-    ["minute", 60],
-  ];
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-
-  for (const [unit, size] of ranges) {
-    if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit);
-  }
-
-  return formatter.format(seconds, "second");
-}
+import { formatRelativeAge } from "@/lib/utils";
 
 function IncidentBreadcrumb({
   currentHref,
@@ -93,6 +80,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const updateStatus = useUpdateIncidentStatus();
   const deleteIncident = useDeleteIncident();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isContextOpen, setIsContextOpen] = useState(false);
   const watch = useWsStore((state) => state.watch);
   const unwatch = useWsStore((state) => state.unwatch);
   const watchers = useWatchers(incidentId);
@@ -203,13 +191,21 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             <span className="text-muted">·</span>
             <span>{assignee?.email ?? t("unassigned")}</span>
             <span className="text-muted">·</span>
-            <time dateTime={incident.created_at}>{relativeAge(incident.created_at, locale)}</time>
+            <time dateTime={incident.created_at}>
+              {formatRelativeAge(incident.created_at, locale)}
+            </time>
           </div>
         }
         actions={
           <>
             {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
             {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
+            <div className="lg:hidden">
+              <Button variant="secondary" size="lg" onClick={() => setIsContextOpen(true)}>
+                <Info className="h-4 w-4" aria-hidden="true" />
+                {t("incidentContext")}
+              </Button>
+            </div>
             {actions.canDelete ? (
               <ActionMenu
                 label={t("moreActions")}
@@ -243,13 +239,15 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             people={people}
           />
 
-          <IncidentContextPanel
-            incident={incident}
-            team={currentTeam}
-            members={members ?? []}
-            watcherIds={watchers}
-            canAssign={actions.canAssign}
-          />
+          <div className="hidden lg:block">
+            <IncidentContextPanel
+              incident={incident}
+              team={currentTeam}
+              members={members ?? []}
+              watcherIds={watchers}
+              canAssign={actions.canAssign}
+            />
+          </div>
         </div>
       </PageContent>
 
@@ -268,6 +266,23 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         onConfirm={deleteCurrentIncident}
         onClose={() => setDeleteOpen(false)}
       />
+
+      <Dialog
+        open={isContextOpen}
+        onOpenChange={setIsContextOpen}
+        variant="sheet"
+        title={t("incidentContext")}
+        description={incident.title}
+      >
+        <IncidentContextPanel
+          inDialog
+          incident={incident}
+          team={currentTeam}
+          members={members ?? []}
+          watcherIds={watchers}
+          canAssign={actions.canAssign}
+        />
+      </Dialog>
     </PageLayout>
   );
 }

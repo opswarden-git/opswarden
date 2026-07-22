@@ -18,16 +18,7 @@ import { useAuthStore } from "@/store/auth";
 import { TeamHeader } from "./TeamHeader";
 import { deriveTeamOverview, type AttentionItem } from "./team-overview";
 
-function formatAge(timestamp: string, locale: string) {
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (seconds < 60) return formatter.format(-seconds, "second");
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return formatter.format(-minutes, "minute");
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return formatter.format(-hours, "hour");
-  return formatter.format(-Math.floor(hours / 24), "day");
-}
+import { formatRelativeAge } from "@/lib/utils";
 
 function AttentionRow({ item, teamId }: { item: AttentionItem; teamId: string }) {
   const t = useTranslations("Teams");
@@ -71,7 +62,7 @@ function AttentionRow({ item, teamId }: { item: AttentionItem; teamId: string })
           title={new Date(item.timestamp).toLocaleString(locale)}
           className="text-muted hidden shrink-0 pt-1 text-xs sm:block"
         >
-          {formatAge(item.timestamp, locale)}
+          {formatRelativeAge(item.timestamp, locale)}
         </time>
       </Link>
     </li>

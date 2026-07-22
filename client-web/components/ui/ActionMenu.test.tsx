@@ -30,4 +30,41 @@ describe("ActionMenu", () => {
     expect(onSelect).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menuitem", { name: "Change role" })).not.toBeInTheDocument();
   });
+
+  it("supports disabled state on trigger button", () => {
+    render(<ActionMenu disabled label="Disabled actions" items={[]} />);
+    const trigger = screen.getByRole("button", { name: "Disabled actions" });
+    expect(trigger).toBeDisabled();
+  });
+
+  it("handles disabled items and separators correctly", async () => {
+    const activeSelect = vi.fn();
+    const disabledSelect = vi.fn();
+    render(
+      <ActionMenu
+        label="Options"
+        items={[
+          { id: "edit", label: "Edit item", onSelect: activeSelect },
+          { id: "sep1", separator: true },
+          { id: "delete", label: "Delete item", disabled: true, onSelect: disabledSelect },
+        ]}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Options" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    const activeItem = await screen.findByRole("menuitem", { name: "Edit item" });
+    const disabledItem = screen.getByRole("menuitem", { name: "Delete item" });
+    const separator = screen.getByRole("separator");
+
+    expect(activeItem).toBeInTheDocument();
+    expect(disabledItem).toHaveAttribute("data-disabled");
+    expect(separator).toBeInTheDocument();
+
+    fireEvent.click(disabledItem);
+    expect(disabledSelect).not.toHaveBeenCalled();
+  });
 });

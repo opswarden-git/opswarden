@@ -43,7 +43,9 @@ test("Manager can declare an incident through the shared footer", async ({ page 
   await dialog.getByRole("button", { name: "Declare", exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(
+    page.locator("[data-incident-layout]:visible").getByRole("link", { name: title, exact: true }),
+  ).toBeVisible();
 });
 
 test("server errors stay in the dialog and are announced", async ({ page }) => {

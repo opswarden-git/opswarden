@@ -29,6 +29,7 @@ interface DialogProps {
   size?: DialogSize;
   title: ReactNode;
   trigger?: ReactElement;
+  variant?: "modal" | "sheet";
 }
 
 /**
@@ -49,18 +50,22 @@ export function Dialog({
   size = "md",
   title,
   trigger,
+  variant = "modal",
 }: DialogProps) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
 
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="bg-bg/80 fixed inset-0 z-50 backdrop-blur-sm" />
+        <RadixDialog.Overlay className="bg-bg/80 data-[state=closed]:animate-dialog-overlay-hide data-[state=open]:animate-dialog-overlay-show fixed inset-0 z-50 backdrop-blur-sm" />
         <RadixDialog.Content
           data-dialog-part="content"
           className={cn(
-            "surface fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-md shadow-2xl outline-none",
-            sizeClasses[size],
+            "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
+            variant === "modal"
+              ? "data-[state=closed]:animate-dialog-content-hide data-[state=open]:animate-dialog-content-show top-1/2 left-1/2 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-md"
+              : "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full rounded-t-2xl",
+            variant === "modal" && sizeClasses[size],
             contentClassName,
           )}
           onOpenAutoFocus={(event) => {
@@ -69,6 +74,12 @@ export function Dialog({
             initialFocus.current.focus();
           }}
         >
+          {variant === "sheet" ? (
+            <div
+              className="bg-border mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full"
+              aria-hidden="true"
+            />
+          ) : null}
           <header className="border-border relative flex shrink-0 items-start gap-3 border-b p-6 pr-14">
             {icon}
             <div className="min-w-0">

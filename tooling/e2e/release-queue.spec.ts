@@ -14,44 +14,50 @@ async function login(page: Page, email: string) {
 }
 
 test.describe("Release queue", () => {
-  test("Manager understands a blocked release from the list", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
-    await page.goto(releasesUrl);
+  for (const width of [320, 768, 1280, 1920]) {
+    test(`Manager understands a blocked release from the list at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await login(page, "manager@opswarden.local");
+      await page.goto(releasesUrl);
 
-    await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Active\s+1/ })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await expect(
-      page.getByText("v2.9.0 — Observability foundations", { exact: true }),
-    ).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
+      await expect(page.getByRole("link", { name: /Active\s+1/ })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      const rowContainer = width < 1024 ? page.locator("li") : page.locator("tr");
+      await expect(
+        rowContainer.getByText("v2.9.0 — Observability foundations", { exact: true }),
+      ).toBeVisible();
 
-    await page.getByRole("link", { name: /Blocked\s+1/ }).click();
-    await expect(page).toHaveURL(/view=blocked/);
+      await page.getByRole("link", { name: /Blocked\s+1/ }).click();
+      await expect(page).toHaveURL(/view=blocked/);
 
-    const row = page.getByRole("row").filter({ hasText: "v2.8.0 — Payment resilience" });
-    await expect(row).toContainText("2/4");
-    await expect(row).toContainText("Run payment smoke tests");
-    await expect(
-      row.getByRole("link", { name: "Payment API returning 502 in Europe" }),
-    ).toBeVisible();
+      const container = (width < 1024 ? page.locator("li") : page.locator("tr")).filter({
+        hasText: "v2.8.0",
+      }).first();
+      await expect(container).toContainText("2/4");
+      await expect(container).toContainText("Run payment smoke tests");
+      await expect(
+        container.getByRole("link", { name: "Payment API returning 502 in Europe" }),
+      ).toBeVisible();
 
-    await row.getByRole("link", { name: "Open", exact: true }).click();
-    await expect(page).toHaveURL(/releases\/30000000-0000-4000-8000-000000000001\?view=blocked/);
-    await expect(
-      page.getByRole("heading", { name: "v2.8.0 — Payment resilience" }).first(),
-    ).toBeVisible();
-    const blocker = page.getByRole("alert").filter({ hasText: "Release blocked" });
-    await expect(blocker).toContainText("Payment API returning 502 in Europe");
+      await container.getByRole("link", { name: "v2.8.0 — Payment resilience" }).click();
+      await expect(page).toHaveURL(/releases\/30000000-0000-4000-8000-000000000001\?view=blocked/);
+      await expect(
+        page.getByRole("heading", { name: "v2.8.0 — Payment resilience" }).first(),
+      ).toBeVisible();
+      const blocker = page.getByRole("alert").filter({ hasText: "Release blocked" });
+      await expect(blocker).toContainText("Payment API returning 502 in Europe");
 
-    await page.goBack();
-    await expect(page).toHaveURL(/releases\?view=blocked$/);
-    await page.goForward();
-    await expect(page).toHaveURL(new RegExp(`/releases/${BLOCKED_RELEASE_ID}\\?view=blocked$`));
-    await page.getByRole("link", { name: "Releases", exact: true }).first().click();
-    await expect(page).toHaveURL(/view=blocked$/);
-  });
+      await page.goBack();
+      await expect(page).toHaveURL(/releases\?view=blocked$/);
+      await page.goForward();
+      await expect(page).toHaveURL(new RegExp(`/releases/${BLOCKED_RELEASE_ID}\\?view=blocked$`));
+      await page.getByRole("link", { name: "Releases", exact: true }).first().click();
+      await expect(page).toHaveURL(/view=blocked$/);
+    });
+  }
 
   test("Observer gets a read-only queue without document overflow", async ({ page }) => {
     await login(page, "observer@opswarden.local");

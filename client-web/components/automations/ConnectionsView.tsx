@@ -18,6 +18,7 @@ import {
   useTestTeamConnection,
 } from "@/lib/queries/automations";
 import { AutomationDialog } from "./AutomationDialog";
+import { FormField } from "@/components/ui/FormField";
 
 function connectedServiceNames(catalog: AutomationService[]) {
   return new Set(
@@ -94,32 +95,29 @@ function GithubForm({
           );
         }}
       >
-        <label className="text-text block text-sm font-medium">
-          <span>{t("signingSecret")}</span>
+        <FormField
+          label={t("signingSecret")}
+          caption={connection ? t("secretPreservedHint") : t("secretRequiredHint")}
+          required={!connection}
+        >
           <input
             ref={secretRef}
             type="password"
             value={secret}
             onChange={(event) => setSecret(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+            className="ow-input h-10 w-full rounded-md px-3 text-sm"
             autoComplete="new-password"
-            required={!connection}
           />
-          <span className="text-muted mt-1.5 block text-xs">
-            {connection ? t("secretPreservedHint") : t("secretRequiredHint")}
-          </span>
-        </label>
-        <label className="text-text block text-sm font-medium">
-          <span>{t("personalTokenOptional")}</span>
+        </FormField>
+        <FormField label={t("personalTokenOptional")} caption={t("tokenHint")}>
           <input
             type="password"
             value={token}
             onChange={(event) => setToken(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+            className="ow-input h-10 w-full rounded-md px-3 text-sm"
             autoComplete="new-password"
           />
-          <span className="text-muted mt-1.5 block text-xs">{t("tokenHint")}</span>
-        </label>
+        </FormField>
         {configure.error ? (
           <Alert tone="danger">{t("requestFailed", { code: configure.error.message })}</Alert>
         ) : null}
@@ -172,19 +170,16 @@ function HttpForm({
           configure.mutate(endpoint.trim(), { onSuccess: onClose });
         }}
       >
-        <label className="text-text block text-sm font-medium">
-          <span>{t("endpointUrl")}</span>
+        <FormField label={t("endpointUrl")} caption={t("endpointSecurityHint")} required>
           <input
             ref={inputRef}
             type="url"
             value={endpoint}
             onChange={(event) => setEndpoint(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+            className="ow-input h-10 w-full rounded-md px-3 text-sm"
             placeholder="https://hooks.example.com/opswarden"
-            required
           />
-          <span className="text-muted mt-1.5 block text-xs">{t("endpointSecurityHint")}</span>
-        </label>
+        </FormField>
         {configure.error ? (
           <Alert tone="danger">{t("requestFailed", { code: configure.error.message })}</Alert>
         ) : null}

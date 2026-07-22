@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button, IconButton } from "@/components/ui/Button";
+import { FormField } from "@/components/ui/FormField";
 
 interface StepProps {
   data: OnboardingData;
@@ -33,47 +34,29 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="reg-operator" className="text-muted text-xs font-medium">
-            Name
-          </label>
+        <FormField label="Name" error={errors.operatorName} required>
           <input
-            id="reg-operator"
             type="text"
             placeholder="Kevin Mitnick"
             value={data.operatorName || ""}
             onChange={(e) => updateData({ operatorName: e.target.value })}
             className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
           />
-          {errors.operatorName && (
-            <p className="text-sev-critical mt-1 font-sans text-xs">{errors.operatorName}</p>
-          )}
-        </div>
+        </FormField>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="reg-email" className="text-muted text-xs font-medium">
-            Email
-          </label>
+        <FormField label="Email" error={errors.email} required>
           <input
-            id="reg-email"
             type="email"
             placeholder="name@example.com"
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
             className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
           />
-          {errors.email && (
-            <p className="text-sev-critical mt-1 font-sans text-xs">{errors.email}</p>
-          )}
-        </div>
+        </FormField>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="reg-password" className="text-muted text-xs font-medium">
-            Password
-          </label>
+        <FormField label="Password" error={errors.password} required>
           <div className="relative">
             <input
-              id="reg-password"
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={data.password || ""}
@@ -90,10 +73,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </IconButton>
           </div>
-          {errors.password && (
-            <p className="text-sev-critical mt-1 font-sans text-xs">{errors.password}</p>
-          )}
-        </div>
+        </FormField>
       </div>
 
       <div className="mt-2 flex flex-col gap-4">

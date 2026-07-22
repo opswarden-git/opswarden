@@ -1,57 +1,100 @@
 import { useTranslations } from "next-intl";
+import {
+  OperationalTable,
+  OperationalTableBody,
+  OperationalTableCell,
+  OperationalTableHead,
+  OperationalTableHeaderCell,
+  OperationalTableRow,
+} from "@/components/ui/OperationalTable";
 import type { IncidentListItem } from "@/lib/queries/incidents";
-import { IncidentRow } from "./IncidentRow";
+import { IncidentMobileRecord, IncidentRow } from "./IncidentRow";
 
-const columns = ["colStatus", "colTitleId", "colAssignee", "colSeverity", "colAge", "colAction"];
+const columns = ["colStatus", "colTitleId", "colAssignee", "colSeverity", "colAge"];
 
 export function IncidentTable({ incidents }: { incidents: IncidentListItem[] }) {
   const t = useTranslations("Incidents");
 
   return (
-    <div className="surface overflow-x-auto rounded-md">
-      <table className="w-full min-w-[880px] text-left text-sm">
-        <thead className="surface-subtle border-border border-b text-xs uppercase">
-          <tr>
-            {columns.map((column, index) => (
-              <th
-                key={column}
-                className={`text-muted px-5 py-3.5 font-medium ${index === columns.length - 1 ? "text-right" : ""}`}
-              >
-                {t(column)}
-              </th>
+    <>
+      <div data-incident-layout="desktop" className="hidden lg:block">
+        <OperationalTable label={t("tableLabel")}>
+          <OperationalTableHead>
+            <tr>
+              {columns.map((column) => (
+                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
+              ))}
+            </tr>
+          </OperationalTableHead>
+          <OperationalTableBody>
+            {incidents.map((incident) => (
+              <IncidentRow key={incident.id} incident={incident} />
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
+          </OperationalTableBody>
+        </OperationalTable>
+      </div>
+      <div data-incident-layout="mobile" className="surface overflow-hidden rounded-md lg:hidden">
+        <ul aria-label={t("tableLabel")} className="divide-border divide-y">
           {incidents.map((incident) => (
-            <IncidentRow key={incident.id} incident={incident} />
+            <IncidentMobileRecord key={incident.id} incident={incident} />
           ))}
-        </tbody>
-      </table>
-    </div>
+        </ul>
+      </div>
+    </>
   );
 }
 
-/** Loading state that preserves the table's final geometry. */
+/** Loading state that preserves the final responsive boundaries. */
 export function IncidentTableSkeleton() {
+  const t = useTranslations("Incidents");
   return (
-    <div className="surface overflow-hidden rounded-md" aria-label="Loading incidents">
-      <div className="surface-subtle border-border grid h-11 grid-cols-[8rem_2fr_1.5fr_7rem_7rem_5rem] gap-5 border-b px-5" />
-      <div className="divide-border divide-y">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div
-            key={index}
-            className="grid h-[73px] animate-pulse grid-cols-[8rem_2fr_1.5fr_7rem_7rem_5rem] items-center gap-5 px-5"
-          >
-            <span className="bg-panel-2 h-5 w-20 rounded-full" />
-            <span className="bg-panel-2 h-4 w-3/4 rounded" />
-            <span className="bg-panel-2 h-4 w-4/5 rounded" />
-            <span className="bg-panel-2 h-5 w-16 rounded-full" />
-            <span className="bg-panel-2 h-4 w-14 rounded" />
-            <span className="bg-panel-2 ml-auto h-8 w-16 rounded-md" />
+    <>
+      <div data-testid="incident-skeleton-desktop" className="hidden lg:block">
+        <OperationalTable label={t("loading")} aria-busy="true">
+          <OperationalTableHead>
+            <tr>
+              {columns.map((column) => (
+                <OperationalTableHeaderCell key={column}>
+                  <span className="bg-panel-2 block h-3 w-16 animate-pulse rounded" />
+                </OperationalTableHeaderCell>
+              ))}
+            </tr>
+          </OperationalTableHead>
+          <OperationalTableBody>
+            {Array.from({ length: 6 }, (_, rowIndex) => (
+              <OperationalTableRow key={rowIndex} className="hover:bg-transparent">
+                {columns.map((column, columnIndex) => (
+                  <OperationalTableCell key={column}>
+                    <span
+                      className={`bg-panel-2 block animate-pulse rounded ${
+                        columnIndex === 1 ? "h-4 w-3/4" : "h-5 w-16"
+                      }`}
+                    />
+                  </OperationalTableCell>
+                ))}
+              </OperationalTableRow>
+            ))}
+          </OperationalTableBody>
+        </OperationalTable>
+      </div>
+      <div
+        data-testid="incident-skeleton-mobile"
+        className="surface divide-border divide-y overflow-hidden rounded-md lg:hidden"
+        aria-label={t("loading")}
+        aria-busy="true"
+      >
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="animate-pulse space-y-3 px-4 py-4">
+            <span className="bg-panel-2 block h-4 w-3/4 rounded" />
+            <span className="bg-panel-2 block h-3 w-24 rounded" />
+            <div className="flex gap-2">
+              <span className="bg-panel-2 block h-5 w-16 rounded-full" />
+              <span className="bg-panel-2 block h-5 w-20 rounded-full" />
+            </div>
+            <span className="bg-panel-2 block h-4 w-2/3 rounded" />
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }

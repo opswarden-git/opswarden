@@ -381,6 +381,7 @@
   "Incidents": {
     "title": "Incidents",
     "queueDescription": "Trier, assigner et suivre les incidents opérationnels de l’équipe.",
+    "tableLabel": "File des incidents",
     "viewsLabel": "Vues des incidents",
     "viewOpen": "Ouverts",
     "viewAcknowledged": "Acquittés",
@@ -415,7 +416,6 @@
     "colAssignee": "Assigné",
     "colCreatedAt": "Créé le",
     "colAge": "Ancienneté",
-    "colAction": "Action",
     "severityCritical": "Critique",
     "severityHigh": "Haute",
     "severityMedium": "Moyenne",
@@ -439,7 +439,6 @@
     "declare": "Déclarer",
     "noStation": "Aucune organisation active",
     "goToTeams": "Aller aux équipes",
-    "openIncident": "Ouvrir",
     "shortId": "ID : {id}",
     "typingOne": "{user} est en train d'écrire…",
     "typingMany": "{count} opérateurs sont en train d'écrire…",

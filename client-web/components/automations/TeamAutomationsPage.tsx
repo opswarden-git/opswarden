@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageTabs } from "@/components/layout/PageTabs";
@@ -39,6 +42,7 @@ function AutomationLoading() {
 }
 
 export function TeamAutomationsPage({ teamId }: { teamId: string }) {
+  const [isCreatingRule, setIsCreatingRule] = useState(false);
   const t = useTranslations("Automations");
   const searchParams = useSearchParams();
   const view = automationView(searchParams.get("view"));
@@ -76,9 +80,16 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
           </Alert>
         ) : team && canManage ? (
           <div className="space-y-6">
-            <header>
-              <h2 className="text-text text-xl font-semibold">{t("title")}</h2>
-              <p className="text-muted mt-1 max-w-3xl text-sm">{t("description")}</p>
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-text text-xl font-semibold">{t("title")}</h2>
+                <p className="text-muted mt-1 max-w-3xl text-sm">{t("description")}</p>
+              </div>
+              {view === "rules" && canManage ? (
+                <Button variant="primary" onClick={() => setIsCreatingRule(true)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
+                </Button>
+              ) : null}
             </header>
             <PageTabs
               ariaLabel={t("viewsLabel")}
@@ -110,6 +121,8 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
                 catalog={catalog.data ?? []}
                 connections={connections.data ?? []}
                 rules={rules.data ?? []}
+                isCreatingRule={isCreatingRule}
+                setIsCreatingRule={setIsCreatingRule}
               />
             ) : null}
             {view === "connections" ? (

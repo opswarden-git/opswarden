@@ -78,6 +78,18 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   return (
     <PageLayout>
       <PageHeader
+        context={
+          isLoadingTeams ? (
+            <span className="bg-muted/20 inline-block h-4 w-24 animate-pulse rounded" />
+          ) : activeTeam ? (
+            <Link
+              href={teamPath(teamId, "overview")}
+              className="hover:text-text transition-colors hover:underline"
+            >
+              {activeTeam.name}
+            </Link>
+          ) : null
+        }
         title={t("title")}
         description={t("queueDescription")}
         actions={capabilities.canCreateRelease ? <CreateReleaseDialog teamId={teamId} /> : null}

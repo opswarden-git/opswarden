@@ -21,6 +21,7 @@ import {
   useIncidentQueue,
 } from "@/lib/queries/incidents";
 import { useTeamMembers, useTeams } from "@/lib/queries/teams";
+import { teamPath } from "@/lib/team-routing";
 
 type IncidentView = "all" | IncidentStatus;
 type IncidentSort = "newest" | "oldest" | "severity";
@@ -156,6 +157,18 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   return (
     <PageLayout>
       <PageHeader
+        context={
+          isLoadingTeams ? (
+            <span className="bg-muted/20 inline-block h-4 w-24 animate-pulse rounded" />
+          ) : activeTeam ? (
+            <Link
+              href={teamPath(teamId, "overview")}
+              className="hover:text-text transition-colors hover:underline"
+            >
+              {activeTeam.name}
+            </Link>
+          ) : null
+        }
         title={t("title")}
         description={t("queueDescription")}
         actions={capabilities.canCreateIncident ? <CreateIncidentDialog teamId={teamId} /> : null}
