@@ -13,6 +13,7 @@ next-env.d.ts
 *.tsbuildinfo
 /test-results/
 /playwright-report/
+/client-web/coverage/
 # Env / secrets
 .env
 .env*.local
