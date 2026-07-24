@@ -15,7 +15,7 @@ pub use sign_up::{SignUpCommand, SignUpResult, SignUpUseCase};
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::domain::error::DomainError;
-    use crate::domain::user::{Email, User};
+    use crate::domain::user::{Email, Locale, User};
     use crate::ports::{PasswordHasher, TokenClaims, TokenRevocationRepo, TokenService, UserRepo};
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
@@ -45,6 +45,14 @@ pub(crate) mod tests {
             }
         }
         async fn save(&self, _user: &User) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn update_locale(
+            &self,
+            _user_id: uuid::Uuid,
+            _locale: Locale,
+        ) -> Result<(), DomainError> {
             Ok(())
         }
 

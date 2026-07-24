@@ -12,7 +12,7 @@ use crate::domain::private_message::PrivateMessage;
 use crate::domain::release::{Release, ReleaseState};
 use crate::domain::team::{Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
-use crate::domain::user::User;
+use crate::domain::user::{Locale, User};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
@@ -22,6 +22,7 @@ pub trait UserRepo: Send + Sync {
     async fn find_by_id(&self, user_id: Uuid) -> Result<Option<User>, DomainError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError>;
     async fn save(&self, user: &User) -> Result<(), DomainError>;
+    async fn update_locale(&self, user_id: Uuid, locale: Locale) -> Result<(), DomainError>;
     async fn delete_account(&self, user_id: Uuid) -> Result<(), DomainError>;
 }
 
@@ -243,6 +244,30 @@ pub trait OAuthClient: Send + Sync {
     fn is_configured(&self) -> bool;
     fn authorization_url(&self, state: &str) -> Result<String, DomainError>;
     async fn exchange_code(&self, code: &str) -> Result<OAuthProfile, DomainError>;
+}
+
+/// OAuth credentials returned by an external automation provider. Deliberately
+/// does not implement `Debug` or serialization: token material may only travel
+/// from the provider adapter to the encrypted credential vault.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ServiceOAuthTokens {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+}
+
+#[async_trait]
+pub trait ServiceOAuthClient: Send + Sync {
+    fn is_configured(&self) -> bool;
+    fn authorization_url(&self, state: &str, code_challenge: &str) -> Result<String, DomainError>;
+    async fn exchange_code(
+        &self,
+        code: &str,
+        code_verifier: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError>;
+    async fn refresh_access_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError>;
 }
 
 #[async_trait]

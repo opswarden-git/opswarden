@@ -8,7 +8,7 @@ use chrono::Utc;
 use common::test_context;
 use opswarden_server::domain::private_message::PrivateMessage;
 use opswarden_server::domain::team::Role;
-use opswarden_server::domain::user::{Email, User};
+use opswarden_server::domain::user::{Email, Locale, User};
 use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -23,6 +23,7 @@ fn seed_user(ctx: &common::TestContext, id: Uuid) {
         id,
         email: Email::new(format!("user-{id}@test.com")).unwrap(),
         password_hash: "hash".to_string(),
+        locale: Locale::En,
         created_at: Utc::now(),
     });
 }

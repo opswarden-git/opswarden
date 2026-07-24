@@ -231,4 +231,26 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), DomainError::InvalidReaction);
     }
+
+    #[tokio::test]
+    async fn emoji_outside_the_server_catalog_is_rejected_without_persistence_or_event() {
+        let observer = Uuid::new_v4();
+        let (teams, incidents, timeline, events, incident, entry) =
+            seed(Role::Observer, observer).await;
+        let use_case =
+            ToggleReactionUseCase::new(teams, incidents, timeline.clone(), events.clone());
+
+        let result = use_case
+            .toggle(ToggleReactionCommand {
+                incident_id: incident.id,
+                entry_id: entry.id,
+                user_id: observer,
+                emoji: "🔥".to_string(),
+            })
+            .await;
+
+        assert_eq!(result.unwrap_err(), DomainError::InvalidReaction);
+        assert!(timeline.reactions.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
+    }
 }

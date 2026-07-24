@@ -14,6 +14,9 @@ impl IntoResponse for DomainError {
         let (status, error_message) = match self {
             DomainError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             DomainError::InvalidEmail => (StatusCode::BAD_REQUEST, "Invalid email address"),
+            DomainError::InvalidLocale => {
+                (StatusCode::BAD_REQUEST, "Locale must be en or fr")
+            }
             DomainError::InvalidCredentials => {
                 (StatusCode::UNAUTHORIZED, "Invalid email or password")
             }

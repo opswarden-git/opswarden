@@ -5,6 +5,9 @@ use uuid::Uuid;
 
 use crate::domain::automation::ExternalEvent;
 use crate::domain::automation_config::{AutomationRule, CredentialKind};
+use crate::domain::automation_template::{
+    interpolate, MAX_INTERPOLATED_PAYLOAD_BYTES, MAX_INTERPOLATED_TITLE_BYTES,
+};
 use crate::domain::error::DomainError;
 use crate::domain::incident::{Incident, Severity};
 use crate::domain::incident_event::IncidentEvent;
@@ -40,7 +43,7 @@ impl AutomationReactionExecutor {
         team_id: Uuid,
         rule: &AutomationRule,
         event: &ExternalEvent,
-    ) -> Result<Option<Uuid>, DomainError> {
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         match rule.reaction_kind.as_str() {
             "vigil_create_incident" => self.create_incident(team_id, rule, event).await,
             "http_notify" => self.notify_http(team_id, rule, event).await,
@@ -53,9 +56,9 @@ impl AutomationReactionExecutor {
         team_id: Uuid,
         rule: &AutomationRule,
         event: &ExternalEvent,
-    ) -> Result<Option<Uuid>, DomainError> {
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         let severity = configured_severity(&rule.reaction_config)?;
-        let title = configured_title(&rule.reaction_config)
+        let title = configured_title(&rule.reaction_config, event)?
             .unwrap_or_else(|| default_incident_title(event));
         let incident =
             Incident::new_with_description(team_id, title, incident_description(event), severity)?;
@@ -63,7 +66,7 @@ impl AutomationReactionExecutor {
         self.incidents
             .save_incident_with_event(&incident, &created)
             .await?;
-        Ok(Some(incident.id))
+        Ok(Some((incident.id, incident.severity)))
     }
 
     async fn notify_http(
@@ -71,7 +74,7 @@ impl AutomationReactionExecutor {
         team_id: Uuid,
         rule: &AutomationRule,
         event: &ExternalEvent,
-    ) -> Result<Option<Uuid>, DomainError> {
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         let connection_id = rule
             .reaction_connection_id
             .ok_or(DomainError::InvalidAutomationRule)?;
@@ -88,7 +91,8 @@ impl AutomationReactionExecutor {
             .reveal_credential(connection.id, CredentialKind::EndpointUrl)
             .await?
             .ok_or(DomainError::InvalidReactionEndpoint)?;
-        let message = notification_text(event);
+        let message = configured_message(&rule.reaction_config, event)?
+            .unwrap_or_else(|| notification_text(event));
 
         match self.notifier.notify(&endpoint, &message).await {
             Ok(()) => {
@@ -118,13 +122,34 @@ fn configured_severity(config: &Value) -> Result<Severity, DomainError> {
     }
 }
 
-fn configured_title(config: &Value) -> Option<String> {
-    config
-        .get("title")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|title| !title.is_empty())
-        .map(str::to_string)
+fn configured_title(config: &Value, event: &ExternalEvent) -> Result<Option<String>, DomainError> {
+    interpolate_config_field(config, "title", event, MAX_INTERPOLATED_TITLE_BYTES)
+}
+
+fn configured_message(
+    config: &Value,
+    event: &ExternalEvent,
+) -> Result<Option<String>, DomainError> {
+    interpolate_config_field(config, "message", event, MAX_INTERPOLATED_PAYLOAD_BYTES)
+}
+
+fn interpolate_config_field(
+    config: &Value,
+    field: &str,
+    event: &ExternalEvent,
+    max_output_bytes: usize,
+) -> Result<Option<String>, DomainError> {
+    let Some(template) = config.get(field).and_then(Value::as_str) else {
+        return Ok(None);
+    };
+    if template.trim().is_empty() {
+        return Ok(None);
+    }
+    let value = interpolate(template, event, max_output_bytes)?;
+    if value.trim().is_empty() {
+        return Err(DomainError::InvalidAutomationRule);
+    }
+    Ok(Some(value))
 }
 
 fn attribute<'a>(event: &'a ExternalEvent, name: &str) -> Option<&'a str> {
@@ -206,5 +231,33 @@ mod tests {
         let text = notification_text(&event);
         assert!(text.len() <= MAX_NOTIFICATION_TEXT_BYTES);
         assert!(text.ends_with('…'));
+    }
+
+    #[test]
+    fn reaction_payload_templates_use_repository_and_workflow() {
+        let attributes: Map<String, Value> = serde_json::from_value(json!({
+            "repository": "opswarden/app",
+            "workflow": "CI"
+        }))
+        .unwrap();
+        let event = ExternalEvent::new("github", "ci_failed").with_attributes(attributes);
+        assert_eq!(
+            configured_title(
+                &json!({"title": "[{{repository}}] {{workflow}} failed"}),
+                &event
+            )
+            .unwrap()
+            .as_deref(),
+            Some("[opswarden/app] CI failed")
+        );
+        assert_eq!(
+            configured_message(
+                &json!({"message": "{{workflow}} failed on {{repository}}"}),
+                &event
+            )
+            .unwrap()
+            .as_deref(),
+            Some("CI failed on opswarden/app")
+        );
     }
 }

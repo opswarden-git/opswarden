@@ -5,6 +5,7 @@ use crate::app::auth::{
     OAuthSignInUseCase, SignInCommand, SignInUseCase, SignUpCommand, SignUpUseCase,
 };
 use crate::domain::error::DomainError;
+use crate::domain::user::Locale;
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 use axum::{
@@ -93,6 +94,7 @@ pub async fn sign_in(
 pub struct MeResponse {
     pub id: uuid::Uuid,
     pub email: String,
+    pub locale: &'static str,
 }
 
 pub async fn get_me(
@@ -108,6 +110,32 @@ pub async fn get_me(
     Ok(Json(MeResponse {
         id: user.id,
         email: user.email.as_str().to_string(),
+        locale: user.locale.as_str(),
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateLocalePayload {
+    pub locale: String,
+}
+
+pub async fn update_locale(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Json(payload): Json<UpdateLocalePayload>,
+) -> Result<Json<MeResponse>, DomainError> {
+    let locale = Locale::try_from(payload.locale.as_str())?;
+    state.users.update_locale(session.user_id, locale).await?;
+    let user = state
+        .users
+        .find_by_id(session.user_id)
+        .await?
+        .ok_or(DomainError::InvalidToken)?;
+
+    Ok(Json(MeResponse {
+        id: user.id,
+        email: user.email.as_str().to_string(),
+        locale: user.locale.as_str(),
     }))
 }
 

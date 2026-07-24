@@ -433,6 +433,22 @@ mod tests {
             .unwrap();
         vault
             .store_credential(
+                github_a.id,
+                CredentialKind::OAuthAccessToken,
+                "github_oauth_access_team_a",
+            )
+            .await
+            .unwrap();
+        vault
+            .store_credential(
+                github_a.id,
+                CredentialKind::OAuthRefreshToken,
+                "github_oauth_refresh_team_a",
+            )
+            .await
+            .unwrap();
+        vault
+            .store_credential(
                 github_b.id,
                 CredentialKind::WebhookSigningSecret,
                 "team-b-signing-secret",
@@ -456,17 +472,42 @@ mod tests {
                 .as_deref(),
             Some("team-b-signing-secret")
         );
+        assert_eq!(
+            vault
+                .reveal_credential(github_a.id, CredentialKind::OAuthAccessToken)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("github_oauth_access_team_a")
+        );
+        assert_eq!(
+            vault
+                .reveal_credential(github_a.id, CredentialKind::OAuthRefreshToken)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("github_oauth_refresh_team_a")
+        );
 
-        let row = sqlx::query(
-            "SELECT ciphertext FROM service_connection_secrets WHERE connection_id = $1 AND kind = $2",
+        let rows = sqlx::query(
+            "SELECT ciphertext FROM service_connection_secrets WHERE connection_id = $1",
         )
         .bind(github_a.id)
-        .bind(CredentialKind::PersonalToken.to_string())
-        .fetch_one(&pool)
+        .fetch_all(&pool)
         .await
         .unwrap();
-        let ciphertext: Vec<u8> = row.try_get("ciphertext").unwrap();
-        assert_ne!(ciphertext, b"github_pat_team_a");
+        let plaintexts: &[&[u8]] = &[
+            b"github_pat_team_a",
+            b"github_oauth_access_team_a",
+            b"github_oauth_refresh_team_a",
+            b"team-a-signing-secret",
+        ];
+        for row in rows {
+            let ciphertext: Vec<u8> = row.try_get("ciphertext").unwrap();
+            assert!(plaintexts
+                .iter()
+                .all(|plaintext| ciphertext.as_slice() != *plaintext));
+        }
 
         assert_eq!(
             vault
@@ -474,6 +515,8 @@ mod tests {
                 .await
                 .unwrap(),
             vec![
+                CredentialKind::OAuthAccessToken,
+                CredentialKind::OAuthRefreshToken,
                 CredentialKind::PersonalToken,
                 CredentialKind::WebhookSigningSecret
             ]
@@ -504,6 +547,22 @@ mod tests {
             )
             .await
             .unwrap();
+        vault
+            .store_credential(
+                connection.id,
+                CredentialKind::OAuthAccessToken,
+                "oauth-access",
+            )
+            .await
+            .unwrap();
+        vault
+            .store_credential(
+                connection.id,
+                CredentialKind::OAuthRefreshToken,
+                "oauth-refresh",
+            )
+            .await
+            .unwrap();
 
         assert!(!repo.delete_connection(team_b, connection.id).await.unwrap());
         assert!(vault
@@ -514,6 +573,16 @@ mod tests {
         assert!(repo.delete_connection(team_a, connection.id).await.unwrap());
         assert!(vault
             .reveal_credential(connection.id, CredentialKind::WebhookSigningSecret)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(vault
+            .reveal_credential(connection.id, CredentialKind::OAuthAccessToken)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(vault
+            .reveal_credential(connection.id, CredentialKind::OAuthRefreshToken)
             .await
             .unwrap()
             .is_none());

@@ -3,6 +3,7 @@
 pub mod automation;
 pub mod automation_catalog;
 pub mod automation_config;
+pub mod automation_template;
 pub mod capabilities;
 pub mod error;
 pub mod event;

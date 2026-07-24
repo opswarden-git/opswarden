@@ -15,12 +15,12 @@ use opswarden_server::domain::team::{
     Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
 };
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
-use opswarden_server::domain::user::User;
+use opswarden_server::domain::user::{Locale, User};
 use opswarden_server::ports::{
     AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, GifResult, GifSearch,
     IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, PrivateMessageRepo,
-    ReleaseRepo, ServiceConnectionRepo, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
-    TokenService, UserRepo, WebhookDeliveryRepo,
+    ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, ServiceOAuthTokens, TeamRepo,
+    TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -40,6 +40,7 @@ pub struct TestContext {
     pub events: Arc<WsHub>,
     pub service_connections: Arc<DummyServiceConnectionRepo>,
     pub connection_credentials: Arc<DummyConnectionCredentialVault>,
+    pub service_oauth: Arc<DummyServiceOAuthClient>,
     pub automation_rules: Arc<DummyAutomationRuleRepo>,
     pub webhook_deliveries: Arc<DummyWebhookDeliveryRepo>,
     pub automation_runs: Arc<DummyAutomationRunRepo>,
@@ -487,6 +488,7 @@ pub struct DummyUserRepo {
     /// Extra users seeded by tests (e.g. a private-message recipient). The
     /// default authenticated user is the nil UUID, handled below without seeding.
     extra: Mutex<HashMap<Uuid, User>>,
+    locales: Mutex<HashMap<Uuid, Locale>>,
 }
 
 #[allow(dead_code)]
@@ -508,6 +510,13 @@ impl UserRepo for DummyUserRepo {
                 id: user_id,
                 email,
                 password_hash: "hash".to_string(),
+                locale: self
+                    .locales
+                    .lock()
+                    .unwrap()
+                    .get(&user_id)
+                    .copied()
+                    .unwrap_or(Locale::En),
                 created_at: Utc::now(),
             }))
         } else {
@@ -525,6 +534,17 @@ impl UserRepo for DummyUserRepo {
     }
 
     async fn save(&self, _user: &User) -> Result<(), DomainError> {
+        Ok(())
+    }
+
+    async fn update_locale(&self, user_id: Uuid, locale: Locale) -> Result<(), DomainError> {
+        if user_id != Uuid::nil() && !self.extra.lock().unwrap().contains_key(&user_id) {
+            return Err(DomainError::UserNotFound);
+        }
+        self.locales.lock().unwrap().insert(user_id, locale);
+        if let Some(user) = self.extra.lock().unwrap().get_mut(&user_id) {
+            user.locale = locale;
+        }
         Ok(())
     }
 
@@ -583,6 +603,65 @@ impl OAuthClient for DummyOAuthClient {
     async fn exchange_code(&self, _code: &str) -> Result<OAuthProfile, DomainError> {
         Ok(OAuthProfile {
             email: "google@test.com".to_string(),
+        })
+    }
+}
+
+#[derive(Default)]
+pub struct DummyServiceOAuthClient {
+    exchanges: Mutex<Vec<(String, String)>>,
+    refreshes: Mutex<Vec<String>>,
+}
+
+#[allow(dead_code)]
+impl DummyServiceOAuthClient {
+    pub fn exchanges(&self) -> Vec<(String, String)> {
+        self.exchanges.lock().unwrap().clone()
+    }
+
+    pub fn refreshes(&self) -> Vec<String> {
+        self.refreshes.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl ServiceOAuthClient for DummyServiceOAuthClient {
+    fn is_configured(&self) -> bool {
+        true
+    }
+
+    fn authorization_url(&self, state: &str, code_challenge: &str) -> Result<String, DomainError> {
+        Ok(format!(
+            "https://github.test/login/oauth/authorize?state={state}&code_challenge={code_challenge}&code_challenge_method=S256"
+        ))
+    }
+
+    async fn exchange_code(
+        &self,
+        code: &str,
+        code_verifier: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError> {
+        self.exchanges
+            .lock()
+            .unwrap()
+            .push((code.to_string(), code_verifier.to_string()));
+        Ok(ServiceOAuthTokens {
+            access_token: "github_oauth_access_never_returned".to_string(),
+            refresh_token: Some("github_oauth_refresh_never_returned".to_string()),
+        })
+    }
+
+    async fn refresh_access_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError> {
+        self.refreshes
+            .lock()
+            .unwrap()
+            .push(refresh_token.to_string());
+        Ok(ServiceOAuthTokens {
+            access_token: "github_oauth_access_rotated".to_string(),
+            refresh_token: Some("github_oauth_refresh_rotated".to_string()),
         })
     }
 }
@@ -1240,11 +1319,15 @@ fn build_context() -> TestContext {
     let events = Arc::new(WsHub::new());
     let service_connections = Arc::new(DummyServiceConnectionRepo::default());
     let connection_credentials = Arc::new(DummyConnectionCredentialVault::default());
+    let service_oauth = Arc::new(DummyServiceOAuthClient::default());
     let automation_rules = Arc::new(DummyAutomationRuleRepo::default());
     let webhook_deliveries = Arc::new(DummyWebhookDeliveryRepo::default());
     let automation_runs = Arc::new(DummyAutomationRunRepo::default());
     let notifier = Arc::new(DummyNotifier::default());
-    let config = Config::from_env();
+    let mut config = Config::from_env();
+    // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
+    // machine's reverse-proxy trust setting.
+    config.trusted_proxy_hops = 0;
 
     let app = build_app(AppState {
         users: users.clone(),
@@ -1256,6 +1339,7 @@ fn build_context() -> TestContext {
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         oauth: Arc::new(DummyOAuthClient),
+        service_oauth: service_oauth.clone(),
         token_revocations: revoked_tokens.clone(),
         events: events.clone(),
         clock: Arc::new(DummyClock),
@@ -1283,6 +1367,7 @@ fn build_context() -> TestContext {
         events,
         service_connections,
         connection_credentials,
+        service_oauth,
         automation_rules,
         webhook_deliveries,
         automation_runs,

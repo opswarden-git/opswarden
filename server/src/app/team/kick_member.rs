@@ -74,9 +74,10 @@ impl KickMemberUseCase {
         // Notify the team's live clients: peers refresh the roster, the removed
         // user drops the team and loses access.
         self.events
-            .publish(DomainEvent::TeamMemberRemoved {
+            .publish(DomainEvent::MemberKicked {
                 team_id: cmd.team_id,
-                user_id: cmd.target_user_id,
+                member: cmd.target_user_id,
+                by: cmd.requester_id,
             })
             .await;
 
@@ -140,8 +141,11 @@ mod tests {
         // And the team's live clients are notified.
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
-            [DomainEvent::TeamMemberRemoved { team_id, user_id }]
-                if *team_id == team && *user_id == observer
+            [DomainEvent::MemberKicked {
+                team_id,
+                member,
+                by
+            }] if *team_id == team && *member == observer && *by == manager
         ));
     }
 

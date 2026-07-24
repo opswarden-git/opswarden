@@ -218,7 +218,11 @@ pub async fn create_incident(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<CreateIncidentPayload>,
 ) -> Result<(StatusCode, Json<IncidentResponse>), DomainError> {
-    let use_case = CreateIncidentUseCase::new(state.teams.clone(), state.incidents.clone());
+    let use_case = CreateIncidentUseCase::new(
+        state.teams.clone(),
+        state.incidents.clone(),
+        state.events.clone(),
+    );
     let result = use_case
         .create_incident(CreateIncidentCommand {
             team_id: payload.team_id,

@@ -4,6 +4,33 @@ use super::error::DomainError;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Locale {
+    En,
+    Fr,
+}
+
+impl Locale {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::En => "en",
+            Self::Fr => "fr",
+        }
+    }
+}
+
+impl TryFrom<&str> for Locale {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "en" => Ok(Self::En),
+            "fr" => Ok(Self::Fr),
+            _ => Err(DomainError::InvalidLocale),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Email(String);
 
@@ -26,6 +53,7 @@ pub struct User {
     pub id: Uuid,
     pub email: Email,
     pub password_hash: String,
+    pub locale: Locale,
     pub created_at: DateTime<Utc>,
 }
 
@@ -52,6 +80,7 @@ impl User {
             id: Uuid::new_v4(),
             email,
             password_hash: password_hash.into(),
+            locale: Locale::En,
             created_at: Utc::now(),
         }
     }
@@ -86,8 +115,17 @@ mod tests {
 
         assert_eq!(user.email, email);
         assert_eq!(user.password_hash, "hashed_password");
+        assert_eq!(user.locale, Locale::En);
         assert_eq!(user.id.to_string().len(), 36);
         let now = Utc::now();
         assert!(now.signed_duration_since(user.created_at).num_seconds() < 2);
+    }
+
+    #[test]
+    fn locale_is_strictly_limited_to_english_and_french() {
+        assert_eq!(Locale::try_from("en"), Ok(Locale::En));
+        assert_eq!(Locale::try_from("fr"), Ok(Locale::Fr));
+        assert_eq!(Locale::try_from("de"), Err(DomainError::InvalidLocale));
+        assert_eq!(Locale::try_from("FR"), Err(DomainError::InvalidLocale));
     }
 }

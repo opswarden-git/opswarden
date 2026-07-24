@@ -53,7 +53,7 @@ pub(crate) mod tests {
 
     use crate::domain::error::DomainError;
     use crate::domain::private_message::PrivateMessage;
-    use crate::domain::user::{Email, User};
+    use crate::domain::user::{Email, Locale, User};
     use crate::ports::{PrivateMessageRepo, UserRepo};
 
     /// A user directory keyed by id. `find_by_id` returns a synthetic user for
@@ -79,6 +79,7 @@ pub(crate) mod tests {
                     id: user_id,
                     email,
                     password_hash: "hash".to_string(),
+                    locale: Locale::En,
                     created_at: Utc::now(),
                 }))
             } else {
@@ -91,6 +92,10 @@ pub(crate) mod tests {
         }
 
         async fn save(&self, _user: &User) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn update_locale(&self, _user_id: Uuid, _locale: Locale) -> Result<(), DomainError> {
             Ok(())
         }
 

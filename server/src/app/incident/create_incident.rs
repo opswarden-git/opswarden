@@ -4,11 +4,12 @@ use uuid::Uuid;
 
 use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
 use crate::domain::incident_event::IncidentEvent;
 #[cfg(test)]
 use crate::domain::team::Role;
-use crate::ports::{IncidentRepo, TeamRepo};
+use crate::ports::{EventPublisher, IncidentRepo, TeamRepo};
 
 pub struct CreateIncidentCommand {
     pub team_id: Uuid,
@@ -30,11 +31,20 @@ pub struct CreateIncidentResult {
 pub struct CreateIncidentUseCase {
     teams: Arc<dyn TeamRepo>,
     incidents: Arc<dyn IncidentRepo>,
+    events: Arc<dyn EventPublisher>,
 }
 
 impl CreateIncidentUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>, incidents: Arc<dyn IncidentRepo>) -> Self {
-        Self { teams, incidents }
+    pub fn new(
+        teams: Arc<dyn TeamRepo>,
+        incidents: Arc<dyn IncidentRepo>,
+        events: Arc<dyn EventPublisher>,
+    ) -> Self {
+        Self {
+            teams,
+            incidents,
+            events,
+        }
     }
 
     pub async fn create_incident(
@@ -62,6 +72,13 @@ impl CreateIncidentUseCase {
         self.incidents
             .save_incident_with_event(&incident, &event)
             .await?;
+        self.events
+            .publish(DomainEvent::IncidentCreated {
+                team_id: incident.team_id,
+                incident_id: incident.id,
+                severity: incident.severity,
+            })
+            .await;
 
         Ok(CreateIncidentResult {
             incident_id: incident.id,
@@ -77,7 +94,7 @@ impl CreateIncidentUseCase {
 mod tests {
     use super::*;
 
-    use crate::app::incident::tests::{MockIncidentRepo, MockTeamRepo};
+    use crate::app::incident::tests::{MockEventPublisher, MockIncidentRepo, MockTeamRepo};
 
     #[tokio::test]
     async fn manager_can_create_an_incident() {
@@ -86,7 +103,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Manager));
         let incidents = Arc::new(MockIncidentRepo::default());
-        let use_case = CreateIncidentUseCase::new(teams, incidents.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = CreateIncidentUseCase::new(teams, incidents.clone(), events.clone());
 
         let result = use_case
             .create_incident(CreateIncidentCommand {
@@ -109,6 +127,14 @@ mod tests {
                 ..
             }]
         ));
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [DomainEvent::IncidentCreated {
+                incident_id,
+                team_id: event_team_id,
+                severity: Severity::High,
+            }] if *incident_id == result.incident_id && *event_team_id == team_id
+        ));
     }
 
     #[tokio::test]
@@ -118,7 +144,8 @@ mod tests {
         let teams =
             Arc::new(MockTeamRepo::default().with_member(team_id, requester_id, Role::Responder));
         let incidents = Arc::new(MockIncidentRepo::default());
-        let use_case = CreateIncidentUseCase::new(teams, incidents.clone());
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = CreateIncidentUseCase::new(teams, incidents.clone(), events.clone());
 
         let result = use_case
             .create_incident(CreateIncidentCommand {
@@ -132,5 +159,6 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), DomainError::Forbidden);
         assert!(incidents.saved.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
     }
 }

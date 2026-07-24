@@ -47,7 +47,7 @@ impl DeleteAccountUseCase {
 mod tests {
     use super::*;
     use crate::app::incident::tests::MockTeamRepo;
-    use crate::domain::user::User;
+    use crate::domain::user::{Locale, User};
     use async_trait::async_trait;
     use std::sync::Mutex;
 
@@ -65,6 +65,9 @@ mod tests {
             Ok(None)
         }
         async fn save(&self, _user: &User) -> Result<(), DomainError> {
+            Ok(())
+        }
+        async fn update_locale(&self, _user_id: Uuid, _locale: Locale) -> Result<(), DomainError> {
             Ok(())
         }
         async fn delete_account(&self, user_id: Uuid) -> Result<(), DomainError> {

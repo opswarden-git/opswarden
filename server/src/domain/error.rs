@@ -3,6 +3,7 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum DomainError {
     InvalidEmail,
+    InvalidLocale,
     UserAlreadyExists,
     InvalidCredentials,
     InvalidToken,
@@ -127,6 +128,7 @@ impl DomainError {
     pub fn code(&self) -> &'static str {
         match self {
             DomainError::InvalidEmail => "invalid_email",
+            DomainError::InvalidLocale => "invalid_locale",
             DomainError::UserAlreadyExists => "user_already_exists",
             DomainError::InvalidCredentials => "invalid_credentials",
             DomainError::InvalidToken => "invalid_token",
@@ -198,6 +200,7 @@ impl std::fmt::Display for DomainError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DomainError::InvalidEmail => write!(f, "Invalid email format"),
+            DomainError::InvalidLocale => write!(f, "Locale must be en or fr"),
             DomainError::UserAlreadyExists => write!(f, "User already exists"),
             DomainError::InvalidCredentials => write!(f, "Invalid email or password"),
             DomainError::InvalidToken => write!(f, "Invalid or expired token"),
