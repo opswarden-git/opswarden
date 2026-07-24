@@ -17,7 +17,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       include: ["lib/queries/privateMessages.ts", "lib/queries/releases.ts"],
-      reporter: ["text"],
+      reporter: ["text", "html", "json-summary", "lcov"],
     },
   },
 });
