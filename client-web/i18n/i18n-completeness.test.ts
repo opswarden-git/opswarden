@@ -39,6 +39,152 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
+function hasMessage(messages: Messages, key: string): boolean {
+  let current: unknown = messages;
+  for (const segment of key.split(".")) {
+    if (typeof current !== "object" || current === null || !(segment in current)) return false;
+    current = (current as Messages)[segment];
+  }
+  return typeof current === "string";
+}
+
+function translationKeyViolations(file: string, messages: Messages): string[] {
+  const source = fs.readFileSync(file, "utf8");
+  const tree = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const translators = new Map<string, string>();
+  const collections = new Map<string, string[]>();
+  const violations: string[] = [];
+
+  const stringValues = (expression: ts.Expression): string[] | undefined => {
+    if (ts.isStringLiteralLike(expression)) return [expression.text];
+    if (ts.isArrayLiteralExpression(expression)) {
+      const values = expression.elements.flatMap((element) =>
+        ts.isExpression(element) ? (stringValues(element) ?? []) : [],
+      );
+      return values.length === expression.elements.length ? values : undefined;
+    }
+    if (ts.isObjectLiteralExpression(expression)) {
+      const values = expression.properties.flatMap((property) =>
+        ts.isPropertyAssignment(property) ? (stringValues(property.initializer) ?? []) : [],
+      );
+      return values.length === expression.properties.length ? values : undefined;
+    }
+    if (ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) {
+      return stringValues(expression.expression);
+    }
+    return undefined;
+  };
+
+  const collect = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const initializer = ts.isAwaitExpression(node.initializer)
+        ? node.initializer.expression
+        : node.initializer;
+      if (ts.isCallExpression(initializer)) {
+        if (
+          initializer.expression.getText(tree) === "useTranslations" &&
+          initializer.arguments.length === 1 &&
+          ts.isStringLiteralLike(initializer.arguments[0])
+        ) {
+          translators.set(node.name.text, initializer.arguments[0].text);
+        }
+        if (
+          initializer.expression.getText(tree) === "getTranslations" &&
+          initializer.arguments.length === 1 &&
+          ts.isObjectLiteralExpression(initializer.arguments[0])
+        ) {
+          const namespace = initializer.arguments[0].properties.find(
+            (property): property is ts.PropertyAssignment =>
+              ts.isPropertyAssignment(property) && property.name.getText(tree) === "namespace",
+          )?.initializer;
+          if (namespace && ts.isStringLiteralLike(namespace)) {
+            translators.set(node.name.text, namespace.text);
+          }
+        }
+      }
+
+      const values = stringValues(initializer);
+      if (values) collections.set(node.name.text, values);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(tree);
+
+  const resolve = (
+    expression: ts.Expression,
+    dynamic: Map<string, string[]>,
+  ): string[] | undefined => {
+    if (ts.isStringLiteralLike(expression)) return [expression.text];
+    if (ts.isIdentifier(expression))
+      return dynamic.get(expression.text) ?? collections.get(expression.text);
+    if (ts.isElementAccessExpression(expression) && ts.isIdentifier(expression.expression)) {
+      return collections.get(expression.expression.text);
+    }
+    if (ts.isConditionalExpression(expression)) {
+      const left = resolve(expression.whenTrue, dynamic);
+      const right = resolve(expression.whenFalse, dynamic);
+      return left && right ? [...left, ...right] : undefined;
+    }
+    if (ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) {
+      return resolve(expression.expression, dynamic);
+    }
+    return undefined;
+  };
+
+  const report = (node: ts.Node, detail: string) => {
+    const line = tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1;
+    violations.push(`${path.relative(process.cwd(), file)}:${line}: ${detail}`);
+  };
+
+  const visit = (node: ts.Node, dynamic = new Map<string, string[]>()) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "map" &&
+      node.arguments.length > 0 &&
+      (ts.isArrowFunction(node.arguments[0]) || ts.isFunctionExpression(node.arguments[0]))
+    ) {
+      const values = ts.isIdentifier(node.expression.expression)
+        ? collections.get(node.expression.expression.text)
+        : stringValues(node.expression.expression);
+      const callback = node.arguments[0];
+      const parameter = callback.parameters[0]?.name;
+      if (values && parameter && ts.isIdentifier(parameter)) {
+        const nested = new Map(dynamic);
+        nested.set(parameter.text, values);
+        visit(callback.body, nested);
+        return;
+      }
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      translators.has(node.expression.text) &&
+      node.arguments.length > 0
+    ) {
+      const namespace = translators.get(node.expression.text)!;
+      const keys = resolve(node.arguments[0], dynamic);
+      if (keys) {
+        for (const key of new Set(keys)) {
+          const fullKey = `${namespace}.${key}`;
+          if (!hasMessage(messages, fullKey)) report(node, `missing message ${fullKey}`);
+        }
+      }
+    }
+
+    ts.forEachChild(node, (child) => visit(child, dynamic));
+  };
+  visit(tree);
+  return violations;
+}
+
 const visibleAttributes = new Set([
   "alt",
   "aria-label",
@@ -182,6 +328,17 @@ describe("English/French translation completeness", () => {
       path.join(process.cwd(), directory),
     );
     const violations = roots.flatMap(sourceFiles).flatMap(hardcodedSurfaceStrings);
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("resolves every statically referenced translation key", () => {
+    const roots = ["app", "components", "lib"].map((directory) =>
+      path.join(process.cwd(), directory),
+    );
+    const violations = roots
+      .flatMap(sourceFiles)
+      .flatMap((file) => translationKeyViolations(file, en));
 
     expect(violations, violations.join("\n")).toEqual([]);
   });

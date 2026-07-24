@@ -93,6 +93,31 @@ test("root resolves to the canonical incident queue", async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/en/teams/${TEAM_ID}/incidents$`));
 });
 
+test("canonical English and French pages emit no missing-message errors", async ({ page }) => {
+  test.setTimeout(90_000);
+  const missingMessages: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && message.text().includes("MISSING_MESSAGE")) {
+      missingMessages.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    if (error.message.includes("MISSING_MESSAGE")) missingMessages.push(error.message);
+  });
+
+  await login(page);
+  for (const locale of ["en", "fr"]) {
+    for (const route of routes) {
+      await test.step(`${route.name} has complete ${locale.toUpperCase()} messages`, async () => {
+        await page.goto(route.path.replace(/^\/en/, `/${locale}`));
+        await expect(page.locator('[data-page-layout="true"]')).toBeVisible();
+      });
+    }
+  }
+
+  expect(missingMessages, missingMessages.join("\n")).toEqual([]);
+});
+
 test("desktop and mobile navigation expose one current product area", async ({ page }) => {
   test.setTimeout(90_000);
   await login(page);
@@ -223,10 +248,7 @@ test("incident records switch morphology without losing operational context", as
 test("Collection headers display the parent team context", async ({ page }) => {
   await login(page);
 
-  for (const path of [
-    `/en/teams/${TEAM_ID}/incidents`,
-    `/en/teams/${TEAM_ID}/releases`,
-  ]) {
+  for (const path of [`/en/teams/${TEAM_ID}/incidents`, `/en/teams/${TEAM_ID}/releases`]) {
     await page.goto(path);
     const teamLink = page.getByRole("link", { name: "OpsWarden Demo" });
     await expect(teamLink).toBeVisible();
@@ -234,7 +256,7 @@ test("Collection headers display the parent team context", async ({ page }) => {
   }
 });
 
-test("Incident context displays as a bottom sheet on mobile", async ({ page }) => {
+test("Incident details display as a bottom sheet on mobile", async ({ page }) => {
   await login(page);
 
   for (const viewportWidth of [320, 768, 1280, 1920]) {
@@ -242,31 +264,29 @@ test("Incident context displays as a bottom sheet on mobile", async ({ page }) =
     await page.goto(`/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`);
 
     if (viewportWidth < 1024) {
-      // Button should be visible on mobile
-      const contextButton = page.getByRole("button", { name: "Incident context" });
+      const contextButton = page.getByRole("button", { name: "Incident details" });
       await expect(contextButton).toBeVisible();
 
       // Open the sheet
       await contextButton.click();
-      const dialog = page.getByRole("dialog", { name: "Incident context" });
+      const dialog = page.getByRole("dialog", { name: "Incident details" });
       await expect(dialog).toBeVisible();
 
-      // Verify it's a sheet (has the drag handle)
-      // Actually we check if it has the sheet-specific classes or behavior if we want,
-      // but verifying it opens and shows context is usually enough.
-      await expect(dialog.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
-      
+      await expect(
+        dialog.getByRole("heading", { name: "Incident details", exact: true }),
+      ).toBeVisible();
+
       // Close it
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
     } else {
-      // Context should be visible directly on the page, not behind a button
-      await expect(page.getByRole("button", { name: "Incident context" })).toBeHidden();
-      
-      // The context title is rendered in the aside
-      const contextPanel = page.getByRole("complementary", { name: "Incident context" });
+      await expect(page.getByRole("button", { name: "Incident details" })).toBeHidden();
+
+      const contextPanel = page.getByRole("complementary", { name: "Incident details" });
       await expect(contextPanel).toBeVisible();
-      await expect(contextPanel.getByRole("heading", { name: "Incident context", exact: true })).toBeVisible();
+      await expect(
+        contextPanel.getByRole("heading", { name: "Incident details", exact: true }),
+      ).toBeVisible();
     }
   }
 });
