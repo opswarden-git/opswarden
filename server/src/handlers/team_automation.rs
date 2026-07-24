@@ -237,12 +237,15 @@ pub async fn start_github_oauth(
         &EncodingKey::from_secret(state.config.jwt_secret.as_bytes()),
     )
     .map_err(|_| DomainError::OAuthFailed)?;
-    let secure = state
+    let secure = if state
         .config
         .github_oauth_redirect_uri
         .starts_with("https://")
-        .then_some("; Secure")
-        .unwrap_or("");
+    {
+        "; Secure"
+    } else {
+        ""
+    };
     let mut response = Json(StartGithubOAuthResponse { authorization_url }).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
