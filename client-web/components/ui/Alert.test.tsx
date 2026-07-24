@@ -10,8 +10,8 @@ describe("Alert", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Could not load incidents");
-    expect(alert).toHaveClass("border-sev-critical/30", "bg-sev-critical/10");
-    expect(alert).not.toHaveClass("bg-danger");
+    expect(alert).toHaveClass("border-feedback-danger/30", "bg-feedback-danger/10");
+    expect(alert).not.toHaveClass("bg-action-danger");
   });
 
   it("renders non-urgent information as a status", () => {

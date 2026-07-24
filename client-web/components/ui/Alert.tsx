@@ -5,9 +5,9 @@ export type AlertTone = "info" | "success" | "warning" | "danger";
 
 const toneClasses: Record<AlertTone, string> = {
   info: "border-st-ack/30 bg-st-ack/10 text-st-ack",
-  success: "border-st-res/30 bg-st-res/10 text-st-res",
-  warning: "border-sev-medium/30 bg-sev-medium/10 text-sev-medium",
-  danger: "border-sev-critical/30 bg-sev-critical/10 text-sev-critical",
+  success: "border-feedback-success/30 bg-feedback-success/10 text-feedback-success",
+  warning: "border-feedback-warning/30 bg-feedback-warning/10 text-feedback-warning",
+  danger: "border-feedback-danger/30 bg-feedback-danger/10 text-feedback-danger",
 };
 
 export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {

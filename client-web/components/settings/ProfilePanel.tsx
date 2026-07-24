@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 /** Station setup (when the user has no team yet) + read-only user identity card. */
 export function ProfilePanel() {
   const t = useTranslations("Settings");
+  const tErr = useTranslations("errors");
   const router = useRouter();
   const params = useParams();
   const currentLocale = params.locale as string;
@@ -47,13 +48,16 @@ export function ProfilePanel() {
             </div>
           </div>
           <form onSubmit={handleCreateStation} className="flex flex-col gap-3 sm:flex-row">
-            <input
-              type="text"
-              value={stationName}
-              onChange={(e) => setStationName(e.target.value)}
-              placeholder={t("organization")}
-              className="ow-input flex h-10 min-w-0 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
-            />
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">{t("organization")}</span>
+              <input
+                type="text"
+                value={stationName}
+                onChange={(e) => setStationName(e.target.value)}
+                placeholder={t("organization")}
+                className="ow-input flex h-10 w-full min-w-0 rounded-md px-3 py-2 text-sm transition-colors"
+              />
+            </label>
             <Button
               type="submit"
               variant="primary"
@@ -65,7 +69,11 @@ export function ProfilePanel() {
             </Button>
           </form>
           {createTeam.isError && (
-            <p className="mt-2 text-sm text-red-400">{createTeam.error.message}</p>
+            <p className="mt-2 text-sm text-red-400" role="alert">
+              {tErr.has(createTeam.error.message)
+                ? tErr(createTeam.error.message)
+                : t("actionFailed")}
+            </p>
           )}
         </div>
       )}

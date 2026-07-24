@@ -3,6 +3,12 @@
 import { Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import React, { useMemo, useRef, useState } from "react";
+import {
+  capabilityByName,
+  catalogFieldsAreValid,
+  catalogPayload,
+  catalogValues,
+} from "@/lib/automation-catalog";
 import { Alert } from "@/components/ui/Alert";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Button } from "@/components/ui/Button";
@@ -26,9 +32,6 @@ import {
   OperationalTableRow,
 } from "@/components/ui/OperationalTable";
 import { AutomationDialog } from "./AutomationDialog";
-
-const FILTER_FIELDS = ["repository", "workflow", "branch", "conclusion"] as const;
-const SEVERITIES = ["low", "medium", "high", "critical"] as const;
 
 type CapabilityWithService = CatalogCapability & { service: string };
 
@@ -66,13 +69,17 @@ function RuleForm({
   const [reactionConnectionId, setReactionConnectionId] = useState(
     rule?.reaction_connection_id ?? "",
   );
-  const [filters, setFilters] = useState<Record<string, string>>(
-    Object.fromEntries(
-      FILTER_FIELDS.map((field) => [field, String(rule?.trigger_config[field] ?? "")]),
-    ),
+  const initialAction = capabilityByName(actions, rule?.trigger_kind ?? actions[0]?.name ?? "");
+  const initialReaction = capabilityByName(
+    reactions,
+    rule?.reaction_kind ?? reactions[0]?.name ?? "",
   );
-  const [severity, setSeverity] = useState(String(rule?.reaction_config.severity ?? "high"));
-  const [incidentTitle, setIncidentTitle] = useState(String(rule?.reaction_config.title ?? ""));
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, string>>(() =>
+    catalogValues(initialAction?.fields ?? [], rule?.trigger_config),
+  );
+  const [reactionConfig, setReactionConfig] = useState<Record<string, string>>(() =>
+    catalogValues(initialReaction?.fields ?? [], rule?.reaction_config),
+  );
   const createRule = useCreateAutomationRule(teamId);
   const updateRule = useUpdateAutomationRule(teamId);
   const mutation = rule ? updateRule : createRule;
@@ -91,6 +98,8 @@ function RuleForm({
     !!selectedAction &&
     !!triggerConnectionId &&
     !!selectedReaction &&
+    catalogFieldsAreValid(selectedAction.fields, triggerConfig) &&
+    catalogFieldsAreValid(selectedReaction.fields, reactionConfig) &&
     (!needsReactionConnection || !!reactionConnectionId);
 
   const selectAction = (nextName: string) => {
@@ -102,6 +111,7 @@ function RuleForm({
     ) {
       setTriggerConnectionId("");
     }
+    setTriggerConfig(catalogValues(next?.fields ?? []));
   };
 
   const selectReaction = (nextName: string) => {
@@ -114,24 +124,17 @@ function RuleForm({
     ) {
       setReactionConnectionId("");
     }
+    setReactionConfig(catalogValues(next?.fields ?? []));
   };
 
   const definition = (): AutomationRuleDefinition => ({
     name: name.trim(),
     trigger_connection_id: triggerConnectionId,
     trigger_kind: actionName,
-    trigger_config: Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value.trim().length > 0),
-    ),
+    trigger_config: catalogPayload(selectedAction?.fields ?? [], triggerConfig),
     reaction_kind: reactionName,
     reaction_connection_id: needsReactionConnection ? reactionConnectionId : null,
-    reaction_config:
-      reactionName === "vigil_create_incident"
-        ? {
-            severity,
-            ...(incidentTitle.trim() ? { title: incidentTitle.trim() } : {}),
-          }
-        : {},
+    reaction_config: catalogPayload(selectedReaction?.fields ?? [], reactionConfig),
   });
 
   return (
@@ -220,24 +223,53 @@ function RuleForm({
           {triggerConnections.length === 0 ? (
             <Alert tone="warning">{t("missingSourceConnection")}</Alert>
           ) : null}
-          <div>
-            <div className="text-text text-sm font-medium">{t("optionalFilters")}</div>
-            <p className="text-muted mt-1 text-xs">{t("filtersHint")}</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {FILTER_FIELDS.map((field) => (
-                <label key={field} className="text-muted block text-xs font-medium capitalize">
-                  <span>{field}</span>
-                  <input
-                    value={filters[field]}
-                    onChange={(event) =>
-                      setFilters((current) => ({ ...current, [field]: event.target.value }))
-                    }
-                    className="ow-input mt-1.5 h-9 w-full rounded-md px-3 text-sm normal-case"
-                  />
-                </label>
-              ))}
+          {selectedAction?.fields.length ? (
+            <div>
+              <div className="text-text text-sm font-medium">{t("actionConfiguration")}</div>
+              <p className="text-muted mt-1 text-xs">{selectedAction.description}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {selectedAction.fields.map((field) => (
+                  <label key={field.name} className="text-muted block text-xs font-medium">
+                    <span>{field.label}</span>
+                    {field.input_type === "select" ? (
+                      <select
+                        value={triggerConfig[field.name] ?? ""}
+                        onChange={(event) =>
+                          setTriggerConfig((current) => ({
+                            ...current,
+                            [field.name]: event.target.value,
+                          }))
+                        }
+                        className="ow-input mt-1.5 h-9 w-full rounded-md px-3 text-sm"
+                        required={field.required}
+                      >
+                        {!field.required ? <option value="" /> : null}
+                        {field.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.input_type}
+                        value={triggerConfig[field.name] ?? ""}
+                        onChange={(event) =>
+                          setTriggerConfig((current) => ({
+                            ...current,
+                            [field.name]: event.target.value,
+                          }))
+                        }
+                        className="ow-input mt-1.5 h-9 w-full rounded-md px-3 text-sm"
+                        required={field.required}
+                      />
+                    )}
+                    <span className="mt-1 block font-normal">{field.description}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
         </fieldset>
 
         <fieldset className="surface-subtle border-border space-y-4 rounded-md border p-4">
@@ -279,31 +311,49 @@ function RuleForm({
               ) : null}
             </>
           ) : null}
-          {reactionName === "vigil_create_incident" ? (
+          {selectedReaction?.fields.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-text block text-sm font-medium">
-                <span>{t("incidentSeverity")}</span>
-                <select
-                  value={severity}
-                  onChange={(event) => setSeverity(event.target.value)}
-                  className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
-                >
-                  {SEVERITIES.map((value) => (
-                    <option key={value} value={value}>
-                      {t(`severity.${value}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-text block text-sm font-medium">
-                <span>{t("incidentTitleOptional")}</span>
-                <input
-                  value={incidentTitle}
-                  onChange={(event) => setIncidentTitle(event.target.value)}
-                  className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
-                  maxLength={200}
-                />
-              </label>
+              {selectedReaction.fields.map((field) => (
+                <label key={field.name} className="text-text block text-sm font-medium">
+                  <span>{field.label}</span>
+                  {field.input_type === "select" ? (
+                    <select
+                      value={reactionConfig[field.name] ?? ""}
+                      onChange={(event) =>
+                        setReactionConfig((current) => ({
+                          ...current,
+                          [field.name]: event.target.value,
+                        }))
+                      }
+                      className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                      required={field.required}
+                    >
+                      {!field.required ? <option value="" /> : null}
+                      {field.options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.input_type}
+                      value={reactionConfig[field.name] ?? ""}
+                      onChange={(event) =>
+                        setReactionConfig((current) => ({
+                          ...current,
+                          [field.name]: event.target.value,
+                        }))
+                      }
+                      className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                      required={field.required}
+                    />
+                  )}
+                  <span className="text-muted mt-1 block text-xs font-normal">
+                    {field.description}
+                  </span>
+                </label>
+              ))}
             </div>
           ) : null}
         </fieldset>
@@ -532,7 +582,7 @@ export function RulesView({
         description={t("deleteRuleDescription")}
         confirmLabel={t("delete")}
         cancelLabel={t("cancel")}
-        danger
+        intent="destructive"
         pending={deleteRule.isPending}
         error={deleteRule.error ? t("requestFailed", { code: deleteRule.error.message }) : null}
         onClose={() => setDeleting(null)}

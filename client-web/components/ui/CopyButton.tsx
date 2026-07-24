@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { IconButton, type IconButtonProps } from "./Button";
+import { useTranslations } from "next-intl";
 
 type CopyStatus = "idle" | "copied" | "error";
 
@@ -16,14 +17,15 @@ export interface CopyButtonProps extends Omit<IconButtonProps, "children" | "onC
 
 /** Clipboard action with success/error feedback and an accessible announcement. */
 export function CopyButton({
-  copiedLabel = "Copied",
-  errorLabel = "Copy failed",
+  copiedLabel,
+  errorLabel,
   feedbackDuration = 2000,
   label,
   onCopyError,
   value,
   ...props
 }: CopyButtonProps) {
+  const t = useTranslations("Common");
   const [status, setStatus] = useState<CopyStatus>("idle");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,7 +52,12 @@ export function CopyButton({
     resetLater();
   };
 
-  const feedback = status === "copied" ? copiedLabel : status === "error" ? errorLabel : "";
+  const feedback =
+    status === "copied"
+      ? (copiedLabel ?? t("copied"))
+      : status === "error"
+        ? (errorLabel ?? t("copyFailed"))
+        : "";
 
   return (
     <span className="inline-flex">

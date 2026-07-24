@@ -164,8 +164,8 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
           description={t("cancelConfirm", { title: release.title })}
           confirmLabel={t("cancelRelease")}
           cancelLabel={t("keep")}
+          intent="destructive"
           pendingLabel={t("processing")}
-          danger
           pending={cancelRelease.isPending}
           error={cancelRelease.error ? errorText(cancelRelease.error.message) : null}
           onConfirm={() =>

@@ -13,6 +13,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
   const titleRef = useRef<HTMLInputElement>(null);
   const createIncident = useCreateIncident();
   const t = useTranslations("Incidents");
+  const tErr = useTranslations("errors");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +125,9 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
 
         {createIncident.isError ? (
           <p className="text-sev-critical text-sm" role="alert">
-            {createIncident.error.message}
+            {tErr.has(createIncident.error.message)
+              ? tErr(createIncident.error.message)
+              : t("actionFailed")}
           </p>
         ) : null}
       </form>

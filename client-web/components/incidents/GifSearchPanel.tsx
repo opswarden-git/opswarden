@@ -35,14 +35,17 @@ export function GifSearchPanel({
   return (
     <div className="border-border mb-3 rounded-md border p-3">
       <div className="mb-2 flex items-center gap-2">
-        <input
-          type="text"
-          autoFocus
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          placeholder={t("gifSearchPlaceholder")}
-          className="ow-input flex h-9 flex-1 rounded-md px-3 py-2 text-sm transition-colors"
-        />
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">{t("gifButton")}</span>
+          <input
+            type="text"
+            autoFocus
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder={t("gifSearchPlaceholder")}
+            className="ow-input flex h-9 w-full rounded-md px-3 py-2 text-sm transition-colors"
+          />
+        </label>
         <IconButton label={t("gifClose")} size="sm" variant="ghost" onClick={onClose}>
           <X className="h-4 w-4" />
         </IconButton>
@@ -50,7 +53,9 @@ export function GifSearchPanel({
 
       <div className="min-h-[6rem]">
         {error ? (
-          <p className="text-sev-critical py-6 text-center text-xs">{errorText(error.message)}</p>
+          <p className="text-sev-critical py-6 text-center text-xs" role="alert">
+            {errorText(error.message)}
+          </p>
         ) : debounced.length === 0 ? (
           <p className="text-muted py-6 text-center text-xs">{t("gifSearchHint")}</p>
         ) : isFetching && !data ? (

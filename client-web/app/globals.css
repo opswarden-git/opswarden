@@ -22,17 +22,35 @@
     --danger-ink: #fff;
     --danger-text: #f55;
 
+    /*
+     * Semantic UI roles. These aliases are the only tokens shared primitives
+     * use for actions and feedback; domain state/severity colors stay below.
+     */
+    --action-primary: var(--gold);
+    --action-primary-hover: var(--gold-hover);
+    --action-primary-ink: var(--gold-ink);
+    --action-secondary: var(--panel);
+    --action-secondary-hover: var(--panel-2);
+    --action-secondary-border: var(--ow-border);
+    --action-secondary-ink: var(--text);
+    --action-danger: var(--danger);
+    --action-danger-hover: var(--danger-hover);
+    --action-danger-ink: var(--danger-ink);
+    --feedback-success: #22c55e;
+    --feedback-warning: #f59e0b;
+    --feedback-danger: #f55;
+
     /* severities */
     --sev-low: #5798f5;
-    --sev-medium: #f59e0b;
+    --sev-medium: var(--feedback-warning);
     --sev-high: #fb7d3c;
-    --sev-critical: #f55;
+    --sev-critical: var(--feedback-danger);
 
     /* states */
     --st-open: #f55;
     --st-ack: #5798f5;
     --st-esc: #c084fc;
-    --st-res: #22c55e;
+    --st-res: var(--feedback-success);
   }
 }
 

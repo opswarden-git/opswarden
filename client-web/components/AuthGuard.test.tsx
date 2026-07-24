@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   pathname: vi.fn(),
   replace: vi.fn(),
   authState: vi.fn(),
+  params: vi.fn(),
+  profile: vi.fn(),
+  setUser: vi.fn(),
 }));
 
 vi.mock("@/i18n/routing", () => ({
@@ -15,6 +18,14 @@ vi.mock("@/i18n/routing", () => ({
 
 vi.mock("@/store/auth", () => ({
   useAuthStore: mocks.authState,
+}));
+
+vi.mock("next/navigation", () => ({
+  useParams: mocks.params,
+}));
+
+vi.mock("@/lib/queries/profile", () => ({
+  useProfile: mocks.profile,
 }));
 
 function renderGuard() {
@@ -27,7 +38,13 @@ function renderGuard() {
 
 beforeEach(() => {
   mocks.pathname.mockReturnValue("/teams/team-1/incidents");
-  mocks.authState.mockReturnValue({ token: null, hasHydrated: true });
+  mocks.params.mockReturnValue({ locale: "en" });
+  mocks.profile.mockReturnValue({ data: undefined });
+  mocks.authState.mockReturnValue({
+    token: null,
+    hasHydrated: true,
+    setUser: mocks.setUser,
+  });
 });
 
 afterEach(() => {
@@ -37,7 +54,11 @@ afterEach(() => {
 
 describe("AuthGuard", () => {
   it("renders nothing before the persisted session has hydrated", () => {
-    mocks.authState.mockReturnValue({ token: null, hasHydrated: false });
+    mocks.authState.mockReturnValue({
+      token: null,
+      hasHydrated: false,
+      setUser: mocks.setUser,
+    });
 
     renderGuard();
 
@@ -71,11 +92,34 @@ describe("AuthGuard", () => {
   });
 
   it("renders private routes for authenticated users", () => {
-    mocks.authState.mockReturnValue({ token: "token", hasHydrated: true });
+    mocks.authState.mockReturnValue({
+      token: "token",
+      hasHydrated: true,
+      setUser: mocks.setUser,
+    });
 
     renderGuard();
 
     expect(screen.getByText("Private content")).toBeVisible();
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("restores the persisted server locale on authenticated routes", async () => {
+    const profile = { id: "me", email: "me@example.com", locale: "fr" };
+    mocks.authState.mockReturnValue({
+      token: "token",
+      hasHydrated: true,
+      setUser: mocks.setUser,
+    });
+    mocks.profile.mockReturnValue({ data: profile });
+
+    renderGuard();
+
+    await waitFor(() => {
+      expect(mocks.setUser).toHaveBeenCalledWith(profile);
+      expect(mocks.replace).toHaveBeenCalledWith("/teams/team-1/incidents", {
+        locale: "fr",
+      });
+    });
   });
 });

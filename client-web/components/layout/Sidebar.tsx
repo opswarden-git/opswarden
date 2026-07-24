@@ -31,7 +31,7 @@ export function Sidebar({ className }: { className?: string }) {
       >
         <Image
           src="/assets/logo-icon.png"
-          alt="Icon"
+          alt={t("logoIconAlt")}
           width={39}
           height={32}
           className="object-contain"
@@ -39,7 +39,7 @@ export function Sidebar({ className }: { className?: string }) {
         />
         <Image
           src="/assets/logo-text-light.png"
-          alt="OpsWarden"
+          alt={t("logoWordmarkAlt")}
           width={181}
           height={28}
           className="object-contain object-left"

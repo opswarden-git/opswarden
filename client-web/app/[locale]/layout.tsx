@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { routing } from "@/i18n/routing";
@@ -10,13 +10,22 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 import { AppShell } from "@/components/layout/AppShell";
 
-export const metadata: Metadata = {
-  title: {
-    default: "OpsWarden",
-    template: "%s | OpsWarden",
-  },
-  description: "Real-time incident management and operational coordination.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const safeLocale = routing.locales.includes(locale as "en" | "fr") ? locale : "en";
+  const t = await getTranslations({ locale: safeLocale, namespace: "Metadata" });
+  return {
+    title: {
+      default: "OpsWarden",
+      template: "%s | OpsWarden",
+    },
+    description: t("description"),
+  };
+}
 
 import { Providers } from "@/app/providers";
 import { AuthGuard } from "@/components/AuthGuard";

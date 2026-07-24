@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const stylesheet = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+const buttonSource = readFileSync(resolve(process.cwd(), "components/ui/Button.tsx"), "utf8");
+const alertSource = readFileSync(resolve(process.cwd(), "components/ui/Alert.tsx"), "utf8");
+const designSystem = readFileSync(resolve(process.cwd(), "../DESIGN_SYSTEM.md"), "utf8");
 
 const p4RegressionPairs = [
   { legacyForeground: "--ow-muted-2", foreground: "--ow-muted-2", background: "--bg" },
@@ -19,10 +22,11 @@ const p4RegressionPairs = [
   { legacyForeground: "--st-ack", foreground: "--st-ack", background: "--panel-2" },
 ] as const;
 
-function cssToken(name: string) {
-  const match = stylesheet.match(new RegExp(`${name}:\\s*(#[0-9a-f]{3,8})`, "i"));
-  if (!match) throw new Error(`Missing opaque token ${name}`);
-  return match[1];
+function cssToken(name: string): string {
+  const value = stylesheet.match(new RegExp(`${name}:\\s*([^;]+);`, "i"))?.[1].trim();
+  if (!value) throw new Error(`Missing token ${name}`);
+  const reference = value.match(/^var\((--[a-z0-9-]+)\)$/i)?.[1];
+  return reference ? cssToken(reference) : value;
 }
 
 function rgb(hex: string) {
@@ -82,6 +86,45 @@ describe("design token contrast contract", () => {
       expect(contrast(text, statusSurface)).toBeGreaterThanOrEqual(4.5);
     },
   );
+});
+
+describe("semantic visual contract", () => {
+  it.each([
+    "--action-primary",
+    "--action-primary-hover",
+    "--action-primary-ink",
+    "--action-secondary",
+    "--action-secondary-hover",
+    "--action-secondary-border",
+    "--action-secondary-ink",
+    "--action-danger",
+    "--action-danger-hover",
+    "--action-danger-ink",
+    "--feedback-success",
+    "--feedback-warning",
+    "--feedback-danger",
+  ])("defines %s", (token) => {
+    expect(() => cssToken(token)).not.toThrow();
+  });
+
+  it("makes shared actions and feedback consume semantic roles", () => {
+    expect(buttonSource).toContain("bg-action-primary");
+    expect(buttonSource).toContain("bg-action-secondary");
+    expect(buttonSource).toContain("bg-action-danger");
+    expect(alertSource).toContain("text-feedback-success");
+    expect(alertSource).toContain("text-feedback-warning");
+    expect(alertSource).toContain("text-feedback-danger");
+  });
+
+  it("documents exactly five principal palette colors and their roles", () => {
+    expect(designSystem).toContain("## Palette principale — 5 couleurs");
+    expect(designSystem.match(/^\| `#[0-9A-F]{6}` \|/gm)).toHaveLength(5);
+    expect(designSystem).toContain("Action primaire");
+    expect(designSystem).toContain("Action secondaire");
+    expect(designSystem).toContain("Succès");
+    expect(designSystem).toContain("Avertissement");
+    expect(designSystem).toContain("Danger");
+  });
 });
 
 describe("platform preference contract", () => {

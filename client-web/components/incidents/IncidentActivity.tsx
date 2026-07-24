@@ -96,13 +96,10 @@ function NoteReactions({
   reactions: TimelineReaction[];
 }) {
   const toggle = useToggleTimelineReaction();
-  const extras = reactions
-    .map((reaction) => reaction.emoji)
-    .filter((emoji) => !available.includes(emoji));
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1">
-      {[...available, ...extras].map((emoji) => {
+      {available.map((emoji) => {
         const reaction = reactions.find((candidate) => candidate.emoji === emoji);
         return (
           <ReactionToggle
@@ -187,14 +184,19 @@ function HumanNoteItem({
 
       {editing ? (
         <div className="space-y-3">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            rows={3}
-            className="ow-input w-full rounded-md px-3 py-2 text-sm"
-          />
+          <label>
+            <span className="sr-only">{t("editNote")}</span>
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={3}
+              className="ow-input w-full rounded-md px-3 py-2 text-sm"
+            />
+          </label>
           {edit.error ? (
-            <p className="text-sev-critical text-xs">{errorText(edit.error.message)}</p>
+            <p className="text-sev-critical text-xs" role="alert">
+              {errorText(edit.error.message)}
+            </p>
           ) : null}
           <div className="flex justify-end gap-2">
             <Button size="sm" onClick={() => setEditing(false)}>
@@ -277,7 +279,7 @@ function ActivityComposer({
           onClick={() => setShowGifPanel((current) => !current)}
           aria-label={t("gifButton")}
         >
-          GIF
+          {t("gifAlt")}
         </ToggleButton>
         <label className="min-w-0 flex-1">
           <span className="sr-only">{t("addNote")}</span>

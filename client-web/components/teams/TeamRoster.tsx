@@ -256,6 +256,7 @@ export function TeamRoster({ team }: { team: Team }) {
         description={t("transferConfirm", { email: target?.email ?? "" })}
         confirmLabel={t("makeManager")}
         cancelLabel={t("cancel")}
+        intent="standard"
         pendingLabel={t("processing")}
         pending={transfer.isPending}
         error={transfer.error ? errorText(transfer.error.message) : null}
@@ -268,8 +269,8 @@ export function TeamRoster({ team }: { team: Team }) {
         description={t("kickConfirm", { email: target?.email ?? "" })}
         confirmLabel={t("kick")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("processing")}
-        danger
         pending={kick.isPending}
         error={kick.error ? errorText(kick.error.message) : null}
         onConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
@@ -281,8 +282,8 @@ export function TeamRoster({ team }: { team: Team }) {
         description={t("banConfirm", { email: target?.email ?? "" })}
         confirmLabel={t("ban")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("processing")}
-        danger
         pending={ban.isPending}
         error={ban.error ? errorText(ban.error.message) : null}
         onConfirm={() =>

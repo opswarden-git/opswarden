@@ -13,7 +13,8 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   /** Shown on the confirm button while `pending`; defaults to `confirmLabel`. */
   pendingLabel?: string;
-  danger?: boolean;
+  /** Required risk declaration. Destructive confirms always use the danger treatment. */
+  intent: "standard" | "destructive";
   /** When set, the confirm button stays disabled until the user types this exact
    *  sentinel (e.g. "DELETE") — the dark-pattern guard for destructive actions. */
   requireType?: string;
@@ -42,7 +43,7 @@ function ConfirmDialogBody({
   confirmLabel,
   cancelLabel,
   pendingLabel,
-  danger = false,
+  intent,
   requireType,
   requireTypeLabel,
   pending = false,
@@ -64,7 +65,7 @@ function ConfirmDialogBody({
       initialFocus={cancelRef}
       size="sm"
       icon={
-        danger ? (
+        intent === "destructive" ? (
           <AlertTriangle className="text-sev-critical mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         ) : undefined
       }
@@ -78,7 +79,7 @@ function ConfirmDialogBody({
           </DialogClose>
           <Button
             size="lg"
-            variant={danger ? "danger" : "primary"}
+            variant={intent === "destructive" ? "danger" : "primary"}
             onClick={onConfirm}
             disabled={confirmDisabled}
             loading={pending}

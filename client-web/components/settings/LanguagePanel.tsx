@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Languages } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useRouter as useIntlRouter, usePathname } from "@/i18n/routing";
+import { type AppLocale, isAppLocale } from "@/i18n/locales";
+import { useUpdateLocale } from "@/lib/queries/profile";
 import { useTranslations } from "next-intl";
 import { ToggleButton } from "@/components/ui/ToggleButton";
 
@@ -15,9 +17,13 @@ export function LanguagePanel() {
   const pathname = usePathname();
   const params = useParams();
   const currentLocale = params.locale as string;
+  const updateLocale = useUpdateLocale();
 
-  const switchLocale = (newLocale: string) => {
-    intlRouter.replace(pathname, { locale: newLocale });
+  const switchLocale = (newLocale: AppLocale) => {
+    if (!isAppLocale(newLocale) || newLocale === currentLocale) return;
+    updateLocale.mutate(newLocale, {
+      onSuccess: () => intlRouter.replace(pathname, { locale: newLocale }),
+    });
   };
 
   return (
@@ -35,34 +41,41 @@ export function LanguagePanel() {
             pressed={currentLocale === "en"}
             size="sm"
             onClick={() => switchLocale("en")}
-            aria-label="English"
+            disabled={updateLocale.isPending}
+            aria-label={t("english")}
           >
             <Image
               src="/assets/en.webp"
-              alt="English"
+              alt={t("englishFlagAlt")}
               width={24}
               height={24}
               className="block object-cover"
             />
-            EN
+            {t("englishShort")}
           </ToggleButton>
           <ToggleButton
             pressed={currentLocale === "fr"}
             size="sm"
             onClick={() => switchLocale("fr")}
-            aria-label="Français"
+            disabled={updateLocale.isPending}
+            aria-label={t("french")}
           >
             <Image
               src="/assets/fr.webp"
-              alt="Français"
+              alt={t("frenchFlagAlt")}
               width={24}
               height={24}
               className="block object-cover"
             />
-            FR
+            {t("frenchShort")}
           </ToggleButton>
         </div>
       </div>
+      {updateLocale.isError && (
+        <p className="mt-3 text-sm text-red-400" role="alert">
+          {t("languageSaveError")}
+        </p>
+      )}
     </div>
   );
 }

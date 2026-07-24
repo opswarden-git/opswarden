@@ -257,8 +257,8 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         description={t("deleteIncidentConfirm", { title: incident.title })}
         confirmLabel={t("deleteIncident")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("processing")}
-        danger
         requireType="DELETE"
         requireTypeLabel={t("deleteConfirmationInput")}
         pending={deleteIncident.isPending}

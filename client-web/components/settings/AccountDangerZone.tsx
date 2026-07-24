@@ -37,9 +37,7 @@ export function AccountDangerZone() {
       const res = await apiFetch("/api/me", { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setDeleteError(
-          body?.code && tErr.has(body.code) ? tErr(body.code) : (body?.error ?? t("deleteFailed")),
-        );
+        setDeleteError(body?.code && tErr.has(body.code) ? tErr(body.code) : t("deleteFailed"));
         return;
       }
       logoutLocal();
@@ -62,7 +60,7 @@ export function AccountDangerZone() {
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-red-400">{t("logOutSession")}</h3>
           </div>
-          <Button variant="danger" size="lg" onClick={handleLogout}>
+          <Button variant="secondary" size="lg" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             {t("logOut")}
           </Button>
@@ -92,8 +90,8 @@ export function AccountDangerZone() {
         description={t("deleteModalDesc", { email: user?.email ?? "—" })}
         confirmLabel={t("deleteAccount")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("deleting")}
-        danger
         requireType="DELETE"
         pending={deletePending}
         error={deleteError}

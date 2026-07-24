@@ -11,6 +11,7 @@ export function JoinTeamDialog() {
   const codeRef = useRef<HTMLInputElement>(null);
   const joinTeam = useJoinTeam();
   const t = useTranslations("Teams");
+  const tErr = useTranslations("errors");
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -80,11 +81,11 @@ export function JoinTeamDialog() {
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
           className="ow-input flex h-10 w-full rounded-md px-3 py-2 font-mono text-sm tracking-widest uppercase transition-colors"
-          placeholder="OPS-XXXXXX"
+          placeholder={t("invitationCodePlaceholder")}
         />
         {joinTeam.isError ? (
           <p className="text-sev-critical mt-3 text-sm" role="alert">
-            {joinTeam.error.message}
+            {tErr.has(joinTeam.error.message) ? tErr(joinTeam.error.message) : t("actionFailed")}
           </p>
         ) : null}
       </form>

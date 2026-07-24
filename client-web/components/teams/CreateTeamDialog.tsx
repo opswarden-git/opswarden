@@ -11,6 +11,7 @@ export function CreateTeamDialog() {
   const nameRef = useRef<HTMLInputElement>(null);
   const createTeam = useCreateTeam();
   const t = useTranslations("Teams");
+  const tErr = useTranslations("errors");
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -84,7 +85,9 @@ export function CreateTeamDialog() {
         />
         {createTeam.isError ? (
           <p className="text-sev-critical mt-3 text-sm" role="alert">
-            {createTeam.error.message}
+            {tErr.has(createTeam.error.message)
+              ? tErr(createTeam.error.message)
+              : t("actionFailed")}
           </p>
         ) : null}
       </form>

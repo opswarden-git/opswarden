@@ -58,6 +58,9 @@ describe("Dialog", () => {
     expect(document.querySelector('[data-dialog-part="content"]')).toHaveClass(
       "max-h-[calc(100dvh-2rem)]",
       "flex-col",
+      "top-4",
+      "bottom-4",
+      "sm:top-1/2",
     );
     expect(document.querySelector('[data-dialog-part="body"]')).toHaveClass(
       "min-h-0",

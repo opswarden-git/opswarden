@@ -268,6 +268,7 @@ function TeamSettings({ team }: { team: Team }) {
         description={t("transferConfirm", { email: targetManager?.email ?? "" })}
         confirmLabel={t("transfer")}
         cancelLabel={t("cancel")}
+        intent="standard"
         pendingLabel={t("processing")}
         pending={transfer.isPending}
         error={errorText(transfer.error)}
@@ -282,8 +283,8 @@ function TeamSettings({ team }: { team: Team }) {
         description={t("leaveConfirm", { name: team.name })}
         confirmLabel={t("leaveTeam")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("processing")}
-        danger
         pending={leave.isPending}
         error={errorText(leave.error)}
         onConfirm={() => leave.mutate(undefined, { onSuccess: leaveOrDeleteDone })}
@@ -295,9 +296,9 @@ function TeamSettings({ team }: { team: Team }) {
         description={t("deleteConfirm", { name: team.name })}
         confirmLabel={t("deleteTeam")}
         cancelLabel={t("cancel")}
+        intent="destructive"
         pendingLabel={t("processing")}
         requireType="DELETE"
-        danger
         pending={remove.isPending}
         error={errorText(remove.error)}
         onConfirm={() => remove.mutate(undefined, { onSuccess: leaveOrDeleteDone })}

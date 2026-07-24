@@ -214,10 +214,14 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           {announcement}
         </p>
         {steps.length === 0 ? (
-          <p className="text-sev-critical mt-3 text-sm">{t("atLeastOneStep")}</p>
+          <p className="text-sev-critical mt-3 text-sm" role="alert">
+            {t("atLeastOneStep")}
+          </p>
         ) : null}
         {hasDuplicates ? (
-          <p className="text-sev-critical mt-3 text-sm">{t("duplicateSteps")}</p>
+          <p className="text-sev-critical mt-3 text-sm" role="alert">
+            {t("duplicateSteps")}
+          </p>
         ) : null}
         {createRelease.error ? (
           <p className="text-sev-critical mt-3 text-sm" role="alert">

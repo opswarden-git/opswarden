@@ -44,7 +44,7 @@ export function useTeams() {
     queryKey: ["teams"],
     queryFn: async () => {
       const res = await apiFetch("/api/teams");
-      if (!res.ok) throw new Error("Failed to fetch teams");
+      if (!res.ok) throw new Error("teams_load_failed");
       return res.json();
     },
   });
@@ -56,7 +56,7 @@ export function useTeamMembers(teamId: string | undefined) {
     queryFn: async () => {
       if (!teamId) return [];
       const res = await apiFetch(`/api/teams/${teamId}/members`);
-      if (!res.ok) throw new Error("Failed to fetch team members");
+      if (!res.ok) throw new Error("members_load_failed");
       return res.json();
     },
     enabled: !!teamId,
@@ -96,7 +96,7 @@ export function useCreateTeam() {
         method: "POST",
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("Failed to create team");
+      if (!res.ok) throw new Error("create_team_failed");
       return res.text(); // returns ID or empty
     },
     onSuccess: () => {
@@ -115,7 +115,7 @@ export function useJoinTeam() {
         method: "POST",
         body: JSON.stringify({ invitation_code }),
       });
-      if (!res.ok) throw new Error("Failed to join team. Check your code.");
+      if (!res.ok) throw new Error("join_team_failed");
       return res.text();
     },
     onSuccess: () => {
