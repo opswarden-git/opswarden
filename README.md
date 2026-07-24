@@ -190,6 +190,30 @@ npm run typecheck --workspace client-web    # TypeScript, no emit
 npm run test --workspace client-web         # Vitest
 ```
 
+### Services
+
+| Service                                                                                                                       | Stack       | Local address                   |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------- |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db` | PostgreSQL  | `localhost:5433`                |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`         | Rust / Axum | `http://localhost:8080`         |
+| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web` | Next.js     | `:4242` dev / `:8081` Compose   |
+| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                | Tauri       | URL mode via `just desktop-dev` |
+
+The cloud and observability showcase lives in the separate
+[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops) repository:
+
+<p>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" alt="Kubernetes" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/terraform/terraform-original.svg" height="25" alt="Terraform" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/traefikproxy/traefikproxy-original.svg" height="25" alt="Traefik Proxy" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/digitalocean/digitalocean-original.svg" height="25" alt="DigitalOcean" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/redis/redis-original.svg" height="25" alt="Redis" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/opentelemetry/opentelemetry-original.svg" height="25" alt="OpenTelemetry" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/prometheus/prometheus-original.svg" height="25" alt="Prometheus" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/grafana/grafana-original.svg" height="25" alt="Grafana" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nixos/nixos-original.svg" height="25" alt="NixOS" />
+</p>
+
 ## API and data model
 
 JSON endpoints return domain resources directly. Protected routes require
