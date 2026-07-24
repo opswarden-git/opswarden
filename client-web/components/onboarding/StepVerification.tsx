@@ -2,24 +2,26 @@ import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "@/i18n/routing";
 import type { OnboardingData } from "./types";
 import { teamPath } from "@/lib/team-routing";
+import { useTranslations } from "next-intl";
 
 interface StepProps {
   data: OnboardingData;
 }
 
-const CONSOLE_LOGS = [
-  "INITIALIZING SECURITY PROTOCOLS...",
-  "GENERATING CRYPTOGRAPHIC KEYPAIR...",
-  "CONNECTING TO ENCRYPTED STREAM SERVER...",
-  "AUTHORIZING OPERATOR CLEARANCE...",
-  "STREAM ESTABLISHED: Paris-Core-NOC-1 [CONNECTED]",
-  "CONFIGURING PROMETHEUS SCRAPING STREAM...",
-  "RESOLVING INGESTION ENDPOINTS...",
-  "SYSTEM ONLINE. PREPARING LAUNCH CONTROLLER...",
-];
+const CONSOLE_LOG_KEYS = [
+  "logInitializing",
+  "logGeneratingKeypair",
+  "logConnecting",
+  "logAuthorizing",
+  "logConnected",
+  "logConfiguringMetrics",
+  "logResolvingEndpoints",
+  "logSystemOnline",
+] as const;
 
 export function StepVerification({ data }: StepProps) {
   const router = useRouter();
+  const t = useTranslations("Onboarding");
   const [logs, setLogs] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +42,7 @@ export function StepVerification({ data }: StepProps) {
         });
 
         if (!signupRes.ok) {
-          throw new Error("Failed to create account (email might be taken)");
+          throw new Error("signup_failed");
         }
 
         // 2. Sign in
@@ -51,7 +53,7 @@ export function StepVerification({ data }: StepProps) {
         });
 
         if (!signinRes.ok) {
-          throw new Error("Login failed after signup");
+          throw new Error("signin_after_signup_failed");
         }
 
         const { token } = await signinRes.json();
@@ -80,15 +82,18 @@ export function StepVerification({ data }: StepProps) {
           if (!isCancelled) {
             // Delay redirection slightly so user sees system online
             setTimeout(() => {
-              router.push(createdTeamId ? teamPath(createdTeamId) : "/");
+              router.push(createdTeamId ? teamPath(createdTeamId) : "/", {
+                locale: user.locale,
+              });
             }, 1200);
           }
         } else {
-          throw new Error("Failed to load user profile");
+          throw new Error("profile_load_failed");
         }
       } catch (err: unknown) {
         if (!isCancelled) {
-          const message = err instanceof Error && err.message ? err.message : "An error occurred";
+          const code = err instanceof Error && err.message ? err.message : "unknown";
+          const message = t.has(code) ? t(code) : t("unknownError");
           setError(message);
           clearInterval(interval);
           setLogs((prev) => [...prev, `[ERROR] ${message}`]);
@@ -97,10 +102,10 @@ export function StepVerification({ data }: StepProps) {
     };
 
     interval = setInterval(() => {
-      if (currentIdx < CONSOLE_LOGS.length) {
+      if (currentIdx < CONSOLE_LOG_KEYS.length) {
         setLogs((prev) => [
           ...prev,
-          `[${new Date().toLocaleTimeString()}] ${CONSOLE_LOGS[currentIdx]}`,
+          `[${new Date().toLocaleTimeString()}] ${t(CONSOLE_LOG_KEYS[currentIdx])}`,
         ]);
         currentIdx++;
       } else {
@@ -114,7 +119,7 @@ export function StepVerification({ data }: StepProps) {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [router, data]);
+  }, [router, data, t]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -128,16 +133,16 @@ export function StepVerification({ data }: StepProps) {
         ref={containerRef}
         className="scrollbar-thumb-muted/10 surface text-st-res h-64 w-full scrollbar-thin space-y-1.5 overflow-y-auto rounded-md p-4 font-mono text-[10px] shadow-inner"
       >
-        <div>SYSTEM BOOT LOADER v1.2.0-STABLE</div>
-        <div>OPERATOR: {data.operatorName || "UNKNOWN"}</div>
-        <div>STATION: {data.stationName || "UNKNOWN"}</div>
+        <div>{t("bootLoader")}</div>
+        <div>{t("operatorLog", { name: data.operatorName || t("unknown") })}</div>
+        <div>{t("stationLog", { name: data.stationName || t("unknown") })}</div>
         <div className="border-border my-2 border-t"></div>
         {logs.map((log, i) => (
           <div key={i} className="animate-fade-in">
             {log}
           </div>
         ))}
-        {logs.length < CONSOLE_LOGS.length && <div className="animate-pulse">_</div>}
+        {logs.length < CONSOLE_LOG_KEYS.length && <div className="animate-pulse">_</div>}
       </div>
     </div>
   );

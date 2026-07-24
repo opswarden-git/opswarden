@@ -134,7 +134,7 @@ async fn seed_http_automation(
         json!({}),
         "http_notify",
         Some(http.id),
-        json!({}),
+        json!({"message": "Alert: {{workflow}} / {{repository}}"}),
         user_id,
     )
     .unwrap();
@@ -147,7 +147,7 @@ async fn seed_http_automation(
 async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
-    let (connection, _) = seed_automation(
+    let (connection, mut rule) = seed_automation(
         &ctx,
         team_id,
         SECRET_A,
@@ -155,6 +155,13 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
         "vigil_create_incident",
     )
     .await;
+    let mut definition = rule.definition();
+    definition.reaction_config = json!({
+        "severity": "critical",
+        "title": "[{{repository}}] {{workflow}} failed"
+    });
+    rule.replace_definition(definition).unwrap();
+    assert!(ctx.automation_rules.update_rule(&rule).await.unwrap());
     let (tx, mut rx) = mpsc::unbounded_channel();
     ctx.events
         .register(Uuid::new_v4(), HashSet::from([team_id]), tx);
@@ -184,7 +191,7 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
         .await
         .unwrap();
     assert_eq!(incidents.len(), 1);
-    assert_eq!(incidents[0].title, "CI failed on opswarden/app");
+    assert_eq!(incidents[0].title, "[opswarden/app] CI failed");
     assert!(incidents[0].description.contains("Branch: main"));
     assert_eq!(incidents[0].severity.to_string(), "critical");
 
@@ -195,7 +202,26 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].status, AutomationRunStatus::Succeeded);
     assert_eq!(runs[0].incident_id, Some(incidents[0].id));
-    assert!(rx.try_recv().unwrap().contains("rule_triggered"));
+    let event: Value = serde_json::from_str(&rx.try_recv().unwrap()).unwrap();
+    assert_eq!(
+        event,
+        json!({
+            "type": "incident_created",
+            "incident_id": incidents[0].id,
+            "severity": "critical",
+        })
+    );
+    let event: Value = serde_json::from_str(&rx.try_recv().unwrap()).unwrap();
+    assert_eq!(
+        event,
+        json!({
+            "type": "rule_triggered",
+            "service": "github",
+            "rule_name": "GitHub CI failed",
+            "result": "incident_created",
+            "incident_id": incidents[0].id,
+        })
+    );
 
     let persisted_connection = ctx
         .service_connections
@@ -259,9 +285,7 @@ async fn signed_delivery_notifies_http_once_and_persists_a_successful_run() {
         ctx.notifier.calls()[0].0,
         "https://hooks.example.com/opswarden-secret"
     );
-    assert!(ctx.notifier.calls()[0]
-        .1
-        .contains("CI failed on opswarden/app"));
+    assert_eq!(ctx.notifier.calls()[0].1, "Alert: CI / opswarden/app");
     let runs = ctx.automation_runs.all();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].status, AutomationRunStatus::Succeeded);
@@ -479,6 +503,10 @@ async fn filter_mismatch_creates_no_run_and_unsupported_reaction_records_failure
     let failing_team = Uuid::new_v4();
     let (failing_connection, _) =
         seed_automation(&ctx, failing_team, SECRET_B, json!({}), "http_notify").await;
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    ctx.events
+        .register(Uuid::new_v4(), HashSet::from([failing_team]), tx);
+    while rx.try_recv().is_ok() {}
     let failed = ctx
         .app
         .clone()
@@ -500,6 +528,16 @@ async fn filter_mismatch_creates_no_run_and_unsupported_reaction_records_failure
     assert_eq!(
         runs[0].error_code.as_deref(),
         Some("invalid_automation_rule")
+    );
+    let event: Value = serde_json::from_str(&rx.try_recv().unwrap()).unwrap();
+    assert_eq!(
+        event,
+        json!({
+            "type": "rule_failed",
+            "service": "github",
+            "rule_name": "GitHub CI failed",
+            "error": "invalid_automation_rule",
+        })
     );
     assert!(ctx
         .incidents

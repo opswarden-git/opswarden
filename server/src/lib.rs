@@ -19,8 +19,8 @@ use crate::adapters::ws::WsHub;
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, GifSearch,
     IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo, ReleaseRepo,
-    ServiceConnectionRepo, TeamRepo, TimelineRepo, TokenRevocationRepo, TokenService, UserRepo,
-    WebhookDeliveryRepo, WebhookParser, WebhookVerifier,
+    ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo, TokenRevocationRepo,
+    TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser, WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -33,6 +33,7 @@ pub struct AppState {
     pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
     pub tokens: Arc<dyn TokenService + Send + Sync>,
     pub oauth: Arc<dyn OAuthClient + Send + Sync>,
+    pub service_oauth: Arc<dyn ServiceOAuthClient + Send + Sync>,
     pub token_revocations: Arc<dyn TokenRevocationRepo + Send + Sync>,
     /// Concrete WebSocket hub: used as `dyn EventPublisher` by the use cases and
     /// directly by the `/ws` handler to register/unregister connections.
@@ -63,6 +64,7 @@ pub fn build_app(state: AppState) -> Router {
             "/api/me",
             get(handlers::auth::get_me).delete(handlers::auth::delete_me),
         )
+        .route("/api/me/locale", put(handlers::auth::update_locale))
         .route("/api/auth/logout", post(handlers::auth::logout))
         .route("/api/giphy/search", get(handlers::gif::search_gifs))
         .route(
@@ -130,12 +132,24 @@ pub fn build_app(state: AppState) -> Router {
             get(handlers::team_automation::list_connections),
         )
         .route(
+            "/api/teams/{team_id}/service-connections/by-service/{service}",
+            put(handlers::team_automation::configure_service),
+        )
+        .route(
+            "/api/teams/{team_id}/service-connections/by-service/{service}/oauth/start",
+            post(handlers::team_automation::start_github_oauth),
+        )
+        .route(
             "/api/teams/{team_id}/service-connections/github",
             put(handlers::team_automation::configure_github),
         )
         .route(
             "/api/teams/{team_id}/service-connections/http",
             put(handlers::team_automation::configure_http),
+        )
+        .route(
+            "/api/teams/{team_id}/service-connections/{connection_id}/oauth/refresh",
+            post(handlers::team_automation::refresh_github_oauth),
         )
         .route(
             "/api/teams/{team_id}/service-connections/{connection_id}/test",
@@ -183,7 +197,7 @@ pub fn build_app(state: AppState) -> Router {
             get(handlers::incident::list_incident_activity),
         )
         .route(
-            "/api/incidents/reactions/available",
+            "/reactions/available",
             get(handlers::incident::available_reactions),
         )
         .route(
@@ -208,6 +222,10 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/auth/google/callback",
             get(handlers::auth::google_callback),
+        )
+        .route(
+            "/api/service-oauth/github/callback",
+            get(handlers::team_automation::github_oauth_callback),
         )
         // Public upgrade: the WS authenticates in-band via its first message.
         .route("/ws", get(handlers::ws::ws_handler))

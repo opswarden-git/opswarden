@@ -4,10 +4,9 @@ use uuid::Uuid;
 use super::error::DomainError;
 
 pub const MAX_TIMELINE_ENTRY_LEN: usize = 2_000;
-/// Generous enough for multi-codepoint emoji (ZWJ sequences, skin tones), tight
-/// enough to reject pasted text masquerading as a reaction.
-pub const MAX_REACTION_EMOJI_LEN: usize = 32;
-pub const AVAILABLE_REACTIONS: [&str; 4] = ["👍", "👀", "✅", "🚨"];
+/// The one canonical reaction catalog. It is enforced by the domain, exposed by
+/// `GET /reactions/available`, and consumed by every client.
+pub const AVAILABLE_REACTIONS: [&str; 6] = ["👍", "👀", "✅", "🚨", "❤️", "🎉"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimelineEntry {
@@ -55,11 +54,12 @@ impl TimelineEntry {
     }
 }
 
-/// Pure validation of a reaction emoji: non-blank, bounded length. Returns the
-/// trimmed emoji to store.
+/// Accept only a member of the canonical catalog and return its normalized
+/// representation. This prevents clients from creating a second, unbounded
+/// reaction vocabulary.
 pub fn validate_reaction_emoji(emoji: &str) -> Result<String, DomainError> {
     let trimmed = emoji.trim();
-    if trimmed.is_empty() || trimmed.len() > MAX_REACTION_EMOJI_LEN {
+    if !AVAILABLE_REACTIONS.contains(&trimmed) {
         return Err(DomainError::InvalidReaction);
     }
     Ok(trimmed.to_string())
@@ -129,15 +129,26 @@ mod tests {
     }
 
     #[test]
-    fn reaction_emoji_validation() {
+    fn reaction_catalog_contains_six_distinct_supported_emojis() {
+        assert_eq!(AVAILABLE_REACTIONS.len(), 6);
+        let mut distinct = AVAILABLE_REACTIONS.to_vec();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), AVAILABLE_REACTIONS.len());
+
+        for emoji in AVAILABLE_REACTIONS {
+            assert_eq!(validate_reaction_emoji(emoji).unwrap(), emoji);
+        }
+    }
+
+    #[test]
+    fn reaction_validation_trims_catalog_entries_and_rejects_everything_else() {
         assert_eq!(validate_reaction_emoji("  👍 ").unwrap(), "👍");
-        assert_eq!(
-            validate_reaction_emoji("   ").unwrap_err(),
-            DomainError::InvalidReaction
-        );
-        assert_eq!(
-            validate_reaction_emoji(&"x".repeat(MAX_REACTION_EMOJI_LEN + 1)).unwrap_err(),
-            DomainError::InvalidReaction
-        );
+        for invalid in ["", "   ", "🔥", "👍🏻", "not-an-emoji"] {
+            assert_eq!(
+                validate_reaction_emoji(invalid).unwrap_err(),
+                DomainError::InvalidReaction
+            );
+        }
     }
 }

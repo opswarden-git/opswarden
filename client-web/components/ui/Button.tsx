@@ -6,10 +6,11 @@ export type ButtonSize = "xs" | "sm" | "md" | "lg";
 export type IconButtonTone = "neutral" | "accent" | "danger";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-gold text-gold-ink hover:bg-gold-hover",
-  secondary: "border-border bg-panel text-text hover:bg-panel-2 border",
+  primary: "bg-action-primary text-action-primary-ink hover:bg-action-primary-hover",
+  secondary:
+    "border-action-secondary-border bg-action-secondary text-action-secondary-ink hover:bg-action-secondary-hover border",
   danger:
-    "border-danger bg-danger text-danger-ink hover:border-danger-hover hover:bg-danger-hover border",
+    "border-action-danger bg-action-danger text-action-danger-ink hover:border-action-danger-hover hover:bg-action-danger-hover border",
   ghost: "text-muted hover:bg-panel-2 hover:text-text",
 };
 

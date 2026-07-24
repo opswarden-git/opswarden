@@ -5,13 +5,14 @@ use uuid::Uuid;
 
 use crate::domain::event::DomainEvent;
 
-/// Serialize a `presence_update` frame: who is currently watching `incident_id`.
+/// Serialize a `presence_update` frame: who is currently watching a resource.
 /// Presence is ephemeral transport state (it lives in the hub, never the domain),
 /// so its wire shape is defined here alongside the domain-event serialization.
-pub fn presence_wire(incident_id: Uuid, watchers: &[Uuid]) -> String {
+pub fn presence_wire(resource_id: Uuid, resource_type: &str, watchers: &[Uuid]) -> String {
     json!({
         "type": "presence_update",
-        "incident_id": incident_id,
+        "resource_id": resource_id,
+        "resource_type": resource_type,
         "watchers": watchers,
     })
     .to_string()
@@ -34,6 +35,15 @@ pub fn team_presence_wire(team_id: Uuid, online_user_ids: &[Uuid]) -> String {
 /// lives here, never in the domain.
 pub fn to_wire(event: &DomainEvent) -> String {
     let value = match event {
+        DomainEvent::IncidentCreated {
+            incident_id,
+            severity,
+            ..
+        } => json!({
+            "type": "incident_created",
+            "incident_id": incident_id,
+            "severity": severity.to_string(),
+        }),
         DomainEvent::IncidentStateChanged {
             incident_id,
             new_status,
@@ -94,7 +104,7 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "type": "timeline_entry_edited",
             "incident_id": incident_id,
             "entry_id": entry_id,
-            "content": content,
+            "new_content": content,
             "edited_at": edited_at.timestamp(),
         }),
         DomainEvent::ReactionAdded {
@@ -108,7 +118,7 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "incident_id": incident_id,
             "entry_id": entry_id,
             "emoji": emoji,
-            "user_id": user_id,
+            "by": user_id,
         }),
         DomainEvent::ReactionRemoved {
             incident_id,
@@ -121,7 +131,7 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "incident_id": incident_id,
             "entry_id": entry_id,
             "emoji": emoji,
-            "user_id": user_id,
+            "by": user_id,
         }),
         DomainEvent::UserTyping {
             incident_id,
@@ -134,46 +144,62 @@ pub fn to_wire(event: &DomainEvent) -> String {
         }),
         DomainEvent::RuleTriggered {
             service,
-            rule,
+            rule_name,
+            result,
             incident_id,
             ..
         } => json!({
             "type": "rule_triggered",
             "service": service,
-            "rule": rule,
+            "rule_name": rule_name,
+            "result": result.to_string(),
             "incident_id": incident_id,
         }),
         DomainEvent::RuleFailed {
             service,
-            rule,
-            reason,
+            rule_name,
+            error,
             ..
         } => json!({
             "type": "rule_failed",
             "service": service,
-            "rule": rule,
-            "reason": reason,
+            "rule_name": rule_name,
+            "error": error,
         }),
-        DomainEvent::TeamMemberRemoved { team_id, user_id } => json!({
-            "type": "team_member_removed",
+        DomainEvent::MemberKicked {
+            team_id,
+            member,
+            by,
+        } => json!({
+            "type": "member_kicked",
             "team_id": team_id,
-            "user_id": user_id,
+            "member": member,
+            "by": by,
+        }),
+        DomainEvent::MemberBanned {
+            team_id,
+            member,
+            until,
+            by,
+        } => json!({
+            "type": "member_banned",
+            "team_id": team_id,
+            "member": member,
+            "until": until.map(|value| value.timestamp()),
+            "by": by,
         }),
         DomainEvent::PrivateMessageReceived {
-            message_id,
+            message_id: _,
             sender_id,
             recipient_id,
             content,
             at,
         } => json!({
             "type": "private_message_received",
-            "message": {
-                "id": message_id,
-                "sender_id": sender_id,
-                "recipient_id": recipient_id,
-                "content": content,
-                "at": at.timestamp(),
-            },
+            "from": sender_id,
+            "to": recipient_id,
+            "content": content,
+            "at": at.timestamp(),
         }),
         DomainEvent::ReleaseStepValidated {
             release_id,
@@ -202,6 +228,7 @@ pub fn to_wire(event: &DomainEvent) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::event::AutomationRuleResult;
     use crate::domain::incident::{IncidentStatus, Severity};
     use chrono::TimeZone;
     use serde_json::Value;
@@ -225,6 +252,20 @@ mod tests {
         assert_eq!(v["incident_id"], incident_id.to_string());
         assert_eq!(v["new_state"], "acknowledged");
         assert_eq!(v["by"], by.to_string());
+    }
+
+    #[test]
+    fn incident_created_wire_shape_includes_direct_severity() {
+        let incident_id = Uuid::new_v4();
+        let value = parse(&DomainEvent::IncidentCreated {
+            team_id: Uuid::new_v4(),
+            incident_id,
+            severity: Severity::Critical,
+        });
+
+        assert_eq!(value["type"], "incident_created");
+        assert_eq!(value["incident_id"], incident_id.to_string());
+        assert_eq!(value["severity"], "critical");
     }
 
     #[test]
@@ -275,9 +316,11 @@ mod tests {
         let incident_id = Uuid::new_v4();
         let u1 = Uuid::new_v4();
         let u2 = Uuid::new_v4();
-        let v: Value = serde_json::from_str(&presence_wire(incident_id, &[u1, u2])).unwrap();
+        let v: Value =
+            serde_json::from_str(&presence_wire(incident_id, "incident", &[u1, u2])).unwrap();
         assert_eq!(v["type"], "presence_update");
-        assert_eq!(v["incident_id"], incident_id.to_string());
+        assert_eq!(v["resource_id"], incident_id.to_string());
+        assert_eq!(v["resource_type"], "incident");
         let watchers = v["watchers"].as_array().unwrap();
         assert_eq!(watchers.len(), 2);
         assert_eq!(watchers[0], u1.to_string());
@@ -325,7 +368,7 @@ mod tests {
         assert_eq!(v["type"], "timeline_entry_edited");
         assert_eq!(v["incident_id"], incident_id.to_string());
         assert_eq!(v["entry_id"], entry_id.to_string());
-        assert_eq!(v["content"], "fixed typo");
+        assert_eq!(v["new_content"], "fixed typo");
         assert_eq!(v["edited_at"], edited_at.timestamp());
     }
 
@@ -344,7 +387,7 @@ mod tests {
         assert_eq!(added["type"], "reaction_added");
         assert_eq!(added["entry_id"], entry_id.to_string());
         assert_eq!(added["emoji"], "👍");
-        assert_eq!(added["user_id"], user_id.to_string());
+        assert_eq!(added["by"], user_id.to_string());
 
         let removed = parse(&DomainEvent::ReactionRemoved {
             team_id: Uuid::new_v4(),
@@ -354,6 +397,7 @@ mod tests {
             user_id,
         });
         assert_eq!(removed["type"], "reaction_removed");
+        assert_eq!(removed["by"], user_id.to_string());
     }
 
     #[test]
@@ -362,27 +406,77 @@ mod tests {
         let v = parse(&DomainEvent::RuleTriggered {
             team_id: Uuid::new_v4(),
             service: "github".to_string(),
-            rule: "github-ci-failed-to-incident".to_string(),
+            rule_name: "github-ci-failed-to-incident".to_string(),
+            result: AutomationRuleResult::IncidentCreated,
             incident_id: Some(incident_id),
         });
-        assert_eq!(v["type"], "rule_triggered");
-        assert_eq!(v["service"], "github");
-        assert_eq!(v["rule"], "github-ci-failed-to-incident");
-        assert_eq!(v["incident_id"], incident_id.to_string());
+        assert_eq!(
+            v,
+            json!({
+                "type": "rule_triggered",
+                "service": "github",
+                "rule_name": "github-ci-failed-to-incident",
+                "result": "incident_created",
+                "incident_id": incident_id,
+            })
+        );
+
+        let completed = parse(&DomainEvent::RuleTriggered {
+            team_id: Uuid::new_v4(),
+            service: "http".to_string(),
+            rule_name: "notify-responders".to_string(),
+            result: AutomationRuleResult::ReactionCompleted,
+            incident_id: None,
+        });
+        assert_eq!(completed["result"], "reaction_completed");
+        assert!(completed["incident_id"].is_null());
     }
 
     #[test]
-    fn team_member_removed_wire_shape() {
+    fn member_kicked_wire_shape() {
         let team_id = Uuid::new_v4();
-        let user_id = Uuid::new_v4();
-        let v = parse(&DomainEvent::TeamMemberRemoved { team_id, user_id });
-        assert_eq!(v["type"], "team_member_removed");
+        let member = Uuid::new_v4();
+        let by = Uuid::new_v4();
+        let v = parse(&DomainEvent::MemberKicked {
+            team_id,
+            member,
+            by,
+        });
+        assert_eq!(v["type"], "member_kicked");
         assert_eq!(v["team_id"], team_id.to_string());
-        assert_eq!(v["user_id"], user_id.to_string());
+        assert_eq!(v["member"], member.to_string());
+        assert_eq!(v["by"], by.to_string());
     }
 
     #[test]
-    fn private_message_received_nests_message_with_unix_time() {
+    fn member_banned_wire_shape_includes_nullable_until() {
+        let team_id = Uuid::new_v4();
+        let member = Uuid::new_v4();
+        let by = Uuid::new_v4();
+        let until = Utc.with_ymd_and_hms(2026, 6, 25, 14, 30, 0).unwrap();
+        let temporary = parse(&DomainEvent::MemberBanned {
+            team_id,
+            member,
+            until: Some(until),
+            by,
+        });
+        assert_eq!(temporary["type"], "member_banned");
+        assert_eq!(temporary["team_id"], team_id.to_string());
+        assert_eq!(temporary["member"], member.to_string());
+        assert_eq!(temporary["until"], until.timestamp());
+        assert_eq!(temporary["by"], by.to_string());
+
+        let permanent = parse(&DomainEvent::MemberBanned {
+            team_id,
+            member,
+            until: None,
+            by,
+        });
+        assert!(permanent["until"].is_null());
+    }
+
+    #[test]
+    fn private_message_received_is_flat_with_unix_time() {
         let message_id = Uuid::new_v4();
         let sender_id = Uuid::new_v4();
         let recipient_id = Uuid::new_v4();
@@ -395,11 +489,12 @@ mod tests {
             at,
         });
         assert_eq!(v["type"], "private_message_received");
-        assert_eq!(v["message"]["id"], message_id.to_string());
-        assert_eq!(v["message"]["sender_id"], sender_id.to_string());
-        assert_eq!(v["message"]["recipient_id"], recipient_id.to_string());
-        assert_eq!(v["message"]["content"], "ping");
-        assert_eq!(v["message"]["at"], at.timestamp());
+        assert_eq!(v["from"], sender_id.to_string());
+        assert_eq!(v["to"], recipient_id.to_string());
+        assert_eq!(v["content"], "ping");
+        assert_eq!(v["at"], at.timestamp());
+        assert!(v.get("message").is_none());
+        assert!(!v.to_string().contains(&message_id.to_string()));
     }
 
     #[test]
@@ -437,11 +532,17 @@ mod tests {
         let v = parse(&DomainEvent::RuleFailed {
             team_id: Uuid::new_v4(),
             service: "github".to_string(),
-            rule: "github-ci-failed-to-incident".to_string(),
-            reason: "Incident title cannot be empty".to_string(),
+            rule_name: "github-ci-failed-to-incident".to_string(),
+            error: "invalid_incident_title".to_string(),
         });
-        assert_eq!(v["type"], "rule_failed");
-        assert_eq!(v["service"], "github");
-        assert_eq!(v["reason"], "Incident title cannot be empty");
+        assert_eq!(
+            v,
+            json!({
+                "type": "rule_failed",
+                "service": "github",
+                "rule_name": "github-ci-failed-to-incident",
+                "error": "invalid_incident_title",
+            })
+        );
     }
 }

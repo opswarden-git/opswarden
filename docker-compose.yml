@@ -32,10 +32,17 @@ services:
       # The browser-facing web origin in Compose is the client_web service on
       # :8081 (used for the OAuth post-login redirect). Dev runs keep :4242.
       OPSWARDEN_WEB_ORIGIN: ${OPSWARDEN_COMPOSE_WEB_ORIGIN:-http://localhost:8081}
+      # The browser-facing client_web service is the single trusted HTTP proxy.
+      OPSWARDEN_TRUSTED_PROXY_HOPS: "1"
       # Google OAuth (optional; blank => Google sign-in disabled).
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:8080/api/auth/google/callback}
+      # GitHub service OAuth (optional; a GitHub App with expiring user tokens
+      # supplies both the access token and its rotatable refresh token).
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-http://localhost:8080/api/service-oauth/github/callback}
       GIPHY_API_KEY: ${GIPHY_API_KEY:-}
     ports:
       - "8080:8080"
@@ -48,11 +55,9 @@ services:
       timeout: 3s
       retries: 10
 
-  # Build-only desktop artifact: produces the installable Linux `.deb` in an
-  # Ubuntu/FHS container (Tauri's bundler cannot run on the NixOS host) and copies
-  # it to ./artifacts on the host, then exits. The AppImage is produced by the
-  # release CI/U4 path (release.yml tauri-action) and can be dropped into
-  # ./artifacts/client.AppImage for the same web download surface.
+  # Build-only desktop artifact: produces both the installable Linux `.deb` and
+  # canonical AppImage in an Ubuntu/FHS container, validates the AppImage, copies
+  # both to ./artifacts on the host, then exits.
   client_desktop:
     build:
       context: .
@@ -66,9 +71,9 @@ services:
   # compose network; the browser hits the server's published :8080 for the WS.
   # It also serves the desktop artifact over HTTP: ./artifacts is mounted
   # read-only into Next's public/ so the .deb built by `client_desktop` is
-  # downloadable at GET http://localhost:8081/client.deb. If the release-CI
-  # AppImage is placed at ./artifacts/client.AppImage, it is exposed at the
-  # VIGIL-specified GET http://localhost:8081/client.AppImage.
+  # downloadable at GET http://localhost:8081/client.deb. The Compose-built
+  # AppImage is exposed at the VIGIL-specified
+  # GET http://localhost:8081/client.AppImage.
   client_web:
     build:
       context: .
@@ -79,10 +84,9 @@ services:
         # the server over the compose network.
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/ws}
         OPSWARDEN_API_ORIGIN: http://server:8080
-    # Desktop artifact download surface: ./artifacts (the `.deb` from the
-    # client_desktop build, and/or a release-CI AppImage) is served as Next
-    # static files under /desktop/. Read-only; client_desktop fills the .deb
-    # before client_web starts.
+    # Desktop artifact download surface: ./artifacts is served as Next static
+    # files under /desktop/. Read-only; client_desktop fills both files before
+    # client_web starts.
     volumes:
       - ./artifacts:/app/client-web/public/desktop:ro
     command:

@@ -7,6 +7,7 @@ use crate::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, WebhookDelivery,
 };
 use crate::domain::error::DomainError;
+use crate::domain::event::AutomationRuleResult;
 use crate::domain::event::DomainEvent;
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EventPublisher, IncidentRepo,
@@ -137,16 +138,32 @@ impl IngestTeamWebhookUseCase {
             let mut run = AutomationRun::new(delivery.id, rule.id);
             self.dependencies.runs.insert_run(&run).await?;
             match executor.execute(connection.team_id, &rule, &event).await {
-                Ok(incident_id) => {
+                Ok(created_incident) => {
+                    let incident_id = created_incident.map(|(incident_id, _)| incident_id);
                     run.mark_succeeded(incident_id)?;
                     self.persist_run(&run).await?;
                     rules_triggered += 1;
+                    if let Some((incident_id, severity)) = created_incident {
+                        self.dependencies
+                            .events
+                            .publish(DomainEvent::IncidentCreated {
+                                team_id: connection.team_id,
+                                incident_id,
+                                severity,
+                            })
+                            .await;
+                    }
                     self.dependencies
                         .events
                         .publish(DomainEvent::RuleTriggered {
                             team_id: connection.team_id,
                             service: connection.service.clone(),
-                            rule: rule.name,
+                            rule_name: rule.name,
+                            result: if incident_id.is_some() {
+                                AutomationRuleResult::IncidentCreated
+                            } else {
+                                AutomationRuleResult::ReactionCompleted
+                            },
                             incident_id,
                         })
                         .await;
@@ -162,8 +179,8 @@ impl IngestTeamWebhookUseCase {
                         .publish(DomainEvent::RuleFailed {
                             team_id: connection.team_id,
                             service: connection.service.clone(),
-                            rule: rule.name,
-                            reason: error.to_string(),
+                            rule_name: rule.name,
+                            error: error_code.to_string(),
                         })
                         .await;
                 }

@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AppLocale } from "@/i18n/locales";
 
 export interface User {
   id: string;
   email?: string;
+  locale: AppLocale;
 }
 
 interface AuthState {

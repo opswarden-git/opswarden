@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::Deserialize;
 
 use crate::domain::error::DomainError;
-use crate::ports::{OAuthClient, OAuthProfile};
+use crate::ports::{OAuthClient, OAuthProfile, ServiceOAuthClient, ServiceOAuthTokens};
 
 pub struct GoogleOAuthClient {
     client: Client,
@@ -121,4 +121,178 @@ fn percent_encode(value: &str) -> String {
         }
     }
     encoded
+}
+
+/// GitHub OAuth web flow used for Team-owned automation connections. Configure
+/// a GitHub App with expiring user tokens to receive both access and refresh
+/// tokens; ordinary OAuth Apps remain compatible but return no refresh token.
+pub struct GithubServiceOAuthClient {
+    client: Client,
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    redirect_uri: String,
+}
+
+impl GithubServiceOAuthClient {
+    pub fn new(
+        client_id: Option<String>,
+        client_secret: Option<String>,
+        redirect_uri: String,
+    ) -> Self {
+        Self {
+            client: Client::new(),
+            client_id,
+            client_secret,
+            redirect_uri,
+        }
+    }
+
+    async fn token_request(
+        &self,
+        parameters: &[(&str, &str)],
+    ) -> Result<ServiceOAuthTokens, DomainError> {
+        let client_id = self
+            .client_id
+            .as_deref()
+            .ok_or(DomainError::OAuthNotConfigured)?;
+        let client_secret = self
+            .client_secret
+            .as_deref()
+            .ok_or(DomainError::OAuthNotConfigured)?;
+        let mut form = vec![("client_id", client_id), ("client_secret", client_secret)];
+        form.extend_from_slice(parameters);
+
+        let response = self
+            .client
+            .post("https://github.com/login/oauth/access_token")
+            .header("Accept", "application/json")
+            .header("User-Agent", "OpsWarden")
+            .form(&form)
+            .send()
+            .await
+            .map_err(|_| DomainError::OAuthFailed)?
+            .error_for_status()
+            .map_err(|_| DomainError::OAuthFailed)?
+            .json::<GithubTokenResponse>()
+            .await
+            .map_err(|_| DomainError::OAuthFailed)?;
+
+        let access_token = response.access_token.ok_or(DomainError::OAuthFailed)?;
+        if access_token.trim().is_empty()
+            || response
+                .refresh_token
+                .as_ref()
+                .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(DomainError::OAuthFailed);
+        }
+        Ok(ServiceOAuthTokens {
+            access_token,
+            refresh_token: response.refresh_token,
+        })
+    }
+}
+
+#[derive(Deserialize)]
+struct GithubTokenResponse {
+    access_token: Option<String>,
+    refresh_token: Option<String>,
+}
+
+#[async_trait]
+impl ServiceOAuthClient for GithubServiceOAuthClient {
+    fn is_configured(&self) -> bool {
+        self.client_id.is_some() && self.client_secret.is_some()
+    }
+
+    fn authorization_url(&self, state: &str, code_challenge: &str) -> Result<String, DomainError> {
+        if !self.is_configured() {
+            return Err(DomainError::OAuthNotConfigured);
+        }
+        let client_id = self
+            .client_id
+            .as_deref()
+            .ok_or(DomainError::OAuthNotConfigured)?;
+        if state.trim().is_empty() || code_challenge.trim().is_empty() {
+            return Err(DomainError::OAuthFailed);
+        }
+        Ok(format!(
+            "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method=S256",
+            percent_encode(client_id),
+            percent_encode(&self.redirect_uri),
+            percent_encode("repo"),
+            percent_encode(state),
+            percent_encode(code_challenge),
+        ))
+    }
+
+    async fn exchange_code(
+        &self,
+        code: &str,
+        code_verifier: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError> {
+        if code.trim().is_empty() || code_verifier.trim().is_empty() {
+            return Err(DomainError::OAuthFailed);
+        }
+        self.token_request(&[
+            ("code", code),
+            ("redirect_uri", self.redirect_uri.as_str()),
+            ("code_verifier", code_verifier),
+        ])
+        .await
+    }
+
+    async fn refresh_access_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<ServiceOAuthTokens, DomainError> {
+        if refresh_token.trim().is_empty() {
+            return Err(DomainError::OAuthFailed);
+        }
+        self.token_request(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+        ])
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn github_authorization_url_uses_state_pkce_and_minimal_repo_scope() {
+        let client = GithubServiceOAuthClient::new(
+            Some("github-client".to_string()),
+            Some("github-secret".to_string()),
+            "http://localhost:8080/api/service-oauth/github/callback".to_string(),
+        );
+
+        let url = client
+            .authorization_url("unguessable-state", "pkce-challenge")
+            .unwrap();
+
+        assert!(url.starts_with("https://github.com/login/oauth/authorize?"));
+        assert!(url.contains("client_id=github-client"));
+        assert!(url.contains("scope=repo"));
+        assert!(url.contains("state=unguessable-state"));
+        assert!(url.contains("code_challenge=pkce-challenge"));
+        assert!(url.contains("code_challenge_method=S256"));
+        assert!(!url.contains("github-secret"));
+    }
+
+    #[test]
+    fn github_service_oauth_requires_both_server_credentials() {
+        let missing_secret = GithubServiceOAuthClient::new(
+            Some("client".to_string()),
+            None,
+            "http://localhost/callback".to_string(),
+        );
+        assert!(!missing_secret.is_configured());
+        assert_eq!(
+            missing_secret.authorization_url("state", "challenge"),
+            Err(DomainError::OAuthNotConfigured)
+        );
+    }
 }

@@ -173,7 +173,7 @@ async fn available_reactions_are_server_driven() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/incidents/reactions/available")
+                .uri("/reactions/available")
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -188,7 +188,7 @@ async fn available_reactions_are_server_driven() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(
         json["reactions"],
-        serde_json::json!(["👍", "👀", "✅", "🚨"])
+        serde_json::json!(["👍", "👀", "✅", "🚨", "❤️", "🎉"])
     );
 }
 
@@ -769,6 +769,28 @@ async fn non_member_cannot_react() {
 }
 
 #[tokio::test]
+async fn team_member_cannot_react_with_an_emoji_outside_the_catalog() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let user = Uuid::nil();
+    let incident = Incident::new(team_id, "DB latency", Severity::High).unwrap();
+    ctx.teams.seed_member(team_id, user, Role::Observer);
+    ctx.incidents.seed_incident(incident.clone());
+    let entry = TimelineEntry::new(incident.id, Uuid::new_v4(), "react to me").unwrap();
+    ctx.timeline.seed_entry(entry.clone());
+
+    let response = ctx
+        .app
+        .oneshot(react_request(incident.id, entry.id, "🔥"))
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let json = read_json(response).await;
+    assert_eq!(json["code"], "invalid_reaction");
+}
+
+#[tokio::test]
 async fn activity_includes_reaction_counts_and_reacted_flag() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
@@ -781,7 +803,7 @@ async fn activity_includes_reaction_counts_and_reacted_flag() {
 
     ctx.app
         .clone()
-        .oneshot(react_request(incident.id, entry.id, "🔥"))
+        .oneshot(react_request(incident.id, entry.id, "🎉"))
         .await
         .unwrap();
 
@@ -801,7 +823,7 @@ async fn activity_includes_reaction_counts_and_reacted_flag() {
     let json = read_json(response).await;
     let reactions = json["items"][0]["reactions"].as_array().unwrap();
     assert_eq!(reactions.len(), 1);
-    assert_eq!(reactions[0]["emoji"], "🔥");
+    assert_eq!(reactions[0]["emoji"], "🎉");
     assert_eq!(reactions[0]["count"], 1);
     assert_eq!(reactions[0]["reacted"], true);
 }

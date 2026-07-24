@@ -49,7 +49,7 @@ export function useReleases(teamId: string) {
     queryKey: ["releases", { teamId }],
     queryFn: async () => {
       const res = await apiFetch(`/api/releases?team_id=${teamId}`);
-      if (!res.ok) throw new Error("Failed to fetch releases");
+      if (!res.ok) throw new Error("releases_load_failed");
       return res.json();
     },
     enabled: !!teamId,
@@ -61,7 +61,7 @@ export function useRelease(releaseId: string | undefined) {
     queryKey: ["release", releaseId],
     queryFn: async () => {
       const res = await apiFetch(`/api/releases/${releaseId}`);
-      if (!res.ok) throw new Error("Failed to fetch release");
+      if (!res.ok) throw new Error("release_load_failed");
       return res.json();
     },
     enabled: !!releaseId,

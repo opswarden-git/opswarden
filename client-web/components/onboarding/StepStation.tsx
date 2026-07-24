@@ -51,10 +51,10 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
             onChange={(e) => updateData({ timezone: e.target.value })}
             className="ow-input flex h-10 w-full cursor-pointer appearance-none rounded-md px-3 py-2 text-sm transition-colors"
           >
-            <option value="Europe/Paris">Europe/Paris (CET)</option>
-            <option value="Europe/London">Europe/London (GMT)</option>
-            <option value="America/New_York">America/New_York (EST)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+            <option value="Europe/Paris">{t("timezoneParis")}</option>
+            <option value="Europe/London">{t("timezoneLondon")}</option>
+            <option value="America/New_York">{t("timezoneNewYork")}</option>
+            <option value="Asia/Tokyo">{t("timezoneTokyo")}</option>
           </select>
         </div>
       </div>

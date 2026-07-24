@@ -1,10 +1,31 @@
 // --- server/src/adapters/pg/user.rs ---
 
 use crate::domain::error::DomainError;
-use crate::domain::user::{Email, User};
+use crate::domain::user::{Email, Locale, User};
 use crate::ports::UserRepo;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use uuid::Uuid;
+
+#[derive(sqlx::FromRow)]
+struct UserRow {
+    id: Uuid,
+    email: String,
+    password_hash: String,
+    locale: String,
+    created_at: DateTime<Utc>,
+}
+
+fn user_from_row(row: UserRow) -> Result<User, DomainError> {
+    Ok(User {
+        id: row.id,
+        email: Email::new(row.email)?,
+        password_hash: row.password_hash,
+        locale: Locale::try_from(row.locale.as_str())?,
+        created_at: row.created_at,
+    })
+}
 
 pub struct PgUserRepo {
     pool: PgPool,
@@ -19,69 +40,49 @@ impl PgUserRepo {
 #[async_trait]
 impl UserRepo for PgUserRepo {
     async fn find_by_id(&self, user_id: uuid::Uuid) -> Result<Option<User>, DomainError> {
-        let record = sqlx::query!(
+        let record = sqlx::query_as::<_, UserRow>(
             r#"
-            SELECT id, email, password_hash, created_at
+            SELECT id, email, password_hash, locale, created_at
             FROM users
             WHERE id = $1
             "#,
-            user_id
         )
+        .bind(user_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        record
-            .map(|row| {
-                let email = Email::new(row.email)?;
-                Ok(User {
-                    id: row.id,
-                    email,
-                    password_hash: row.password_hash,
-                    created_at: row.created_at,
-                })
-            })
-            .transpose()
+        record.map(user_from_row).transpose()
     }
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError> {
-        let record = sqlx::query!(
+        let record = sqlx::query_as::<_, UserRow>(
             r#"
-            SELECT id, email, password_hash, created_at
+            SELECT id, email, password_hash, locale, created_at
             FROM users
             WHERE email = $1
             "#,
-            email
         )
+        .bind(email)
         .fetch_optional(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        match record {
-            Some(row) => {
-                let e = Email::new(row.email)?;
-                Ok(Some(User {
-                    id: row.id,
-                    email: e,
-                    password_hash: row.password_hash,
-                    created_at: row.created_at,
-                }))
-            }
-            None => Ok(None),
-        }
+        record.map(user_from_row).transpose()
     }
 
     async fn save(&self, user: &User) -> Result<(), DomainError> {
-        sqlx::query!(
+        sqlx::query(
             r#"
-            INSERT INTO users (id, email, password_hash, created_at)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO users (id, email, password_hash, locale, created_at)
+            VALUES ($1, $2, $3, $4, $5)
             "#,
-            user.id,
-            user.email.as_str(),
-            user.password_hash,
-            user.created_at
         )
+        .bind(user.id)
+        .bind(user.email.as_str())
+        .bind(&user.password_hash)
+        .bind(user.locale.as_str())
+        .bind(user.created_at)
         .execute(&self.pool)
         .await
         .map_err(|err| match err {
@@ -89,6 +90,19 @@ impl UserRepo for PgUserRepo {
             _ => DomainError::Storage,
         })?;
 
+        Ok(())
+    }
+
+    async fn update_locale(&self, user_id: Uuid, locale: Locale) -> Result<(), DomainError> {
+        let updated = sqlx::query("UPDATE users SET locale = $1 WHERE id = $2")
+            .bind(locale.as_str())
+            .bind(user_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        if updated.rows_affected() == 0 {
+            return Err(DomainError::UserNotFound);
+        }
         Ok(())
     }
 
@@ -151,6 +165,13 @@ mod tests {
         assert_eq!(found_user.id, user.id);
         assert_eq!(found_user.email.as_str(), user.email.as_str());
         assert_eq!(found_user.password_hash, "my_super_hash");
+        assert_eq!(found_user.locale, Locale::En);
+
+        repo.update_locale(user.id, Locale::Fr).await.unwrap();
+        assert_eq!(
+            repo.find_by_id(user.id).await.unwrap().unwrap().locale,
+            Locale::Fr
+        );
     }
 
     #[sqlx::test]

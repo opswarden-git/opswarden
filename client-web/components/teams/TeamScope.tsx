@@ -49,6 +49,6 @@ export function TeamScopeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTeamScope() {
   const value = React.useContext(TeamScopeContext);
-  if (!value) throw new Error("useTeamScope must be used inside TeamScopeProvider");
+  if (!value) throw new Error("team_scope_provider_missing");
   return value;
 }

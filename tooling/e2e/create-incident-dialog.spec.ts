@@ -63,7 +63,7 @@ test("server errors stay in the dialog and are announced", async ({ page }) => {
   await dialog.getByLabel("Title", { exact: true }).fill("Rejected incident");
   await dialog.getByRole("button", { name: "Declare", exact: true }).click();
 
-  await expect(dialog.getByRole("alert")).toHaveText("Failed to create incident");
+  await expect(dialog.getByRole("alert")).toHaveText("The incident could not be created.");
   await expect(dialog.locator('[data-dialog-part="footer"]')).toBeVisible();
 });
 

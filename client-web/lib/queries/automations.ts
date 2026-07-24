@@ -1,11 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import { useLocale } from "next-intl";
 
 export interface CatalogCapability {
   name: string;
   label: string;
   description: string;
   connection_service: string | null;
+  fields: CatalogField[];
+}
+
+export interface CatalogField {
+  name: string;
+  label: string;
+  description: string;
+  input_type: "text" | "password" | "url" | "select";
+  required: boolean;
+  default_value: string | null;
+  options: { value: string; label: string }[];
+}
+
+export interface ConnectionCatalog {
+  description: string;
+  fields: CatalogField[];
+  oauth: { label: string; description: string } | null;
+  testable: boolean;
 }
 
 export interface AutomationService {
@@ -13,6 +32,7 @@ export interface AutomationService {
   label: string;
   actions: CatalogCapability[];
   reactions: CatalogCapability[];
+  connection: ConnectionCatalog | null;
 }
 
 interface AboutResponse {
@@ -25,6 +45,8 @@ export interface TeamConnection {
   service: string;
   secret_configured: boolean;
   token_configured: boolean;
+  oauth_configured: boolean;
+  oauth_refresh_configured: boolean;
   endpoint_configured: boolean;
   created_at: string;
   updated_at: string;
@@ -74,10 +96,11 @@ async function failWithCode(response: Response, fallback: string): Promise<never
 }
 
 export function useAutomationCatalog(enabled = true) {
+  const locale = useLocale();
   return useQuery<AutomationService[]>({
-    queryKey: ["automation-catalog"],
+    queryKey: ["automation-catalog", locale],
     queryFn: async () => {
-      const response = await apiFetch("/about.json");
+      const response = await apiFetch(`/about.json?locale=${encodeURIComponent(locale)}`);
       if (!response.ok) return failWithCode(response, "automation_catalog_failed");
       const about = (await response.json()) as AboutResponse;
       return about.server.services;
@@ -99,30 +122,52 @@ export function useTeamConnections(teamId: string, enabled = true) {
   });
 }
 
-export function useConfigureGithubConnection(teamId: string) {
+export function useConfigureTeamConnection(teamId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { webhook_signing_secret?: string; personal_token?: string }) => {
-      const response = await apiFetch(`/api/teams/${teamId}/service-connections/github`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) return failWithCode(response, "github_connection_failed");
+    mutationFn: async ({
+      service,
+      payload,
+    }: {
+      service: string;
+      payload: Record<string, string>;
+    }) => {
+      const response = await apiFetch(
+        `/api/teams/${teamId}/service-connections/by-service/${service}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) return failWithCode(response, "connection_configure_failed");
       return response.json() as Promise<TeamConnection>;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: connectionsKey(teamId) }),
   });
 }
 
-export function useConfigureHttpConnection(teamId: string) {
+export function useStartServiceOAuth(teamId: string) {
+  return useMutation({
+    mutationFn: async ({ locale, service }: { locale: string; service: string }) => {
+      const response = await apiFetch(
+        `/api/teams/${teamId}/service-connections/by-service/${service}/oauth/start?locale=${encodeURIComponent(locale)}`,
+        { method: "POST" },
+      );
+      if (!response.ok) return failWithCode(response, "oauth_failed");
+      return response.json() as Promise<{ authorization_url: string }>;
+    },
+  });
+}
+
+export function useRefreshServiceOAuth(teamId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (endpoint_url: string) => {
-      const response = await apiFetch(`/api/teams/${teamId}/service-connections/http`, {
-        method: "PUT",
-        body: JSON.stringify({ endpoint_url }),
-      });
-      if (!response.ok) return failWithCode(response, "http_connection_failed");
+    mutationFn: async (connectionId: string) => {
+      const response = await apiFetch(
+        `/api/teams/${teamId}/service-connections/${connectionId}/oauth/refresh`,
+        { method: "POST" },
+      );
+      if (!response.ok) return failWithCode(response, "oauth_failed");
       return response.json() as Promise<TeamConnection>;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: connectionsKey(teamId) }),

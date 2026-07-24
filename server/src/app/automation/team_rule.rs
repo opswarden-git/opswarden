@@ -4,8 +4,9 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::team_access::require_manager;
-use crate::domain::automation_catalog::{reaction, supports_action};
+use crate::domain::automation_catalog::{action, reaction, CatalogField};
 use crate::domain::automation_config::{AutomationRule, AutomationRuleDefinition};
+use crate::domain::automation_template::{validate_template, MAX_TEMPLATE_BYTES};
 use crate::domain::error::DomainError;
 use crate::ports::{AutomationRuleRepo, ServiceConnectionRepo, TeamRepo};
 
@@ -136,17 +137,13 @@ impl TeamRuleUseCase {
             .find_connection_for_team(team_id, definition.trigger_connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if !supports_action(&trigger.service, &definition.trigger_kind) {
-            return Err(DomainError::InvalidAutomationRule);
-        }
+        let action = action(&trigger.service, &definition.trigger_kind)
+            .ok_or(DomainError::InvalidAutomationRule)?;
+        validate_catalog_config(&definition.trigger_config, action.fields, false)?;
 
         let reaction =
             reaction(&definition.reaction_kind).ok_or(DomainError::InvalidAutomationRule)?;
-        if definition.reaction_kind == "http_notify"
-            && definition.reaction_config != serde_json::json!({})
-        {
-            return Err(DomainError::InvalidAutomationRule);
-        }
+        validate_catalog_config(&definition.reaction_config, reaction.fields, true)?;
         match (
             reaction.connection_service,
             definition.reaction_connection_id,
@@ -166,4 +163,38 @@ impl TeamRuleUseCase {
             _ => Err(DomainError::InvalidAutomationRule),
         }
     }
+}
+
+fn validate_catalog_config(
+    config: &Value,
+    fields: &[CatalogField],
+    allow_templates: bool,
+) -> Result<(), DomainError> {
+    let values = config
+        .as_object()
+        .ok_or(DomainError::InvalidAutomationRule)?;
+    if config.to_string().len() > MAX_TEMPLATE_BYTES.saturating_mul(4) {
+        return Err(DomainError::InvalidAutomationRule);
+    }
+    for field in fields {
+        if field.required && field.default_value.is_none() && !values.contains_key(field.name) {
+            return Err(DomainError::InvalidAutomationRule);
+        }
+    }
+    for (name, value) in values {
+        let field = fields
+            .iter()
+            .find(|field| field.name == name)
+            .ok_or(DomainError::InvalidAutomationRule)?;
+        let value = value.as_str().ok_or(DomainError::InvalidAutomationRule)?;
+        if field.input_type == "select" && !field.options.contains(&value) {
+            return Err(DomainError::InvalidAutomationRule);
+        }
+        if allow_templates {
+            validate_template(value)?;
+        } else if value.len() > MAX_TEMPLATE_BYTES {
+            return Err(DomainError::InvalidAutomationRule);
+        }
+    }
+    Ok(())
 }

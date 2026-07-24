@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button } from "@/components/ui/Button";
+import { useTranslations } from "next-intl";
 
 interface StepProps {
   data: OnboardingData;
@@ -15,48 +16,47 @@ const AVAILABLE_INTEGRATIONS = [
   {
     id: "github",
     name: "GitHub",
-    desc: "Link actions & deployment flows",
+    descriptionKey: "githubDescription",
     icon: "/assets/github-patched.webp",
   },
   {
     id: "gitlab",
     name: "GitLab",
-    desc: "Sync pipelines and issue boards",
+    descriptionKey: "gitlabDescription",
     icon: "/assets/gitlab.webp",
   },
   {
     id: "k8s",
     name: "Kubernetes",
-    desc: "Deploy container metrics monitor",
+    descriptionKey: "kubernetesDescription",
     icon: "/assets/kubernetes.webp",
   },
   {
     id: "sentry",
     name: "Sentry",
-    desc: "Track application exceptions & crashes",
+    descriptionKey: "sentryDescription",
     icon: "/assets/sentry.webp",
   },
   {
     id: "datadog",
     name: "Datadog",
-    desc: "Sync system APM telemetry data",
+    descriptionKey: "datadogDescription",
     icon: "/assets/datadog.webp",
   },
   {
     id: "pagerduty",
     name: "PagerDuty",
-    desc: "Sync incident & rotation escalations",
+    descriptionKey: "pagerDutyDescription",
     icon: "/assets/pagerduty.webp",
   },
 ];
 
 export function StepIntegrations({ next, back }: StepProps) {
+  const t = useTranslations("Onboarding");
+
   return (
     <div className="mx-auto w-full space-y-6">
-      <p className="text-muted text-xs leading-relaxed">
-        Workspace creation is live now. Service tokens are configured after onboarding through the
-        server-side vault, so this step is only a connector preview.
-      </p>
+      <p className="text-muted text-xs leading-relaxed">{t("integrationsPreview")}</p>
       <div className="flex flex-col gap-2">
         {AVAILABLE_INTEGRATIONS.map((integ) => {
           return (
@@ -78,12 +78,12 @@ export function StepIntegrations({ next, back }: StepProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-text truncate text-sm font-medium">{integ.name}</span>
                   </div>
-                  <p className="text-muted mt-0.5 truncate text-xs">{integ.desc}</p>
+                  <p className="text-muted mt-0.5 truncate text-xs">{t(integ.descriptionKey)}</p>
                 </div>
               </div>
 
               <Button size="sm" disabled>
-                Configure later
+                {t("configureLater")}
               </Button>
             </div>
           );
@@ -93,10 +93,10 @@ export function StepIntegrations({ next, back }: StepProps) {
       <div className="mt-2 flex items-center justify-between pt-4">
         <Button variant="ghost" size="lg" onClick={back}>
           <ChevronLeft className="size-4" />
-          Back
+          {t("back")}
         </Button>
         <Button variant="primary" size="lg" onClick={next}>
-          Skip for now
+          {t("skipForNow")}
         </Button>
       </div>
     </div>

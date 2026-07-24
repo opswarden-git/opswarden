@@ -25,8 +25,9 @@ import { RulesView } from "./RulesView";
 import { RunsView } from "./RunsView";
 
 function AutomationLoading() {
+  const t = useTranslations("Automations");
   return (
-    <div className="surface overflow-hidden rounded-md" aria-label="Loading automations">
+    <div className="surface overflow-hidden rounded-md" aria-label={t("loading")}>
       <div className="surface-subtle border-border h-11 border-b" />
       <div className="divide-border divide-y">
         {Array.from({ length: 4 }, (_, index) => (

@@ -143,7 +143,7 @@ function incidentListQuery(teamId: string | undefined, filters: IncidentListFilt
       if (filters.sort) params.set("sort", filters.sort);
 
       const res = await apiFetch(`/api/incidents?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch incidents");
+      if (!res.ok) throw new Error("incidents_load_failed");
       const response = (await res.json()) as IncidentListResponse;
       return {
         items: response.items.map(normalizeIncidentListItem),
@@ -171,7 +171,7 @@ export function useIncident(id: string) {
     queryKey: ["incident", id],
     queryFn: async () => {
       const res = await apiFetch(`/api/incidents/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch incident");
+      if (!res.ok) throw new Error("incident_load_failed");
       const incident = (await res.json()) as IncidentViewResponse;
       return normalizeIncident(incident);
     },
@@ -197,7 +197,7 @@ export function useCreateIncident() {
         method: "POST",
         body: JSON.stringify({ team_id, title, description: description ?? "", severity }),
       });
-      if (!res.ok) throw new Error("Failed to create incident");
+      if (!res.ok) throw new Error("create_incident_failed");
       return res.json(); // usually returns { id: string }
     },
     onSuccess: () => {
@@ -211,8 +211,8 @@ export function useAvailableReactions() {
     queryKey: ["available-reactions"],
     staleTime: Number.POSITIVE_INFINITY,
     queryFn: async () => {
-      const res = await apiFetch("/api/incidents/reactions/available");
-      if (!res.ok) throw new Error("Failed to fetch available reactions");
+      const res = await apiFetch("/reactions/available");
+      if (!res.ok) throw new Error("reactions_load_failed");
       const body = (await res.json()) as { reactions: string[] };
       return body.reactions;
     },
@@ -224,7 +224,7 @@ export function useIncidentActivity(incidentId: string) {
     queryKey: ["activity", incidentId],
     queryFn: async () => {
       const res = await apiFetch(`/api/incidents/${incidentId}/activity`);
-      if (!res.ok) throw new Error("Failed to fetch incident activity");
+      if (!res.ok) throw new Error("activity_load_failed");
       const body = (await res.json()) as { items: IncidentActivityItem[] };
       return body.items;
     },
@@ -240,7 +240,7 @@ export function useAddTimelineEntry() {
         method: "POST",
         body: JSON.stringify({ content }),
       });
-      if (!res.ok) throw new Error("Failed to post timeline entry");
+      if (!res.ok) throw new Error("timeline_entry_failed");
       return res.text();
     },
     onSuccess: (data, variables) => {

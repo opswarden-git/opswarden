@@ -6,6 +6,9 @@ use axum::{
     http::{header, Request, StatusCode},
 };
 use common::test_context;
+use opswarden_server::domain::user::Locale;
+use opswarden_server::ports::UserRepo;
+use serde_json::json;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -188,6 +191,81 @@ async fn logout_revokes_the_bearer_token() {
         .unwrap();
 
     assert_eq!(me.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn me_exposes_and_updates_the_persisted_supported_locale() {
+    let ctx = test_context();
+    let update = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/me/locale")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({"locale": "fr"}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(update.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(update.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let profile: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(profile["locale"], "fr");
+
+    let me = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/me")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(me.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let profile: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(profile["locale"], "fr");
+    assert_eq!(
+        ctx.users
+            .find_by_id(uuid::Uuid::nil())
+            .await
+            .unwrap()
+            .unwrap()
+            .locale,
+        Locale::Fr
+    );
+}
+
+#[tokio::test]
+async fn locale_update_rejects_values_outside_english_and_french() {
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/me/locale")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({"locale": "de"}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(error["code"], "invalid_locale");
 }
 
 #[tokio::test]

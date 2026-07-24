@@ -9,7 +9,7 @@
 # server's published :8080 (NEXT_PUBLIC_WS_URL, likewise baked at build time).
 
 # ---- build ----
-FROM node:20-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 # Manifests first so the `npm ci` layer caches on lockfile changes only.
 COPY package.json package-lock.json ./
@@ -26,7 +26,7 @@ ENV OPSWARDEN_API_ORIGIN=${OPSWARDEN_API_ORIGIN}
 RUN npm run build --workspace client-web
 
 # ---- runtime ----
-FROM node:20-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 WORKDIR /app/client-web
 ENV NODE_ENV=production
 # Installed deps + the built app. The /api/* rewrite destination is already

@@ -15,7 +15,13 @@ pub struct Config {
     pub google_oauth_client_id: Option<String>,
     pub google_oauth_client_secret: Option<String>,
     pub google_oauth_redirect_uri: String,
+    pub github_oauth_client_id: Option<String>,
+    pub github_oauth_client_secret: Option<String>,
+    pub github_oauth_redirect_uri: String,
     pub web_origin: String,
+    /// Number of reverse-proxy hops controlled by the deployment. `0` means
+    /// forwarded client-address headers are ignored.
+    pub trusted_proxy_hops: usize,
     /// GIPHY REST API key for timeline GIF search (server-side only — never
     /// exposed to the client). `None` => the search endpoint reports
     /// `giphy_not_configured`.
@@ -61,8 +67,18 @@ impl Config {
         let google_oauth_client_secret = optional_env("GOOGLE_OAUTH_CLIENT_SECRET");
         let google_oauth_redirect_uri = optional_env("GOOGLE_OAUTH_REDIRECT_URI")
             .unwrap_or_else(|| "http://localhost:8080/api/auth/google/callback".to_string());
+        let github_oauth_client_id = optional_env("GITHUB_OAUTH_CLIENT_ID");
+        let github_oauth_client_secret = optional_env("GITHUB_OAUTH_CLIENT_SECRET");
+        let github_oauth_redirect_uri =
+            optional_env("GITHUB_OAUTH_REDIRECT_URI").unwrap_or_else(|| {
+                "http://localhost:8080/api/service-oauth/github/callback".to_string()
+            });
         let web_origin = optional_env("OPSWARDEN_WEB_ORIGIN")
             .unwrap_or_else(|| "http://localhost:4242".to_string());
+        let trusted_proxy_hops = optional_env("OPSWARDEN_TRUSTED_PROXY_HOPS")
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|hops| *hops <= 16)
+            .unwrap_or(0);
         let giphy_api_key = optional_env("GIPHY_API_KEY");
 
         Self {
@@ -72,7 +88,11 @@ impl Config {
             google_oauth_client_id,
             google_oauth_client_secret,
             google_oauth_redirect_uri,
+            github_oauth_client_id,
+            github_oauth_client_secret,
+            github_oauth_redirect_uri,
             web_origin,
+            trusted_proxy_hops,
             giphy_api_key,
         }
     }

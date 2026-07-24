@@ -136,7 +136,7 @@ fn broadcast_presence(conns: &HashMap<ConnectionId, Connection>, incident_id: Uu
     watchers.sort();
     watchers.dedup();
 
-    let payload = presence_wire(incident_id, &watchers);
+    let payload = presence_wire(incident_id, "incident", &watchers);
     for conn in conns.values() {
         if conn.watching.contains(&incident_id) {
             let _ = conn.tx.send(payload.clone());

@@ -115,15 +115,20 @@ impl BanMemberUseCase {
             self.incidents
                 .clear_assignee_for_member(cmd.team_id, cmd.target_user_id)
                 .await?;
-            // Notify the team's live clients (roster refresh + access loss). A
-            // pre-emptive ban of a non-member changes no roster, so it stays silent.
-            self.events
-                .publish(DomainEvent::TeamMemberRemoved {
-                    team_id: cmd.team_id,
-                    user_id: cmd.target_user_id,
-                })
-                .await;
         }
+
+        // A ban is a realtime fact even when it is pre-emptive and changes no
+        // membership. Current team members refresh the ban/roster projections;
+        // a just-removed member still receives it through the hub's live scope
+        // and can immediately drop the team client-side.
+        self.events
+            .publish(DomainEvent::MemberBanned {
+                team_id: cmd.team_id,
+                member: cmd.target_user_id,
+                until: expires_at,
+                by: cmd.requester_id,
+            })
+            .await;
 
         Ok(BanMemberResult {
             user_id: cmd.target_user_id,
@@ -197,8 +202,15 @@ mod tests {
         // ...and the team's live clients are notified.
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
-            [DomainEvent::TeamMemberRemoved { team_id, user_id }]
-                if *team_id == team && *user_id == observer
+            [DomainEvent::MemberBanned {
+                team_id,
+                member,
+                until,
+                by
+            }] if *team_id == team
+                && *member == observer
+                && until.is_none()
+                && *by == manager
         ));
         let bans = repo.bans.lock().unwrap();
         assert_eq!(bans.len(), 1);
@@ -258,8 +270,19 @@ mod tests {
         assert!(!result.removed_membership);
         assert!(repo.removed.lock().unwrap().is_empty());
         assert!(incidents.cleared.lock().unwrap().is_empty());
-        // A pre-emptive ban changes no roster, so it emits no realtime event.
-        assert!(events.published.lock().unwrap().is_empty());
+        // A pre-emptive ban is still announced to the team's connected members.
+        assert!(matches!(
+            events.published.lock().unwrap().as_slice(),
+            [DomainEvent::MemberBanned {
+                team_id,
+                member,
+                until,
+                by
+            }] if *team_id == team
+                && *member == stranger
+                && until.is_none()
+                && *by == manager
+        ));
         assert_eq!(repo.bans.lock().unwrap().len(), 1);
     }
 

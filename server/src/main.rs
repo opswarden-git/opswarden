@@ -5,7 +5,7 @@ use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
 use opswarden_server::adapters::giphy::GiphyClient;
 use opswarden_server::adapters::notify::HttpNotifier;
-use opswarden_server::adapters::oauth::GoogleOAuthClient;
+use opswarden_server::adapters::oauth::{GithubServiceOAuthClient, GoogleOAuthClient};
 use opswarden_server::adapters::pg::automation::execution::{
     PgAutomationRunRepo, PgWebhookDeliveryRepo,
 };
@@ -27,7 +27,7 @@ use opswarden_server::{build_app, config::Config, AppState};
 
 use sqlx::postgres::PgPoolOptions;
 
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 struct DummyClock;
 impl Clock for DummyClock {}
@@ -63,6 +63,11 @@ async fn main() {
             config.google_oauth_client_secret.clone(),
             config.google_oauth_redirect_uri.clone(),
         )),
+        service_oauth: Arc::new(GithubServiceOAuthClient::new(
+            config.github_oauth_client_id.clone(),
+            config.github_oauth_client_secret.clone(),
+            config.github_oauth_redirect_uri.clone(),
+        )),
         token_revocations: Arc::new(PgTokenRevocationRepo::new(pool.clone())),
         events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),
@@ -91,5 +96,10 @@ async fn main() {
         .await
         .expect("failed to bind address");
     println!("OpsWarden server listening on {addr}");
-    axum::serve(listener, app).await.expect("server error");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("server error");
 }

@@ -1,14 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useAuthStore } from "@/store/auth";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
 import { notifyDesktop } from "@/lib/desktopNotify";
 import type { Incident } from "@/lib/queries/incidents";
+import { useTranslations } from "next-intl";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
 
-/** Commands the client sends to the server (see docs/markdown/WEBSOCKET_SPEC.md). */
+/** Commands the client sends to the server (see WEBSOCKET_SPEC.md). */
 export type WsClientCommand =
   | { type: "auth"; token: string }
   | { type: "watch"; incident_id: string }
@@ -16,8 +17,9 @@ export type WsClientCommand =
   | { type: "status_typing"; incident_id: string }
   | { type: "refresh_teams" };
 
-/** Events the server pushes to the client (see docs/markdown/WEBSOCKET_SPEC.md). */
+/** Events the server pushes to the client (see WEBSOCKET_SPEC.md). */
 export type WsServerEvent =
+  | { type: "incident_created"; incident_id: string; severity: Incident["severity"] }
   | { type: "incident_state_changed"; incident_id: string; new_state: string; by: string }
   | { type: "incident_escalated"; incident_id: string; new_severity: string; by: string }
   | { type: "incident_assigned"; incident_id: string; assigned_to: string; by: string }
@@ -30,7 +32,7 @@ export type WsServerEvent =
       type: "timeline_entry_edited";
       incident_id: string;
       entry_id: string;
-      content: string;
+      new_content: string;
       edited_at: number;
     }
   | {
@@ -38,36 +40,45 @@ export type WsServerEvent =
       incident_id: string;
       entry_id: string;
       emoji: string;
-      user_id: string;
+      by: string;
     }
   | {
       type: "reaction_removed";
       incident_id: string;
       entry_id: string;
       emoji: string;
-      user_id: string;
+      by: string;
     }
-  | { type: "presence_update"; incident_id: string; watchers: string[] }
+  | {
+      type: "presence_update";
+      resource_id: string;
+      resource_type: "incident";
+      watchers: string[];
+    }
   | { type: "team_presence_update"; team_id: string; online_user_ids: string[] }
   | { type: "user_typing"; incident_id: string; user_id: string }
   | {
       type: "rule_triggered";
-      team_id: string;
       service: string;
-      rule: string;
-      incident_id?: string;
+      rule_name: string;
+      result: "incident_created" | "reaction_completed";
+      incident_id: string | null;
     }
-  | { type: "rule_failed"; team_id: string; service: string; rule: string; reason: string }
-  | { type: "team_member_removed"; team_id: string; user_id: string }
+  | { type: "rule_failed"; service: string; rule_name: string; error: string }
+  | { type: "member_kicked"; team_id: string; member: string; by: string }
+  | {
+      type: "member_banned";
+      team_id: string;
+      member: string;
+      until: number | null;
+      by: string;
+    }
   | {
       type: "private_message_received";
-      message: {
-        id: string;
-        sender_id: string;
-        recipient_id: string;
-        content: string;
-        at: number;
-      };
+      from: string;
+      to: string;
+      content: string;
+      at: number;
     }
   | { type: "release_step_validated"; release_id: string; step: string; by: string }
   | { type: "release_state_changed"; release_id: string; new_state: string };
@@ -163,10 +174,192 @@ export const useTypingUsers = (incidentId: string): string[] =>
 export const useTeamOnline = (teamId: string): string[] =>
   useWsStore((s) => s.onlineByTeam[teamId] ?? EMPTY);
 
+type ContractEvent = Extract<
+  WsServerEvent,
+  | { type: "presence_update" }
+  | { type: "member_kicked" }
+  | { type: "member_banned" }
+  | { type: "private_message_received" }
+  | { type: "rule_triggered" }
+  | { type: "rule_failed" }
+>;
+
+type NotificationEvent = Extract<
+  WsServerEvent,
+  | { type: "incident_created" }
+  | { type: "incident_escalated" }
+  | { type: "incident_assigned" }
+  | { type: "release_state_changed" }
+>;
+
+type NotificationTranslator = (
+  key:
+    | "incidentAssignedTitle"
+    | "incidentCriticalTitle"
+    | "incidentEscalatedTitle"
+    | "incidentReference"
+    | "releaseBlockedTitle"
+    | "releaseBlockedBody",
+  values?: Record<string, string>,
+) => string;
+
+export type DesktopNotification = {
+  body: string;
+  fingerprint: string;
+  title: string;
+};
+
+/**
+ * Pure notification policy shared by the live hook and its hidden-window tests.
+ * Visibility is deliberately absent: a hidden Tauri webview remains the active
+ * realtime client and must emit the same native notifications as a visible one.
+ */
+export function desktopNotificationForEvent(
+  event: NotificationEvent,
+  currentUserId: string | undefined,
+  translate: NotificationTranslator,
+): DesktopNotification | null {
+  if (event.type === "incident_created") {
+    if (event.severity !== "critical") return null;
+    return {
+      fingerprint: `incident-created:${event.incident_id}:critical`,
+      title: translate("incidentCriticalTitle"),
+      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
+    };
+  }
+
+  if (event.type === "incident_assigned") {
+    if (!currentUserId || event.assigned_to !== currentUserId || event.by === currentUserId) {
+      return null;
+    }
+    return {
+      fingerprint: `incident-assigned:${event.incident_id}:${event.assigned_to}:${event.by}`,
+      title: translate("incidentAssignedTitle"),
+      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
+    };
+  }
+
+  if (event.type === "incident_escalated") {
+    if (
+      !currentUserId ||
+      !["high", "critical"].includes(event.new_severity) ||
+      event.by === currentUserId
+    ) {
+      return null;
+    }
+    return {
+      fingerprint: `incident-escalated:${event.incident_id}:${event.new_severity}:${event.by}`,
+      title:
+        event.new_severity === "critical"
+          ? translate("incidentCriticalTitle")
+          : translate("incidentEscalatedTitle", { severity: event.new_severity }),
+      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
+    };
+  }
+
+  if (event.new_state !== "blocked") return null;
+  return {
+    fingerprint: `release-blocked:${event.release_id}`,
+    title: translate("releaseBlockedTitle"),
+    body: translate("releaseBlockedBody", { id: event.release_id.slice(0, 8) }),
+  };
+}
+
+const NOTIFICATION_DEDUP_WINDOW_MS = 30_000;
+
+export type DesktopNotificationGate = (
+  event: NotificationEvent,
+  fingerprint: string,
+  now?: number,
+) => boolean;
+
+/** Keep one hook instance from replaying the same native notification when
+ * React rerenders or a reconnect leaves/re-delivers the latest frame. */
+export function createDesktopNotificationGate(): DesktopNotificationGate {
+  const events = new WeakSet<object>();
+  const fingerprints = new Map<string, number>();
+
+  return (event, fingerprint, now = Date.now()) => {
+    if (events.has(event)) return false;
+    events.add(event);
+
+    for (const [key, timestamp] of fingerprints) {
+      if (now - timestamp >= NOTIFICATION_DEDUP_WINDOW_MS) {
+        fingerprints.delete(key);
+      }
+    }
+    if (fingerprints.has(fingerprint)) return false;
+    fingerprints.set(fingerprint, now);
+    return true;
+  };
+}
+
+export function dispatchDesktopNotification(
+  event: NotificationEvent,
+  currentUserId: string | undefined,
+  translate: NotificationTranslator,
+  shouldDeliver: DesktopNotificationGate,
+  notify: (title: string, body: string) => void | Promise<void> = notifyDesktop,
+): boolean {
+  const notification = desktopNotificationForEvent(event, currentUserId, translate);
+  if (!notification || !shouldDeliver(event, notification.fingerprint)) return false;
+  void notify(notification.title, notification.body);
+  return true;
+}
+
+/**
+ * Apply contract-sensitive events outside React so their cache and store
+ * effects remain directly testable alongside the Rust wire-shape tests.
+ */
+export function handleWsContractEvent(event: ContractEvent, queryClient: QueryClient): void {
+  switch (event.type) {
+    case "presence_update":
+      if (event.resource_type === "incident") {
+        useWsStore.getState().setWatchers(event.resource_id, event.watchers || []);
+      }
+      break;
+    case "member_kicked":
+    case "member_banned":
+      // A kick or ban can change membership and clear incident assignments.
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incident"] });
+      if (event.member === useAuthStore.getState().user?.id) {
+        // The connection's server-side membership scope is cached until asked
+        // to refresh, so a removed user explicitly drops the stale team.
+        useWsStore.getState().sendJson({ type: "refresh_teams" });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
+      }
+      break;
+    case "private_message_received": {
+      // Sender and recipient invalidate the same peer-scoped conversation;
+      // no team-wide cache is touched.
+      const me = useAuthStore.getState().user?.id;
+      if (!me) break;
+      const peer = event.from === me ? event.to : event.from;
+      queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
+      break;
+    }
+    case "rule_triggered":
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["team-automation-runs"] });
+      break;
+    case "rule_failed":
+      queryClient.invalidateQueries({ queryKey: ["team-automation-runs"] });
+      console.error(
+        `[Automation] Rule failed for ${event.service}: ${event.rule_name} - ${event.error}`,
+      );
+      break;
+  }
+}
+
 export function useRealtime() {
+  const tNotifications = useTranslations("Notifications");
   const token = useAuthStore((s) => s.token);
   const setSendJson = useWsStore((s) => s.setSendJson);
   const queryClient = useQueryClient();
+  const notificationGate = useRef<DesktopNotificationGate>(createDesktopNotificationGate());
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(token ? WS_URL : null, {
     shouldReconnect: () => true,
@@ -203,8 +396,24 @@ export function useRealtime() {
     if (!lastJsonMessage) return;
 
     const event = lastJsonMessage as WsServerEvent;
+    if (
+      event.type === "incident_created" ||
+      event.type === "incident_escalated" ||
+      event.type === "incident_assigned" ||
+      event.type === "release_state_changed"
+    ) {
+      dispatchDesktopNotification(
+        event,
+        useAuthStore.getState().user?.id,
+        (key, values) => tNotifications(key, values),
+        notificationGate.current,
+      );
+    }
 
     switch (event.type) {
+      case "incident_created":
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
+        break;
       case "incident_state_changed":
       case "incident_escalated":
       case "incident_assigned": {
@@ -226,25 +435,6 @@ export function useRealtime() {
         queryClient.invalidateQueries({ queryKey: ["incidents"] });
         queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
 
-        // Native desktop notification (no-op outside the Tauri shell). Only
-        // notify the affected user, and never for one's own action.
-        const currentUserId = useAuthStore.getState().user?.id;
-        const shortId = event.incident_id.slice(0, 8);
-        if (
-          event.type === "incident_assigned" &&
-          currentUserId &&
-          event.assigned_to === currentUserId &&
-          event.by !== currentUserId
-        ) {
-          notifyDesktop("Incident assigned to you", `Incident #${shortId}`);
-        } else if (
-          event.type === "incident_escalated" &&
-          currentUserId &&
-          (event.new_severity === "critical" || event.new_severity === "high") &&
-          event.by !== currentUserId
-        ) {
-          notifyDesktop(`Incident escalated to ${event.new_severity}`, `Incident #${shortId}`);
-        }
         break;
       }
       case "timeline_entry_added":
@@ -254,7 +444,7 @@ export function useRealtime() {
         queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
         break;
       case "presence_update":
-        useWsStore.getState().setWatchers(event.incident_id, event.watchers || []);
+        handleWsContractEvent(event, queryClient);
         break;
       case "team_presence_update":
         useWsStore.getState().setTeamOnline(event.team_id, event.online_user_ids || []);
@@ -268,40 +458,16 @@ export function useRealtime() {
         useWsStore.getState().addTypingUser(event.incident_id, event.user_id);
         break;
       case "rule_triggered":
-        queryClient.invalidateQueries({ queryKey: ["incidents"] });
-        break;
       case "rule_failed":
-        console.error(
-          `[Automation] Rule failed for ${event.service}: ${event.rule} - ${event.reason}`,
-        );
+        handleWsContractEvent(event, queryClient);
         break;
-      case "team_member_removed": {
-        // A member was kicked/banned. Refresh the team list and incident views
-        // (a cleared assignee shows as Unassigned) for everyone on the team.
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        queryClient.invalidateQueries({ queryKey: ["incidents"] });
-        queryClient.invalidateQueries({ queryKey: ["incident"] });
-        if (event.user_id === useAuthStore.getState().user?.id) {
-          // It was me: drop my now-stale WS team scope so I stop receiving this
-          // team's broadcasts. The team disappears from my list via the ["teams"]
-          // invalidation above; do NOT refetch its roster — I can no longer read
-          // it (that would 403).
-          useWsStore.getState().sendJson({ type: "refresh_teams" });
-        } else {
-          // A peer was removed: refresh the roster I'm still allowed to see.
-          queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
-        }
+      case "member_kicked":
+      case "member_banned": {
+        handleWsContractEvent(event, queryClient);
         break;
       }
       case "private_message_received": {
-        // Refresh only the affected 1-to-1 conversation — never team-wide. The
-        // peer is the other participant relative to me, so both sender and
-        // recipient invalidate the same conversation key and see the new message.
-        const me = useAuthStore.getState().user?.id;
-        if (!me) break;
-        const { sender_id, recipient_id } = event.message;
-        const peer = sender_id === me ? recipient_id : sender_id;
-        queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
+        handleWsContractEvent(event, queryClient);
         break;
       }
       case "release_step_validated":
@@ -312,20 +478,9 @@ export function useRealtime() {
         // prefix match — the client only holds its own teams' lists anyway).
         queryClient.invalidateQueries({ queryKey: ["release", event.release_id] });
         queryClient.invalidateQueries({ queryKey: ["releases"] });
-        // The last missing VIGIL desktop trigger: a Release blocked by an active
-        // Incident. Native OS notification only (no-op in a normal browser via
-        // notifyDesktop). Plain English like the incident notifications above —
-        // it's a transient OS toast outside React, not localized UI. Only on the
-        // `blocked` transition; other release states never notify.
-        if (event.type === "release_state_changed" && event.new_state === "blocked") {
-          notifyDesktop(
-            "Release blocked",
-            `Release #${event.release_id.slice(0, 8)} is blocked by an active incident`,
-          );
-        }
         break;
     }
-  }, [lastJsonMessage, queryClient]);
+  }, [lastJsonMessage, queryClient, tNotifications]);
 
   return { readyState };
 }

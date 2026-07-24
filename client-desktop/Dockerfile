@@ -5,15 +5,12 @@
 # bundler resolves libayatana-appindicator through Nix linker flags, see U1).
 # ubuntu:22.04 (glibc 2.35) matches the platform `tauri-action` uses in CI.
 #
-# Local default = the `.deb` bundle: it builds reliably here and is a real
-# installable Linux package (`apt install ./OpsWarden.deb`). The **AppImage** is
-# deliberately left to CI/U4 (release.yml `tauri-action` on a GitHub ubuntu-22.04
-# runner via `--bundles appimage`): Tauri's pinned `linuxdeploy` v1-alpha fails its self-
-# recursive AppImage invocation inside a local Docker container (`subprocess
-# failed (exit code 6)`, identical on Debian 12 and Ubuntu 22.04) — a documented
-# linuxdeploy/Docker fragility, not a config gap. The AppImage tooling
-# (libfuse2 …) stays installed so the same recipe can `--bundles appimage` on a
-# runner where linuxdeploy works.
+# Both the `.deb` and canonical AppImage are built here. AppImage helper tools
+# run in extract-and-run mode because a build container has no FUSE device.
+# Tauri patches the main linuxdeploy helper for this mode but not its nested
+# appimage output plugin, so that plugin is preseeded and its three AppImage
+# signature bytes are cleared. This changes only the build tool's ELF launch
+# metadata; the produced client.AppImage keeps its required Type 2 signature.
 #
 # The shell is URL-mode (loads http://localhost:8081), so no web frontend is
 # built here. The build-only service copies the artifact to a /out bind mount.
@@ -26,7 +23,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl wget ca-certificates build-essential pkg-config libssl-dev \
     libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
-    patchelf file desktop-file-utils libfuse2 \
+    patchelf file desktop-file-utils libfuse2 xvfb xauth \
     && rm -rf /var/lib/apt/lists/*
 
 # Rust (stable) + Node 20 (NodeSource).
@@ -45,7 +42,40 @@ RUN npm ci --workspace client-desktop --include-workspace-root=false --no-audit 
 COPY client-desktop/ ./client-desktop/
 WORKDIR /app/client-desktop
 
-# Compile + bundle the `.deb`, then deposit it on the /out bind mount. NO_STRIP
-# keeps patchelf from choking. (`--bundles appimage` is the CI override.)
+# Preseed every Tauri AppImage helper so Compose does not depend on several
+# late GitHub downloads after the Rust build has already completed. Tauri
+# reuses these exact cache names.
+RUN mkdir -p /root/.cache/tauri \
+    && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
+      "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64?download=1" \
+      -o /root/.cache/tauri/AppRun-x86_64 \
+    && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
+      "https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-x86_64.AppImage?download=1" \
+      -o /root/.cache/tauri/linuxdeploy-x86_64.AppImage \
+    && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
+      https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/b5eb8d05b4c0ed40107fe2158c5d8527f94568ef/linuxdeploy-plugin-gtk.sh \
+      -o /root/.cache/tauri/linuxdeploy-plugin-gtk.sh \
+    && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
+      https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/2a2e67491c32995a3f279ad0ecbe77abd512b42a/linuxdeploy-plugin-gstreamer.sh \
+      -o /root/.cache/tauri/linuxdeploy-plugin-gstreamer.sh \
+    && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
+      "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage?download=1" \
+      -o /root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage \
+    && printf '%s\n' \
+      'f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f  /root/.cache/tauri/AppRun-x86_64' \
+      'e762bea85c8eb0d4b3508d46e5c1f037f717d0f9303ae3b4aafc8b04991fa1ef  /root/.cache/tauri/linuxdeploy-x86_64.AppImage' \
+      'cb379f9b0733e9ad9f8bd78f8c2fa038aef2478523bb7d4c8e64ff6a1ea3501a  /root/.cache/tauri/linuxdeploy-plugin-gtk.sh' \
+      'c107b49d84edbffc6ab226ed1007e0626a4f7aa2c3a36b7782bef62351d49e94  /root/.cache/tauri/linuxdeploy-plugin-gstreamer.sh' \
+      '1da16a46fa5e058ae740e7c35ed0d36d86cb869ac9cc8a5fd9a1847d7978d99a  /root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage' \
+      | sha256sum -c - \
+    && chmod 755 /root/.cache/tauri/* \
+    && dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc \
+      of=/root/.cache/tauri/linuxdeploy-x86_64.AppImage \
+    && dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc \
+      of=/root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage
+
+# Compile, bundle and smoke-test both Linux deliverables before depositing them
+# on the /out bind mount. NO_STRIP keeps patchelf from choking.
 ENV NO_STRIP=true
-CMD ["sh", "-c", "npm run tauri build -- --bundles deb && mkdir -p /out && cp -v src-tauri/target/release/bundle/deb/*.deb /out/OpsWarden_amd64.deb && echo 'Desktop .deb ready at /out/OpsWarden_amd64.deb'"]
+ENV APPIMAGE_EXTRACT_AND_RUN=1
+CMD ["sh", "scripts/build-linux-artifacts.sh"]

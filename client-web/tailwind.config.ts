@@ -48,6 +48,29 @@ const config = {
           ink: "var(--danger-ink)",
           text: "var(--danger-text)",
         },
+        action: {
+          primary: {
+            DEFAULT: "var(--action-primary)",
+            hover: "var(--action-primary-hover)",
+            ink: "var(--action-primary-ink)",
+          },
+          secondary: {
+            DEFAULT: "var(--action-secondary)",
+            hover: "var(--action-secondary-hover)",
+            border: "var(--action-secondary-border)",
+            ink: "var(--action-secondary-ink)",
+          },
+          danger: {
+            DEFAULT: "var(--action-danger)",
+            hover: "var(--action-danger-hover)",
+            ink: "var(--action-danger-ink)",
+          },
+        },
+        feedback: {
+          success: "var(--feedback-success)",
+          warning: "var(--feedback-warning)",
+          danger: "var(--feedback-danger)",
+        },
         sev: {
           low: "var(--sev-low)",
           medium: "var(--sev-medium)",

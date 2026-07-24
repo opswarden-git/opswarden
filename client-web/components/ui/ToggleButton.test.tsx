@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CopyButton } from "./CopyButton";
 import { ReactionToggle } from "./ReactionToggle";
 import { ToggleButton } from "./ToggleButton";
+import { NextIntlClientProvider } from "next-intl";
 
 afterEach(() => {
   cleanup();
@@ -36,7 +37,11 @@ describe("CopyButton", () => {
       value: { writeText },
     });
 
-    render(<CopyButton value="OPS-123" label="Copy code" copiedLabel="Code copied" />);
+    render(
+      <NextIntlClientProvider locale="en" messages={{ Common: { copyFailed: "Copy failed" } }}>
+        <CopyButton value="OPS-123" label="Copy code" copiedLabel="Code copied" />
+      </NextIntlClientProvider>,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("OPS-123"));

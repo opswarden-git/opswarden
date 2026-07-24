@@ -1227,6 +1227,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "axum",
+ "base64",
  "chrono",
  "futures-util",
  "hex",

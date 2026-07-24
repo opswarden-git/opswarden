@@ -24,8 +24,7 @@ export default function LoginPage() {
 
   // Map a backend error code (stable, snake_case) to a localized message,
   // falling back to the raw server message and then a generic one.
-  const errorMessage = (code?: string, fallback?: string) =>
-    code && tErr.has(code) ? tErr(code) : (fallback ?? tErr("unknown"));
+  const errorMessage = (code?: string) => (code && tErr.has(code) ? tErr(code) : tErr("unknown"));
 
   const completeLogin = useCallback(
     async (token: string) => {
@@ -36,7 +35,7 @@ export default function LoginPage() {
 
       const meRes = await apiFetch("/api/me");
       if (!meRes.ok) {
-        throw new Error("Failed to fetch user profile");
+        throw new Error("profile_load_failed");
       }
 
       const user = await meRes.json();
@@ -45,11 +44,13 @@ export default function LoginPage() {
       const teamsRes = await apiFetch("/api/teams");
       if (teamsRes.ok) {
         const teams = (await teamsRes.json()) as Team[];
-        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=station");
+        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=station", {
+          locale: user.locale,
+        });
         return;
       }
 
-      router.push("/");
+      router.push("/", { locale: user.locale });
     },
     [router],
   );
@@ -86,7 +87,7 @@ export default function LoginPage() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setError(errorMessage(body?.code, body?.error));
+        setError(errorMessage(body?.code));
         return;
       }
 
@@ -107,7 +108,7 @@ export default function LoginPage() {
             <Link href="/" className="flex items-center justify-center gap-3">
               <Image
                 src="/assets/logo-icon.png"
-                alt="Icon"
+                alt={t("logoIconAlt")}
                 width={49}
                 height={40}
                 className="object-contain"
@@ -115,7 +116,7 @@ export default function LoginPage() {
               />
               <Image
                 src="/assets/logo-text-light.png"
-                alt="OpsWarden"
+                alt={t("logoWordmarkAlt")}
                 width={207}
                 height={32}
                 className="object-contain"

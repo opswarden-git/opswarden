@@ -1,11 +1,12 @@
 ---
-# Unified CI — server (Rust) + web (Next.js).
+# Unified CI — server (Rust) + web (Next.js) + desktop (Tauri).
 #
 # A single "CI Gate" job is the ONLY required status check. The workflow runs on
 # every PR (no path filter at the workflow level); a `changes` job detects which
-# area changed and the server/web jobs run conditionally. Because the gate always
-# runs, branch protection never blocks a PR for a required check that "didn't run"
-# — the failure mode of per-area, path-filtered required checks in a monorepo.
+# area changed and feature-branch jobs run conditionally. Every push to main runs
+# the complete monorepo build, integration tests, coverage and an E2E smoke test.
+# Because the gate always runs, branch protection never blocks a PR for a required
+# check that "didn't run".
 #
 # Runner : ubuntu-latest (GitHub-hosted). Self-hosted later = swap `runs-on`.
 name: CI
@@ -33,6 +34,7 @@ jobs:
     outputs:
       server: ${{ steps.filter.outputs.server }}
       web: ${{ steps.filter.outputs.web }}
+      desktop: ${{ steps.filter.outputs.desktop }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -52,11 +54,18 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - '.github/workflows/ci.yml'
+            desktop:
+              - 'client-desktop/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
 
   server-quality:
     name: Quality & Security (fmt, clippy, audit, deny)
     needs: changes
-    if: needs.changes.outputs.server == 'true'
+    if: >-
+      needs.changes.outputs.server == 'true'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,7 +98,9 @@ jobs:
   server-build-test:
     name: Build & Test
     needs: [changes, server-quality]
-    if: needs.changes.outputs.server == 'true'
+    if: >-
+      needs.changes.outputs.server == 'true'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     # Postgres service for the SQLx integration tests. query! macros compile from
     # the committed .sqlx cache (SQLX_OFFLINE); the DB is only needed at runtime.
@@ -131,11 +142,10 @@ jobs:
 
   server-coverage:
     name: Coverage (tarpaulin → artifact)
-    needs: [changes, server-build-test]
-    # VIGIL : coverage artifact published on merge to main only.
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && needs.changes.outputs.server == 'true'
+    needs: server-build-test
+    # VIGIL: every merge to main publishes a backend coverage artifact,
+    # independently from the paths changed by the merge.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -176,14 +186,16 @@ jobs:
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-report
+          name: coverage-server
           path: target/tarpaulin/
           if-no-files-found: error
 
   web-quality:
     name: Web Quality (eslint, prettier, types)
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: >-
+      needs.changes.outputs.web == 'true'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -203,13 +215,22 @@ jobs:
         run: npm run typecheck --workspace client-web
       - name: Unit tests (Vitest coverage)
         run: npm run test:coverage --workspace client-web
+      - name: Upload frontend coverage report
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-web
+          path: client-web/coverage/
+          if-no-files-found: error
       - name: Security audit (npm)
         run: npm audit --audit-level=critical || true
 
   web-build:
     name: Web Build (Next.js)
     needs: [changes, web-quality]
-    if: needs.changes.outputs.web == 'true'
+    if: >-
+      needs.changes.outputs.web == 'true'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -224,9 +245,105 @@ jobs:
       - name: Build
         run: npm run build --workspace client-web
 
+  desktop-build:
+    name: Desktop Build (Tauri .deb)
+    needs: changes
+    if: >-
+      needs.changes.outputs.desktop == 'true'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf
+      - name: Install dependencies (workspace)
+        run: npm ci
+      - name: Build installable desktop package
+        run: npm run build --workspace client-desktop -- --bundles deb
+      - name: Upload desktop package
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-deb
+          path: client-desktop/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+  e2e-smoke:
+    name: E2E Smoke (Playwright)
+    needs: [server-build-test, web-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies (workspace)
+        run: npm ci
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Start database, server and web client
+        run: |
+          docker compose up --detach --build db server
+          docker compose up --detach --build --no-deps client_web
+      - name: Wait for the web client
+        run: |
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://localhost:8080/health >/dev/null \
+              && curl --fail --silent http://localhost:8081/en >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color server client_web
+          exit 1
+      - name: Run representative browser flow
+        run: npm run test:e2e -- tooling/e2e/create-incident-dialog.spec.ts
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-smoke
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Print service logs after a failure
+        if: failure()
+        run: docker compose logs --no-color server client_web
+      - name: Stop the ephemeral stack
+        if: always()
+        run: docker compose down --volumes
+
   gate:
     name: CI Gate
-    needs: [changes, server-quality, server-build-test, web-quality, web-build]
+    needs:
+      [
+        changes,
+        server-quality,
+        server-build-test,
+        server-coverage,
+        web-quality,
+        web-build,
+        desktop-build,
+        e2e-smoke,
+      ]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -236,8 +353,11 @@ jobs:
             ${{ needs.changes.result }}
             ${{ needs.server-quality.result }}
             ${{ needs.server-build-test.result }}
+            ${{ needs.server-coverage.result }}
             ${{ needs.web-quality.result }}
             ${{ needs.web-build.result }}
+            ${{ needs.desktop-build.result }}
+            ${{ needs.e2e-smoke.result }}
         run: |
           echo "Job results: $RESULTS"
           for r in $RESULTS; do

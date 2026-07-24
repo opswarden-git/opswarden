@@ -4,6 +4,7 @@ import { FcGoogle } from "react-icons/fc";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button, IconButton } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
+import { useTranslations } from "next-intl";
 
 interface StepProps {
   data: OnboardingData;
@@ -14,15 +15,17 @@ interface StepProps {
 type CredentialErrors = Partial<Record<"operatorName" | "email" | "password", string>>;
 
 export function StepCredentials({ data, updateData, next }: StepProps) {
+  const t = useTranslations("Onboarding");
+  const tAuth = useTranslations("Auth");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<CredentialErrors>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: CredentialErrors = {};
-    if (!data.email) newErrors.email = "Required";
-    if (!data.password || data.password.length < 6) newErrors.password = "Must be at least 6 chars";
-    if (!data.operatorName) newErrors.operatorName = "Required";
+    if (!data.email) newErrors.email = t("required");
+    if (!data.password || data.password.length < 6) newErrors.password = t("passwordMin");
+    if (!data.operatorName) newErrors.operatorName = t("required");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -34,27 +37,27 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-6">
       <div className="flex flex-col gap-4">
-        <FormField label="Name" error={errors.operatorName} required>
+        <FormField label={t("operatorName")} error={errors.operatorName} required>
           <input
             type="text"
-            placeholder="Kevin Mitnick"
+            placeholder={t("operatorNamePlaceholder")}
             value={data.operatorName || ""}
             onChange={(e) => updateData({ operatorName: e.target.value })}
             className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
           />
         </FormField>
 
-        <FormField label="Email" error={errors.email} required>
+        <FormField label={tAuth("email")} error={errors.email} required>
           <input
             type="email"
-            placeholder="name@example.com"
+            placeholder={tAuth("emailPlaceholder")}
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
             className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
           />
         </FormField>
 
-        <FormField label="Password" error={errors.password} required>
+        <FormField label={tAuth("password")} error={errors.password} required>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -64,7 +67,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
               className={`ow-input ${showPassword ? "text-text" : "text-muted-2"} caret-gold placeholder:text-muted-2 flex h-10 w-full rounded-md px-3 py-2 pr-10 text-sm transition-colors`}
             />
             <IconButton
-              label={showPassword ? "Hide password" : "Show password"}
+              label={showPassword ? tAuth("hidePassword") : tAuth("showPassword")}
               size="sm"
               variant="ghost"
               onClick={() => setShowPassword(!showPassword)}
@@ -78,7 +81,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
 
       <div className="mt-2 flex flex-col gap-4">
         <Button type="submit" variant="primary" size="lg" fullWidth>
-          Sign Up
+          {tAuth("signup")}
         </Button>
         <Button
           size="lg"
@@ -89,7 +92,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
           }}
         >
           <FcGoogle className="size-5" />
-          Sign up with Google
+          {t("signupWithGoogle")}
         </Button>
       </div>
     </form>

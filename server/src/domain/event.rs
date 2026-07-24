@@ -6,6 +6,21 @@ use uuid::Uuid;
 use super::incident::{IncidentStatus, Severity};
 use super::release::ReleaseState;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutomationRuleResult {
+    IncidentCreated,
+    ReactionCompleted,
+}
+
+impl std::fmt::Display for AutomationRuleResult {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::IncidentCreated => "incident_created",
+            Self::ReactionCompleted => "reaction_completed",
+        })
+    }
+}
+
 /// Business events worth broadcasting in real time. These are domain-level facts
 /// ("an incident was acknowledged"), not a wire format: the WebSocket adapter
 /// serializes them to the on-the-wire JSON. Most events carry `team_id` so the
@@ -13,6 +28,13 @@ use super::release::ReleaseState;
 /// any business rule; private messages are the explicit user-scoped exception.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DomainEvent {
+    /// A newly persisted incident. Clients use the severity to notify a direct
+    /// critical creation without waiting for a later status transition.
+    IncidentCreated {
+        team_id: Uuid,
+        incident_id: Uuid,
+        severity: Severity,
+    },
     IncidentStateChanged {
         team_id: Uuid,
         incident_id: Uuid,
@@ -74,21 +96,31 @@ pub enum DomainEvent {
     RuleTriggered {
         team_id: Uuid,
         service: String,
-        rule: String,
+        rule_name: String,
+        result: AutomationRuleResult,
         incident_id: Option<Uuid>,
     },
     /// An automation rule matched but its reaction failed (Phase 2).
     RuleFailed {
         team_id: Uuid,
         service: String,
-        rule: String,
-        reason: String,
+        rule_name: String,
+        error: String,
     },
-    /// A member was removed from a team by moderation (kick or ban). Lets the
-    /// remaining members refresh their roster, and the removed user drop the team
-    /// and lose access. Covers both kick and ban — the distinction lives in the
-    /// bans list, not the realtime signal.
-    TeamMemberRemoved { team_id: Uuid, user_id: Uuid },
+    /// A member was removed from a team without being banned.
+    MemberKicked {
+        team_id: Uuid,
+        member: Uuid,
+        by: Uuid,
+    },
+    /// A temporary or permanent ban was recorded. `until` is `None` for a
+    /// permanent ban. The target may already be outside the team.
+    MemberBanned {
+        team_id: Uuid,
+        member: Uuid,
+        until: Option<DateTime<Utc>>,
+        by: Uuid,
+    },
     /// A private message was sent (RTC 2). Unlike every other event this is *not*
     /// team-scoped: it must reach exactly the two participants (sender +
     /// recipient), never a whole team. See `delivery`.
@@ -133,7 +165,8 @@ impl DomainEvent {
     /// participants.
     pub fn delivery(&self) -> EventDelivery {
         match self {
-            DomainEvent::IncidentStateChanged { team_id, .. }
+            DomainEvent::IncidentCreated { team_id, .. }
+            | DomainEvent::IncidentStateChanged { team_id, .. }
             | DomainEvent::IncidentEscalated { team_id, .. }
             | DomainEvent::IncidentAssigned { team_id, .. }
             | DomainEvent::TimelineEntryAdded { team_id, .. }
@@ -143,7 +176,8 @@ impl DomainEvent {
             | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
             | DomainEvent::RuleFailed { team_id, .. }
-            | DomainEvent::TeamMemberRemoved { team_id, .. }
+            | DomainEvent::MemberKicked { team_id, .. }
+            | DomainEvent::MemberBanned { team_id, .. }
             | DomainEvent::ReleaseStepValidated { team_id, .. }
             | DomainEvent::ReleaseStateChanged { team_id, .. } => EventDelivery::Team(*team_id),
             DomainEvent::PrivateMessageReceived {

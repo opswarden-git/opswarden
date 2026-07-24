@@ -13,14 +13,18 @@ describe("ConfirmDialog", () => {
         description="This permanently deletes Database outage."
         confirmLabel="Delete incident"
         cancelLabel="Cancel"
-        danger
+        intent="destructive"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("dialog", { name: "Delete incident" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus());
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    const confirm = screen.getByRole("button", { name: "Delete incident" });
+    await waitFor(() => expect(cancel).toHaveFocus());
+    expect(confirm).toHaveClass("bg-action-danger");
+    expect(cancel).not.toHaveClass("bg-action-danger");
   });
 
   it("requires the named confirmation value and closes with Escape", async () => {
@@ -32,6 +36,7 @@ describe("ConfirmDialog", () => {
         description="Permanent action"
         confirmLabel="Delete incident"
         cancelLabel="Cancel"
+        intent="destructive"
         requireType="DELETE"
         requireTypeLabel="Type DELETE to confirm"
         onConfirm={vi.fn()}

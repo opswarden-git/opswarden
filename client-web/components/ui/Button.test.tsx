@@ -10,7 +10,12 @@ describe("Button", () => {
 
     const button = screen.getByRole("button", { name: "Cancel" });
     expect(button).toHaveAttribute("type", "button");
-    expect(button).toHaveClass("ow-button", "bg-panel", "border-border", "h-9");
+    expect(button).toHaveClass(
+      "ow-button",
+      "bg-action-secondary",
+      "border-action-secondary-border",
+      "h-9",
+    );
   });
 
   it("forwards clicks and supports explicit variants and sizes", () => {
@@ -25,7 +30,7 @@ describe("Button", () => {
     fireEvent.click(button);
 
     expect(onClick).toHaveBeenCalledOnce();
-    expect(button).toHaveClass("bg-danger", "text-danger-ink", "h-10");
+    expect(button).toHaveClass("bg-action-danger", "text-action-danger-ink", "h-10");
   });
 
   it("disables interaction and exposes its busy state while loading", () => {

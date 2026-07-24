@@ -38,7 +38,7 @@ export default function SignupPage() {
             <Link href="/" className="flex items-center justify-center gap-3">
               <Image
                 src="/assets/logo-icon.png"
-                alt="Icon"
+                alt={t("logoIconAlt")}
                 width={49}
                 height={40}
                 className="object-contain"
@@ -46,7 +46,7 @@ export default function SignupPage() {
               />
               <Image
                 src="/assets/logo-text-light.png"
-                alt="OpsWarden"
+                alt={t("logoWordmarkAlt")}
                 width={207}
                 height={32}
                 className="object-contain"
