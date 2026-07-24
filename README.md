@@ -28,7 +28,6 @@
 
 - [Product tour](#product-tour) — the product scope through its three primary surfaces
 - [How it works](#how-it-works) — install and run locally
-- [Architecture](#architecture) — hexagonal, where things live
 - [API and data model](#api-and-data-model) — REST surface and persisted relations
 - [WebSocket protocol](WEBSOCKET_SPEC.md) — canonical realtime contract
 - [Visual contract](DESIGN_SYSTEM.md) — palette, semantic roles and safe actions
@@ -43,26 +42,12 @@ block an in-progress release.
 
 External events can automatically trigger internal actions through an
 **Action&rarr;REAction** rule engine: the current implementation live-proves a
-signed GitHub CI failure webhook creating an incident. GitLab and an AI SRE
-investigation agent remain roadmap items rather than shipped alpha features.
+signed GitHub CI failure webhook creating an incident.
 
 Positioning: a publishable mini incident.io / Rootly focused on reducing MTTR,
-rather than yet another re-skinned real-time chat. All business logic lives on the
-server (Rust/Axum, hexagonal architecture); the web and desktop clients display
-and relay, with no business logic.
-
-> Status: the alpha **product** is implemented and tested — email/JWT auth
-> (with logout/revocation), teams + 3-role RBAC, incident lifecycle, real-time
-> roster presence, timeline editing, emoji reactions, member moderation,
-> private messages, and GIPHY-powered GIF timeline entries, all on PostgreSQL
-> (SQLx). Release management is implemented with step validation and automatic
-> blocking by linked incidents. Desktop is delivered as an installable Tauri
-> URL-mode shell with tray/background behavior and native assignment,
-> direct-critical Incident, critical-escalation, and `release_blocked`
-> notifications. Notification delivery remains active while the window is
-> hidden and suppresses duplicate WebSocket replays. Compose builds and validates
-> both an installable Linux `.deb` and a Type 2 AppImage, then serves them through
-> `client_web` without a manual artifact copy.
+rather than yet another re-skinned real-time chat. The tested alpha is delivered
+as a Next.js web app and an installable Tauri desktop client, backed by one
+Rust/Axum server and PostgreSQL.
 
 ## Product tour
 
@@ -125,14 +110,10 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Compose brings up `db`, the `server` on `:8080`, a build-only `client_desktop`
-service that deposits the Linux desktop package in `./artifacts`, and the
-production `client_web` on **`:8081`** (the Next.js UI, also the URL-mode target
-the desktop build loads). `client_web` proxies `/api/*` to the server over the
-compose network; the browser reaches the WebSocket directly on the server's
-published `:8080`. If host port `8081` is already in use, run
-`CLIENT_WEB_PORT=8091 docker compose up --build`; the container still listens on
-`:8081` internally.
+Compose starts PostgreSQL, the server on `:8080`, the web app on `:8081`, and a
+build-only desktop service that writes Linux packages to `./artifacts`. If
+`:8081` is unavailable, set another host port, for example
+`CLIENT_WEB_PORT=8091 docker compose up --build`.
 
 Check the services respond:
 
@@ -146,13 +127,9 @@ curl -I http://localhost:8081/client.AppImage
 
 ### Desktop app (Tauri, URL-mode)
 
-The desktop shell loads the web UI from `http://localhost:8081`, so it needs the
-compose stack (or a dev server) running. In dev: `just desktop-dev`.
-
-A build-only `client_desktop` compose service builds an installable `.deb` and
-Type 2 AppImage in an Ubuntu/FHS container, smoke-tests the AppImage, and drops
-both under `./artifacts`. `client_web` waits for that successful build and exposes
-both packages over HTTP:
+The desktop shell reuses the web UI and adds tray behavior plus native
+notifications. Run it in development with `just desktop-dev`, or build and
+smoke-test the Linux packages through Compose:
 
 ```bash
 docker compose up --build
@@ -162,18 +139,15 @@ sudo apt install ./artifacts/OpsWarden_amd64.deb
 ./artifacts/client.AppImage
 ```
 
-The container runs AppImage helpers without FUSE, validates the Type 2 signature,
-extracts the bundle, checks its executable and shared libraries, and launches it
-under a virtual display. The HTTP delivery contract is reproducible separately:
+The delivery smoke test is also runnable independently:
 
 ```bash
 sh tooling/smoke_compose_appimage.sh
 ```
 
-The release CI independently rebuilds the AppImage on Ubuntu 22.04 and attaches
-it to tagged GitHub Releases.
+Tagged releases rebuild and publish the desktop artifacts through CI.
 
-### The project at a glance
+### Repository layout
 
 ```text
 opswarden/
@@ -189,8 +163,7 @@ opswarden/
 │   ├── tests/            # integration tests
 │   └── Dockerfile        # multi-stage build of the server binary
 ├── client-web/           # Next.js + Tailwind -- supervision UI
-├── client-desktop/       # Tauri -- URL-mode native app + tray (alpha)
-├── investigation/        # AI SRE agent (RAG / pgvector) (planned, not in repo yet)
+├── client-desktop/       # Tauri -- URL-mode native app + tray
 ├── .github/workflows/    # server + web + release CI
 ├── docker-compose.yml    # compose: db + server + client_desktop + client_web
 ├── Cargo.toml            # cargo workspace
@@ -216,64 +189,6 @@ npm run format:check --workspace client-web # Prettier, check only
 npm run typecheck --workspace client-web    # TypeScript, no emit
 npm run test --workspace client-web         # Vitest
 ```
-
-The web client uses the ESLint 9 flat configuration in
-`client-web/eslint.config.mjs`. It applies Next.js `core-web-vitals` rules to
-application and test code and ignores only generated `.next/**` output. ESLint,
-Prettier and TypeScript errors are blocking in CI; exceptions must be local,
-justified inline and reviewed rather than added as broad repository-wide
-disables.
-
-### Services
-
-| Service                                                                                                                          | Stack        | Local address                   |
-| -------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------- |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db`    | PostgreSQL   | `localhost:5433`                |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`            | Rust / Axum  | `http://localhost:8080`         |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web`    | Next.js      | `http://localhost:4242`         |
-| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                   | Tauri        | URL mode via `just desktop-dev` |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg" height="18" />` `investigation` | AI SRE (RAG) | internal                        |
-
-Cloud showcase (separate `opswarden-ops` repo):
-
-<p>
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/terraform/terraform-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/traefikproxy/traefikproxy-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/digitalocean/digitalocean-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/redis/redis-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/opentelemetry/opentelemetry-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/prometheus/prometheus-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/grafana/grafana-original.svg" height="25" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nixos/nixos-original.svg" height="25" />
-</p>
-
-## Architecture
-
-Hexagonal dependency rule: **everything points inward.** The domain knows nothing
-about Axum, SQLx, or the network.
-
-```text
-handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
-                                                  ^
-       adapters (Postgres, WS broadcaster, vault) implement the ports
-```
-
-- **Where business logic lives**: `server/src/domain` (models + invariants) and
-  `server/src/app` (use-cases). Never in handlers or clients.
-- **Where routes are wired**: `server/src/handlers` + `build_app()` in
-  `server/src/lib.rs`.
-- **Where persistence happens**: `server/src/adapters` (port implementations).
-- **Where the WebSocket broadcaster lives**: an adapter implementing the
-  `EventBus` port.
-
-### Technical decisions
-
-| Decision                             | Why it fits OpsWarden                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rust + Axum**, rather than Node.js | Incident and release transitions benefit from a strongly typed domain and explicit error handling. Tokio/Axum provides concurrent HTTP and WebSocket handling without duplicating the business rules in the transport layer; Rust adds memory safety and predictable resource use for a long-running coordination server.                                 |
-| **Tauri**, rather than Electron      | The desktop client reuses the production Next.js interface while keeping a small Rust-native shell for tray behavior and OS notifications. It avoids shipping a second application architecture and produces native Linux `.deb` and AppImage packages with a substantially smaller runtime surface than a bundled Chromium application.                  |
-| **PostgreSQL**, rather than SQLite   | Teams, single-Manager RBAC, timelines, releases and automation executions require concurrent writes, transactions, foreign keys and database-enforced invariants. PostgreSQL also provides UUID/JSONB support and works with SQLx's checked queries; SQLite would be convenient for one local process but less suitable for the shared multi-user server. |
 
 ## API and data model
 
@@ -393,14 +308,9 @@ erDiagram
 
 ## Contributing
 
-Trunk-based workflow: short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`,
-`test/`), conventional commits, squash-merge into a protected `main`. Every PR
-follows the [PR template](.github/pull_request_template.md), whose Definition of
-Done requires: `clippy -D warnings` and `cargo fmt --check` green, `npm run lint`
-
-- `format:check` + `typecheck` green, tests covering the happy path and at least
-  one error path, business logic kept out of handlers and clients, impacted docs
-  updated, and an atomic conventional commit.
+Use short-lived `feat/`, `fix/`, `chore/`, `docs/` or `test/` branches and
+conventional commits. Pull requests are squash-merged into protected `main` and
+must satisfy the [Definition of Done](.github/pull_request_template.md).
 
 ## License
 
