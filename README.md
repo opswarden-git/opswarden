@@ -26,14 +26,12 @@
 
 ---
 
-- [Scope](#scope) — what ships, in tiers
-- [Product tour](#product-tour) — the three primary operational surfaces
+- [Product tour](#product-tour) — the product scope through its three primary surfaces
 - [How it works](#how-it-works) — install and run locally
 - [Architecture](#architecture) — hexagonal, where things live
 - [API and data model](#api-and-data-model) — REST surface and persisted relations
 - [WebSocket protocol](WEBSOCKET_SPEC.md) — canonical realtime contract
 - [Visual contract](DESIGN_SYSTEM.md) — palette, semantic roles and safe actions
-- [Roadmap](#roadmap) — project milestones
 - [Contributing](#contributing) — workflow and Definition of Done
 
 ## Introduction
@@ -68,80 +66,46 @@ and relay, with no business logic.
 
 ## Product tour
 
+### Incidents
+
+OpsWarden gives responders one shared operational record for an incident: its
+severity and lifecycle, current owner, live participant presence, editable
+timeline, emoji reactions and activity history. Updates are persisted in
+PostgreSQL and broadcast over WebSocket so the web and desktop clients converge
+without moving business rules out of the Rust server.
+
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png">
     <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png" alt="OpsWarden incident queue" width="900" />
   </a>
 </p>
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/releases.png">
-        <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/releases.png" alt="OpsWarden release coordination" />
-      </a>
-      <br /><sub>Ordered releases, progress and incident-driven blockers.</sub>
-    </td>
-    <td width="50%" align="center">
-      <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png">
-        <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png" alt="OpsWarden team management" />
-      </a>
-      <br /><sub>Team scope, membership and operational ownership.</sub>
-    </td>
-  </tr>
-</table>
+### Releases
 
-## Scope
+Release coordination turns a deployment into an ordered, accountable sequence:
+responders validate each step, progress remains visible to the team, and linked
+active incidents automatically block unsafe advancement until they are resolved.
+This keeps release state and operational risk in the same workspace.
 
-OpsWarden aims to be a real Incident Management Platform, in the lineage of
-**PagerDuty, Opsgenie, incident.io, Rootly and Datadog Incident Management**,
-delivered in tiers. Locked architecture decision: a modular hexagonal monolith
-(cargo + npm workspaces) for the core, **a single extracted service** (the AI SRE
-agent, behind a port), and the cloud/ops layer in **separate repositories** — the
-microservices instinct is honored where it pays, without distributed-systems tax.
+<p align="center">
+  <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/releases.png">
+    <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/releases.png" alt="OpsWarden release coordination" width="900" />
+  </a>
+</p>
 
-**Core Features**
+### Teams
 
-- Email auth + JWT, `/me`, logout with token invalidation; teams + 3-role RBAC
-  (Observer / Responder / Manager) + invitation code + Manager transfer
-- Incidents (open &rarr; acknowledged &rarr; escalated &rarr; resolved, severities)
-  with a real-time collaborative timeline, inline edits and emoji reactions
-- WebSockets (`incident_*`, `presence_update`) + automatic client reconnection
-- Action&rarr;REAction automation: GitHub webhook (CI failed) &rarr; incident;
-  dynamic `/about.json` + SHA-256 token; encrypted token vault (AES-GCM)
-- Team GitHub connections support an authorization-code OAuth flow with
-  anti-CSRF `state` and PKCE S256. A GitHub App with expiring user tokens stores
-  both access and refresh tokens encrypted in the Team vault, supports rotation,
-  and never returns token material through the API. PAT remains available as a
-  manual alternative.
-- Team member moderation: kick, temporary ban, permanent ban, ban-gated rejoin
-- Private messages between users sharing a team, limited to **2,000 characters**
-  by the server and delivered over a user-scoped WebSocket event
-- GIPHY GIF search via a server-side API key and authenticated backend proxy
-- Releases with ordered step validation and automatic blocking/unblocking by
-  linked incident state
-- `docker-compose` for database + server + desktop artifact + web client; GitHub Actions
-  CI/CD; FR/EN i18n with the profile preference persisted in PostgreSQL
-- Keyboard-complete web interactions with managed dialog/menu focus, explicit
-  labels for every form control, live error announcements, and an automated
-  accessibility contract preventing placeholder-only labels or positive tab order
+Teams are the security and collaboration boundary: membership, invitations,
+presence and Observer/Responder/Manager permissions govern every operation.
+Managers can transfer ownership, moderate or ban members, configure encrypted
+GitHub and HTTP integrations, and create Action&rarr;REAction rules; teammates can
+also exchange private messages without leaving their shared operational context.
 
-**Extended Features** (in progress / planned)
-
-- Tauri desktop URL-mode shell is present (OS notifications + tray); Compose
-  builds and serves both the `.deb` and canonical AppImage
-- Google OAuth2 exists as optional auth plumbing
-- GitLab as an Action; additional REActions (Slack / HTTP / Email)
-
-**Long-term vision**
-
-- **AI SRE**: RAG microservice (FastAPI, `@ask` / `@search`, pgvector, LLM/SLM)
-  correlating logs + commit diff + past incidents to propose a root cause + runbook
-- **Integrations**: Slack, Jira / Confluence
-- **Observability**: OpenTelemetry + Prometheus + Grafana + Loki + Promtail
-- **IaC showcase** (repo `opswarden-ops`): Minikube &rarr; k8s &rarr; Terraform &rarr;
-  DigitalOcean (DOKS) + Traefik + cAdvisor + Argo/Flux; Redis + async workers
-- **Deployment**: Vercel (web) + multi-repo (product monorepo v1, separate ops repos)
+<p align="center">
+  <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png">
+    <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png" alt="OpsWarden team management" width="900" />
+  </a>
+</p>
 
 ## How it works
 
@@ -426,65 +390,6 @@ erDiagram
   `server/migrations/` are the canonical executable schema.
 
 </details>
-
-## Roadmap
-
-**Foundations & rails**
-
-- Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
-- Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
-- Dynamic `/about.json` + SHA-256 `token` field (kickoff string);
-  `client.host` comes from the TCP peer or an explicitly configured trusted
-  proxy chain (`OPSWARDEN_TRUSTED_PROXY_HOPS`)
-- Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
-
-**Real-time collaborative core**
-
-- Email auth + JWT, `GET /me`, logout with token invalidation
-- Teams + 3-role RBAC + invitation code + Manager transfer
-- Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities
-- Real-time collaborative timeline (timestamped entries, Responder assignment)
-- Server-owned reaction catalog exposed by authenticated
-  `GET /reactions/available`: `👍`, `👀`, `✅`, `🚨`, `❤️`, `🎉`. The domain
-  rejects every emoji outside this list.
-- Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
-- Postgres persistence (SQLx) + versioned migrations
-
-**Automation & professionalization**
-
-- Webhook receiver `POST /webhooks/{service}` + HMAC validation
-- Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
-- 1 external Action (GitHub) + 1 REAction (generic HTTP `Notify`, covers Slack)
-- `/about.json` is the sole client-side automation catalog: services,
-  connection/OAuth capabilities, credential fields, Action filters and
-  REAction payload fields all drive generic TypeScript forms
-- REAction text fields support bounded, single-pass templates over normalized
-  non-secret facts: `{{repository}}`, `{{workflow}}`, `{{branch}}`,
-  `{{conclusion}}` and `{{run_url}}`; unknown or credential-shaped variables
-  are rejected before a rule is stored
-- Contract-tested WebSockets `rule_triggered`
-  (`rule_name`, `result`, nullable `incident_id`) and `rule_failed`
-  (`rule_name`, stable `error` code)
-
-**Desktop & delivery**
-
-- Tauri URL-mode shell reusing the front-end, with tray/background behavior
-- Native OS notifications: assignment, direct-critical Incident,
-  critical escalation, and blocked Release are contract- and integration-tested
-  while the Tauri window is hidden; reconnect replays are deduplicated
-- Compose covers `db` / `server` 8080 / build-only `client_desktop` /
-  `client_web` 8081. The desktop builder produces and smoke-tests both packages;
-  the web client serves them at `/client.deb` and `/client.AppImage`
-- FR/EN i18n (labels, states, severities); `GET /api/me` exposes the persisted
-  profile locale and `PUT /api/me/locale` accepts only `en` or `fr`. The web
-  client and URL-mode desktop shell restore that server preference on session
-  hydration. `/about.json?locale=en|fr` also localizes the server-owned
-  Automation catalog. Automated checks enforce catalog parity, ICU arguments
-  and the absence of hard-coded visible strings.
-- The shared Radix dialogs and action menus are tested for initial focus,
-  keyboard opening/navigation, Escape closing and focus restoration. A static
-  frontend contract also requires an explicit accessible name for every native
-  form control and rejects positive `tabIndex` values.
 
 ## Contributing
 
