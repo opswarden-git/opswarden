@@ -15,9 +15,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release-gate:
+    name: Release Gate (tests must pass)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opswarden
+          POSTGRES_DB: opswarden
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      SQLX_OFFLINE: "true"
+      POSTGRES_USER: opswarden
+      POSTGRES_DB: opswarden
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Rust toolchain (stable + rustfmt + clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Install sqlx-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sqlx-cli
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Assemble DATABASE_URL
+        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+      - name: Run database migrations
+        run: sqlx migrate run --source server/migrations
+      - name: Rust format and lint
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Rust build and tests
+        run: |
+          cargo build --workspace --verbose
+          cargo test --workspace --verbose
+      - name: Web quality, tests and build
+        run: |
+          npm run lint --workspace client-web
+          npm run format:check --workspace client-web
+          npm run typecheck --workspace client-web
+          npm run test:coverage --workspace client-web
+          npm run build --workspace client-web
+
   create-release:
     name: Create GitHub Release
     if: startsWith(github.ref, 'refs/tags/')
+    needs: release-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (historique complet pour le changelog)
@@ -32,6 +91,7 @@ jobs:
   docker-image:
     name: Build & Push server image (ghcr.io)
     if: startsWith(github.ref, 'refs/tags/')
+    needs: release-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -64,21 +124,17 @@ jobs:
           cache-to: type=gha,mode=max
 
   # Phase 3 -- desktop AppImage (Tauri, URL-mode -> http://localhost:8081).
-  # Built on ubuntu-22.04 (glibc 2.35), the platform where Tauri's linuxdeploy
-  # works -- it is broken inside a local Docker container (see client-desktop/
-  # Dockerfile + U3), which is why the local Compose `client_desktop` service
-  # produces a `.deb` and the AppImage is produced here. This job is a builder
-  # only; workflow_dispatch can smoke-test the AppImage without creating a GitHub
-  # Release or pushing a server image. A separate tag-only job attaches the
-  # generated AppImage after the release exists.
+  # Built on ubuntu-22.04 (glibc 2.35), matching the Compose artifact builder.
+  # The release gate must pass before any distributable artifact is produced.
   desktop-appimage:
     name: Build desktop AppImage (Tauri)
+    needs: release-gate
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: "24"
       - uses: dtolnay/rust-toolchain@stable
       - name: Tauri Linux system deps
         run: |
@@ -94,7 +150,7 @@ jobs:
           projectPath: ./client-desktop
           args: --bundles appimage
       - name: Upload AppImage as a workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opswarden-appimage
           path: client-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
@@ -107,7 +163,7 @@ jobs:
     needs: [create-release, desktop-appimage]
     steps:
       - name: Download AppImage artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: opswarden-appimage
           path: desktop-artifacts

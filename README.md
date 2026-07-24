@@ -29,6 +29,8 @@
 - [Scope](#scope) — what ships, in tiers
 - [How it works](#how-it-works) — install and run locally
 - [Architecture](#architecture) — hexagonal, where things live
+- [WebSocket protocol](WEBSOCKET_SPEC.md) — canonical realtime contract
+- [Visual contract](DESIGN_SYSTEM.md) — palette, semantic roles and safe actions
 - [Roadmap](#roadmap) — project milestones
 - [Contributing](#contributing) — workflow and Definition of Done
 
@@ -56,10 +58,11 @@ and relay, with no business logic.
 > (SQLx). Release management is implemented with step validation and automatic
 > blocking by linked incidents. Desktop is partially implemented as a Tauri
 > URL-mode shell with tray/background behavior and native assignment,
-> high-severity, and `release_blocked` notifications. Compose builds an
-> installable Linux `.deb` and serves it over HTTP through `client_web`; the
-> AppImage is built by the release CI on a GitHub `ubuntu-22.04` runner and is
-> exposed as `/client.AppImage` when copied into `./artifacts`.
+> direct-critical Incident, critical-escalation, and `release_blocked`
+> notifications. Notification delivery remains active while the window is
+> hidden and suppresses duplicate WebSocket replays. Compose builds and validates
+> both an installable Linux `.deb` and a Type 2 AppImage, then serves them through
+> `client_web` without a manual artifact copy.
 
 ## Scope
 
@@ -79,6 +82,11 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - WebSockets (`incident_*`, `presence_update`) + automatic client reconnection
 - Action&rarr;REAction automation: GitHub webhook (CI failed) &rarr; incident;
   dynamic `/about.json` + SHA-256 token; encrypted token vault (AES-GCM)
+- Team GitHub connections support an authorization-code OAuth flow with
+  anti-CSRF `state` and PKCE S256. A GitHub App with expiring user tokens stores
+  both access and refresh tokens encrypted in the Team vault, supports rotation,
+  and never returns token material through the API. PAT remains available as a
+  manual alternative.
 - Team member moderation: kick, temporary ban, permanent ban, ban-gated rejoin
 - Private messages between users sharing a team, delivered over a user-scoped
   WebSocket event
@@ -86,13 +94,15 @@ microservices instinct is honored where it pays, without distributed-systems tax
 - Releases with ordered step validation and automatic blocking/unblocking by
   linked incident state
 - `docker-compose` for server + db; local web via npm/Next.js; GitHub Actions
-  CI/CD; FR/EN i18n
+  CI/CD; FR/EN i18n with the profile preference persisted in PostgreSQL
+- Keyboard-complete web interactions with managed dialog/menu focus, explicit
+  labels for every form control, live error announcements, and an automated
+  accessibility contract preventing placeholder-only labels or positive tab order
 
 **Extended Features** (in progress / planned)
 
 - Tauri desktop URL-mode shell is present (OS notifications + tray); Compose
-  builds a local `.deb` served by `client_web`, and the release CI builds the
-  AppImage artifact for the canonical `/client.AppImage` download path
+  builds and serves both the `.deb` and canonical AppImage
 - Google OAuth2 exists as optional auth plumbing
 - GitLab as an Action; additional REActions (Slack / HTTP / Email)
 
@@ -140,6 +150,7 @@ curl http://localhost:8080/health      # -> {"status":"ok"}
 curl http://localhost:8080/about.json  # -> service catalog + SHA-256 token
 curl http://localhost:8081/en          # -> 200, the web UI (FR at /fr)
 curl -I http://localhost:8081/client.deb
+curl -I http://localhost:8081/client.AppImage
 ```
 
 ### Desktop app (Tauri, URL-mode)
@@ -147,28 +158,29 @@ curl -I http://localhost:8081/client.deb
 The desktop shell loads the web UI from `http://localhost:8081`, so it needs the
 compose stack (or a dev server) running. In dev: `just desktop-dev`.
 
-A build-only `client_desktop` compose service builds an installable Linux package
-in an Ubuntu/FHS container (the Tauri bundler can't run on a NixOS host) and drops
-it on the host under `./artifacts`. `client_web` depends on that build and exposes
-the package over HTTP:
+A build-only `client_desktop` compose service builds an installable `.deb` and
+Type 2 AppImage in an Ubuntu/FHS container, smoke-tests the AppImage, and drops
+both under `./artifacts`. `client_web` waits for that successful build and exposes
+both packages over HTTP:
 
 ```bash
 docker compose up --build
 curl -I http://localhost:8081/client.deb
+curl -I http://localhost:8081/client.AppImage
 sudo apt install ./artifacts/OpsWarden_amd64.deb
+./artifacts/client.AppImage
 ```
 
-The **AppImage** is produced by the release CI, not by local Docker: Tauri's
-pinned `linuxdeploy` is broken inside a local container, while GitHub's
-`ubuntu-22.04` runner (`tauri-action`) builds it successfully. On a `v*.*.*` tag
-the `Release` workflow attaches it to the GitHub Release; a manual run
-(**Run workflow** / `workflow_dispatch`) uploads it as the `opswarden-appimage`
-artifact. Place the downloaded AppImage at `./artifacts/client.AppImage` and the
-running web container serves the VIGIL canonical route:
+The container runs AppImage helpers without FUSE, validates the Type 2 signature,
+extracts the bundle, checks its executable and shared libraries, and launches it
+under a virtual display. The HTTP delivery contract is reproducible separately:
 
 ```bash
-curl -I http://localhost:8081/client.AppImage
+sh tooling/smoke_compose_appimage.sh
 ```
+
+The release CI independently rebuilds the AppImage on Ubuntu 22.04 and attaches
+it to tagged GitHub Releases.
 
 ### The project at a glance
 
@@ -259,7 +271,9 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 
 - Scaffold monorepo: cargo workspace (`server`) + npm workspaces (`client-web`)
 - Hexagonal skeleton `domain / ports / app / adapters / handlers` + `GET /health`
-- Dynamic `/about.json` + SHA-256 `token` field (kickoff string)
+- Dynamic `/about.json` + SHA-256 `token` field (kickoff string);
+  `client.host` comes from the TCP peer or an explicitly configured trusted
+  proxy chain (`OPSWARDEN_TRUSTED_PROXY_HOPS`)
 - Green CI quality gate: `cargo fmt --check`, `clippy -D warnings`, ESLint, `prettier --check` pass on every push
 
 **Real-time collaborative core**
@@ -268,6 +282,9 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - Teams + 3-role RBAC + invitation code + Manager transfer
 - Incidents: open &rarr; acknowledged &rarr; escalated &rarr; resolved lifecycle + severities
 - Real-time collaborative timeline (timestamped entries, Responder assignment)
+- Server-owned reaction catalog exposed by authenticated
+  `GET /reactions/available`: `👍`, `👀`, `✅`, `🚨`, `❤️`, `🎉`. The domain
+  rejects every emoji outside this list.
 - Core WebSockets: `incident_state_changed`, `incident_escalated`, `incident_assigned`, `timeline_entry_added`, `presence_update` + automatic client reconnection
 - Postgres persistence (SQLx) + versioned migrations
 
@@ -276,17 +293,36 @@ handlers (Axum, WS)  ->  app (use-cases)  ->  ports (traits)  ->  domain (pure)
 - Webhook receiver `POST /webhooks/{service}` + HMAC validation
 - Hook engine (trigger + filters &rarr; reaction); 1 end-to-end rule: failing GitHub CI &rarr; `high` incident
 - 1 external Action (GitHub) + 1 REAction (generic HTTP `Notify`, covers Slack)
-- `/about.json` reflects the real catalog (nothing hard-coded client-side)
-- WebSockets `rule_triggered`, `rule_failed`
+- `/about.json` is the sole client-side automation catalog: services,
+  connection/OAuth capabilities, credential fields, Action filters and
+  REAction payload fields all drive generic TypeScript forms
+- REAction text fields support bounded, single-pass templates over normalized
+  non-secret facts: `{{repository}}`, `{{workflow}}`, `{{branch}}`,
+  `{{conclusion}}` and `{{run_url}}`; unknown or credential-shaped variables
+  are rejected before a rule is stored
+- Contract-tested WebSockets `rule_triggered`
+  (`rule_name`, `result`, nullable `incident_id`) and `rule_failed`
+  (`rule_name`, stable `error` code)
 
 **Desktop & delivery**
 
 - Tauri URL-mode shell reusing the front-end, with tray/background behavior
-- Native OS notifications: assignment, high/critical severity, and blocked
-  Release are live-proven
-- Compose covers `db` / `server` 8080 / build-only `client_desktop` / `client_web` 8081. The web client serves the local `.deb` at `/client.deb` and the CI-built
-  AppImage at `/client.AppImage` when placed in `./artifacts/client.AppImage`
-- FR/EN i18n (labels, states, severities) persisted server-side
+- Native OS notifications: assignment, direct-critical Incident,
+  critical escalation, and blocked Release are contract- and integration-tested
+  while the Tauri window is hidden; reconnect replays are deduplicated
+- Compose covers `db` / `server` 8080 / build-only `client_desktop` /
+  `client_web` 8081. The desktop builder produces and smoke-tests both packages;
+  the web client serves them at `/client.deb` and `/client.AppImage`
+- FR/EN i18n (labels, states, severities); `GET /api/me` exposes the persisted
+  profile locale and `PUT /api/me/locale` accepts only `en` or `fr`. The web
+  client and URL-mode desktop shell restore that server preference on session
+  hydration. `/about.json?locale=en|fr` also localizes the server-owned
+  Automation catalog. Automated checks enforce catalog parity, ICU arguments
+  and the absence of hard-coded visible strings.
+- The shared Radix dialogs and action menus are tested for initial focus,
+  keyboard opening/navigation, Escape closing and focus restoration. A static
+  frontend contract also requires an explicit accessible name for every native
+  form control and rejects positive `tabIndex` values.
 
 ## Contributing
 
