@@ -15,7 +15,7 @@
 # The shell is URL-mode (loads http://localhost:8081), so no web frontend is
 # built here. The build-only service copies the artifact to a /out bind mount.
 
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 # Tauri v2 Linux toolchain (matches the tauri-action recipe) + AppImage tooling
