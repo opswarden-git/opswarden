@@ -14,8 +14,8 @@ clean_log=$(mktemp)
 trap 'rm -f "$clean_log"' EXIT
 sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g' "$test_log" > "$clean_log"
 
-file_line=$(rg 'Test Files[[:space:]]+[0-9]+ passed' "$clean_log" | tail -n 1)
-test_line=$(rg 'Tests[[:space:]]+[0-9]+ passed' "$clean_log" | tail -n 1)
+file_line=$(awk '/Test Files[[:space:]]+[0-9]+ passed/ { line = $0 } END { print line }' "$clean_log")
+test_line=$(awk '/Tests[[:space:]]+[0-9]+ passed/ { line = $0 } END { print line }' "$clean_log")
 files_passed=$(awk '{ for (i=1; i<=NF; i++) if ($i == "Files") { print $(i+1); exit } }' <<< "$file_line")
 tests_passed=$(awk '{ for (i=1; i<=NF; i++) if ($i == "Tests") { print $(i+1); exit } }' <<< "$test_line")
 files_total=$(sed -E 's/.*\(([0-9]+)\).*/\1/' <<< "$file_line")
