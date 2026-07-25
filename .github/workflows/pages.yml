@@ -1,0 +1,64 @@
+---
+name: Pages
+run-name: "Pages · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }} · ${{ github.sha }}"
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - .github/workflows/pages.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - .github/workflows/pages.yml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Pages · Live health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install link checker
+        uses: taiki-e/install-action@3d7d7cd5ac7f994c1892ae0c06165095b9139094 # v2
+        with:
+          tool: lychee@0.24.2
+      - name: Validate repository documentation links
+        run: >-
+          lychee --include-fragments --max-retries 3 --retry-wait-time 2
+          README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md
+          WEBSOCKET_SPEC.md
+      - name: Verify live documentation surface
+        env:
+          PAGES_BASE_URL: https://opswarden-git.github.io/opswarden
+        run: |
+          curl --fail --silent --show-error --location --max-time 20 \
+            "${PAGES_BASE_URL}/" | grep --fixed-strings --quiet "OpsWarden documentation"
+          curl --fail --silent --show-error --location --max-time 20 \
+            "${PAGES_BASE_URL}/getting-started/" | grep --fixed-strings --quiet "Coverage and quality gates"
+          curl --fail --silent --show-error --location --max-time 20 \
+            "${PAGES_BASE_URL}/reference/rest-api/" | grep --fixed-strings --quiet "Complete endpoint catalogue"
+          curl --fail --silent --show-error --location --max-time 20 \
+            "${PAGES_BASE_URL}/reference/data-model/" | grep --fixed-strings --quiet "Invariants worth protecting"

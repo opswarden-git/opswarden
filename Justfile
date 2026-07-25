@@ -78,11 +78,13 @@ flamegraph:
 
 # graphe des modules (nécessite cargo-modules + graphviz)
 viz-modules:
-    cargo modules dependencies -p opswarden-server --lib | dot -Tsvg > docs/modules.svg
+    mkdir -p artifacts
+    cargo modules dependencies -p opswarden-server --lib | dot -Tsvg > artifacts/modules.svg
 
 # graphe des dépendances (nécessite cargo-depgraph + graphviz)
 viz-deps:
-    cargo depgraph | dot -Tsvg > docs/deps.svg
+    mkdir -p artifacts
+    cargo depgraph | dot -Tsvg > artifacts/deps.svg
 
 # ----- Web (Next.js) -----
 
@@ -103,14 +105,6 @@ web-check:
 # parcours navigateur sur la stack locale ; le dataset démo est restauré après le run
 web-e2e:
     npm run test:e2e
-
-# construit le portail technique avec les mêmes versions que la CI
-docs:
-    ./tooling/docs.sh build
-
-# sert le portail sur http://localhost:8000 (DOCS_PORT permet de changer le port)
-docs-serve:
-    ./tooling/docs.sh serve
 
 # ----- Repo -----
 
