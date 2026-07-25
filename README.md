@@ -4,30 +4,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
-  <a href="https://opswarden-git.github.io/opswarden/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-F4C430?style=flat-square&logo=materialformkdocs&logoColor=000000" alt="Technical documentation" /></a>
-  <a href="https://github.com/opswarden-git/opswarden/releases/latest"><img src="https://img.shields.io/github/v/release/opswarden-git/opswarden?style=flat-square&color=F4C430&label=release" alt="Latest release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
-  <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Rust-000000?style=flat-square&logo=rust&logoColor=white" alt="Rust" />
-  <img src="https://img.shields.io/badge/Axum-2F2F2F?style=flat-square" alt="Axum" />
-  <img src="https://img.shields.io/badge/Tokio-2F2F2F?style=flat-square" alt="Tokio" />
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Tauri-24C8DB?style=flat-square&logo=tauri&logoColor=white" alt="Tauri" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white" alt="GitHub Actions" />
-</p>
-
----
-
-<p align="center">
   <a href="https://github.com/opswarden-git/opswarden-website">Landing page</a> ·
   <a href="https://github.com/opswarden-git/opswarden-ops">Deployment</a> ·
   <a href="https://opswarden-git.github.io/opswarden/">Documentation</a> ·
@@ -35,7 +11,28 @@
   <a href="#license">License</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
+  <a href="https://opswarden-git.github.io/opswarden/"><img src="https://img.shields.io/badge/github%20pages-121013?style=flat-square&logo=github&logoColor=white" alt="GitHub Pages" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/releases/latest"><img src="https://img.shields.io/github/v/release/opswarden-git/opswarden?style=flat-square&color=F4C430&label=release" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&logo=prettier" alt="code style: prettier" />
+  <img src="https://img.shields.io/badge/eslint-configured-4B32C3?style=flat-square&logo=eslint" alt="eslint" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
+</p>
+
 ## What is OpsWarden?
+
+<p>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="25" alt="PostgreSQL" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="25" alt="Next.js" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg" height="25" alt="TypeScript" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" height="25" alt="Tailwind CSS" />
+  <img src="https://api.iconify.design/simple-icons/tauri.svg" height="25" alt="Tauri" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg" height="25" alt="Docker" />
+  <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
+</p>
 
 **OpsWarden** is a real-time incident response and release coordination platform
 for technical teams. Incidents are triaged and resolved in one shared workspace;
@@ -45,11 +42,6 @@ incident makes further deployment unsafe.
 External events can trigger internal actions through an
 **Action&rarr;REAction** rule engine. The current implementation demonstrates the
 complete path from a signed GitHub CI failure webhook to a new incident.
-
-The tested alpha ships as a Next.js web app and an installable Tauri desktop
-client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
-strongly typed, PostgreSQL protects concurrent multi-user state, and Tauri adds
-native desktop behavior without introducing a second application architecture.
 
 ### Incident response
 
@@ -94,7 +86,14 @@ also exchange private messages without leaving their shared operational context.
   </a>
 </p>
 
-## Getting started
+The tested alpha ships as a Next.js web app and an installable Tauri desktop
+client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
+strongly typed, PostgreSQL protects concurrent multi-user state, and Tauri adds
+native desktop behavior without introducing a second application architecture.
+
+## For developers
+
+OpsWarden is built to be run both locally for development and in the cloud for production. To get a feel for the platform on your own machine, you can launch the entire stack in just a few commands using Docker:
 
 ```bash
 git clone https://github.com/opswarden-git/opswarden.git
@@ -103,11 +102,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:8081/en` (`/fr` for French). The complete setup,
-configuration, desktop installation and development commands live in the
-**[Getting started guide](https://opswarden-git.github.io/opswarden/getting-started/)**.
-
-### Services
+Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). Here is a breakdown of the services that are running:
 
 | Icon                                                                                                                         | Service          | Stack       | Local address                   |
 | ---------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------- | ------------------------------- |
@@ -116,19 +111,9 @@ configuration, desktop installation and development commands live in the
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
-## Also see
+For a deep dive into setup, configuration, and advanced development commands, be sure to check out our comprehensive **[Technical documentation](https://opswarden-git.github.io/opswarden/)**. It includes everything from architectural decisions and our [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) to the complete [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
 
-- **[Technical documentation](https://opswarden-git.github.io/opswarden/)** —
-  searchable implementation guides covering the
-  [architecture](https://opswarden-git.github.io/opswarden/architecture/),
-  [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/),
-  [data model](https://opswarden-git.github.io/opswarden/reference/data-model/),
-  [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/)
-  and [UI guidelines](https://opswarden-git.github.io/opswarden/design/ui-guidelines/).
-- **[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops)** — cloud,
-  deployment and observability engineering for OpsWarden.
-- **[`opswarden-website`](https://github.com/opswarden-git/opswarden-website)** —
-  the public marketing website.
+When it comes to production deployment, we take infrastructure seriously. The **[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops)** repository houses all of our cloud and observability engineering. We rely on modern tooling to keep the platform reliable and observable:
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" alt="Kubernetes" />
@@ -142,13 +127,15 @@ configuration, desktop installation and development commands live in the
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nixos/nixos-original.svg" height="25" alt="NixOS" />
 </p>
 
-## Contributing
+Finally, if you're looking for our public-facing presentation, you can find the Next.js source code for our landing page in the **[`opswarden-website`](https://github.com/opswarden-git/opswarden-website)** repository.
+
+### Contributing
 
 Use short-lived `feat/`, `fix/`, `chore/`, `docs/` or `test/` branches and
 conventional commits. Pull requests are squash-merged into protected `main` and
 must satisfy the [Definition of Done](.github/pull_request_template.md).
 
-## License
+### License
 
 OpsWarden is distributed under the **Apache License 2.0**. See [LICENSE](LICENSE)
 and [NOTICE](NOTICE).
