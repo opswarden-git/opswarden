@@ -6,7 +6,7 @@
 <p align="center">
   <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
-  <a href="https://github.com/opswarden-git/opswarden/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0-F4C430?style=flat-square" alt="Release v1.0.0" /></a>
+  <a href="https://github.com/opswarden-git/opswarden/releases/latest"><img src="https://img.shields.io/github/v/release/opswarden-git/opswarden?style=flat-square&color=F4C430&label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-F4C430?style=flat-square" alt="License: Apache 2.0" /></a>
   <img src="https://img.shields.io/badge/status-alpha-2F2F2F?style=flat-square" alt="Status: alpha" />
 </p>

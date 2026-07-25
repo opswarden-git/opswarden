@@ -1,26 +1,29 @@
+---
 name: Release
+run-name: "Release · ${{ github.ref_name }}"
 
-on:
+"on":
   push:
-    tags:
-      - "v*.*.*"
-  workflow_dispatch:
+    tags: ["v*.*.*"]
 
 permissions:
-  contents: write # creer la GitHub Release
-  packages: write # pousser l'image vers ghcr.io
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+
 jobs:
   release-gate:
-    name: Release Gate (tests must pass)
+    name: Release · Quality gate
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
         env:
           POSTGRES_USER: opswarden
           POSTGRES_DB: opswarden
@@ -30,144 +33,274 @@ jobs:
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
     env:
-      SQLX_OFFLINE: "true"
       POSTGRES_USER: opswarden
       POSTGRES_DB: opswarden
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v6
+      - name: Checkout complete history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a versioned commit from main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "::error::Release tags must point to a commit reachable from main"
+            exit 1
+          }
+          ./tooling/verify_release_version.sh "$GITHUB_REF_NAME"
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
-          cache: npm
-      - name: Rust toolchain (stable + rustfmt + clippy)
-        uses: dtolnay/rust-toolchain@stable
+          package-manager-cache: false
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
           components: rustfmt, clippy
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-      - name: Install sqlx-cli
-        uses: taiki-e/install-action@v2
+      - name: Install Rust quality tools
+        uses: taiki-e/install-action@3d7d7cd5ac7f994c1892ae0c06165095b9139094 # v2
         with:
-          tool: sqlx-cli
-      - name: Install JavaScript dependencies
+          tool: cargo-audit,cargo-deny@0.19.7,sqlx-cli
+      - name: Install locked JavaScript dependencies
         run: npm ci
-      - name: Assemble DATABASE_URL
-        run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
-      - name: Run database migrations
-        run: sqlx migrate run --source server/migrations
-      - name: Rust format and lint
+      - name: Configure and migrate test database
+        run: |
+          echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
+          DATABASE_URL="postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" \
+            sqlx migrate run --source server/migrations
+      - name: Validate backend quality and dependencies
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - name: Rust build and tests
+          cargo audit
+          cargo deny check --config tooling/deny.toml
+      - name: Build and test backend
         run: |
           cargo build --workspace --verbose
-          cargo test --workspace --verbose
-      - name: Web quality, tests and build
+          mkdir -p target/test-results
+          cargo test --workspace --verbose 2>&1 | tee target/test-results/rust.log
+          ./tooling/summarize_rust_tests.sh
+      - name: Validate, test and build web client
         run: |
           npm run lint --workspace client-web
           npm run format:check --workspace client-web
           npm run typecheck --workspace client-web
-          npm run test:coverage --workspace client-web
+          mkdir -p target/test-results
+          npm run test:coverage --workspace client-web 2>&1 | tee target/test-results/web.log
+          ./tooling/summarize_web_tests.sh
+          ./tooling/audit_npm.sh
           npm run build --workspace client-web
 
-  create-release:
-    name: Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: release-gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (historique complet pour le changelog)
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Create release with auto-generated notes
-        uses: softprops/action-gh-release@v3
-        with:
-          generate_release_notes: true
-
-  docker-image:
-    name: Build & Push server image (ghcr.io)
-    if: startsWith(github.ref, 'refs/tags/')
+  release-e2e:
+    name: Release · E2E critical path
     needs: release-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start ephemeral application stack
+        run: |
+          docker compose up --detach --build db server
+          docker compose up --detach --build --no-deps client_web
+      - name: Wait for application readiness
+        run: |
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://localhost:8080/health >/dev/null \
+              && curl --fail --silent http://localhost:8081/en >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color server client_web
+          exit 1
+      - name: Run critical browser flow
+        run: npm run test:e2e -- tooling/e2e/create-incident-dialog.spec.ts
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-playwright-critical-path
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Print service logs after a failure
+        if: failure()
+        run: docker compose logs --no-color server client_web
+      - name: Stop ephemeral application stack
+        if: always()
+        run: docker compose down --volumes
+
+  desktop-packages:
+    name: Desktop (${{ matrix.platform }}) · Package
+    needs: release-gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            runner: ubuntu-22.04
+            bundles: deb,appimage
+            artifact_name: desktop-linux
+            artifact_path: |
+              client-desktop/src-tauri/target/release/bundle/deb/*.deb
+              client-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          - platform: Windows
+            runner: windows-latest
+            bundles: nsis
+            artifact_name: desktop-windows
+            artifact_path: client-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          - platform: macOS
+            runner: macos-14
+            bundles: dmg
+            artifact_name: desktop-macos
+            artifact_path: client-desktop/src-tauri/target/release/bundle/dmg/*.dmg
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf libfuse2
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build native package
+        uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
+        with:
+          projectPath: ./client-desktop
+          args: --bundles ${{ matrix.bundles }}
+      - name: Upload native package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
+
+  docker-image:
+    name: Server image · Build, push & attest
+    needs: release-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Normalize image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/opswarden-server" >> "$GITHUB_OUTPUT"
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker metadata (tags + labels, owner mis en minuscules)
+      - name: Generate image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/opswarden-server
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build & push
-        uses: docker/build-push-action@v5
+      - name: Configure Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: server/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
-  # Phase 3 -- desktop AppImage (Tauri, URL-mode -> http://localhost:8081).
-  # Built on ubuntu-22.04 (glibc 2.35), matching the Compose artifact builder.
-  # The release gate must pass before any distributable artifact is produced.
-  desktop-appimage:
-    name: Build desktop AppImage (Tauri)
-    needs: release-gate
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Tauri Linux system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev patchelf libfuse2
-      - name: Install desktop npm deps (Tauri CLI)
-        run: npm ci --workspace client-desktop --include-workspace-root=false
-      - name: Build AppImage
-        uses: tauri-apps/tauri-action@v0
-        with:
-          projectPath: ./client-desktop
-          args: --bundles appimage
-      - name: Upload AppImage as a workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: opswarden-appimage
-          path: client-desktop/src-tauri/target/release/bundle/appimage/*.AppImage
-          if-no-files-found: error
-
-  attach-desktop-appimage:
-    name: Attach desktop AppImage to GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
+  publish:
+    name: Release · Publish artifacts
+    needs: [release-gate, release-e2e, desktop-packages, docker-image]
     runs-on: ubuntu-latest
-    needs: [create-release, desktop-appimage]
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - name: Download AppImage artifact
-        uses: actions/download-artifact@v8
+      - name: Download every desktop package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: opswarden-appimage
-          path: desktop-artifacts
-      - name: Attach AppImage to the GitHub Release
-        uses: softprops/action-gh-release@v3
+          pattern: desktop-*
+          path: release-artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: release-artifacts
+        run: find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+      - name: Attest desktop package provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
         with:
-          files: desktop-artifacts/*.AppImage
+          subject-path: release-artifacts/*
+      - name: Create immutable GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release-artifacts/*.deb \
+            release-artifacts/*.AppImage \
+            release-artifacts/*-setup.exe \
+            release-artifacts/*.dmg \
+            release-artifacts/SHA256SUMS \
+            --generate-notes \
+            --verify-tag
+      - name: Publish release summary
+        env:
+          IMAGE: ${{ needs.docker-image.outputs.image }}
+          DIGEST: ${{ needs.docker-image.outputs.digest }}
+        run: |
+          {
+            echo '## Release published'
+            echo
+            echo "- Tag: \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Server image: \`${IMAGE}@${DIGEST}\`"
+            echo '- Desktop: Linux (.deb, AppImage), Windows (NSIS), macOS (DMG)'
+            echo '- Provenance: GitHub artifact attestations'
+          } >> "$GITHUB_STEP_SUMMARY"

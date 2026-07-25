@@ -14,6 +14,9 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Keep GitHub's output deterministic. CI writes a concise project-owned
+    // summary instead of Vitest's automatic "passes / total" wording.
+    reporters: ["default"],
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       include: [

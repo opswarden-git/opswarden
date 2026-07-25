@@ -1,6 +1,6 @@
 {
   "name": "opswarden-client-web",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev -p 4242",
@@ -20,7 +20,7 @@
     "@tauri-apps/plugin-notification": "^2.3.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
-    "next": "16.2.7",
+    "next": "16.2.11",
     "next-intl": "^4.13.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
@@ -39,7 +39,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "16.2.11",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.15",
     "prettier": "3.8.3",
