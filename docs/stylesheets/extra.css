@@ -30,3 +30,8 @@
 .md-footer {
   display: none !important;
 }
+
+/* Kill the left sidebar — only top tabs + right TOC remain */
+.md-sidebar--primary {
+  display: none !important;
+}
