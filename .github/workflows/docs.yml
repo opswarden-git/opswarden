@@ -65,27 +65,36 @@ jobs:
           lychee --include-fragments --max-retries 3 --retry-wait-time 2
           README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md
           WEBSOCKET_SPEC.md docs
-      - name: Configure GitHub Pages
-        if: github.event_name == 'push'
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
-      - name: Upload GitHub Pages artifact
-        if: github.event_name == 'push'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        with:
-          path: site
-
-  deploy:
-    name: Docs · Deploy Pages
+  publish:
+    name: Docs · Publish gh-pages
     if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
     steps:
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build publishable documentation
+        run: ./tooling/docs.sh build
+      - name: Publish one orphan commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          publish_dir=$(mktemp -d)
+          cp -R site/. "$publish_dir/"
+          touch "$publish_dir/.nojekyll"
+
+          git -C "$publish_dir" init --initial-branch=gh-pages
+          git -C "$publish_dir" config user.name "github-actions[bot]"
+          git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$publish_dir" add --all
+          git -C "$publish_dir" commit --message "docs: deploy ${SOURCE_SHA}"
+          test "$(git -C "$publish_dir" rev-list --count HEAD)" -eq 1
+          git -C "$publish_dir" \
+            -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" \
+            push --force "$REPOSITORY_URL" HEAD:gh-pages
