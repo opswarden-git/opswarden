@@ -17,7 +17,6 @@ theme:
     code: JetBrains Mono
   features:
     - content.code.copy
-    - navigation.footer
     - navigation.indexes
     - navigation.sections
     - navigation.tabs
@@ -70,5 +69,3 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/extra.css
-
-copyright: Apache-2.0 · OpsWarden
