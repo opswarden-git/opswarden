@@ -1,8 +1,3 @@
----
-hide:
-  - toc
----
-
 # OpsWarden documentation
 
 OpsWarden is a real-time incident and release coordination platform. This site
@@ -45,7 +40,7 @@ repository from top to bottom.
 
 </div>
 
-## Documentation map
+**Documentation map**
 
 | If you want to…                | Start here                                   |
 | ------------------------------ | -------------------------------------------- |
@@ -55,3 +50,4 @@ repository from top to bottom.
 | consume real-time events       | [WebSocket protocol](reference/websocket.md) |
 | create or review UI            | [UI guidelines](design/ui-guidelines.md)     |
 | submit a safe change           | [Contributing](contributing/index.md)        |
+
