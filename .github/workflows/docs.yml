@@ -95,6 +95,7 @@ jobs:
           git -C "$publish_dir" add --all
           git -C "$publish_dir" commit --message "docs: deploy ${SOURCE_SHA}"
           test "$(git -C "$publish_dir" rev-list --count HEAD)" -eq 1
+          auth_header=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 --wrap=0)
           git -C "$publish_dir" \
-            -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" \
+            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
             push --force "$REPOSITORY_URL" HEAD:gh-pages
