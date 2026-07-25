@@ -35,3 +35,11 @@
 .md-sidebar--primary {
   display: none !important;
 }
+
+/* Grid cards: force white text on dark background */
+.grid.cards li {
+  color: #e7e7ea;
+}
+.grid.cards li a {
+  color: var(--md-accent-fg-color);
+}
