@@ -117,12 +117,12 @@ describe("semantic visual contract", () => {
   });
 
   it("documents exactly five principal palette colors and their roles", () => {
-    expect(designSystem).toContain("## Palette principale — 5 couleurs");
+    expect(designSystem).toContain("## Primary palette — 5 colors");
     expect(designSystem.match(/^\| `#[0-9A-F]{6}` \|/gm)).toHaveLength(5);
-    expect(designSystem).toContain("Action primaire");
-    expect(designSystem).toContain("Action secondaire");
-    expect(designSystem).toContain("Succès");
-    expect(designSystem).toContain("Avertissement");
+    expect(designSystem).toContain("Primary action");
+    expect(designSystem).toContain("Secondary action");
+    expect(designSystem).toContain("Success");
+    expect(designSystem).toContain("Warning");
     expect(designSystem).toContain("Danger");
   });
 });
