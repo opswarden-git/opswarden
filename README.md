@@ -32,11 +32,8 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="https://opswarden-git.github.io/opswarden/">Documentation</a> ·
   <a href="https://opswarden-git.github.io/opswarden/reference/rest-api/">REST API</a> ·
-  <a href="https://opswarden-git.github.io/opswarden/reference/websocket/">WebSocket</a> ·
-  <a href="https://opswarden-git.github.io/opswarden/reference/data-model/">Data model</a> ·
-  <a href="https://opswarden-git.github.io/opswarden/design/ui-guidelines/">UI guidelines</a> ·
-  <a href="#also-see">Also see</a> ·
-  <a href="#contributing">Contributing</a>
+  <a href="#contributing">Contributing</a> ·
+  <a href="#license">License</a>
 </p>
 
 ## What is OpsWarden?
