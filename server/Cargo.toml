@@ -33,7 +33,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1.89"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-jsonwebtoken = { version = "10.4.0", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 argon2 = "0.5.3"
 # argon2's `rand` feature pulls password-hash/rand_core but not getrandom; we
 # enable getrandom on the same password-hash so `OsRng` stays available for salt
