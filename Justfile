@@ -64,6 +64,7 @@ fmt-check:
 # couverture de code (nécessite cargo-tarpaulin)
 coverage:
     cargo tarpaulin --config tooling/tarpaulin.toml
+    ./tooling/summarize_source_coverage.sh
 
 # audit supply-chain (nécessite cargo-deny / cargo-audit / cargo-udeps)
 audit:

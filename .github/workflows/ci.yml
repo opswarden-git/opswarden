@@ -183,6 +183,8 @@ jobs:
           tool: cargo-tarpaulin
       - name: Run coverage
         run: cargo tarpaulin --config tooling/tarpaulin.toml
+      - name: Verify source-only coverage scope
+        run: ./tooling/summarize_source_coverage.sh
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
