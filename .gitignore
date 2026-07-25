@@ -33,6 +33,3 @@ result-*
 
 # Generated tooling output
 /tooling/health_report.md
-/docs/modules.svg
-/docs/deps.svg
-/site/
