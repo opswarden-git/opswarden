@@ -6,15 +6,15 @@ repository from top to bottom.
 
 <div class="grid cards" markdown>
 
-- :material-rocket-launch-outline:{ .lg .middle } **Run OpsWarden**
+- :material-rocket-launch-outline:{ .lg .middle } **Getting started**
 
   ***
 
   Start the full stack or an individual client, then verify the services.
 
-  [:octicons-arrow-right-24: Get started](getting-started.md)
+  [:octicons-arrow-right-24: Getting started](getting-started.md)
 
-- :material-hexagon-multiple-outline:{ .lg .middle } **Understand the system**
+- :material-hexagon-multiple-outline:{ .lg .middle } **Architecture**
 
   ***
 
@@ -50,6 +50,3 @@ repository from top to bottom.
 | consume real-time events       | [WebSocket protocol](reference/websocket.md) |
 | create or review UI            | [UI guidelines](design/ui-guidelines.md)     |
 | submit a safe change           | [Contributing](contributing/index.md)        |
-
-!!! tip "Living Documentation"
-    This portal is generated directly from the repository's source files, ensuring our documentation is always in sync with the codebase.

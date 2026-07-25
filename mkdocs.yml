@@ -31,15 +31,13 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
+  - Getting started: getting-started.md
   - Architecture: architecture/index.md
-  - Reference:
-      - REST API: reference/rest-api.md
-      - WebSocket Protocol: reference/websocket.md
-      - Data Model: reference/data-model.md
-  - Design:
-      - Design System: design/design-system.md
-      - UI Guidelines: design/ui-guidelines.md
+  - Data model: reference/data-model.md
+  - REST API: reference/rest-api.md
+  - WebSocket protocol: reference/websocket.md
+  - UI guidelines: design/ui-guidelines.md
+  - Design system: design/design-system.md
   - Contributing: contributing/index.md
 
 plugins:
