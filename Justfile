@@ -104,6 +104,14 @@ web-check:
 web-e2e:
     npm run test:e2e
 
+# construit le portail technique avec les mêmes versions que la CI
+docs:
+    ./tooling/docs.sh build
+
+# sert le portail sur http://localhost:8000 (DOCS_PORT permet de changer le port)
+docs-serve:
+    ./tooling/docs.sh serve
+
 # ----- Repo -----
 
 # prettier sur tout le repo (md, yaml, json, tsx…)

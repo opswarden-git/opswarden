@@ -1,0 +1,91 @@
+---
+name: Documentation
+run-name: "Docs · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }} · ${{ github.sha }}"
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - tooling/docs.sh
+      - .github/workflows/docs.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - tooling/docs.sh
+      - .github/workflows/docs.yml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Docs · Build & validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build documentation strictly
+        run: ./tooling/docs.sh build
+      - name: Install link checker
+        uses: taiki-e/install-action@3d7d7cd5ac7f994c1892ae0c06165095b9139094 # v2
+        with:
+          tool: lychee@0.24.2
+      - name: Validate generated internal links
+        run: |
+          link_root="${RUNNER_TEMP}/opswarden-docs-root"
+          mkdir -p "$link_root"
+          ln -s "${GITHUB_WORKSPACE}/site" "$link_root/opswarden"
+          lychee --offline --include-fragments --root-dir "$link_root" site
+      - name: Validate external documentation links
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: >-
+          lychee --include-fragments --max-retries 3 --retry-wait-time 2
+          README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md
+          WEBSOCKET_SPEC.md docs
+      - name: Configure GitHub Pages
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Upload GitHub Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: site
+
+  deploy:
+    name: Docs · Deploy Pages
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
