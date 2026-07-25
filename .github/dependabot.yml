@@ -1,0 +1,64 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Paris
+    labels: [dependencies, ci]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:15"
+      timezone: Europe/Paris
+    labels: [dependencies, javascript]
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:30"
+      timezone: Europe/Paris
+    labels: [dependencies, rust]
+    open-pull-requests-limit: 5
+    groups:
+      server-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /client-desktop/src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: Europe/Paris
+    labels: [dependencies, rust, desktop]
+    open-pull-requests-limit: 5
+    groups:
+      desktop-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Paris
+    labels: [dependencies, docker]
+    open-pull-requests-limit: 5
