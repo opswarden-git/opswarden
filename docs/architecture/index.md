@@ -53,15 +53,27 @@ they do not replace persistence or authorization.
 ## Repository map
 
 ```text
-server/src/domain/     pure models and invariants
-server/src/ports/      traits required by application code
-server/src/app/        use cases
-server/src/adapters/   PostgreSQL, event bus and vault implementations
-server/src/handlers/   Axum routes and WebSocket transport
-client-web/            Next.js interface and shared UI behavior
-client-desktop/        Tauri URL-mode shell and native notifications
-contracts/             cross-client capabilities
-server/migrations/     executable PostgreSQL schema history
+opswarden/
+├── server/               # Rust/Axum server and all authoritative business rules
+│   ├── src/
+│   │   ├── domain/       # pure models and invariants; zero I/O
+│   │   ├── ports/        # traits required by application use cases
+│   │   ├── app/          # authorization-aware business orchestration
+│   │   ├── adapters/     # PostgreSQL, event bus and encrypted vault
+│   │   ├── handlers/     # Axum routes and WebSocket transport
+│   │   ├── config.rs
+│   │   └── lib.rs        # build_app(), testable without opening a socket
+│   ├── migrations/       # executable PostgreSQL schema history
+│   ├── tests/            # integration tests
+│   └── Dockerfile        # multi-stage server image
+├── client-web/           # Next.js interface and shared client behavior
+├── client-desktop/       # Tauri URL-mode shell, tray and notifications
+├── contracts/            # cross-client capabilities
+├── docs/                 # source for this technical portal
+├── .github/workflows/    # CI, documentation and release pipelines
+├── docker-compose.yml    # db, server, desktop packager and web delivery
+├── Cargo.toml            # Cargo workspace
+└── package.json          # npm workspaces
 ```
 
 ## Why these boundaries
