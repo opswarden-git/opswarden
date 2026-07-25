@@ -38,7 +38,7 @@ argon2 = "0.5.3"
 # argon2's `rand` feature pulls password-hash/rand_core but not getrandom; we
 # enable getrandom on the same password-hash so `OsRng` stays available for salt
 # generation (rand 0.10 moved to rand_core 0.10, dropping the old transitive feature).
-password-hash = { version = "0.5", features = ["getrandom"] }
+password-hash = { version = "0.6", features = ["getrandom"] }
 rand = "0.10"
 
 [dev-dependencies]
