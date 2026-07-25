@@ -191,6 +191,11 @@ npm run test --workspace client-web         # Vitest
 npm run test:coverage --workspace client-web # Vitest + V8 coverage gate
 ```
 
+`just coverage` runs the complete Rust test suite through Tarpaulin, reports
+only runtime code under `server/src`, excludes `main.rs` and test functions,
+and enforces 70% source-line coverage. Its JSON, HTML, LCOV, XML and verified
+source-only summary are published by CI after every merge to `main`.
+
 The web quality gate uses the flat ESLint 9 configuration in
 `client-web/eslint.config.mjs`, based on Next.js Core Web Vitals; errors are
 blocking, warnings remain visible, and generated `.next`/coverage output is

@@ -169,9 +169,11 @@ For coverage:
 just coverage
 ```
 
-The tarpaulin headline counts test files and therefore overstates coverage. The
-latest honest backend source-only audit is still above the 70% bar; frontend test
-tooling is not present yet.
+Tarpaulin executes the complete backend test suite but reports only runtime Rust
+under `server/src`; `main.rs`, integration-test files and inline test functions
+are excluded from the ratio. The `source-only-summary.json` gate rejects an
+empty or contaminated report and enforces 70% line coverage. Vitest/V8 applies
+the corresponding global runtime-source gate to the frontend.
 
 ## Database Tests
 
