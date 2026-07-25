@@ -190,7 +190,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Build native package
-        uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         with:
           projectPath: ./client-desktop
           args: --bundles ${{ matrix.bundles }}
