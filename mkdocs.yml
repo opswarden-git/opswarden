@@ -31,13 +31,15 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
+  - Getting Started: getting-started.md
   - Architecture: architecture/index.md
-  - Data model: reference/data-model.md
-  - REST API: reference/rest-api.md
-  - WebSocket protocol: reference/websocket.md
-  - UI guidelines: design/ui-guidelines.md
-  - Design system: design/design-system.md
+  - Reference:
+      - Data model: reference/data-model.md
+      - REST API: reference/rest-api.md
+      - WebSocket protocol: reference/websocket.md
+  - Design:
+      - UI guidelines: design/ui-guidelines.md
+      - Design system: design/design-system.md
   - Contributing: contributing/index.md
 
 plugins:
@@ -50,6 +52,9 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
