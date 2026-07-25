@@ -31,19 +31,17 @@ theme:
       accent: custom
 
 nav:
-  - Overview:
-      - Introduction: index.md
-      - Get Started: getting-started.md
-      - Contributing: contributing/index.md
-  - Architecture:
-      - System Overview: architecture/index.md
-      - Data Model: reference/data-model.md
-  - API & Protocols:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture: architecture/index.md
+  - Reference:
       - REST API: reference/rest-api.md
       - WebSocket Protocol: reference/websocket.md
-  - UI & Design:
+      - Data Model: reference/data-model.md
+  - Design:
       - Design System: design/design-system.md
       - UI Guidelines: design/ui-guidelines.md
+  - Contributing: contributing/index.md
 
 plugins:
   - search
