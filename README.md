@@ -28,9 +28,11 @@
 
 - [Product tour](#product-tour) — the product scope through its three primary surfaces
 - [How it works](#how-it-works) — install and run locally
+- [Technical documentation](https://opswarden-git.github.io/opswarden/) — architecture, contracts and UI guidelines
 - [API and data model](#api-and-data-model) — REST surface and persisted relations
 - [WebSocket protocol](WEBSOCKET_SPEC.md) — canonical realtime contract
 - [Visual contract](DESIGN_SYSTEM.md) — palette, semantic roles and safe actions
+- [UI guidelines](UI_GUIDELINES.md) — brand, components, states and accessibility
 - [Contributing](#contributing) — workflow and Definition of Done
 
 ## Introduction
