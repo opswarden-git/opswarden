@@ -188,7 +188,17 @@ npm run lint --workspace client-web         # ESLint, blocking
 npm run format:check --workspace client-web # Prettier, check only
 npm run typecheck --workspace client-web    # TypeScript, no emit
 npm run test --workspace client-web         # Vitest
+npm run test:coverage --workspace client-web # Vitest + V8 coverage gate
 ```
+
+The web quality gate uses the flat ESLint 9 configuration in
+`client-web/eslint.config.mjs`, based on Next.js Core Web Vitals; errors are
+blocking, warnings remain visible, and generated `.next`/coverage output is
+ignored.
+Vitest measures runtime source under `components`, `i18n`, `lib` and `store`,
+while excluding tests and type-only modules. CI enforces at least 70% line,
+65% statement/function and 55% branch coverage, and publishes the HTML/LCOV
+report after every merge to `main`.
 
 ### Services
 

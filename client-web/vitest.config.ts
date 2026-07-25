@@ -16,8 +16,20 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
-      include: ["lib/queries/privateMessages.ts", "lib/queries/releases.ts"],
+      include: [
+        "components/**/*.{ts,tsx}",
+        "i18n/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx}",
+        "store/**/*.{ts,tsx}",
+      ],
+      exclude: ["**/*.test.*", "**/types.ts"],
       reporter: ["text", "html", "json-summary", "lcov"],
+      thresholds: {
+        lines: 70,
+        statements: 65,
+        functions: 65,
+        branches: 55,
+      },
     },
   },
 });
