@@ -27,36 +27,35 @@
 
 ---
 
-- [Product tour](#product-tour) — the product scope through its three primary surfaces
-- [Quick start](#quick-start) — run the complete stack locally
-- [Technical documentation](https://opswarden-git.github.io/opswarden/) — architecture, contracts and UI guidelines
-- [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) — complete endpoint catalogue
-- [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) — canonical realtime contract
-- [Data model](https://opswarden-git.github.io/opswarden/reference/data-model/) — persisted relations and invariants
-- [UI guidelines](https://opswarden-git.github.io/opswarden/design/ui-guidelines/) — brand, components, states and accessibility
-- [Contributing](#contributing) — workflow and Definition of Done
+<p align="center">
+  <a href="#what-is-opswarden">What is OpsWarden?</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="https://opswarden-git.github.io/opswarden/">Documentation</a> ·
+  <a href="https://opswarden-git.github.io/opswarden/reference/rest-api/">REST API</a> ·
+  <a href="https://opswarden-git.github.io/opswarden/reference/websocket/">WebSocket</a> ·
+  <a href="https://opswarden-git.github.io/opswarden/reference/data-model/">Data model</a> ·
+  <a href="https://opswarden-git.github.io/opswarden/design/ui-guidelines/">UI guidelines</a> ·
+  <a href="#also-see">Also see</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
 
-## Introduction
+## What is OpsWarden?
 
-**OpsWarden** is a platform where a technical team coordinates, in real time, its
-**Incidents** (unplanned problems, triaged and resolved) and its **Releases**
-(deployments validated step by step). The two are linked: an active incident can
-block an in-progress release.
+**OpsWarden** is a real-time incident response and release coordination platform
+for technical teams. Incidents are triaged and resolved in one shared workspace;
+releases are validated step by step and automatically blocked when an active
+incident makes further deployment unsafe.
 
-External events can automatically trigger internal actions through an
-**Action&rarr;REAction** rule engine: the current implementation live-proves a
-signed GitHub CI failure webhook creating an incident.
+External events can trigger internal actions through an
+**Action&rarr;REAction** rule engine. The current implementation demonstrates the
+complete path from a signed GitHub CI failure webhook to a new incident.
 
-Positioning: a publishable mini incident.io / Rootly focused on reducing MTTR,
-rather than yet another re-skinned real-time chat. The tested alpha is delivered
-as a Next.js web app and an installable Tauri desktop client, backed by one
-Rust/Axum server and PostgreSQL. Rust/Axum was preferred to Node.js so incident
-and release transitions remain strongly typed while Tokio handles concurrent
-HTTP and WebSocket traffic.
+The tested alpha ships as a Next.js web app and an installable Tauri desktop
+client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
+strongly typed, PostgreSQL protects concurrent multi-user state, and Tauri adds
+native desktop behavior without introducing a second application architecture.
 
-## Product tour
-
-### Incidents
+### Incident response
 
 OpsWarden gives responders one shared operational record for an incident: its
 severity and lifecycle, current owner, live participant presence, editable
@@ -72,7 +71,7 @@ lifecycle invariants are central to this multi-user server.
   </a>
 </p>
 
-### Releases
+### Safe release coordination
 
 Release coordination turns a deployment into an ordered, accountable sequence:
 responders validate each step, progress remains visible to the team, and linked
@@ -85,7 +84,7 @@ This keeps release state and operational risk in the same workspace.
   </a>
 </p>
 
-### Teams
+### Team operations
 
 Teams are the security and collaboration boundary: membership, invitations,
 presence and Observer/Responder/Manager permissions govern every operation.
@@ -99,7 +98,7 @@ also exchange private messages without leaving their shared operational context.
   </a>
 </p>
 
-## Quick start
+## Getting started
 
 ```bash
 git clone https://github.com/opswarden-git/opswarden.git
@@ -112,17 +111,28 @@ Open `http://localhost:8081/en` (`/fr` for French). The complete setup,
 configuration, desktop installation and development commands live in the
 **[Getting started guide](https://opswarden-git.github.io/opswarden/getting-started/)**.
 
-## Services
+### Services
 
-| Service                                                                                                                                                | Stack       | Local address                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" width="18" alt="PostgreSQL" /> <code>db</code> | PostgreSQL  | `localhost:5433`                |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" width="18" alt="Rust" /> <code>server</code>               | Rust / Axum | `http://localhost:8080`         |
-| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="Next.js" /> <code>client_web</code>    | Next.js     | `:4242` dev / `:8081` Compose   |
-| <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="Tauri" /> <code>client_desktop</code>                                     | Tauri       | URL mode via `just desktop-dev` |
+| Icon                                                                                                                         | Service          | Stack       | Local address                   |
+| ---------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------- | ------------------------------- |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" width="18" alt="" /> | `db`             | PostgreSQL  | `localhost:5433`                |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" width="18" alt="" />             | `server`         | Rust / Axum | `http://localhost:8080`         |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
+| <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
-The cloud and observability showcase lives in the separate
-[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops) repository:
+## Also see
+
+- **[Technical documentation](https://opswarden-git.github.io/opswarden/)** —
+  searchable implementation guides covering the
+  [architecture](https://opswarden-git.github.io/opswarden/architecture/),
+  [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/),
+  [data model](https://opswarden-git.github.io/opswarden/reference/data-model/),
+  [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/)
+  and [UI guidelines](https://opswarden-git.github.io/opswarden/design/ui-guidelines/).
+- **[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops)** — cloud,
+  deployment and observability engineering for OpsWarden.
+- **[`opswarden-website`](https://github.com/opswarden-git/opswarden-website)** —
+  the public marketing website.
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" alt="Kubernetes" />
@@ -135,18 +145,6 @@ The cloud and observability showcase lives in the separate
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/grafana/grafana-original.svg" height="25" alt="Grafana" />
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nixos/nixos-original.svg" height="25" alt="NixOS" />
 </p>
-
-## Technical documentation
-
-The root README stays focused on the product. The searchable documentation
-portal is the canonical home for implementation details:
-
-- **[Getting started](https://opswarden-git.github.io/opswarden/getting-started/)** — complete Compose, desktop and native-development procedures.
-- **[Architecture](https://opswarden-git.github.io/opswarden/architecture/)** — dependency rule, request flow and repository layout.
-- **[REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/)** — authentication conventions and every exposed endpoint.
-- **[Data model](https://opswarden-git.github.io/opswarden/reference/data-model/)** — PostgreSQL relations and invariants.
-- **[WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/)** — real-time commands, events and reconnection behavior.
-- **[UI guidelines](https://opswarden-git.github.io/opswarden/design/ui-guidelines/)** — visual language, components, states and accessibility.
 
 ## Contributing
 
