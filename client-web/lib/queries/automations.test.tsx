@@ -1,12 +1,23 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, queryClientWrapper } from "../../test/reactQuery";
 import { apiFetch } from "../api";
 import {
+  useAutomationCatalog,
+  useAutomationRules,
+  useAutomationRuns,
   useConfigureTeamConnection,
+  useCreateAutomationRule,
+  useDeleteAutomationRule,
+  useDeleteTeamConnection,
   useRefreshServiceOAuth,
   useStartServiceOAuth,
+  useTeamConnections,
+  useTestTeamConnection,
+  useUpdateAutomationRule,
 } from "./automations";
+
+vi.mock("next-intl", () => ({ useLocale: () => "en" }));
 
 vi.mock("../api", () => ({
   apiFetch: vi.fn(),
@@ -22,7 +33,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("GitHub service OAuth", () => {
@@ -111,5 +122,159 @@ describe("GitHub service OAuth", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["team-automation-connections", "team-1"],
     });
+  });
+});
+
+describe("automation queries", () => {
+  it("loads the localized catalog, connections, rules and bounded runs", async () => {
+    const queryClient = createTestQueryClient();
+    const catalog = [{ name: "github", actions: [], reactions: [], connection: null }];
+    mockedApiFetch
+      .mockResolvedValueOnce(jsonResponse({ server: { services: catalog } }))
+      .mockResolvedValueOnce(jsonResponse([{ id: "connection-1" }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: "rule-1" }]))
+      .mockResolvedValueOnce(jsonResponse([{ id: "run-1" }]));
+
+    const catalogHook = renderHook(() => useAutomationCatalog(), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const connections = renderHook(() => useTeamConnections("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const rules = renderHook(() => useAutomationRules("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const runs = renderHook(() => useAutomationRuns("team-1", true, 25), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(catalogHook.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(connections.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(rules.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(runs.result.current.isSuccess).toBe(true));
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/about.json?locale=en");
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/teams/team-1/service-connections");
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/teams/team-1/automation-rules");
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/teams/team-1/automation-runs?limit=25");
+    expect(catalogHook.result.current.data).toEqual(catalog);
+  });
+
+  it("keeps every optional automation query idle when disabled", () => {
+    const queryClient = createTestQueryClient();
+    const wrapper = queryClientWrapper(queryClient);
+    const catalog = renderHook(() => useAutomationCatalog(false), { wrapper });
+    const connections = renderHook(() => useTeamConnections("", true), { wrapper });
+    const rules = renderHook(() => useAutomationRules("team-1", false), { wrapper });
+    const runs = renderHook(() => useAutomationRuns("team-1", false), { wrapper });
+
+    expect(catalog.result.current.fetchStatus).toBe("idle");
+    expect(connections.result.current.fetchStatus).toBe("idle");
+    expect(rules.result.current.fetchStatus).toBe("idle");
+    expect(runs.result.current.fetchStatus).toBe("idle");
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("automation mutations", () => {
+  it("tests and deletes a connection, invalidating dependent projections", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    mockedApiFetch
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const testConnection = renderHook(() => useTestTeamConnection("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const removeConnection = renderHook(() => useDeleteTeamConnection("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await testConnection.result.current.mutateAsync("connection-1");
+      await removeConnection.result.current.mutateAsync("connection-1");
+    });
+
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(
+      1,
+      "/api/teams/team-1/service-connections/connection-1/test",
+      { method: "POST" },
+    );
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(
+      2,
+      "/api/teams/team-1/service-connections/connection-1",
+      { method: "DELETE" },
+    );
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["team-automation-connections", "team-1"],
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-rules", "team-1"] });
+  });
+
+  it("creates, updates and deletes rules through their canonical endpoints", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const definition = {
+      name: "CI failure",
+      trigger_connection_id: "connection-1",
+      trigger_kind: "github_ci_failed",
+      trigger_config: {},
+      reaction_kind: "create_incident",
+      reaction_connection_id: null,
+      reaction_config: { severity: "high" },
+    };
+    mockedApiFetch
+      .mockResolvedValueOnce(jsonResponse({ id: "rule-1", ...definition }, 201))
+      .mockResolvedValueOnce(jsonResponse({ id: "rule-1", ...definition, enabled: false }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const create = renderHook(() => useCreateAutomationRule("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const update = renderHook(() => useUpdateAutomationRule("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const remove = renderHook(() => useDeleteAutomationRule("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await create.result.current.mutateAsync(definition);
+      await update.result.current.mutateAsync({ ruleId: "rule-1", enabled: false });
+      await remove.result.current.mutateAsync("rule-1");
+    });
+
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(1, "/api/teams/team-1/automation-rules", {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, "/api/teams/team-1/automation-rules/rule-1", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(3, "/api/teams/team-1/automation-rules/rule-1", {
+      method: "DELETE",
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-rules", "team-1"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-runs", "team-1"] });
+  });
+
+  it("uses backend codes when available and stable fallbacks otherwise", async () => {
+    const queryClient = createTestQueryClient();
+    mockedApiFetch
+      .mockResolvedValueOnce(jsonResponse({ code: "connection_unreachable" }, 422))
+      .mockResolvedValueOnce(new Response("not-json", { status: 500 }));
+    const testConnection = renderHook(() => useTestTeamConnection("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const removeRule = renderHook(() => useDeleteAutomationRule("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await expect(testConnection.result.current.mutateAsync("connection-1")).rejects.toThrow(
+      "connection_unreachable",
+    );
+    await expect(removeRule.result.current.mutateAsync("rule-1")).rejects.toThrow(
+      "automation_rule_delete_failed",
+    );
   });
 });
