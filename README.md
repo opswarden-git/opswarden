@@ -47,7 +47,9 @@ signed GitHub CI failure webhook creating an incident.
 Positioning: a publishable mini incident.io / Rootly focused on reducing MTTR,
 rather than yet another re-skinned real-time chat. The tested alpha is delivered
 as a Next.js web app and an installable Tauri desktop client, backed by one
-Rust/Axum server and PostgreSQL.
+Rust/Axum server and PostgreSQL. Rust/Axum was preferred to Node.js so incident
+and release transitions remain strongly typed while Tokio handles concurrent
+HTTP and WebSocket traffic.
 
 ## Product tour
 
@@ -57,7 +59,9 @@ OpsWarden gives responders one shared operational record for an incident: its
 severity and lifecycle, current owner, live participant presence, editable
 timeline, emoji reactions and activity history. Updates are persisted in
 PostgreSQL and broadcast over WebSocket so the web and desktop clients converge
-without moving business rules out of the Rust server.
+without moving business rules out of the Rust server. PostgreSQL was preferred
+to SQLite because concurrent team writes, foreign keys and transactional
+lifecycle invariants are central to this multi-user server.
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png">
@@ -128,8 +132,9 @@ curl -I http://localhost:8081/client.AppImage
 ### Desktop app (Tauri, URL-mode)
 
 The desktop shell reuses the web UI and adds tray behavior plus native
-notifications. Run it in development with `just desktop-dev`, or build and
-smoke-test the Linux packages through Compose:
+notifications. Tauri was preferred to Electron because it provides that native
+shell without bundling a second Chromium runtime. Run it in development with
+`just desktop-dev`, or build and smoke-test the Linux packages through Compose:
 
 ```bash
 docker compose up --build
