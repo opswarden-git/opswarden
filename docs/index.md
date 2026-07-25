@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # OpsWarden documentation
 
 OpsWarden is a real-time incident and release coordination platform. This site
