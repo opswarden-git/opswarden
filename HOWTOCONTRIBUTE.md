@@ -17,9 +17,9 @@ code is organized, and what a pull request must prove before it is merged.
 └── .github/         CI and release workflows
 ```
 
-Central planning docs live outside this Git repository in the sibling
-`../docs/` directory. The app repository remains the implementation source of
-truth; the school PDFs in `../docs/pdf/` remain the brief source of truth.
+This repository is the implementation source of truth. A local grading audit
+may exist in the sibling `../.other/` directory, but the documentation committed
+here must be enough to understand and run the project on its own.
 
 ## Prerequisites
 
@@ -64,18 +64,25 @@ just desktop-dev   # wrapper for ./client-desktop/dev.sh
 ```
 
 The desktop app currently runs in URL mode against `http://localhost:4242`.
-AppImage packaging and a self-contained desktop build are still future work.
+Compose and CI also build and smoke-test the Linux `.deb` and AppImage packages.
 
 ## Demo Accounts
 
-The clean demo database is expected to contain one team, `OpsWarden Demo`, and
-three users:
+Create or restore the demo data with:
 
-| Email                      | Password       | Role      |
-| -------------------------- | -------------- | --------- |
-| `manager@opswarden.test`   | `DemoPass123!` | Manager   |
-| `responder@opswarden.test` | `DemoPass123!` | Responder |
-| `observer@opswarden.test`  | `DemoPass123!` | Observer  |
+```bash
+just demo
+```
+
+The command creates the demo Teams, Incidents, Releases and Automation rule. It
+also creates these accounts:
+
+| Email                        | Password | Role       |
+| ---------------------------- | -------- | ---------- |
+| `manager@opswarden.local`    | `sudo`   | Manager    |
+| `responder@opswarden.local`  | `sudo`   | Responder  |
+| `observer@opswarden.local`   | `sudo`   | Observer   |
+| `contractor@opswarden.local` | `sudo`   | Non-member |
 
 Use disposable users for verification runs, and clean them up afterwards. Do not
 leave generated `*_it_*`, `e2e-*`, `verify*`, or `repro-*` accounts in the demo
@@ -129,6 +136,103 @@ Common variables:
   `NEXT_PUBLIC_*`.
 
 Never commit real secrets. `.env` is ignored.
+
+## Extend Automation and Realtime
+
+You do not need to build a custom frontend form for every integration. The
+server publishes its Automation catalog through `/about.json`, and the web app
+builds the connection and rule forms from that catalog.
+
+Before coding, pick stable lowercase names such as `gitlab`, `pipeline_failed`
+or `email_notify`. These names are stored in PostgreSQL, so renaming them later
+is a data migration, not a cosmetic change.
+
+### Add a service
+
+A service is an integration family such as GitHub or HTTP.
+
+1. Add its entry to `server/src/domain/automation_catalog.rs`. Declare its
+   Actions, REActions and connection fields there. Use `connection: None` when
+   it needs no Team credentials.
+2. If it stores credentials, add the required `CredentialKind` in
+   `server/src/domain/automation_config.rs`, then handle configuration in
+   `server/src/app/automation/team_connection.rs` and
+   `server/src/handlers/team_automation.rs`. Secrets must go through the Team
+   vault; never put them in rule JSON or return them from the API.
+3. Put provider-specific HTTP, payload or signature code in an adapter under
+   `server/src/adapters/`. Wire a new adapter through `AppState` only when an
+   existing port cannot represent it.
+4. Add the English and French catalog text in `server/src/handlers/mod.rs`.
+   Keep both locales structurally identical.
+5. Test the catalog, credential redaction and Manager permissions. If the
+   service receives webhooks, add an integration test covering a valid
+   signature, an invalid signature and a duplicate delivery.
+
+Use the `github` connection as an incoming-webhook example and `http` as a small
+outgoing-connection example.
+
+### Add an Action
+
+An Action is an external event that can start a rule, for example
+`ci_failed`.
+
+1. Register the Action and its optional filters in
+   `server/src/domain/automation_catalog.rs`.
+2. Parse the provider payload in `server/src/adapters/webhook/`. Convert it to
+   an `ExternalEvent` with a stable `kind` and only the non-secret attributes
+   the rule engine needs.
+3. Extend `IngestTeamWebhookUseCase` if the provider needs a different
+   signature or credential path. An unrelated event should return `None` and
+   be acknowledged as ignored, not treated as an error.
+4. Add parser tests for a matching payload, an ignored payload and malformed
+   input. Add an end-to-end test proving that filters select the right rule.
+
+The frontend reads the new Action from `/about.json`. Only add React code when
+the generic catalog-driven form truly cannot represent the field.
+
+### Add a REAction
+
+A REAction is what OpsWarden does after a rule matches, such as creating an
+Incident or sending an HTTP notification.
+
+1. Register the REAction and its fields in
+   `server/src/domain/automation_catalog.rs`. Set `connection_service` when it
+   needs a configured Team connection.
+2. Add its execution branch to
+   `server/src/app/automation/reaction_executor.rs`. Keep the orchestration in
+   the app layer and network calls behind a port implemented by an adapter.
+3. Read credentials from the Team vault. Rule configuration may contain normal
+   values and bounded templates, but never tokens, passwords or endpoint URLs.
+4. Return stable `DomainError` codes so failed runs and `rule_failed` events are
+   useful to clients.
+5. Test success, provider failure, invalid configuration and output limits.
+   Add an integration test proving the Automation Run and WebSocket result.
+
+Use `vigil_create_incident` for a domain-side example and `http_notify` for an
+external side effect.
+
+### Add a WebSocket event
+
+WebSocket changes are a shared server/client contract. Update every layer in
+the same pull request:
+
+1. Add the business event to `server/src/domain/event.rs` and choose its
+   delivery scope: one Team or an explicit list of users.
+2. Publish it from the use-case after the database write succeeds.
+3. Serialize its exact JSON shape in `server/src/adapters/ws/protocol.rs` and
+   add an exact-shape Rust test.
+4. Document the payload and delivery rule in `WEBSOCKET_SPEC.md`.
+5. Add the event to `WsServerEvent` in `client-web/lib/ws.ts`, then handle the
+   cache update, invalidation or notification it needs.
+6. Add a TypeScript consumer test. If routing changed, add a server integration
+   test proving that unrelated Teams or users do not receive the frame.
+
+After any of these extensions, run the focused tests while you work, then run:
+
+```bash
+just ci
+npm run test:coverage --workspace client-web
+```
 
 ## Checks Before a PR
 
@@ -236,9 +340,9 @@ A PR is mergeable only when:
 
 ## Releases
 
-Tags `v*.*.*` trigger the release workflow. Current release automation creates a
-GitHub Release and builds/pushes the server Docker image to GHCR. Desktop
-AppImage artifacts are not part of the release pipeline yet.
+Tags `v*.*.*` trigger the release workflow. Its release gate runs Rust and web
+checks first. A successful tag creates the GitHub Release, pushes the server
+image to GHCR and attaches the Linux AppImage.
 
 Before tagging:
 
@@ -246,17 +350,5 @@ Before tagging:
 - Ensure `main` is clean and CI green.
 - Write release notes that state what is proven and what is still partial.
 
-## Current Product Gaps
-
-Do not start portfolio/cloud/AI work before the mandatory matrix is green. The
-next important product gaps are:
-
-- Release domain and `release_blocked` notification.
-- Desktop packaging/AppImage and CI artifact.
-- Server-side persisted language preference, if the i18n exemption is not
-  accepted.
-- Jury documentation/screenshots and repo-doc reconciliation.
-- Frontend automated tests.
-
-Small documentation or demo-data cleanups are welcome when they reduce jury
-noise, but they should not displace mandatory product work.
+Do not use this guide as a roadmap. Pick work from the current issue or project
+board, keep the change small, and ask early when a requirement is unclear.
