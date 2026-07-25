@@ -1,0 +1,76 @@
+site_name: OpsWarden Documentation
+site_description: Technical and product documentation for the OpsWarden incident management platform.
+site_url: https://opswarden-git.github.io/opswarden/
+repo_url: https://github.com/opswarden-git/opswarden
+repo_name: opswarden-git/opswarden
+edit_uri: edit/main/
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  language: en
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+
+nav:
+  - Overview:
+      - Introduction: index.md
+      - Get Started: getting-started.md
+      - Contributing: contributing/index.md
+  - Architecture:
+      - System Overview: architecture/index.md
+      - Data Model: reference/data-model.md
+  - API & Protocols:
+      - REST API: reference/rest-api.md
+      - WebSocket Protocol: reference/websocket.md
+  - UI & Design:
+      - Design System: design/design-system.md
+      - UI Guidelines: design/ui-guidelines.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - .
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: Apache-2.0 · OpsWarden

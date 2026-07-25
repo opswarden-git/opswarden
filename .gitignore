@@ -33,3 +33,4 @@ result-*
 
 # Generated tooling output
 /tooling/health_report.md
+site/

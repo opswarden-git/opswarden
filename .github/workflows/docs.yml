@@ -1,0 +1,101 @@
+---
+name: Documentation
+run-name: "Docs · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }} · ${{ github.sha }}"
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - tooling/docs.sh
+      - .github/workflows/docs.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - README.md
+      - DESIGN_SYSTEM.md
+      - UI_GUIDELINES.md
+      - HOWTOCONTRIBUTE.md
+      - WEBSOCKET_SPEC.md
+      - tooling/docs.sh
+      - .github/workflows/docs.yml
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Docs · Build & validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build documentation strictly
+        run: ./tooling/docs.sh build
+      - name: Install link checker
+        uses: taiki-e/install-action@3d7d7cd5ac7f994c1892ae0c06165095b9139094 # v2
+        with:
+          tool: lychee@0.24.2
+      - name: Validate generated internal links
+        run: |
+          link_root="${RUNNER_TEMP}/opswarden-docs-root"
+          mkdir -p "$link_root"
+          ln -s "${GITHUB_WORKSPACE}/site" "$link_root/opswarden"
+          lychee --offline --include-fragments --root-dir "$link_root" site
+      - name: Validate external documentation links
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: >-
+          lychee --include-fragments --max-retries 3 --retry-wait-time 2
+          README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md
+          WEBSOCKET_SPEC.md docs
+  publish:
+    name: Docs · Publish gh-pages
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build publishable documentation
+        run: ./tooling/docs.sh build
+      - name: Publish one orphan commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          publish_dir=$(mktemp -d)
+          cp -R site/. "$publish_dir/"
+          touch "$publish_dir/.nojekyll"
+
+          git -C "$publish_dir" init --initial-branch=gh-pages
+          git -C "$publish_dir" config user.name "github-actions[bot]"
+          git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$publish_dir" add --all
+          git -C "$publish_dir" commit --message "docs: deploy ${SOURCE_SHA}"
+          test "$(git -C "$publish_dir" rev-list --count HEAD)" -eq 1
+          auth_header=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 --wrap=0)
+          git -C "$publish_dir" \
+            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+            push --force "$REPOSITORY_URL" HEAD:gh-pages
