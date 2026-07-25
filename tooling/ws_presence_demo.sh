@@ -38,7 +38,10 @@ curl -s -X POST "$BASE/api/teams/join" -H "Authorization: Bearer $TOKEN_B" \
   -H 'Content-Type: application/json' -d "{\"invitation_code\":\"$INVITE\"}" >/dev/null
 
 for v in TOKEN_A TOKEN_B USER_A USER_B TEAM_ID INC_ID; do
-  [ -n "${!v}" ] && [ "${!v}" != "null" ] || { echo "FAILED to obtain $v (is the server up?)"; exit 1; }
+  if [ -z "${!v}" ] || [ "${!v}" = "null" ]; then
+    echo "FAILED to obtain $v (is the server up?)"
+    exit 1
+  fi
 done
 
 cat <<OUT
