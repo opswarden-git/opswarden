@@ -1,77 +1,74 @@
-# OpsWarden — contrat visuel
+# OpsWarden visual contract
 
-Ce document fixe les règles visuelles applicables aux clients web et desktop.
-Les valeurs canoniques vivent dans `client-web/app/globals.css`; les composants
-partagés consomment leurs rôles sémantiques plutôt que des couleurs choisies
-écran par écran.
+This document defines the visual rules shared by the web and desktop clients.
+Canonical values live in `client-web/app/globals.css`; shared components consume
+semantic roles instead of choosing colors screen by screen.
 
-## Palette principale — 5 couleurs
+## Primary palette — 5 colors
 
-| Couleur   | Rôle principal                             |
+| Color     | Primary role                               |
 | --------- | ------------------------------------------ |
-| `#15161A` | Fond de la salle de contrôle               |
-| `#1B1C20` | Surfaces, champs et Action secondaire      |
-| `#E7E7EA` | Texte et contenu prioritaire               |
-| `#FBC02D` | Accent OpsWarden, focus et Action primaire |
-| `#C62828` | Action destructive et Danger               |
+| `#15161A` | Control-room background                    |
+| `#1B1C20` | Surfaces, fields and secondary actions     |
+| `#E7E7EA` | Primary text and high-priority content     |
+| `#FBC02D` | OpsWarden accent, focus and primary action |
+| `#C62828` | Destructive actions and danger             |
 
-Les variantes de survol sont des dérivés des mêmes rôles. Les couleurs métier
-des états et sévérités ne constituent pas de nouvelles couleurs de marque :
-elles servent uniquement au codage opérationnel et sont toujours accompagnées
-d'un texte ou d'une icône.
+Hover variants are derived from these same roles. Operational state and severity
+colors are not additional brand colors: they only encode live meaning and are
+always paired with text or an icon.
 
-## Rôles sémantiques
+## Semantic roles
 
-| Rôle               | Tokens                | Usage                                                                   |
-| ------------------ | --------------------- | ----------------------------------------------------------------------- |
-| Action primaire    | `--action-primary*`   | Action principale constructive d'un écran ou dialogue                   |
-| Action secondaire  | `--action-secondary*` | Annuler, fermer, revenir ou action alternative                          |
-| Action destructive | `--action-danger*`    | Suppression, expulsion, bannissement, départ ou annulation irréversible |
-| Succès             | `--feedback-success`  | Résultat terminé avec succès                                            |
-| Avertissement      | `--feedback-warning`  | Risque ou attention sans échec                                          |
-| Danger             | `--feedback-danger`   | Erreur, blocage ou état critique                                        |
+| Role               | Tokens                | Usage                                             |
+| ------------------ | --------------------- | ------------------------------------------------- |
+| Primary action     | `--action-primary*`   | Main constructive action in a page or dialog      |
+| Secondary action   | `--action-secondary*` | Cancel, close, go back or choose an alternative   |
+| Destructive action | `--action-danger*`    | Delete, remove, ban, leave or irreversibly cancel |
+| Success            | `--feedback-success`  | Operation completed successfully                  |
+| Warning            | `--feedback-warning`  | Risk or required attention without a failure      |
+| Danger             | `--feedback-danger`   | Error, blocked operation or critical state        |
 
-`Button` possède exactement quatre variantes : `primary`, `secondary`,
-`danger` et `ghost`. `Alert` possède `info`, `success`, `warning` et `danger`.
-Une action ne doit jamais prendre la couleur d'un message, et un message ne doit
-jamais ressembler à un bouton. Les états Incident, Release et les sévérités
-utilisent leurs tokens `--st-*` et `--sev-*`, avec texte et icône.
+`Button` has exactly four variants: `primary`, `secondary`, `danger` and
+`ghost`. `Alert` has `info`, `success`, `warning` and `danger`. An action must
+never use a message color, and a message must never look like a button. Incident
+states, Release states and severities use their `--st-*` and `--sev-*` tokens
+alongside text and an icon.
 
-## Hiérarchie et surfaces
+## Hierarchy and surfaces
 
-- Une seule action primaire domine chaque zone de décision.
-- Les actions secondaires précèdent l'action destructive dans les dialogues.
-- `surface` porte le contenu principal; `surface-subtle` regroupe les détails.
-- Les écrans utilisent les composants partagés `Button`, `IconButton`, `Alert`,
-  `Dialog`, `ConfirmDialog`, `FormField`, `ActionMenu` et `OperationalTable`.
-- Les états loading, error, empty et ready restent fournis par `PageContent`.
-- Le responsive conserve le même libellé et la même hiérarchie d'actions; seule
-  la présentation table/liste ou modal/sheet change.
+- One primary action leads each decision area.
+- Secondary actions appear before destructive actions in dialogs.
+- `surface` holds primary content; `surface-subtle` groups supporting details.
+- Screens use the shared `Button`, `IconButton`, `Alert`, `Dialog`,
+  `ConfirmDialog`, `FormField`, `ActionMenu` and `OperationalTable` components.
+- `PageContent` owns the loading, error, empty and ready states.
+- Responsive layouts preserve labels and action hierarchy; only the table/list
+  or modal/sheet presentation changes.
 
-## Audit des actions sensibles et dark patterns
+## Sensitive-action and dark-pattern audit
 
-`ConfirmDialog` exige un `intent` explicite. Il place toujours le focus initial
-sur l'annulation, affiche des libellés distincts, accepte Échap et ne
-pré-sélectionne jamais l'action risquée.
+`ConfirmDialog` requires an explicit `intent`. It places initial focus on the
+cancel action, uses distinct labels, closes with Escape and never preselects the
+risky action.
 
-| Flux persistant        | Protection                                                            |
-| ---------------------- | --------------------------------------------------------------------- |
-| Supprimer un compte    | Ressource nommée, intent destructive, saisie `DELETE`                 |
-| Supprimer une équipe   | Équipe nommée, conséquences annoncées, saisie `DELETE`                |
-| Quitter une équipe     | Équipe nommée, perte d'accès annoncée, confirmation destructive       |
-| Transférer Manager     | Destinataire nommé, changement de rôle annoncé, confirmation standard |
-| Expulser ou bannir     | Membre nommé, conséquence annoncée, confirmation destructive          |
-| Supprimer un Incident  | Incident nommé, saisie `DELETE`, confirmation destructive             |
-| Annuler une Release    | Release nommée, choix « conserver », confirmation destructive         |
-| Supprimer une règle    | Règle nommée, impact futur annoncé, historique préservé               |
-| Déconnecter un service | Service nommé, données retirées annoncées                             |
+| Persistent flow      | Protection                                                         |
+| -------------------- | ------------------------------------------------------------------ |
+| Delete an account    | Named resource, destructive intent and typed `DELETE`              |
+| Delete a team        | Named team, stated consequences and typed `DELETE`                 |
+| Leave a team         | Named team, stated loss of access and destructive confirmation     |
+| Transfer Manager     | Named recipient, stated role change and standard confirmation      |
+| Kick or ban a member | Named member, stated consequence and destructive confirmation      |
+| Delete an Incident   | Named Incident, typed `DELETE` and destructive confirmation        |
+| Cancel a Release     | Named Release, explicit “keep” choice and destructive confirmation |
+| Delete a rule        | Named rule, stated future impact and preserved history             |
+| Disconnect a service | Named service and a clear description of removed data              |
 
-Les opérations immédiatement réversibles — filtre, statut, réaction, rôle non
-Manager, activation de règle, lien Incident/Release — n'ajoutent pas de friction
-artificielle. Retirer une étape pendant la création d'une Release ne détruit
-aucune donnée persistée. La déconnexion de session est une action secondaire,
-pas une suppression.
+Immediately reversible operations—filters, status changes, reactions,
+non-Manager role changes, rule activation and Incident/Release links—add no
+artificial friction. Removing a step while creating a Release destroys no
+persisted data. Signing out is a secondary action, not a deletion.
 
-Les garde-fous sont vérifiés par `design-tokens.test.ts`,
-`destructive-actions.test.ts`, `Button.test.tsx`, `Alert.test.tsx` et
+These safeguards are verified by `design-tokens.test.ts`,
+`destructive-actions.test.ts`, `Button.test.tsx`, `Alert.test.tsx` and
 `ConfirmDialog.test.tsx`.

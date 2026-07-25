@@ -1,24 +1,28 @@
-## Quoi
+## Summary
 
-<!-- 1-2 lignes : ce que cette PR change -->
+<!-- What changed, and why is it needed? Keep this short and concrete. -->
 
-## Sprint / scope
+## Scope
 
-- Sprint :
-- Core / Extended :
+- Milestone or issue:
+- Core or Extended:
 
-## Definition of Done
+## Validation
 
-- [ ] `cargo clippy --all-targets -- -D warnings` (0 warning)
-- [ ] `cargo fmt --check`
-- [ ] `npm run lint` + `npm run format:check` + `npm run typecheck`
-- [ ] Tests ajoutes (happy path + >=1 chemin d'erreur)
-- [ ] Logique metier hors handlers / clients
-- [ ] Doc impactee a jour
-- [ ] Commit conventionnel et atomique
+<!-- Check what applies. Explain any relevant item left unchecked. -->
 
-## Preuve (sortie shell brute)
+- [ ] Rust formatting and lint pass.
+- [ ] Web lint, formatting and type checks pass.
+- [ ] Relevant tests cover the main flow and at least one failure path.
+- [ ] User-facing or contract changes are documented.
+- [ ] No secret or generated build output is included.
 
-```
-<!-- coller build + test qui passent -->
-```
+## Architecture check
+
+- [ ] Business rules remain in `server/src/domain` or `server/src/app`.
+- [ ] Handlers and clients only translate, validate or present data.
+- [ ] The change is focused enough to squash into one descriptive commit.
+
+## Evidence
+
+<!-- Paste concise test output, screenshots or links that help reviewers verify the change. -->
