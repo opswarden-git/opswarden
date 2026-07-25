@@ -192,12 +192,12 @@ npm run test --workspace client-web         # Vitest
 
 ### Services
 
-| Service                                                                                                                       | Stack       | Local address                   |
-| ----------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------- |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="18" />` `db` | PostgreSQL  | `localhost:5433`                |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="18" />` `server`         | Rust / Axum | `http://localhost:8080`         |
-| `<img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="18" />` `client_web` | Next.js     | `:4242` dev / `:8081` Compose   |
-| `<img src="https://api.iconify.design/simple-icons/tauri.svg" height="18" />` `client_desktop`                                | Tauri       | URL mode via `just desktop-dev` |
+| Service                                                                                                                                                | Stack       | Local address                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" width="18" alt="PostgreSQL" /> <code>db</code> | PostgreSQL  | `localhost:5433`                |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" width="18" alt="Rust" /> <code>server</code>               | Rust / Axum | `http://localhost:8080`         |
+| <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="Next.js" /> <code>client_web</code>    | Next.js     | `:4242` dev / `:8081` Compose   |
+| <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="Tauri" /> <code>client_desktop</code>                                     | Tauri       | URL mode via `just desktop-dev` |
 
 The cloud and observability showcase lives in the separate
 [`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops) repository:
