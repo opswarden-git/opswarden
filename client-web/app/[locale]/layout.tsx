@@ -1,7 +1,7 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { routing } from "@/i18n/routing";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "../globals.css";
@@ -9,6 +9,10 @@ import "../globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 import { AppShell } from "@/components/layout/AppShell";
+
+export const viewport: Viewport = {
+  themeColor: "#15161A",
+};
 
 export async function generateMetadata({
   params,
@@ -19,11 +23,17 @@ export async function generateMetadata({
   const safeLocale = routing.locales.includes(locale as "en" | "fr") ? locale : "en";
   const t = await getTranslations({ locale: safeLocale, namespace: "Metadata" });
   return {
+    applicationName: "OpsWarden",
     title: {
       default: "OpsWarden",
       template: "%s | OpsWarden",
     },
     description: t("description"),
+    appleWebApp: {
+      capable: true,
+      title: "OpsWarden",
+      statusBarStyle: "black-translucent",
+    },
   };
 }
 
