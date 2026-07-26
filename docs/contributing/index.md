@@ -1,1 +1,0 @@
---8<-- "HOWTOCONTRIBUTE.md"
