@@ -1,1 +1,0 @@
---8<-- "DESIGN_SYSTEM.md"

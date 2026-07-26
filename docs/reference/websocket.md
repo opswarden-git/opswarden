@@ -1,1 +1,0 @@
---8<-- "WEBSOCKET_SPEC.md"
