@@ -1,0 +1,1467 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Technical and product documentation for the OpsWarden incident management platform.">
+      
+      
+      
+        <link rel="canonical" href="https://opswarden-git.github.io/opswarden/reference/rest-api/">
+      
+      
+        <link rel="prev" href="../data-model/">
+      
+      
+        <link rel="next" href="../websocket/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>REST API - OpsWarden Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rest-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="OpsWarden Documentation" class="md-header__button md-logo" aria-label="OpsWarden Documentation" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OpsWarden Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              REST API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/opswarden-git/opswarden" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    opswarden-git/opswarden
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="OpsWarden Documentation" class="md-nav__button md-logo" aria-label="OpsWarden Documentation" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    OpsWarden Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/opswarden-git/opswarden" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    opswarden-git/opswarden
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contract-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contract conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surface-by-capability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface by capability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-endpoint-catalogue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete endpoint catalogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-time-follow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-time follow-up
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/ui-guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contract-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contract conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surface-by-capability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Surface by capability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-endpoint-catalogue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete endpoint catalogue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-time-follow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-time follow-up
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rest-api">REST API<a class="headerlink" href="#rest-api" title="Permanent link">&para;</a></h1>
+<p>The Rust server owns authentication, authorization and domain validation. JSON
+clients must treat its response and stable error codes as authoritative.</p>
+<h2 id="contract-conventions">Contract conventions<a class="headerlink" href="#contract-conventions" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Protected routes use <code>Authorization: Bearer &lt;JWT&gt;</code>.</li>
+<li>Authentication failures return <code>401</code>; insufficient permissions return <code>403</code>.</li>
+<li>An authorized request for an absent resource returns <code>404</code>.</li>
+<li>Domain failures use <code>{ "error": "…", "code": "stable_code" }</code>.</li>
+<li>Team resources require Observer, Responder or Manager capabilities depending
+  on the operation; role names are not inferred client-side.</li>
+<li>Secrets are accepted only by connection write endpoints and never returned.</li>
+</ul>
+<h2 id="surface-by-capability">Surface by capability<a class="headerlink" href="#surface-by-capability" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Route families</th>
+<th>Authority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>discovery</td>
+<td><code>/health</code>, <code>/about.json</code></td>
+<td>public</td>
+</tr>
+<tr>
+<td>identity</td>
+<td><code>/api/auth/*</code>, <code>/api/me</code></td>
+<td>public/JWT</td>
+</tr>
+<tr>
+<td>teams and moderation</td>
+<td><code>/api/teams/*</code></td>
+<td>member/Manager</td>
+</tr>
+<tr>
+<td>incidents and timeline</td>
+<td><code>/api/incidents/*</code>, <code>/reactions/available</code></td>
+<td>member/Responder/Manager</td>
+</tr>
+<tr>
+<td>releases</td>
+<td><code>/api/releases/*</code></td>
+<td>member/Responder/Manager</td>
+</tr>
+<tr>
+<td>direct messages and GIFs</td>
+<td><code>/api/private-messages</code>, <code>/api/giphy/search</code></td>
+<td>JWT + shared Team</td>
+</tr>
+<tr>
+<td>integrations and rules</td>
+<td><code>/api/teams/{id}/service-connections/*</code>, <code>/automation-*</code></td>
+<td>Manager</td>
+</tr>
+<tr>
+<td>inbound automation</td>
+<td><code>/webhooks/github/{connection_id}</code></td>
+<td>signed HMAC</td>
+</tr>
+</tbody>
+</table>
+<h2 id="complete-endpoint-catalogue">Complete endpoint catalogue<a class="headerlink" href="#complete-endpoint-catalogue" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Route</th>
+<th>Access</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/health</code></td>
+<td>Public</td>
+<td>Liveness probe.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/about.json?locale=en\|fr</code></td>
+<td>Public</td>
+<td>Server time, client host, kickoff hash and localized Automation catalogue.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/auth/sign-up</code></td>
+<td>Public</td>
+<td>Create an email/password account.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/auth/sign-in</code></td>
+<td>Public</td>
+<td>Exchange credentials for a JWT.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/auth/google/start</code></td>
+<td>Public</td>
+<td>Start optional Google OAuth authentication.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/auth/google/callback</code></td>
+<td>Public</td>
+<td>Complete Google OAuth authentication.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/service-oauth/github/callback</code></td>
+<td>Public</td>
+<td>Complete a Team-scoped GitHub connection.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/me</code></td>
+<td>JWT</td>
+<td>Read the current profile.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/me</code></td>
+<td>JWT</td>
+<td>Delete the current account, subject to Manager ownership rules.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/me/locale</code></td>
+<td>JWT</td>
+<td>Persist <code>en</code> or <code>fr</code> as the profile locale.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/auth/logout</code></td>
+<td>JWT</td>
+<td>Revoke the current token.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/giphy/search?q=…</code></td>
+<td>JWT</td>
+<td>Search GIFs through the server-side GIPHY proxy.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/private-messages?peer_id=…&amp;limit=…</code></td>
+<td>JWT</td>
+<td>Read one bilateral conversation.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/private-messages</code></td>
+<td>JWT</td>
+<td>Send at most 2,000 characters to a user sharing a Team.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams</code></td>
+<td>JWT</td>
+<td>List the current user's Teams and operational counts.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams</code></td>
+<td>JWT</td>
+<td>Create a Team; its creator becomes the sole Manager.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/join</code></td>
+<td>JWT</td>
+<td>Join a Team using a valid invitation code.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/teams/{team_id}</code></td>
+<td>Manager</td>
+<td>Delete a Team and its owned resources.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/leave</code></td>
+<td>JWT</td>
+<td>Leave a Team; its Manager must transfer ownership first.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/teams/{team_id}/manager</code></td>
+<td>Manager</td>
+<td>Atomically transfer the single Manager role.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/invitation</code></td>
+<td>Manager</td>
+<td>Read the invitation code.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/members</code></td>
+<td>Member</td>
+<td>List members, roles and presence data.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/teams/{team_id}/members/{user_id}/role</code></td>
+<td>Manager</td>
+<td>Set an Observer or Responder role.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/teams/{team_id}/members/{user_id}</code></td>
+<td>Manager</td>
+<td>Kick a member without rewriting history.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/bans</code></td>
+<td>Manager</td>
+<td>List temporary and permanent bans.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/bans</code></td>
+<td>Manager</td>
+<td>Ban a member temporarily or permanently.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/teams/{team_id}/bans/{user_id}</code></td>
+<td>Manager</td>
+<td>Lift a ban explicitly.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/incidents</code></td>
+<td>JWT</td>
+<td>List accessible Incidents, optionally filtered by Team.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/incidents</code></td>
+<td>Manager</td>
+<td>Create an Incident.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/incidents/{incident_id}</code></td>
+<td>Member</td>
+<td>Read an Incident.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/incidents/{incident_id}</code></td>
+<td>Manager</td>
+<td>Permanently delete an Incident after confirmation.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/incidents/{incident_id}/status</code></td>
+<td>Responder+</td>
+<td>Apply a valid lifecycle transition.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/incidents/{incident_id}/assign</code></td>
+<td>Manager</td>
+<td>Assign a Responder or Manager.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/incidents/{incident_id}/activity</code></td>
+<td>Member</td>
+<td>Read the unified Incident activity stream.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/incidents/{incident_id}/timeline</code></td>
+<td>Responder+</td>
+<td>Add a timeline entry.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/incidents/{incident_id}/timeline/{entry_id}</code></td>
+<td>Author</td>
+<td>Edit an owned entry while preserving its original timestamp.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/incidents/{incident_id}/timeline/{entry_id}/reactions</code></td>
+<td>Member</td>
+<td>Toggle a supported emoji reaction.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/reactions/available</code></td>
+<td>JWT</td>
+<td>Read the server-owned reaction catalogue: 👍, 👀, ✅, 🚨, ❤️, 🎉.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/releases</code></td>
+<td>JWT</td>
+<td>List accessible Releases, optionally filtered by Team.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/releases</code></td>
+<td>Manager</td>
+<td>Create a Release with ordered steps.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/releases/{id}</code></td>
+<td>Member</td>
+<td>Read a Release, its steps and linked Incidents.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/releases/{id}/cancel</code></td>
+<td>Manager</td>
+<td>Cancel a Release.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/releases/{id}/steps/{step}/validate</code></td>
+<td>Responder+</td>
+<td>Validate the next available step.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/releases/{id}/incidents/{incident_id}/link</code></td>
+<td>Manager</td>
+<td>Link an Incident and derive blocking state.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/releases/{id}/incidents/{incident_id}/link</code></td>
+<td>Manager</td>
+<td>Unlink an Incident.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/service-connections</code></td>
+<td>Manager</td>
+<td>List connection metadata without secret material.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/teams/{team_id}/service-connections/by-service/{service}</code></td>
+<td>Manager</td>
+<td>Configure a catalogue-driven service connection.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/teams/{team_id}/service-connections/github</code></td>
+<td>Manager</td>
+<td>Configure GitHub credentials or webhook signing.</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/api/teams/{team_id}/service-connections/http</code></td>
+<td>Manager</td>
+<td>Configure a bounded HTTP notification destination.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/service-connections/by-service/{service}/oauth/start</code></td>
+<td>Manager</td>
+<td>Start service OAuth with state and PKCE.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/service-connections/{connection_id}/oauth/refresh</code></td>
+<td>Manager</td>
+<td>Rotate encrypted GitHub OAuth credentials.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/service-connections/{connection_id}/test</code></td>
+<td>Manager</td>
+<td>Test an HTTP connection without exposing its endpoint.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/teams/{team_id}/service-connections/{connection_id}</code></td>
+<td>Manager</td>
+<td>Delete a connection and its encrypted credentials.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/automation-rules</code></td>
+<td>Manager</td>
+<td>List Action→REAction rules.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/teams/{team_id}/automation-rules</code></td>
+<td>Manager</td>
+<td>Create a disabled-by-default rule.</td>
+</tr>
+<tr>
+<td><code>PATCH</code></td>
+<td><code>/api/teams/{team_id}/automation-rules/{rule_id}</code></td>
+<td>Manager</td>
+<td>Update or enable a rule.</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/api/teams/{team_id}/automation-rules/{rule_id}</code></td>
+<td>Manager</td>
+<td>Delete a rule while preserving run history.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/teams/{team_id}/automation-runs</code></td>
+<td>Manager</td>
+<td>List Automation executions and outcomes.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/webhooks/github/{connection_id}</code></td>
+<td>HMAC</td>
+<td>Receive a size-limited, signed GitHub event idempotently.</td>
+</tr>
+</tbody>
+</table>
+<p>Route wiring in <code>server/src/handlers/</code> is the implementation authority. Update
+this catalogue in the same pull request whenever that surface changes.</p>
+<h2 id="real-time-follow-up">Real-time follow-up<a class="headerlink" href="#real-time-follow-up" title="Permanent link">&para;</a></h2>
+<p>Mutations that affect collaborators may emit scoped events after persistence.
+See the <a href="../websocket/">WebSocket protocol</a> for envelopes, event payloads,
+authorization and reconnection behavior.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/force-dark.js"></script>
+      
+    
+  </body>
+</html>

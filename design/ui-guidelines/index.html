@@ -1,0 +1,1610 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Technical and product documentation for the OpsWarden incident management platform.">
+      
+      
+      
+        <link rel="canonical" href="https://opswarden-git.github.io/opswarden/design/ui-guidelines/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../design-system/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>UI guidelines - OpsWarden Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#opswarden-ui-guidelines" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="OpsWarden Documentation" class="md-header__button md-logo" aria-label="OpsWarden Documentation" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OpsWarden Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              UI guidelines
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/opswarden-git/opswarden" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    opswarden-git/opswarden
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="OpsWarden Documentation" class="md-nav__button md-logo" aria-label="OpsWarden Documentation" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    OpsWarden Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/opswarden-git/opswarden" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    opswarden-git/opswarden
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/websocket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#brand-foundations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Brand foundations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Brand foundations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#voice-and-promise" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice and promise
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typography
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonical-palette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical palette
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#action-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout-and-responsive-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout and responsive behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessibility-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessibility contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destructive-flows-and-dark-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destructive flows and dark patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotated-product-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotated product examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotated product examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#incident-queue-scan-before-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incident queue: scan before action
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#release-queue-make-blocking-explicit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release queue: make blocking explicit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#review-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#brand-foundations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Brand foundations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Brand foundations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#voice-and-promise" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voice and promise
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typography" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typography
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canonical-palette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical palette
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational semantics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#action-hierarchy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action hierarchy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout-and-responsive-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout and responsive behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#accessibility-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessibility contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#destructive-flows-and-dark-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Destructive flows and dark patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotated-product-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotated product examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Annotated product examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#incident-queue-scan-before-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incident queue: scan before action
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#release-queue-make-blocking-explicit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release queue: make blocking explicit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#review-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="opswarden-ui-guidelines">OpsWarden UI guidelines<a class="headerlink" href="#opswarden-ui-guidelines" title="Permanent link">&para;</a></h1>
+<p><strong>Owner:</strong> web client maintainers · <strong>Status:</strong> implemented contract · <strong>Review:</strong>
+when shared components or tokens change</p>
+<p>These guidelines turn the OpsWarden identity into repeatable interface
+decisions. They apply to the Next.js client and to the Tauri shell that embeds
+it. The implementation in <code>client-web/app/globals.css</code> and
+<code>client-web/components/ui/</code> remains the source of truth.</p>
+<h2 id="brand-foundations">Brand foundations<a class="headerlink" href="#brand-foundations" title="Permanent link">&para;</a></h2>
+<p>The Pomelli boards below are supporting brand exploration. They are useful for
+composition and tone, but they do not override implemented tokens, accessible
+contrast or responsive behavior.</p>
+<p><img alt="OpsWarden brand overview" class="brand-board" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/01-brand-overview.png" /></p>
+<h3 id="voice-and-promise">Voice and promise<a class="headerlink" href="#voice-and-promise" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Product name: <strong>OpsWarden</strong>.</li>
+<li>Preferred line: <strong>Ship fearlessly, resolve instantly.</strong></li>
+<li>Voice: direct, calm and operational. State what happened, its impact and the
+  next safe action; avoid hype, blame and unexplained acronyms.</li>
+<li>Labels describe outcomes: “Resolve incident”, “Validate step” and “Transfer
+  Manager”, not vague verbs such as “Submit” or “Continue”.</li>
+</ul>
+<p><img alt="OpsWarden logo exploration" class="brand-board" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/02-logo-usage.png" /></p>
+<h3 id="logo">Logo<a class="headerlink" href="#logo" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Use the complete wordmark when the product identity is not already visible;
+  use the shield icon for compact navigation, favicons and app icons.</li>
+<li>Keep clear space of at least <strong>1× the inner eye diameter</strong> on every side. The
+  board's fixed <code>95 px</code> value is illustrative, not a responsive rule.</li>
+<li>Keep the full lockup at least <code>152 px</code> wide and the icon at least <code>24 px</code>.</li>
+<li>Never stretch, rotate, recolor, outline or add shadows to the mark.</li>
+<li>On dark surfaces use the supplied light wordmark; on light surfaces use its
+  approved dark variant. Never place it over busy operational content.</li>
+</ul>
+<p><img alt="OpsWarden typography exploration" class="brand-board" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/03-typography.png" /></p>
+<h3 id="typography">Typography<a class="headerlink" href="#typography" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Purpose</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Inter</strong></td>
+<td>navigation, headings, body, controls</td>
+<td>Default interface family; sentence case</td>
+</tr>
+<tr>
+<td><strong>JetBrains Mono</strong></td>
+<td>IDs, timestamps, routes, code and machine values</td>
+<td>Use only where fixed-width scanning adds meaning</td>
+</tr>
+</tbody>
+</table>
+<p>Do not introduce a third family. A table may use Inter for human-readable names
+and JetBrains Mono for an Incident identifier in the same row.</p>
+<p><img alt="OpsWarden color exploration" class="brand-board" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/04-color-palette.png" /></p>
+<h3 id="canonical-palette">Canonical palette<a class="headerlink" href="#canonical-palette" title="Permanent link">&para;</a></h3>
+<p>Pomelli's generated color names are not canonical. Use semantic roles instead:</p>
+<table>
+<thead>
+<tr>
+<th>Token role</th>
+<th>Value</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Control-room background</td>
+<td><code>#15161A</code></td>
+<td>Application canvas</td>
+</tr>
+<tr>
+<td>Surface</td>
+<td><code>#1B1C20</code></td>
+<td>Panels, fields, secondary actions</td>
+</tr>
+<tr>
+<td>Primary text</td>
+<td><code>#E7E7EA</code></td>
+<td>High-priority readable content</td>
+</tr>
+<tr>
+<td>OpsWarden accent</td>
+<td><code>#FBC02D</code></td>
+<td>Primary action and focus</td>
+</tr>
+<tr>
+<td>Destructive action</td>
+<td><code>#C62828</code></td>
+<td>Explicit destructive controls</td>
+</tr>
+<tr>
+<td>Muted text</td>
+<td><code>#989BA1</code> / <code>#878B93</code></td>
+<td>Supporting information only</td>
+</tr>
+</tbody>
+</table>
+<p>Never use the accent as decoration around dense operational data. Color is
+always paired with text, an icon or position when it communicates state.</p>
+<h2 id="operational-semantics">Operational semantics<a class="headerlink" href="#operational-semantics" title="Permanent link">&para;</a></h2>
+<p>Brand colors identify OpsWarden; operational colors encode live meaning.</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Token</th>
+<th>Value</th>
+<th>Required text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Low severity</td>
+<td><code>--sev-low</code></td>
+<td><code>#5798F5</code></td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Medium severity</td>
+<td><code>--sev-medium</code></td>
+<td><code>#F59E0B</code></td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>High severity</td>
+<td><code>--sev-high</code></td>
+<td><code>#FB7D3C</code></td>
+<td>High</td>
+</tr>
+<tr>
+<td>Critical severity</td>
+<td><code>--sev-critical</code></td>
+<td><code>#FF5555</code></td>
+<td>Critical</td>
+</tr>
+<tr>
+<td>Open</td>
+<td><code>--st-open</code></td>
+<td><code>#FF5555</code></td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Acknowledged</td>
+<td><code>--st-ack</code></td>
+<td><code>#5798F5</code></td>
+<td>Acknowledged</td>
+</tr>
+<tr>
+<td>Escalated</td>
+<td><code>--st-esc</code></td>
+<td><code>#C084FC</code></td>
+<td>Escalated</td>
+</tr>
+<tr>
+<td>Resolved</td>
+<td><code>--st-res</code></td>
+<td><code>#22C55E</code></td>
+<td>Resolved</td>
+</tr>
+</tbody>
+</table>
+<p>The server owns allowed lifecycle transitions. A colored chip renders state; it
+does not authorize a transition or invent a new one.</p>
+<h2 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h2>
+<p>Use a shared primitive before adding local CSS. A new variant requires a product
+meaning, not merely a different color.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Variants or states</th>
+<th>Usage contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Button</code></td>
+<td><code>primary</code>, <code>secondary</code>, <code>danger</code>, <code>ghost</code></td>
+<td>One dominant primary action per decision area</td>
+</tr>
+<tr>
+<td><code>IconButton</code></td>
+<td>same intent system</td>
+<td>Must have an accessible name and tooltip where helpful</td>
+</tr>
+<tr>
+<td><code>Alert</code></td>
+<td><code>info</code>, <code>success</code>, <code>warning</code>, <code>danger</code></td>
+<td>Message tone; never styled like an action</td>
+</tr>
+<tr>
+<td><code>FormField</code></td>
+<td>label, hint, error</td>
+<td>Visible label; connect description and error programmatically</td>
+</tr>
+<tr>
+<td><code>Dialog</code></td>
+<td>open/closed</td>
+<td>Trap focus, close with Escape, restore focus to trigger</td>
+</tr>
+<tr>
+<td><code>ConfirmDialog</code></td>
+<td>standard/destructive</td>
+<td>Initial focus on the safe action; name resource and consequence</td>
+</tr>
+<tr>
+<td><code>ActionMenu</code></td>
+<td>closed/open</td>
+<td>Keyboard-openable; arrows navigate; Escape returns focus</td>
+</tr>
+<tr>
+<td><code>OperationalTable</code></td>
+<td>loading/ready</td>
+<td>Desktop scan view with a labelled mobile record equivalent</td>
+</tr>
+<tr>
+<td><code>PageContent</code></td>
+<td>loading/error/empty/ready</td>
+<td>Every data page handles all four states</td>
+</tr>
+</tbody>
+</table>
+<h3 id="action-hierarchy">Action hierarchy<a class="headerlink" href="#action-hierarchy" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Primary: the single constructive outcome of the current task.</li>
+<li>Secondary: cancel, close, return or a valid alternative.</li>
+<li>Ghost: low-emphasis contextual action.</li>
+<li>Danger: destructive outcome, separated from routine actions.</li>
+</ol>
+<p>Do not disable a control without explaining why nearby. During a request, keep
+the label stable when possible and expose busy state to assistive technology.</p>
+<h2 id="layout-and-responsive-behavior">Layout and responsive behavior<a class="headerlink" href="#layout-and-responsive-behavior" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Use <code>AppShell</code>, <code>PageLayout</code>, <code>PageHeader</code>, <code>PageToolbar</code> and <code>PageContent</code> to
+  preserve navigation and loading behavior.</li>
+<li>Put the operational identity and status before metadata and actions.</li>
+<li>Prefer a table for repeated desktop records and a labelled record stack on
+  small screens. Preserve the same information and action names in both.</li>
+<li>Keep dialogs for focused decisions; do not turn long exploration workflows
+  into nested dialogs.</li>
+<li>Dense data may scroll horizontally only when a meaningful mobile equivalent
+  cannot preserve it.</li>
+</ul>
+<h2 id="accessibility-contract">Accessibility contract<a class="headerlink" href="#accessibility-contract" title="Permanent link">&para;</a></h2>
+<p>Every production flow must satisfy all of these rules:</p>
+<ul>
+<li>A native form control has an explicit accessible name; a placeholder is not a label.</li>
+<li>Keyboard users can open, navigate and close dialogs and menus, with visible focus.</li>
+<li>Focus starts predictably and returns to the invoking control.</li>
+<li>Validation and request failures are announced live and remain readable.</li>
+<li>No positive <code>tabIndex</code> creates a manual tab order.</li>
+<li>Meaning never depends on color alone.</li>
+<li>English and French messages preserve the same ICU arguments and interaction meaning.</li>
+<li>Motion respects reduced-motion preferences and never delays an urgent action.</li>
+</ul>
+<p>These are enforced by component tests, flow tests and the static accessibility
+contract. A visual review supplements those checks; it does not replace them.</p>
+<h2 id="destructive-flows-and-dark-patterns">Destructive flows and dark patterns<a class="headerlink" href="#destructive-flows-and-dark-patterns" title="Permanent link">&para;</a></h2>
+<p>Persistent deletion, expulsion, banning and irreversible cancellation use a
+<code>ConfirmDialog</code> with explicit intent. Name the affected resource, explain the
+consequence, focus the safe action first and never preselect danger. High-impact
+deletion may require typing <code>DELETE</code>.</p>
+<p>Do not add confirmation friction to immediately reversible changes such as a
+filter, emoji reaction or rule toggle. Never hide cancellation, use guilt copy,
+mislabel consequences or give the risky action stronger visual weight before
+the user chooses it.</p>
+<h2 id="annotated-product-examples">Annotated product examples<a class="headerlink" href="#annotated-product-examples" title="Permanent link">&para;</a></h2>
+<h3 id="incident-queue-scan-before-action">Incident queue: scan before action<a class="headerlink" href="#incident-queue-scan-before-action" title="Permanent link">&para;</a></h3>
+<p><img alt="Incident queue showing operational hierarchy" class="annotated-screen" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png" /></p>
+<ol>
+<li>The page title and team context establish scope before any mutation.</li>
+<li>Severity and lifecycle are both written and color-coded for fast scanning.</li>
+<li>The primary incident action is visually distinct from filters and row actions.</li>
+<li>Repeated records keep identifiers, owners and timestamps aligned; the mobile
+   representation must retain those facts.</li>
+</ol>
+<h3 id="release-queue-make-blocking-explicit">Release queue: make blocking explicit<a class="headerlink" href="#release-queue-make-blocking-explicit" title="Permanent link">&para;</a></h3>
+<p><img alt="Release queue showing progress and blocking state" class="annotated-screen" loading="lazy" src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/releases.png" /></p>
+<ol>
+<li>Release state and ordered progress answer “can we continue?” first.</li>
+<li>A blocked release names its condition rather than relying on danger color.</li>
+<li>Step validation remains a deliberate action and follows server-owned order.</li>
+<li>Cancel is destructive and separated from the normal validation path.</li>
+</ol>
+<h2 id="review-checklist">Review checklist<a class="headerlink" href="#review-checklist" title="Permanent link">&para;</a></h2>
+<p>Before merging an interface change, verify:</p>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Existing tokens and shared components are reused.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Loading, error, empty and ready states are present.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Desktop and narrow viewport flows preserve information and actions.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Keyboard focus, names and live errors work without a mouse.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> EN and FR copy is complete and natural.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Destructive consequences are named; reversible actions stay lightweight.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Component, integration or E2E coverage protects the new behavior.</li>
+</ul>
+<p>See also the lower-level
+<a href="https://opswarden-git.github.io/opswarden/design/design-system/">visual contract</a>
+and the component implementations under <code>client-web/components/ui/</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/force-dark.js"></script>
+      
+    
+  </body>
+</html>
