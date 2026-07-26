@@ -28,24 +28,15 @@ network concepts.
 
 ## Request and event flow
 
-```mermaid
-sequenceDiagram
-    participant UI as Web / desktop UI
-    participant HTTP as Axum handler
-    participant UC as Application use case
-    participant DB as PostgreSQL adapter
-    participant BUS as Event bus adapter
-    participant WS as Connected clients
+When a user performs an action, the data flows through the system in this exact order:
 
-    UI->>HTTP: authenticated command
-    HTTP->>UC: validated input + actor
-    UC->>DB: transactional state change
-    DB-->>UC: persisted aggregate
-    UC->>BUS: domain event
-    BUS-->>WS: scoped WebSocket event
-    UC-->>HTTP: result
-    HTTP-->>UI: JSON response
-```
+1. **User action**: The Web or Desktop UI sends an authenticated HTTP command to the server.
+2. **Routing & Validation**: The Axum HTTP handler receives the request, validates the basic input, and extracts the user's identity.
+3. **Business Logic**: The Application use case applies the domain rules.
+4. **Persistence**: The PostgreSQL adapter executes a transactional state change in the database.
+5. **Event Dispatch**: Once the new state is saved, the use case publishes a domain event to the internal Event bus.
+6. **Real-time Updates**: The Event bus immediately broadcasts a WebSocket event to all other connected clients so they can update their interfaces.
+7. **Response**: The use case returns the result to the HTTP handler, which sends the final JSON response back to the original user.
 
 The database change is authoritative. WebSocket events make clients converge;
 they do not replace persistence or authorization.
