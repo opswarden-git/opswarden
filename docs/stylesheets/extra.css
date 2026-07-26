@@ -4,7 +4,16 @@
   --md-primary-fg-color: #1b1c20;
   --md-primary-fg-color--light: #25262b;
   --md-primary-fg-color--dark: #000000;
-  --md-accent-fg-color: #4f46e5;
+  --md-accent-fg-color: #fbc02d;
+  --md-typeset-a-color: var(--md-accent-fg-color);
+}
+
+.md-typeset {
+  --md-typeset-a-color: var(--md-accent-fg-color);
+}
+
+.md-typeset a {
+  color: var(--md-typeset-a-color);
 }
 
 .md-header__button.md-logo img,
@@ -31,10 +40,6 @@
   display: none !important;
 }
 
-/* Kill the left sidebar — only top tabs + right TOC remain */
-.md-sidebar--primary {
-  display: none !important;
-}
 
 /* Grid cards: force white text on dark background */
 .grid.cards li {

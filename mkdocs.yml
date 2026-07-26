@@ -18,7 +18,9 @@ theme:
   features:
     - content.code.copy
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
+    - navigation.indexes
     - search.highlight
     - search.suggest
     - toc.follow
@@ -32,10 +34,12 @@ nav:
   - Getting Started: getting-started.md
   - Architecture: architecture/index.md
   - Reference:
+      - reference/index.md
       - Data model: reference/data-model.md
       - REST API: reference/rest-api.md
       - WebSocket protocol: reference/websocket.md
   - Design:
+      - design/index.md
       - UI guidelines: design/ui-guidelines.md
       - Design system: design/design-system.md
   - Contributing: contributing/index.md
