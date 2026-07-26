@@ -31,7 +31,6 @@ export async function generateMetadata({
     description: t("description"),
     appleWebApp: {
       capable: true,
-      title: "OpsWarden",
       statusBarStyle: "black-translucent",
     },
   };
