@@ -25,9 +25,12 @@ use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
 
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{postgres::PgPoolOptions, PgPool};
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
+
+const DATABASE_CONNECT_ATTEMPTS: usize = 30;
+const DATABASE_CONNECT_RETRY_DELAY: Duration = Duration::from_secs(2);
 
 struct DummyClock;
 impl Clock for DummyClock {}
@@ -38,11 +41,7 @@ async fn main() {
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string());
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to Postgres");
+    let pool = connect_database(&database_url).await;
 
     sqlx::migrate!()
         .run(&pool)
@@ -102,4 +101,29 @@ async fn main() {
     )
     .await
     .expect("server error");
+}
+
+async fn connect_database(database_url: &str) -> PgPool {
+    for attempt in 1..=DATABASE_CONNECT_ATTEMPTS {
+        match PgPoolOptions::new()
+            .max_connections(5)
+            .connect(database_url)
+            .await
+        {
+            Ok(pool) => return pool,
+            Err(_) if attempt < DATABASE_CONNECT_ATTEMPTS => {
+                eprintln!(
+                    "Postgres connection attempt {attempt}/{DATABASE_CONNECT_ATTEMPTS} failed; \
+                     retrying in {}s",
+                    DATABASE_CONNECT_RETRY_DELAY.as_secs()
+                );
+                tokio::time::sleep(DATABASE_CONNECT_RETRY_DELAY).await;
+            }
+            Err(_) => {
+                panic!("Failed to connect to Postgres after {DATABASE_CONNECT_ATTEMPTS} attempts")
+            }
+        }
+    }
+
+    unreachable!("the bounded database connection loop always returns or panics")
 }
