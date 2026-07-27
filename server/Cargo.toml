@@ -40,6 +40,14 @@ argon2 = "0.5.3"
 # generation (rand 0.10 moved to rand_core 0.10, dropping the old transitive feature).
 password-hash = { version = "0.6", features = ["getrandom"] }
 rand = "0.10"
-
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = { version = "0.22" }
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic", "http-proto"] }
+tracing-opentelemetry = "0.23"
+tower-http = { version = "0.5", features = ["trace"] }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+
+

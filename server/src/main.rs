@@ -24,6 +24,10 @@ use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use opentelemetry::KeyValue;
+use opentelemetry_sdk::{trace as sdktrace, Resource};
+use tower_http::trace::TraceLayer;
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
@@ -43,6 +47,28 @@ async fn main() {
         !(migrate_only && skip_migrations),
         "OPSWARDEN_MIGRATE_ONLY and OPSWARDEN_SKIP_MIGRATIONS are mutually exclusive"
     );
+
+    // Initialize Tracing and OpenTelemetry
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+        .with_trace_config(
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "opswarden-server",
+            )])),
+        )
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .expect("failed to install OpenTelemetry tracer");
+
+    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let fmt_layer = tracing_subscriber::fmt::layer().json();
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(fmt_layer)
+        .with(telemetry_layer)
+        .init();
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string());
@@ -102,7 +128,7 @@ async fn main() {
         config,
     };
 
-    let app = build_app(state);
+    let app = build_app(state).layer(TraceLayer::new_for_http());
 
     let addr = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(addr)
