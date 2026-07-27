@@ -14,7 +14,7 @@ RUN cargo build --release -p opswarden-server
 
 # ---- runtime ----
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 10001 opswarden \
     && useradd --system --uid 10001 --gid opswarden --no-create-home opswarden
