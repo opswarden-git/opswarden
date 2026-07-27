@@ -37,16 +37,30 @@ impl Clock for DummyClock {}
 
 #[tokio::main]
 async fn main() {
-    let config = Config::from_env();
+    let migrate_only = std::env::var("OPSWARDEN_MIGRATE_ONLY").as_deref() == Ok("1");
+    let skip_migrations = std::env::var("OPSWARDEN_SKIP_MIGRATIONS").as_deref() == Ok("1");
+    assert!(
+        !(migrate_only && skip_migrations),
+        "OPSWARDEN_MIGRATE_ONLY and OPSWARDEN_SKIP_MIGRATIONS are mutually exclusive"
+    );
 
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://opswarden:opswarden@localhost:5433/opswarden".to_string());
     let pool = connect_database(&database_url).await;
 
-    sqlx::migrate!()
-        .run(&pool)
-        .await
-        .expect("Failed to run database migrations");
+    if !skip_migrations {
+        sqlx::migrate!()
+            .run(&pool)
+            .await
+            .expect("Failed to run database migrations");
+    }
+
+    if migrate_only {
+        pool.close().await;
+        return;
+    }
+
+    let config = Config::from_env();
 
     let state = AppState {
         users: Arc::new(PgUserRepo::new(pool.clone())),
