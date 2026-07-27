@@ -26,10 +26,6 @@ const nextConfig = {
         destination: `${apiOrigin}/health`,
       },
       {
-        source: "/api/ws",
-        destination: `${apiOrigin}/ws`,
-      },
-      {
         source: "/api/:path*",
         destination: `${apiOrigin}/api/:path*`,
       },
