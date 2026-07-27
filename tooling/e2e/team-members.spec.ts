@@ -18,7 +18,7 @@ test.describe("Team roster and members", () => {
     for (const width of [320, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(membersUrl);
-      
+
       // Wait for members list to load
       await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
@@ -34,7 +34,7 @@ test.describe("Team roster and members", () => {
       // we just check that at least one visible instance exists.
       const messageBtn = observerRow.getByRole("button", { name: "Message" });
       const actionsBtn = observerRow.getByRole("button", { name: "Team Actions" });
-      
+
       // Playwright's toBeVisible() will check if *any* matching element is visible if multiple exist
       // But we can filter by visible if there are multiple.
       await expect(messageBtn.locator("visible=true")).toHaveCount(1);
@@ -45,7 +45,7 @@ test.describe("Team roster and members", () => {
   test("Responder can view members and send DM but cannot manage members", async ({ page }) => {
     await login(page, "responder@opswarden.local");
     await page.goto(membersUrl);
-    
+
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
     const managerRow = page.locator('li').filter({ hasText: 'manager@opswarden.local' });
@@ -63,7 +63,7 @@ test.describe("Team roster and members", () => {
   test("Observer can view members and send DM but cannot manage members", async ({ page }) => {
     await login(page, "observer@opswarden.local");
     await page.goto(membersUrl);
-    
+
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
     const responderRow = page.locator('li').filter({ hasText: 'responder@opswarden.local' });
