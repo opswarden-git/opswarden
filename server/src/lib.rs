@@ -215,6 +215,7 @@ pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(handlers::health))
+        .route("/api/health", get(handlers::health))
         .route("/about.json", get(handlers::about))
         .route("/api/auth/sign-up", post(handlers::auth::sign_up))
         .route("/api/auth/sign-in", post(handlers::auth::sign_in))
