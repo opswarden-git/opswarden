@@ -14,11 +14,17 @@ const apiOrigin = process.env.OPSWARDEN_API_ORIGIN || "http://localhost:8080";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: workspaceRoot,
   turbopack: {
     root: workspaceRoot,
   },
   async rewrites() {
     return [
+      {
+        source: "/api/health",
+        destination: `${apiOrigin}/health`,
+      },
       {
         source: "/api/:path*",
         destination: `${apiOrigin}/api/:path*`,

@@ -24,8 +24,8 @@ services:
       dockerfile: server/Dockerfile
     environment:
       DATABASE_URL: postgres://opswarden:opswarden@db:5432/opswarden
-      OPSWARDEN_KICKOFF_TOKEN: "Romeo Cavazza VIGIL2026"
-      JWT_SECRET: ${JWT_SECRET:-super_secret_dev_key}
+      OPSWARDEN_KICKOFF_TOKEN: ${OPSWARDEN_KICKOFF_TOKEN:?required}
+      JWT_SECRET: ${JWT_SECRET:?required}
       # Team connection credentials are configured through the Manager UI and
       # encrypted with this single server-side vault key.
       OPSWARDEN_VAULT_KEY: ${OPSWARDEN_VAULT_KEY:-}
@@ -90,11 +90,13 @@ services:
     volumes:
       - ./artifacts:/app/client-web/public/desktop:ro
     command:
-      [
-        "sh",
-        "-c",
-        "mkdir -p public && ln -sfn desktop/OpsWarden_amd64.deb public/client.deb && ln -sfn desktop/client.AppImage public/client.AppImage && exec /app/node_modules/.bin/next start -p 8081",
-      ]
+      - sh
+      - -ec
+      - |
+        mkdir -p /app/client-web/public
+        ln -sfn desktop/OpsWarden_amd64.deb /app/client-web/public/client.deb
+        ln -sfn desktop/client.AppImage /app/client-web/public/client.AppImage
+        exec node /app/client-web/server.js
     ports:
       - "${CLIENT_WEB_PORT:-8081}:8081"
     depends_on:

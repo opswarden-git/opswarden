@@ -7,6 +7,7 @@ import {
   dispatchDesktopNotification,
   handleWsContractEvent,
   useWsStore,
+  webSocketUrl,
 } from "./ws";
 
 function queryClientWithInvalidationSpy() {
@@ -21,11 +22,29 @@ function queryClientWithInvalidationSpy() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   useAuthStore.getState().logout();
   useWsStore.setState({
     watchersByIncident: {},
     activeWatches: [],
     sendJson: () => {},
+  });
+});
+
+describe("WebSocket deployment URL", () => {
+  it("uses an explicit build-time override when configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_WS_URL", "wss://api.example.test/ws");
+
+    expect(webSocketUrl()).toBe("wss://api.example.test/ws");
+  });
+
+  it("falls back to the browser origin and /ws ingress route", () => {
+    vi.stubEnv("NEXT_PUBLIC_WS_URL", "");
+
+    const url = new URL(webSocketUrl()!);
+    expect(url.host).toBe(window.location.host);
+    expect(url.pathname).toBe("/ws");
+    expect(url.protocol).toBe(window.location.protocol === "https:" ? "wss:" : "ws:");
   });
 });
 

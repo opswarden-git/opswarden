@@ -45,6 +45,60 @@ dev:
 test:
     cargo test --workspace
 
+# tests avec base de données éphémère (nettoyage garanti)
+test-integration:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    root="$(git rev-parse --show-toplevel)"
+    project="opswarden-integration-${USER:-user}-$$"
+    temp_compose="$(mktemp)"
+
+    cleanup() {
+        docker compose \
+          --project-name "$project" \
+          -f "$temp_compose" \
+          down -v --remove-orphans >/dev/null 2>&1 || true
+
+        rm -f "$temp_compose"
+    }
+
+    trap cleanup EXIT INT TERM
+
+    cat > "$temp_compose" <<'YAML'
+    services:
+      db:
+        image: postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        environment:
+          POSTGRES_USER: opswarden
+          POSTGRES_PASSWORD: opswarden
+          POSTGRES_DB: opswarden
+        ports:
+          - "127.0.0.1::5432"
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U opswarden"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+    YAML
+
+    docker compose \
+      --project-name "$project" \
+      -f "$temp_compose" \
+      up --detach --wait db
+
+    db_port="$(
+      docker compose \
+        --project-name "$project" \
+        -f "$temp_compose" \
+        port db 5432 | cut -d: -f2
+    )"
+
+    export DATABASE_URL="postgres://opswarden:opswarden@127.0.0.1:${db_port}/opswarden"
+
+    sqlx migrate run --source "$root/server/migrations"
+    cargo test --manifest-path "$root/Cargo.toml" --workspace
+
 # vérification rapide (sans build complet)
 check:
     cargo check --workspace --all-targets

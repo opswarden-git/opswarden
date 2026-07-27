@@ -7,7 +7,14 @@ import { notifyDesktop } from "@/lib/desktopNotify";
 import type { Incident } from "@/lib/queries/incidents";
 import { useTranslations } from "next-intl";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
+export function webSocketUrl() {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  if (typeof window === "undefined") return null;
+
+  const url = new URL("/ws", window.location.origin);
+  url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
+}
 
 /** Commands the client sends to the server (see WEBSOCKET_SPEC.md). */
 export type WsClientCommand =
@@ -361,11 +368,14 @@ export function useRealtime() {
   const queryClient = useQueryClient();
   const notificationGate = useRef<DesktopNotificationGate>(createDesktopNotificationGate());
 
-  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(token ? WS_URL : null, {
-    shouldReconnect: () => true,
-    reconnectAttempts: 10,
-    reconnectInterval: 3000,
-  });
+  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
+    token ? webSocketUrl() : null,
+    {
+      shouldReconnect: () => true,
+      reconnectAttempts: 10,
+      reconnectInterval: 3000,
+    },
+  );
 
   // Store a non-queueing sender (`keep: false`): commands sent while the socket
   // is closed are dropped, never queued. Otherwise react-use-websocket flushes a
