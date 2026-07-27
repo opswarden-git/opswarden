@@ -256,9 +256,66 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+  web-image:
+    # Optional self-hosted artifact. The nominal public client is deployed from
+    # client-web on Vercel; this image remains available for local/Kubernetes use.
+    name: Self-hosted web image · Build, push & attest
+    needs: release-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Normalize image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/opswarden-client-web" >> "$GITHUB_OUTPUT"
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+      - name: Configure Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: client-web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            OPSWARDEN_API_ORIGIN=http://server:8080
+            NEXT_PUBLIC_WS_URL=
+          provenance: mode=max
+          sbom: true
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
   publish:
     name: Release · Publish artifacts
-    needs: [release-gate, release-e2e, desktop-packages, docker-image]
+    needs: [release-gate, release-e2e, desktop-packages, docker-image, web-image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
