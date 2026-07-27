@@ -12,10 +12,12 @@ const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 // The WebSocket is a separate, browser-direct concern (NEXT_PUBLIC_WS_URL).
 const apiOrigin = process.env.OPSWARDEN_API_ORIGIN || "http://localhost:8080";
 
+const isVercel = !!process.env.VERCEL;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
-  outputFileTracingRoot: workspaceRoot,
+  output: isVercel ? undefined : "standalone",
+  outputFileTracingRoot: isVercel ? undefined : workspaceRoot,
   turbopack: {
     root: workspaceRoot,
   },
