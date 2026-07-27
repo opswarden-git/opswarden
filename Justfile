@@ -45,6 +45,15 @@ dev:
 test:
     cargo test --workspace
 
+# tests avec base de données éphémère (nettoyage garanti)
+test-integration:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'docker compose down -v' EXIT
+    docker compose up --detach --wait db
+    cd server && sqlx migrate run
+    cargo test --workspace
+
 # vérification rapide (sans build complet)
 check:
     cargo check --workspace --all-targets
