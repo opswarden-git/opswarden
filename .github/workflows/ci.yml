@@ -52,6 +52,9 @@ jobs:
       - name: Validate shell scripts
         run: find tooling -type f -name '*.sh' -print0 | xargs -0 shellcheck
       - name: Validate Compose configuration
+        env:
+          OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
+          JWT_SECRET: CI_CONFIG_ONLY
         run: docker compose config --quiet
       - name: Verify package versions
         run: ./tooling/verify_release_version.sh
