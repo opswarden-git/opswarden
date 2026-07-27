@@ -6,7 +6,9 @@
 # proxied to the server via OPSWARDEN_API_ORIGIN (Compose: http://server:8080).
 # Next *bakes* rewrite destinations into the build, so OPSWARDEN_API_ORIGIN is a
 # build ARG, not a runtime env. The browser reaches the WebSocket directly on the
-# server's published :8080 (NEXT_PUBLIC_WS_URL, likewise baked at build time).
+# server URL configured by NEXT_PUBLIC_WS_URL (also baked at build time). When
+# unset, the client derives `/ws` from the browser origin; Compose supplies its
+# explicit localhost URL and the self-hosted ingress routes `/ws` to Rust.
 
 # ---- build ----
 FROM node:24-bookworm-slim AS builder
@@ -19,7 +21,7 @@ RUN npm ci
 # App source + build. Both the client `NEXT_PUBLIC_*` env and the `/api/*` rewrite
 # destination are baked into the build, so they are set here as build args.
 COPY client-web ./client-web
-ARG NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+ARG NEXT_PUBLIC_WS_URL=""
 ARG OPSWARDEN_API_ORIGIN=http://localhost:8080
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 ENV OPSWARDEN_API_ORIGIN=${OPSWARDEN_API_ORIGIN}
