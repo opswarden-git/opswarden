@@ -1,5 +1,7 @@
 // --- server/src/main.rs ---
 
+use opentelemetry::KeyValue;
+use opentelemetry_sdk::{trace as sdktrace, Resource};
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
@@ -24,10 +26,8 @@ use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use opentelemetry::KeyValue;
-use opentelemetry_sdk::{trace as sdktrace, Resource};
 use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
@@ -49,17 +49,15 @@ async fn main() {
     );
 
     // Initialize Tracing and OpenTelemetry
-    let tracer = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .with_trace_config(
-            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
-                "service.name",
-                "opswarden-server",
-            )])),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .expect("failed to install OpenTelemetry tracer");
+    let tracer =
+        opentelemetry_otlp::new_pipeline()
+            .tracing()
+            .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+            .with_trace_config(sdktrace::config().with_resource(Resource::new(vec![
+                KeyValue::new("service.name", "opswarden-server"),
+            ])))
+            .install_batch(opentelemetry_sdk::runtime::Tokio)
+            .expect("failed to install OpenTelemetry tracer");
 
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
     let fmt_layer = tracing_subscriber::fmt::layer().json();
