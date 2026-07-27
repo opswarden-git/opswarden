@@ -52,41 +52,49 @@ test-integration:
 
     root="$(git rev-parse --show-toplevel)"
     project="opswarden-integration-${USER:-user}-$$"
-    override="$(mktemp)"
+    temp_compose="$(mktemp)"
 
     cleanup() {
         docker compose \
           --project-name "$project" \
-          --project-directory "$root" \
-          -f "$root/docker-compose.yml" \
-          -f "$override" \
+          -f "$temp_compose" \
           down -v --remove-orphans >/dev/null 2>&1 || true
 
-        rm -f "$override"
+        rm -f "$temp_compose"
     }
 
     trap cleanup EXIT INT TERM
 
-    cat > "$override" <<'YAML'
+    cat > "$temp_compose" <<'YAML'
     services:
       db:
-        ports: []
+        image: postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        environment:
+          POSTGRES_USER: opswarden
+          POSTGRES_PASSWORD: opswarden
+          POSTGRES_DB: opswarden
+        ports:
+          - "127.0.0.1::5432"
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U opswarden"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
     YAML
 
     docker compose \
       --project-name "$project" \
-      --project-directory "$root" \
-      -f "$root/docker-compose.yml" \
-      -f "$override" \
+      -f "$temp_compose" \
       up --detach --wait db
 
     db_port="$(
-      docker inspect \
-        --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
-        "${project}-db-1"
+      docker compose \
+        --project-name "$project" \
+        -f "$temp_compose" \
+        port db 5432 | cut -d: -f2
     )"
 
-    export DATABASE_URL="postgres://opswarden:opswarden@${db_port}:5432/opswarden"
+    export DATABASE_URL="postgres://opswarden:opswarden@127.0.0.1:${db_port}/opswarden"
 
     sqlx migrate run --source "$root/server/migrations"
     cargo test --manifest-path "$root/Cargo.toml" --workspace
