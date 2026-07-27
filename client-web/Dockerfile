@@ -33,7 +33,8 @@ WORKDIR /app/client-web
 ENV NODE_ENV=production
 # Installed deps + the built app. The /api/* rewrite destination is already
 # baked into the build above, so the runtime stage carries no API-origin env.
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/client-web /app/client-web
+COPY --from=builder --chown=node:node /app/node_modules /app/node_modules
+COPY --from=builder --chown=node:node /app/client-web /app/client-web
+USER node
 EXPOSE 8081
 CMD ["/app/node_modules/.bin/next", "start", "-p", "8081"]
