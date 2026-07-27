@@ -356,6 +356,9 @@ jobs:
       && (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped')
       && (needs.web-build.result == 'success' || needs.web-build.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
+      JWT_SECRET: CI_CONFIG_ONLY
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
