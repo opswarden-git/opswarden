@@ -29,12 +29,16 @@ RUN npm run build --workspace client-web
 
 # ---- runtime ----
 FROM node:24-bookworm-slim AS runner
-WORKDIR /app/client-web
+WORKDIR /app
 ENV NODE_ENV=production
-# Installed deps + the built app. The /api/* rewrite destination is already
-# baked into the build above, so the runtime stage carries no API-origin env.
-COPY --from=builder --chown=node:node /app/node_modules /app/node_modules
-COPY --from=builder --chown=node:node /app/client-web /app/client-web
+ENV HOSTNAME=0.0.0.0
+ENV PORT=8081
+# Next's traced standalone server contains only the production files required
+# at runtime. Build tooling and the monorepo-wide node_modules never cross this
+# stage boundary.
+COPY --from=builder --chown=node:node /app/client-web/.next/standalone ./
+COPY --from=builder --chown=node:node /app/client-web/.next/static ./client-web/.next/static
+COPY --from=builder --chown=node:node /app/client-web/public ./client-web/public
 USER node
 EXPOSE 8081
-CMD ["/app/node_modules/.bin/next", "start", "-p", "8081"]
+CMD ["node", "client-web/server.js"]
