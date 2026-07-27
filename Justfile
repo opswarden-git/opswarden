@@ -49,10 +49,47 @@ test:
 test-integration:
     #!/usr/bin/env bash
     set -euo pipefail
-    trap 'docker compose down -v' EXIT
-    docker compose up --detach --wait db
-    cd server && sqlx migrate run
-    cargo test --workspace
+
+    root="$(git rev-parse --show-toplevel)"
+    project="opswarden-integration-${USER:-user}-$$"
+    override="$(mktemp)"
+
+    cleanup() {
+        docker compose \
+          --project-name "$project" \
+          --project-directory "$root" \
+          -f "$root/docker-compose.yml" \
+          -f "$override" \
+          down -v --remove-orphans >/dev/null 2>&1 || true
+
+        rm -f "$override"
+    }
+
+    trap cleanup EXIT INT TERM
+
+    cat > "$override" <<'YAML'
+    services:
+      db:
+        ports: []
+    YAML
+
+    docker compose \
+      --project-name "$project" \
+      --project-directory "$root" \
+      -f "$root/docker-compose.yml" \
+      -f "$override" \
+      up --detach --wait db
+
+    db_port="$(
+      docker inspect \
+        --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
+        "${project}-db-1"
+    )"
+
+    export DATABASE_URL="postgres://opswarden:opswarden@${db_port}:5432/opswarden"
+
+    sqlx migrate run --source "$root/server/migrations"
+    cargo test --manifest-path "$root/Cargo.toml" --workspace
 
 # vérification rapide (sans build complet)
 check:
