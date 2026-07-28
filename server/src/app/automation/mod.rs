@@ -14,9 +14,9 @@ pub use ingest_team_webhook::{
 };
 pub use reaction_executor::AutomationReactionExecutor;
 pub use team_connection::{
-    ConfigureGithubConnectionCommand, ConfigureHttpConnectionCommand, DeleteTeamConnectionCommand,
-    ListTeamConnectionsCommand, TeamConnectionUseCase, TeamConnectionView,
-    TestHttpConnectionCommand,
+    ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
+    ConfigureHttpConnectionCommand, DeleteTeamConnectionCommand, ListTeamConnectionsCommand,
+    TeamConnectionUseCase, TeamConnectionView, TestHttpConnectionCommand,
 };
 pub use team_connection_oauth::{
     CompleteGithubOAuthCommand, RefreshGithubOAuthCommand, StartGithubOAuthCommand,

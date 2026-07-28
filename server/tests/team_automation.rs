@@ -18,6 +18,7 @@ use uuid::Uuid;
 const AUTH: &str = "Bearer mock_jwt_token";
 const REQUESTER: Uuid = Uuid::nil();
 const SIGNING_SECRET: &str = "github-signing-secret-never-returned";
+const GITLAB_TOKEN: &str = "gitlab-webhook-token-never-returned";
 const PERSONAL_TOKEN: &str = "github_pat_never_returned";
 const HTTP_ENDPOINT: &str = "https://hooks.example.com/services/secret-path";
 const OAUTH_ACCESS: &str = "github_oauth_access_never_returned";
@@ -71,6 +72,21 @@ async fn configure_http(ctx: &common::TestContext, team_id: Uuid) -> Value {
             "PUT",
             &format!("/api/teams/{team_id}/service-connections/http"),
             Some(json!({"endpoint_url": HTTP_ENDPOINT})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
+}
+
+async fn configure_gitlab(ctx: &common::TestContext, team_id: Uuid) -> Value {
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/api/teams/{team_id}/service-connections/by-service/gitlab"),
+            Some(json!({"webhook_signing_secret": GITLAB_TOKEN})),
         ))
         .await
         .unwrap();
@@ -397,6 +413,15 @@ async fn catalog_service_route_configures_known_services_and_rejects_unknown_one
     assert_eq!(configured.status(), StatusCode::OK);
     assert_eq!(json_body(configured).await["service"], "github");
 
+    let gitlab = configure_gitlab(&ctx, team_id).await;
+    assert_eq!(gitlab["service"], "gitlab");
+    assert_eq!(gitlab["secret_configured"], true);
+    assert_eq!(
+        gitlab["webhook_path"],
+        format!("/webhooks/gitlab/{}", gitlab["id"].as_str().unwrap())
+    );
+    assert!(!gitlab.to_string().contains(GITLAB_TOKEN));
+
     let unknown = ctx
         .app
         .oneshot(request(
@@ -413,7 +438,7 @@ async fn catalog_service_route_configures_known_services_and_rejects_unknown_one
             .await
             .unwrap()
             .len(),
-        1
+        2
     );
 }
 
@@ -700,6 +725,99 @@ async fn manager_creates_updates_lists_and_deletes_a_disabled_by_default_rule() 
         .await
         .unwrap()
         .is_empty());
+}
+
+#[tokio::test]
+async fn manager_can_create_every_catalogued_github_action_rule() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let connection = configure_github(&ctx, team_id).await;
+    let connection_id = connection["id"].as_str().unwrap();
+    let cases = [
+        (
+            "ci_succeeded",
+            json!({"repository": "opswarden/app", "branch": "main"}),
+            "{{workflow}} succeeded",
+        ),
+        (
+            "tag_pushed",
+            json!({"repository": "opswarden/app", "tag": "v1.2.3"}),
+            "Tag {{tag}} pushed by {{actor}}",
+        ),
+        (
+            "pr_merged",
+            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/vigil"}),
+            "PR #{{pull_request_number}} {{pull_request_title}}",
+        ),
+    ];
+
+    for (trigger_kind, trigger_config, title) in cases {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/api/teams/{team_id}/automation-rules"),
+                Some(json!({
+                    "name": format!("GitHub {trigger_kind}"),
+                    "trigger_connection_id": connection_id,
+                    "trigger_kind": trigger_kind,
+                    "trigger_config": trigger_config,
+                    "reaction_kind": "vigil_create_incident",
+                    "reaction_config": {"severity": "high", "title": title}
+                })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED, "{trigger_kind}");
+        let rule = json_body(response).await;
+        assert_eq!(rule["trigger_kind"], trigger_kind);
+        assert_eq!(rule["enabled"], false);
+    }
+}
+
+#[tokio::test]
+async fn manager_can_create_every_catalogued_gitlab_action_rule() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let connection = configure_gitlab(&ctx, team_id).await;
+    let cases = [
+        (
+            "ci_failed",
+            json!({"repository": "opswarden/app", "branch": "main"}),
+        ),
+        (
+            "ci_succeeded",
+            json!({"repository": "opswarden/app", "branch": "main"}),
+        ),
+        (
+            "tag_pushed",
+            json!({"repository": "opswarden/app", "tag": "v1.2.3"}),
+        ),
+    ];
+    for (trigger_kind, trigger_config) in cases {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/api/teams/{team_id}/automation-rules"),
+                Some(json!({
+                    "name": format!("GitLab {trigger_kind}"),
+                    "trigger_connection_id": connection["id"],
+                    "trigger_kind": trigger_kind,
+                    "trigger_config": trigger_config,
+                    "reaction_kind": "vigil_create_incident",
+                    "reaction_config": {"severity": "high"}
+                })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED, "{trigger_kind}");
+        assert_eq!(json_body(response).await["trigger_kind"], trigger_kind);
+    }
 }
 
 #[tokio::test]

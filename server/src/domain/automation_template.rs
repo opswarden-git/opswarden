@@ -10,7 +10,20 @@ pub const MAX_TEMPLATE_BYTES: usize = 1024;
 pub const MAX_INTERPOLATED_TITLE_BYTES: usize = 200;
 pub const MAX_INTERPOLATED_PAYLOAD_BYTES: usize = 1024;
 
-const ALLOWED_VARIABLES: &[&str] = &["repository", "workflow", "branch", "conclusion", "run_url"];
+const ALLOWED_VARIABLES: &[&str] = &[
+    "repository",
+    "workflow",
+    "branch",
+    "conclusion",
+    "run_url",
+    "tag",
+    "commit_sha",
+    "pull_request_number",
+    "pull_request_title",
+    "source_branch",
+    "actor",
+    "event_url",
+];
 
 pub fn validate_template(template: &str) -> Result<(), DomainError> {
     if template.len() > MAX_TEMPLATE_BYTES {
@@ -166,5 +179,15 @@ mod tests {
             validate_template(&"x".repeat(MAX_TEMPLATE_BYTES + 1)),
             Err(DomainError::InvalidAutomationRule)
         );
+    }
+
+    #[test]
+    fn accepts_extended_github_event_variables() {
+        for template in [
+            "Tag {{tag}} at {{commit_sha}} by {{actor}}: {{event_url}}",
+            "PR #{{pull_request_number}} {{pull_request_title}} from {{source_branch}}",
+        ] {
+            assert_eq!(validate_template(template), Ok(()));
+        }
     }
 }

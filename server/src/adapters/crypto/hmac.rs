@@ -68,6 +68,12 @@ impl WebhookVerifier for HmacSha256Verifier {
         let expected = hmac_sha256(secret.as_bytes(), body);
         constant_time_eq(&expected, &provided_bytes)
     }
+
+    fn verify_token(&self, secret: &str, token: &str) -> bool {
+        let expected = Sha256::digest(secret.as_bytes());
+        let provided = Sha256::digest(token.as_bytes());
+        constant_time_eq(&expected, &provided)
+    }
 }
 
 #[cfg(test)]
@@ -114,5 +120,12 @@ mod tests {
         assert!(!HmacSha256Verifier.verify("wrong", body, &sig));
         assert!(!HmacSha256Verifier.verify("right", body, "sha256=not-hex"));
         assert!(!HmacSha256Verifier.verify("right", body, ""));
+    }
+
+    #[test]
+    fn verifier_compares_provider_tokens_without_prefix_matching() {
+        assert!(HmacSha256Verifier.verify_token("gitlab-secret", "gitlab-secret"));
+        assert!(!HmacSha256Verifier.verify_token("gitlab-secret", "gitlab"));
+        assert!(!HmacSha256Verifier.verify_token("gitlab-secret", "wrong-secret"));
     }
 }

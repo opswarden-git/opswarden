@@ -247,17 +247,34 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
     if locale != "fr" {
         return fallback.to_string();
     }
-    match (kind, label) {
-        ("ci_failed", true) => "Échec d’un workflow CI",
-        ("ci_failed", false) => {
+    match (kind, label, fallback) {
+        ("ci_failed", true, "Pipeline failed") => "Échec d’une pipeline CI",
+        ("ci_failed", false, "A GitLab CI/CD pipeline completed with a failing status") => {
+            "Une pipeline GitLab CI/CD s’est terminée avec un statut en échec"
+        }
+        ("ci_failed", true, _) => "Échec d’un workflow CI",
+        ("ci_failed", false, _) => {
             "Un workflow GitHub Actions s’est terminé avec un résultat en échec"
         }
-        ("vigil_create_incident", true) => "Créer un incident",
-        ("vigil_create_incident", false) => {
+        ("ci_succeeded", true, "Pipeline succeeded") => "Succès d’une pipeline CI",
+        ("ci_succeeded", false, "A GitLab CI/CD pipeline completed successfully") => {
+            "Une pipeline GitLab CI/CD s’est terminée avec succès"
+        }
+        ("ci_succeeded", true, _) => "Succès d’un workflow CI",
+        ("ci_succeeded", false, _) => "Un workflow GitHub Actions s’est terminé avec succès",
+        ("tag_pushed", true, _) => "Nouveau tag poussé",
+        ("tag_pushed", false, "A new Git tag was pushed to the GitLab project") => {
+            "Un nouveau tag Git a été poussé dans le projet GitLab"
+        }
+        ("tag_pushed", false, _) => "Un nouveau tag Git a été poussé dans le dépôt",
+        ("pr_merged", true, _) => "Pull request fusionnée",
+        ("pr_merged", false, _) => "Une pull request a été fusionnée dans le dépôt",
+        ("vigil_create_incident", true, _) => "Créer un incident",
+        ("vigil_create_incident", false, _) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
         }
-        ("http_notify", true) => "Envoyer une notification HTTP",
-        ("http_notify", false) => "Envoyer une notification via une connexion HTTP configurée",
+        ("http_notify", true, _) => "Envoyer une notification HTTP",
+        ("http_notify", false, _) => "Envoyer une notification via une connexion HTTP configurée",
         _ => fallback,
     }
     .to_string()
@@ -271,6 +288,7 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
         "github" => {
             "Vérifier les webhooks entrants et autoriser facultativement l’accès à l’API GitHub"
         }
+        "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
         _ => fallback,
     }
@@ -294,6 +312,15 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
     if locale != "fr" {
         return fallback.to_string();
     }
+    if name == "webhook_signing_secret" && fallback == "Webhook secret token" {
+        return "Jeton secret du webhook".to_string();
+    }
+    if name == "webhook_signing_secret"
+        && fallback == "Required on first connection; sent by GitLab in X-Gitlab-Token"
+    {
+        return "Obligatoire à la première connexion ; envoyé par GitLab dans X-Gitlab-Token"
+            .to_string();
+    }
     match (name, label) {
         ("repository", true) => "Dépôt",
         ("repository", false) => "Limiter la règle à ce dépôt",
@@ -301,18 +328,20 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("workflow", false) => "Limiter la règle à ce workflow",
         ("branch", true) => "Branche",
         ("branch", false) => "Limiter la règle à cette branche",
+        ("source_branch", true) => "Branche source",
+        ("source_branch", false) => "Limiter la règle à cette branche source",
+        ("tag", true) => "Étiquette Git",
+        ("tag", false) => "Limiter la règle à ce tag exact",
         ("conclusion", true) => "Résultat",
         ("conclusion", false) => "Limiter la règle à ce résultat de workflow",
         ("severity", true) => "Sévérité",
         ("severity", false) => "Sévérité affectée à l’incident créé",
         ("title", true) => "Titre de l’incident",
         ("title", false) => {
-            "Template facultatif avec {{repository}}, {{workflow}}, {{branch}}, {{conclusion}} ou {{run_url}}"
+            "Template facultatif utilisant les variables normalisées de l’événement"
         }
         ("message", true) => "Message",
-        ("message", false) => {
-            "Template avec {{repository}}, {{workflow}}, {{branch}}, {{conclusion}} ou {{run_url}}"
-        }
+        ("message", false) => "Template utilisant les variables normalisées de l’événement",
         ("webhook_signing_secret", true) => "Secret de signature du webhook",
         ("webhook_signing_secret", false) => {
             "Obligatoire à la première connexion ; laisser vide ensuite pour le conserver"

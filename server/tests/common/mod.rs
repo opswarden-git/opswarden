@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
-use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,

@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 const SECRET_A: &str = "team-a-signing-secret";
 const SECRET_B: &str = "team-b-signing-secret";
+const GITLAB_TOKEN: &str = "team-gitlab-token";
 const FAILED_RUN: &str = r#"{
     "repository":{"full_name":"opswarden/app"},
     "workflow_run":{
@@ -30,6 +31,55 @@ const FAILED_RUN: &str = r#"{
         "conclusion":"failure",
         "html_url":"https://github.com/opswarden/app/actions/runs/42"
     }
+}"#;
+const SUCCEEDED_RUN: &str = r#"{
+    "repository":{"full_name":"opswarden/app"},
+    "workflow_run":{
+        "name":"CI",
+        "head_branch":"main",
+        "conclusion":"success",
+        "html_url":"https://github.com/opswarden/app/actions/runs/43"
+    }
+}"#;
+const NEW_TAG: &str = r#"{
+    "ref":"refs/tags/v1.2.3",
+    "created":true,
+    "deleted":false,
+    "after":"abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "compare":"https://github.com/opswarden/app/compare/v1.2.3",
+    "repository":{"full_name":"opswarden/app"},
+    "sender":{"login":"octocat"}
+}"#;
+const MERGED_PULL_REQUEST: &str = r#"{
+    "action":"closed",
+    "number":42,
+    "repository":{"full_name":"opswarden/app"},
+    "pull_request":{
+        "merged":true,
+        "title":"Ship VIGIL",
+        "html_url":"https://github.com/opswarden/app/pull/42",
+        "base":{"ref":"main"},
+        "head":{"ref":"feature/vigil"},
+        "merged_by":{"login":"octocat"}
+    }
+}"#;
+const GITLAB_FAILED_PIPELINE: &str = r#"{
+    "object_kind":"pipeline",
+    "object_attributes":{"status":"failed","ref":"main","name":"CI","url":"https://gitlab.com/opswarden/app/-/pipelines/42"},
+    "project":{"path_with_namespace":"opswarden/app"}
+}"#;
+const GITLAB_SUCCEEDED_PIPELINE: &str = r#"{
+    "object_kind":"pipeline",
+    "object_attributes":{"status":"success","ref":"main","name":"CI","url":"https://gitlab.com/opswarden/app/-/pipelines/43"},
+    "project":{"path_with_namespace":"opswarden/app"}
+}"#;
+const GITLAB_NEW_TAG: &str = r#"{
+    "object_kind":"tag_push",
+    "ref":"refs/tags/v1.2.3",
+    "before":"0000000000000000000000000000000000000000",
+    "after":"abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "user_username":"octocat",
+    "project":{"path_with_namespace":"opswarden/app","web_url":"https://gitlab.com/opswarden/app"}
 }"#;
 
 fn signature(secret: &str, body: &str) -> String {
@@ -53,6 +103,24 @@ fn webhook_request(
         .header("X-GitHub-Delivery", delivery_id)
         .header("X-GitHub-Event", event)
         .header("X-Hub-Signature-256", signature(secret, body))
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn gitlab_webhook_request(
+    connection_id: Uuid,
+    delivery_id: &str,
+    event: &str,
+    token: &str,
+    body: &str,
+) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(format!("/webhooks/gitlab/{connection_id}"))
+        .header("Content-Type", "application/json")
+        .header("X-Gitlab-Event-UUID", delivery_id)
+        .header("X-Gitlab-Event", event)
+        .header("X-Gitlab-Token", token)
         .body(Body::from(body.to_string()))
         .unwrap()
 }
@@ -141,6 +209,82 @@ async fn seed_http_automation(
     rule.set_enabled(true);
     ctx.automation_rules.insert_rule(&rule).await.unwrap();
     (github, http, rule)
+}
+
+async fn seed_github_action(
+    ctx: &common::TestContext,
+    team_id: Uuid,
+    trigger_kind: &str,
+    trigger_config: Value,
+    reaction_config: Value,
+) -> ServiceConnection {
+    let user_id = Uuid::new_v4();
+    let connection = ServiceConnection::new(team_id, "github", user_id).unwrap();
+    ctx.service_connections
+        .insert_connection(&connection)
+        .await
+        .unwrap();
+    ctx.connection_credentials
+        .store_credential(
+            connection.id,
+            CredentialKind::WebhookSigningSecret,
+            SECRET_A,
+        )
+        .await
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team_id,
+        format!("GitHub {trigger_kind}"),
+        connection.id,
+        trigger_kind,
+        trigger_config,
+        "vigil_create_incident",
+        None,
+        reaction_config,
+        user_id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    ctx.automation_rules.insert_rule(&rule).await.unwrap();
+    connection
+}
+
+async fn seed_gitlab_action(
+    ctx: &common::TestContext,
+    team_id: Uuid,
+    trigger_kind: &str,
+    trigger_config: Value,
+    reaction_config: Value,
+) -> ServiceConnection {
+    let user_id = Uuid::new_v4();
+    let connection = ServiceConnection::new(team_id, "gitlab", user_id).unwrap();
+    ctx.service_connections
+        .insert_connection(&connection)
+        .await
+        .unwrap();
+    ctx.connection_credentials
+        .store_credential(
+            connection.id,
+            CredentialKind::WebhookSigningSecret,
+            GITLAB_TOKEN,
+        )
+        .await
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team_id,
+        format!("GitLab {trigger_kind}"),
+        connection.id,
+        trigger_kind,
+        trigger_config,
+        "vigil_create_incident",
+        None,
+        reaction_config,
+        user_id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    ctx.automation_rules.insert_rule(&rule).await.unwrap();
+    connection
 }
 
 #[tokio::test]
@@ -257,6 +401,175 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
         1
     );
     assert_eq!(ctx.automation_runs.all().len(), 1);
+}
+
+#[tokio::test]
+async fn extended_github_actions_run_end_to_end_with_filters_and_templates() {
+    let cases = [
+        (
+            "ci_succeeded",
+            "workflow_run",
+            SUCCEEDED_RUN,
+            json!({"repository": "opswarden/app", "branch": "main", "conclusion": "success"}),
+            json!({"severity": "medium", "title": "{{workflow}} succeeded on {{repository}}"}),
+            "CI succeeded on opswarden/app",
+        ),
+        (
+            "tag_pushed",
+            "push",
+            NEW_TAG,
+            json!({"repository": "opswarden/app", "tag": "v1.2.3"}),
+            json!({"severity": "medium", "title": "Tag {{tag}} pushed by {{actor}}"}),
+            "Tag v1.2.3 pushed by octocat",
+        ),
+        (
+            "pr_merged",
+            "pull_request",
+            MERGED_PULL_REQUEST,
+            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/vigil"}),
+            json!({"severity": "medium", "title": "PR #{{pull_request_number}} {{pull_request_title}}"}),
+            "PR #42 Ship VIGIL",
+        ),
+    ];
+
+    for (index, (kind, provider_event, body, trigger_config, reaction_config, expected_title)) in
+        cases.into_iter().enumerate()
+    {
+        let ctx = test_context();
+        let team_id = Uuid::new_v4();
+        let connection =
+            seed_github_action(&ctx, team_id, kind, trigger_config, reaction_config).await;
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(webhook_request(
+                connection.id,
+                &format!("extended-{index}"),
+                provider_event,
+                SECRET_A,
+                body,
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+        let receipt = json_body(response).await;
+        assert_eq!(receipt["duplicate"], false);
+        assert_eq!(receipt["rules_triggered"], 1);
+        assert_eq!(receipt["rules_failed"], 0);
+        let incidents = ctx
+            .incidents
+            .list_incidents_for_team(team_id)
+            .await
+            .unwrap();
+        assert_eq!(incidents.len(), 1);
+        assert_eq!(incidents[0].title, expected_title);
+        assert_eq!(
+            ctx.webhook_deliveries.all()[0].status,
+            WebhookDeliveryStatus::Processed
+        );
+        assert_eq!(
+            ctx.automation_runs.all()[0].status,
+            AutomationRunStatus::Succeeded
+        );
+    }
+}
+
+#[tokio::test]
+async fn gitlab_actions_run_end_to_end_with_token_filters_templates_and_deduplication() {
+    let cases = [
+        (
+            "ci_failed",
+            "Pipeline Hook",
+            GITLAB_FAILED_PIPELINE,
+            json!({"repository": "opswarden/app", "branch": "main", "conclusion": "failed"}),
+            json!({"severity": "high", "title": "{{workflow}} failed on {{repository}}"}),
+            "CI failed on opswarden/app",
+        ),
+        (
+            "ci_succeeded",
+            "Pipeline Hook",
+            GITLAB_SUCCEEDED_PIPELINE,
+            json!({"repository": "opswarden/app", "branch": "main", "conclusion": "success"}),
+            json!({"severity": "medium", "title": "{{workflow}} succeeded on {{repository}}"}),
+            "CI succeeded on opswarden/app",
+        ),
+        (
+            "tag_pushed",
+            "Tag Push Hook",
+            GITLAB_NEW_TAG,
+            json!({"repository": "opswarden/app", "tag": "v1.2.3"}),
+            json!({"severity": "medium", "title": "Tag {{tag}} pushed by {{actor}}"}),
+            "Tag v1.2.3 pushed by octocat",
+        ),
+    ];
+
+    for (index, (kind, provider_event, body, trigger_config, reaction_config, expected_title)) in
+        cases.into_iter().enumerate()
+    {
+        let ctx = test_context();
+        let team_id = Uuid::new_v4();
+        let connection =
+            seed_gitlab_action(&ctx, team_id, kind, trigger_config, reaction_config).await;
+        let delivery_id = format!("gitlab-{index}");
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(gitlab_webhook_request(
+                connection.id,
+                &delivery_id,
+                provider_event,
+                GITLAB_TOKEN,
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+        let receipt = json_body(response).await;
+        assert_eq!(receipt["rules_triggered"], 1);
+        assert_eq!(receipt["rules_failed"], 0);
+        let incidents = ctx
+            .incidents
+            .list_incidents_for_team(team_id)
+            .await
+            .unwrap();
+        assert_eq!(incidents.len(), 1);
+        assert_eq!(incidents[0].title, expected_title);
+        assert_eq!(
+            ctx.automation_runs.all()[0].status,
+            AutomationRunStatus::Succeeded
+        );
+
+        let duplicate = ctx
+            .app
+            .clone()
+            .oneshot(gitlab_webhook_request(
+                connection.id,
+                &delivery_id,
+                provider_event,
+                GITLAB_TOKEN,
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(json_body(duplicate).await["duplicate"], true);
+        assert_eq!(ctx.automation_runs.all().len(), 1);
+
+        let rejected = ctx
+            .app
+            .clone()
+            .oneshot(gitlab_webhook_request(
+                connection.id,
+                &format!("wrong-token-{index}"),
+                provider_event,
+                "wrong-token",
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(ctx.automation_runs.all().len(), 1);
+    }
 }
 
 #[tokio::test]

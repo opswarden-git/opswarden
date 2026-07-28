@@ -76,14 +76,25 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     );
 
     let services = json["server"]["services"].as_array().unwrap();
-    assert_eq!(services.len(), 3);
+    assert_eq!(services.len(), 4);
     assert!(services.iter().any(|service| {
         service["name"] == "github"
             && service["actions"][0]["name"] == "ci_failed"
+            && service["actions"][1]["name"] == "ci_succeeded"
+            && service["actions"][2]["name"] == "tag_pushed"
+            && service["actions"][3]["name"] == "pr_merged"
             && service["actions"][0]["connection_service"] == "github"
             && service["actions"][0]["fields"][0]["name"] == "repository"
             && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
             && service["connection"]["oauth"]["label"] == "Authorize with GitHub"
+    }));
+    assert!(services.iter().any(|service| {
+        service["name"] == "gitlab"
+            && service["actions"][0]["name"] == "ci_failed"
+            && service["actions"][1]["name"] == "ci_succeeded"
+            && service["actions"][2]["name"] == "tag_pushed"
+            && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
+            && service["connection"]["oauth"].is_null()
     }));
     assert!(services.iter().any(|service| {
         service["name"] == "vigil" && service["reactions"][0]["name"] == "vigil_create_incident"
@@ -93,7 +104,7 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["reactions"][0]["name"] == "http_notify"
             && service["reactions"][0]["fields"][0]["name"] == "message"
             && service["reactions"][0]["fields"][0]["default_value"]
-                == "{{workflow}} failed on {{repository}}"
+                == "Automation event on {{repository}}"
             && service["connection"]["fields"][0]["name"] == "endpoint_url"
             && service["connection"]["testable"] == true
     }));
@@ -123,10 +134,20 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
         .find(|service| service["name"] == "github")
         .unwrap();
     assert_eq!(github["actions"][0]["label"], "Échec d’un workflow CI");
+    assert_eq!(github["actions"][1]["label"], "Succès d’un workflow CI");
+    assert_eq!(github["actions"][2]["label"], "Nouveau tag poussé");
+    assert_eq!(github["actions"][3]["label"], "Pull request fusionnée");
     assert_eq!(
         github["connection"]["fields"][0]["label"],
         "Secret de signature du webhook"
     );
+    let gitlab = services
+        .iter()
+        .find(|service| service["name"] == "gitlab")
+        .unwrap();
+    assert_eq!(gitlab["actions"][0]["label"], "Échec d’une pipeline CI");
+    assert_eq!(gitlab["actions"][1]["label"], "Succès d’une pipeline CI");
+    assert_eq!(gitlab["actions"][2]["label"], "Nouveau tag poussé");
     assert_eq!(
         github["connection"]["oauth"]["label"],
         "Autoriser avec GitHub"

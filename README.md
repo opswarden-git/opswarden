@@ -20,8 +20,10 @@ releases are validated step by step and automatically blocked when an active
 incident makes further deployment unsafe.
 
 External events can trigger internal actions through an
-**Action&rarr;REAction** rule engine. The current implementation demonstrates the
-complete path from a signed GitHub CI failure webhook to a new incident.
+**Action&rarr;REAction** rule engine. GitHub and GitLab webhooks can create VIGIL
+incidents or notify a configured HTTP endpoint after signature/token validation,
+filtering and durable deduplication. Supported events include CI failure and
+success, new tags, and merged GitHub pull requests.
 
 ### Incident response
 
@@ -57,7 +59,7 @@ This keeps release state and operational risk in the same workspace.
 Teams are the security and collaboration boundary: membership, invitations,
 presence and Observer/Responder/Manager permissions govern every operation.
 Managers can transfer ownership, moderate or ban members, configure encrypted
-GitHub and HTTP integrations, and create Action&rarr;REAction rules; teammates can
+GitHub, GitLab and HTTP integrations, and create Action&rarr;REAction rules; teammates can
 also exchange private messages without leaving their shared operational context.
 
 <p align="center">

@@ -401,10 +401,10 @@ pub trait AutomationRunRepo: Send + Sync {
     ) -> Result<Vec<AutomationRun>, DomainError>;
 }
 
-/// Verifies that an inbound webhook body carries a valid signature for a given
-/// shared secret. Implementations are constant-time (HMAC-SHA256 for GitHub).
+/// Verifies provider webhook credentials in constant time.
 pub trait WebhookVerifier: Send + Sync {
     fn verify(&self, secret: &str, body: &[u8], signature: &str) -> bool;
+    fn verify_token(&self, secret: &str, token: &str) -> bool;
 }
 
 /// Decodes a raw provider payload into a normalized domain `ExternalEvent`.
