@@ -96,6 +96,9 @@ jobs:
     name: Release · E2E critical path
     needs: release-gate
     runs-on: ubuntu-latest
+    env:
+      OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
+      JWT_SECRET: CI_CONFIG_ONLY
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -2,7 +2,7 @@
 
 [package]
 name = "opswarden-server"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 description = "OpsWarden application server"
 license = "Apache-2.0"
@@ -49,5 +49,4 @@ tracing-opentelemetry = "0.23"
 tower-http = { version = "0.5", features = ["trace"] }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
-
 
