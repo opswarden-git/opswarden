@@ -230,17 +230,17 @@ pub fn build_app(state: AppState) -> Router {
         .route("/ws", get(handlers::ws::ws_handler))
         // Public: authenticated by the connection's HMAC signature, not a JWT.
         .route(
-            "/api/webhooks/github/:connection_id",
+            "/api/webhooks/github/{connection_id}",
             post(handlers::webhook::receive_github_for_connection)
                 .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
         )
         .route(
-            "/api/webhooks/gitlab/:connection_id",
+            "/api/webhooks/gitlab/{connection_id}",
             post(handlers::webhook::receive_gitlab_for_connection)
                 .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
         )
         .route(
-            "/api/webhooks/alertmanager/:connection_id",
+            "/api/webhooks/alertmanager/{connection_id}",
             post(handlers::webhook::receive_alertmanager_for_connection)
                 .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
         )
