@@ -10,7 +10,6 @@ pub mod handlers;
 pub mod ports;
 
 use axum::{
-    extract::DefaultBodyLimit,
     routing::{delete, get, post, put},
     Router,
 };

@@ -27,6 +27,12 @@ impl CompositeWebhookParser {
     }
 }
 
+impl Default for CompositeWebhookParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebhookParser for CompositeWebhookParser {
     fn parse(&self, service: &str, provider_event: &str, body: &[u8]) -> Option<ExternalEvent> {
         for parser in &self.parsers {
