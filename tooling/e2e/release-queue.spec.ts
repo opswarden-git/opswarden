@@ -33,9 +33,11 @@ test.describe("Release queue", () => {
       await page.getByRole("link", { name: /Blocked\s+1/ }).click();
       await expect(page).toHaveURL(/view=blocked/);
 
-      const container = (width < 1024 ? page.locator("li") : page.locator("tr")).filter({
-        hasText: "v2.8.0",
-      }).first();
+      const container = (width < 1024 ? page.locator("li") : page.locator("tr"))
+        .filter({
+          hasText: "v2.8.0",
+        })
+        .first();
       await expect(container).toContainText("2/4");
       await expect(container).toContainText("Run payment smoke tests");
       await expect(

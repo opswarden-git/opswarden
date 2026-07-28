@@ -12,10 +12,7 @@
   </p>
 </div>
 
-
 ## What is OpsWarden?
-
-
 
 **OpsWarden** is a real-time incident response and release coordination platform
 for technical teams. Incidents are triaged and resolved in one shared workspace;

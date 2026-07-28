@@ -26,7 +26,7 @@ test.describe("Team roster and members", () => {
       await expect(page.getByPlaceholder("Search members by email or role")).toBeVisible();
 
       // Find the observer row
-      const observerRow = page.locator('li').filter({ hasText: 'observer@opswarden.local' });
+      const observerRow = page.locator("li").filter({ hasText: "observer@opswarden.local" });
       await expect(observerRow).toBeVisible();
 
       // Manager should see the "Message" and "Actions" buttons for other users
@@ -48,7 +48,7 @@ test.describe("Team roster and members", () => {
 
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
-    const managerRow = page.locator('li').filter({ hasText: 'manager@opswarden.local' });
+    const managerRow = page.locator("li").filter({ hasText: "manager@opswarden.local" });
     await expect(managerRow).toBeVisible();
 
     // Responder can message the manager
@@ -66,11 +66,13 @@ test.describe("Team roster and members", () => {
 
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
-    const responderRow = page.locator('li').filter({ hasText: 'responder@opswarden.local' });
+    const responderRow = page.locator("li").filter({ hasText: "responder@opswarden.local" });
     await expect(responderRow).toBeVisible();
 
     // Observer can message the responder
-    const messageBtn = responderRow.getByRole("button", { name: "Message" }).locator("visible=true");
+    const messageBtn = responderRow
+      .getByRole("button", { name: "Message" })
+      .locator("visible=true");
     await expect(messageBtn).toHaveCount(1);
 
     // Observer CANNOT see management actions
