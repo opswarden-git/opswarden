@@ -87,7 +87,7 @@ pub async fn receive_gitlab_for_connection(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string)
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        
+
     let provider_event = required_header(&headers, "X-Gitlab-Event")?;
     let signature = headers
         .get("X-Gitlab-Token")
@@ -134,7 +134,7 @@ pub async fn receive_alertmanager_for_connection(
 ) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
     let provider_delivery_id = uuid::Uuid::new_v4().to_string();
     let provider_event = "alertmanager_webhook".to_string();
-    
+
     // Alertmanager can send basic auth or bearer token in Authorization header
     let signature = headers
         .get("Authorization")

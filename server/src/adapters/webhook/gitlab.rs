@@ -30,7 +30,8 @@ impl WebhookParser for GitlabParser {
                 Some(ExternalEvent::new("gitlab", kind).with_attributes(gitlab_attributes(&json)))
             }
             "Tag Push Hook" => Some(
-                ExternalEvent::new("gitlab", "tag_pushed").with_attributes(gitlab_attributes(&json)),
+                ExternalEvent::new("gitlab", "tag_pushed")
+                    .with_attributes(gitlab_attributes(&json)),
             ),
             _ => None,
         }
@@ -40,7 +41,10 @@ impl WebhookParser for GitlabParser {
 fn gitlab_attributes(payload: &Value) -> serde_json::Map<String, Value> {
     let mut attributes = serde_json::Map::new();
     let fields = [
-        ("repository", payload.pointer("/project/path_with_namespace")),
+        (
+            "repository",
+            payload.pointer("/project/path_with_namespace"),
+        ),
         // In GitLab, the "workflow" equivalent is often the pipeline name or stages. We'll fallback to a generic name.
         ("workflow", payload.pointer("/object_attributes/name")),
         ("branch", payload.pointer("/object_attributes/ref")),
@@ -78,7 +82,8 @@ mod tests {
 
     #[test]
     fn tag_push_becomes_tag_pushed() {
-        let body = br#"{"object_kind":"tag_push","project":{"path_with_namespace":"opswarden/app"}}"#;
+        let body =
+            br#"{"object_kind":"tag_push","project":{"path_with_namespace":"opswarden/app"}}"#;
         let event = GitlabParser.parse("gitlab", "Tag Push Hook", body).unwrap();
         assert_eq!(event.kind, "tag_pushed");
     }

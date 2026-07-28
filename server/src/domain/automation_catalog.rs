@@ -251,29 +251,25 @@ const GITHUB_CONNECTION_FIELDS: &[CatalogField] = &[
     },
 ];
 
-const GITLAB_CONNECTION_FIELDS: &[CatalogField] = &[
-    CatalogField {
-        name: "webhook_signing_secret",
-        label: "Webhook Secret Token",
-        description: "Required on first connection; leave blank later to preserve it",
-        input_type: "password",
-        required: true,
-        default_value: None,
-        options: NO_OPTIONS,
-    },
-];
+const GITLAB_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
+    name: "webhook_signing_secret",
+    label: "Webhook Secret Token",
+    description: "Required on first connection; leave blank later to preserve it",
+    input_type: "password",
+    required: true,
+    default_value: None,
+    options: NO_OPTIONS,
+}];
 
-const ALERTMANAGER_CONNECTION_FIELDS: &[CatalogField] = &[
-    CatalogField {
-        name: "webhook_signing_secret",
-        label: "Basic Auth Password or Token",
-        description: "Secret token configured in Alertmanager webhook_configs",
-        input_type: "password",
-        required: false,
-        default_value: None,
-        options: NO_OPTIONS,
-    },
-];
+const ALERTMANAGER_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
+    name: "webhook_signing_secret",
+    label: "Basic Auth Password or Token",
+    description: "Secret token configured in Alertmanager webhook_configs",
+    input_type: "password",
+    required: false,
+    default_value: None,
+    options: NO_OPTIONS,
+}];
 
 const HTTP_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
     name: "endpoint_url",
