@@ -8,6 +8,7 @@ use crate::domain::error::DomainError;
 use crate::ports::{ConnectionCredentialVault, Notifier, ServiceConnectionRepo, TeamRepo};
 
 pub const GITHUB_SERVICE: &str = "github";
+pub const GITLAB_SERVICE: &str = "gitlab";
 pub const HTTP_SERVICE: &str = "http";
 const CONNECTION_TEST_MESSAGE: &str = "OpsWarden connection test";
 
@@ -16,6 +17,12 @@ pub struct ConfigureGithubConnectionCommand {
     pub requester_id: Uuid,
     pub webhook_signing_secret: Option<String>,
     pub personal_token: Option<String>,
+}
+
+pub struct ConfigureGitlabConnectionCommand {
+    pub team_id: Uuid,
+    pub requester_id: Uuid,
+    pub webhook_token: Option<String>,
 }
 
 pub struct ConfigureHttpConnectionCommand {
@@ -115,6 +122,39 @@ impl TeamConnectionUseCase {
                 .await?;
         }
 
+        self.connection_view(cmd.team_id, connection.id).await
+    }
+
+    pub async fn configure_gitlab(
+        &self,
+        cmd: ConfigureGitlabConnectionCommand,
+    ) -> Result<TeamConnectionView, DomainError> {
+        require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
+        validate_optional_secret(&cmd.webhook_token)?;
+        let existing = self
+            .connections
+            .find_connection_by_service(cmd.team_id, GITLAB_SERVICE)
+            .await?;
+        if existing.is_none() && cmd.webhook_token.is_none() {
+            return Err(DomainError::InvalidServiceSecret);
+        }
+        let connection = match existing {
+            Some(connection) => connection,
+            None => {
+                let connection =
+                    ServiceConnection::new(cmd.team_id, GITLAB_SERVICE, cmd.requester_id)?;
+                self.connections.insert_connection(&connection).await?;
+                connection
+            }
+        };
+        if let Some(token) = cmd.webhook_token {
+            self.credentials
+                .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &token)
+                .await?;
+            self.connections
+                .reset_connection_health(connection.id)
+                .await?;
+        }
         self.connection_view(cmd.team_id, connection.id).await
     }
 

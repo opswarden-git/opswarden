@@ -82,11 +82,7 @@ pub async fn receive_gitlab_for_connection(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
-    let provider_delivery_id = headers
-        .get("X-Gitlab-Event-UUID")
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_string)
-        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let provider_delivery_id = required_header(&headers, "X-Gitlab-Event-UUID")?;
 
     let provider_event = required_header(&headers, "X-Gitlab-Event")?;
     let signature = headers

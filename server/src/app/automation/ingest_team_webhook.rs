@@ -63,21 +63,25 @@ impl IngestTeamWebhookUseCase {
             .find_connection_by_id(cmd.connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != "github" {
-            return Err(DomainError::UnknownService);
-        }
-
         let secret = self
             .dependencies
             .credentials
             .reveal_credential(connection.id, CredentialKind::WebhookSigningSecret)
             .await?
             .ok_or(DomainError::UnknownService)?;
-        if !self.dependencies.verifier.verify(
-            &secret,
-            &cmd.body,
-            cmd.signature.as_deref().unwrap_or_default(),
-        ) {
+        let authentication = cmd.signature.as_deref().unwrap_or_default();
+        let authenticated = match connection.service.as_str() {
+            "github" => self
+                .dependencies
+                .verifier
+                .verify(&secret, &cmd.body, authentication),
+            "gitlab" => self
+                .dependencies
+                .verifier
+                .verify_token(&secret, authentication),
+            _ => return Err(DomainError::UnknownService),
+        };
+        if !authenticated {
             return Err(DomainError::InvalidSignature);
         }
         let mut delivery =

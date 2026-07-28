@@ -158,8 +158,27 @@ fn attribute<'a>(event: &'a ExternalEvent, name: &str) -> Option<&'a str> {
 
 fn default_incident_title(event: &ExternalEvent) -> String {
     let repository = attribute(event, "repository").unwrap_or("GitHub");
-    let workflow = attribute(event, "workflow").unwrap_or("CI");
-    format!("{workflow} failed on {repository}")
+    match event.kind.as_str() {
+        "ci_failed" => {
+            let workflow = attribute(event, "workflow").unwrap_or("CI");
+            format!("{workflow} failed on {repository}")
+        }
+        "ci_succeeded" => {
+            let workflow = attribute(event, "workflow").unwrap_or("CI");
+            format!("{workflow} succeeded on {repository}")
+        }
+        "tag_pushed" => {
+            let tag = attribute(event, "tag").unwrap_or("unknown");
+            format!("Tag {tag} pushed on {repository}")
+        }
+        "pr_merged" => {
+            let number = attribute(event, "pull_request_number")
+                .map(|number| format!(" #{number}"))
+                .unwrap_or_default();
+            format!("Pull request{number} merged on {repository}")
+        }
+        _ => format!("Automation event on {repository}"),
+    }
 }
 
 fn incident_description(event: &ExternalEvent) -> String {
@@ -183,6 +202,13 @@ fn event_lines(event: &ExternalEvent) -> Vec<String> {
         ("Branch", attribute(event, "branch")),
         ("Conclusion", attribute(event, "conclusion")),
         ("Run", attribute(event, "run_url")),
+        ("Tag", attribute(event, "tag")),
+        ("Commit", attribute(event, "commit_sha")),
+        ("Pull request", attribute(event, "pull_request_number")),
+        ("Title", attribute(event, "pull_request_title")),
+        ("Source branch", attribute(event, "source_branch")),
+        ("Actor", attribute(event, "actor")),
+        ("Event", attribute(event, "event_url")),
     ]
     .into_iter()
     .filter_map(|(label, value)| value.map(|value| format!("{label}: {value}")))
@@ -259,5 +285,31 @@ mod tests {
             .as_deref(),
             Some("CI failed on opswarden/app")
         );
+    }
+
+    #[test]
+    fn extended_github_events_have_meaningful_default_titles() {
+        let cases = [
+            (
+                "ci_succeeded",
+                json!({"repository": "opswarden/app", "workflow": "CI"}),
+                "CI succeeded on opswarden/app",
+            ),
+            (
+                "tag_pushed",
+                json!({"repository": "opswarden/app", "tag": "v1.2.3"}),
+                "Tag v1.2.3 pushed on opswarden/app",
+            ),
+            (
+                "pr_merged",
+                json!({"repository": "opswarden/app", "pull_request_number": "42"}),
+                "Pull request #42 merged on opswarden/app",
+            ),
+        ];
+        for (kind, attributes, expected) in cases {
+            let attributes: Map<String, Value> = serde_json::from_value(attributes).unwrap();
+            let event = ExternalEvent::new("github", kind).with_attributes(attributes);
+            assert_eq!(default_incident_title(&event), expected);
+        }
     }
 }

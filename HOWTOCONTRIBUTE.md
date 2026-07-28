@@ -168,8 +168,8 @@ A service is an integration family such as GitHub or HTTP.
    service receives webhooks, add an integration test covering a valid
    signature, an invalid signature and a duplicate delivery.
 
-Use the `github` connection as an incoming-webhook example and `http` as a small
-outgoing-connection example.
+Use the `github` HMAC and `gitlab` secret-token connections as incoming-webhook
+examples, and `http` as a small outgoing-connection example.
 
 ### Add an Action
 

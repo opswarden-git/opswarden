@@ -14,9 +14,9 @@ use uuid::Uuid;
 
 use crate::app::automation::team_connection::GITHUB_SERVICE;
 use crate::app::automation::{
-    CompleteGithubOAuthCommand, ConfigureGithubConnectionCommand, ConfigureHttpConnectionCommand,
-    CreateTeamRuleCommand, DeleteTeamConnectionCommand, DeleteTeamRuleCommand,
-    ListTeamConnectionsCommand, ListTeamRulesCommand, ListTeamRunsCommand,
+    CompleteGithubOAuthCommand, ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
+    ConfigureHttpConnectionCommand, CreateTeamRuleCommand, DeleteTeamConnectionCommand,
+    DeleteTeamRuleCommand, ListTeamConnectionsCommand, ListTeamRulesCommand, ListTeamRunsCommand,
     RefreshGithubOAuthCommand, StartGithubOAuthCommand, TeamConnectionOAuthUseCase,
     TeamConnectionUseCase, TeamConnectionView, TeamRuleUseCase, TeamRunUseCase,
     TestHttpConnectionCommand, UpdateTeamRuleCommand,
@@ -31,6 +31,12 @@ use crate::AppState;
 pub struct ConfigureGithubPayload {
     pub webhook_signing_secret: Option<String>,
     pub personal_token: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigureGitlabPayload {
+    pub webhook_signing_secret: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -61,8 +67,13 @@ impl From<TeamConnectionView> for TeamConnectionResponse {
     fn from(view: TeamConnectionView) -> Self {
         use crate::domain::automation_config::CredentialKind;
 
-        let webhook_path = (view.connection.service == "github")
-            .then(|| format!("/webhooks/github/{}", view.connection.id));
+        let webhook_path = match view.connection.service.as_str() {
+            "github" | "gitlab" => Some(format!(
+                "/webhooks/{}/{}",
+                view.connection.service, view.connection.id
+            )),
+            _ => None,
+        };
         Self {
             id: view.connection.id,
             team_id: view.connection.team_id,
@@ -133,6 +144,17 @@ pub async fn configure_service(
                     requester_id: session.user_id,
                     webhook_signing_secret: payload.webhook_signing_secret,
                     personal_token: payload.personal_token,
+                })
+                .await?
+        }
+        "gitlab" => {
+            let payload: ConfigureGitlabPayload =
+                serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
+            use_case
+                .configure_gitlab(ConfigureGitlabConnectionCommand {
+                    team_id,
+                    requester_id: session.user_id,
+                    webhook_token: payload.webhook_signing_secret,
                 })
                 .await?
         }
