@@ -132,13 +132,10 @@ Finally, if you're looking for our public-facing presentation, you can find the 
   <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
 </p>
 
-### Contributing
+## Contributing
 
-Use short-lived `feat/`, `fix/`, `chore/`, `docs/` or `test/` branches and
-conventional commits. Pull requests are squash-merged into protected `main` and
-must satisfy the [Definition of Done](.github/pull_request_template.md).
+Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
 
-### License
+## License
 
-OpsWarden is distributed under the **Apache License 2.0**. See [LICENSE](LICENSE)
-and [NOTICE](NOTICE).
+[Apache License 2.0](LICENSE)
