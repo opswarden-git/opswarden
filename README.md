@@ -15,16 +15,7 @@
 
 ## What is OpsWarden?
 
-<p>
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="25" alt="PostgreSQL" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="25" alt="Next.js" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg" height="25" alt="TypeScript" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" height="25" alt="Tailwind CSS" />
-  <img src="https://api.iconify.design/simple-icons/tauri.svg" height="25" alt="Tauri" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg" height="25" alt="Docker" />
-  <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
-</p>
+
 
 **OpsWarden** is a real-time incident response and release coordination platform
 for technical teams. Incidents are triaged and resolved in one shared workspace;
@@ -105,6 +96,17 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 
 For a deep dive into setup, configuration, and advanced development commands, be sure to check out our comprehensive **[Technical documentation](https://opswarden-git.github.io/opswarden/)**. It includes everything from architectural decisions and our [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) to the complete [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
 
+<p>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" height="25" alt="PostgreSQL" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="25" alt="Next.js" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg" height="25" alt="TypeScript" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" height="25" alt="Tailwind CSS" />
+  <img src="https://api.iconify.design/simple-icons/tauri.svg" height="25" alt="Tauri" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg" height="25" alt="Docker" />
+  <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
+</p>
+
 When it comes to production deployment, we take infrastructure seriously. The **[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops)** repository houses all of our cloud and observability engineering. We rely on modern tooling to keep the platform reliable and observable:
 
 <p>
@@ -120,6 +122,15 @@ When it comes to production deployment, we take infrastructure seriously. The **
 </p>
 
 Finally, if you're looking for our public-facing presentation, you can find the Next.js source code for our landing page in the **[`opswarden-website`](https://github.com/opswarden-git/opswarden-website)** repository.
+
+<p>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="25" alt="Next.js" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg" height="25" alt="React" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg" height="25" alt="TypeScript" />
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" height="25" alt="Tailwind CSS" />
+  <img src="https://api.iconify.design/simple-icons/vercel.svg" height="25" alt="Vercel" />
+  <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
+</p>
 
 ### Contributing
 
