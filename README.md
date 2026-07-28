@@ -2,17 +2,9 @@
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden-ops/heroicon.png" alt="OpsWarden" width="120" />
   <h1>OpsWarden</h1>
   <p>
-    <a href="https://github.com/opswarden-git/opswarden-website">Landing page</a> ·
-    <a href="https://github.com/opswarden-git/opswarden-ops">Deployment</a> ·
-    <a href="https://opswarden-git.github.io/opswarden/">Documentation</a> ·
-    <a href="#contributing">Contributing</a>
-  </p>
-  <p>
     <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
     <img src="https://img.shields.io/github/v/release/opswarden-git/opswarden?style=flat" alt="Release" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat" alt="License: Apache 2.0" /></a>
-  </p>
-  <p>
     <img src="https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white" alt="Rust" />
     <img src="https://img.shields.io/badge/Next.js-black?style=flat&logo=next.js&logoColor=white" alt="Next.js" />
     <img src="https://img.shields.io/badge/Tauri-FFC131?style=flat&logo=tauri&logoColor=white" alt="Tauri" />
