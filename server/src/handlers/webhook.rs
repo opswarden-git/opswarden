@@ -76,6 +76,103 @@ pub async fn receive_github_for_connection(
     ))
 }
 
+pub async fn receive_gitlab_for_connection(
+    State(state): State<AppState>,
+    Path(connection_id): Path<uuid::Uuid>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
+    let provider_delivery_id = headers
+        .get("X-Gitlab-Event-UUID")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        
+    let provider_event = required_header(&headers, "X-Gitlab-Event")?;
+    let signature = headers
+        .get("X-Gitlab-Token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+
+    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+        connections: state.service_connections.clone(),
+        credentials: state.connection_credentials.clone(),
+        verifier: state.webhook_verifier.clone(),
+        parser: state.webhook_parser.clone(),
+        deliveries: state.webhook_deliveries.clone(),
+        rules: state.automation_rules.clone(),
+        runs: state.automation_runs.clone(),
+        incidents: state.incidents.clone(),
+        notifier: state.notifier.clone(),
+        events: state.events.clone(),
+    })
+    .ingest(IngestTeamWebhookCommand {
+        connection_id,
+        provider_delivery_id,
+        provider_event,
+        signature,
+        body: body.to_vec(),
+    })
+    .await?;
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(TeamWebhookReceipt {
+            received: true,
+            duplicate: result.duplicate,
+            rules_triggered: result.rules_triggered,
+            rules_failed: result.rules_failed,
+        }),
+    ))
+}
+
+pub async fn receive_alertmanager_for_connection(
+    State(state): State<AppState>,
+    Path(connection_id): Path<uuid::Uuid>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
+    let provider_delivery_id = uuid::Uuid::new_v4().to_string();
+    let provider_event = "alertmanager_webhook".to_string();
+    
+    // Alertmanager can send basic auth or bearer token in Authorization header
+    let signature = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+
+    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+        connections: state.service_connections.clone(),
+        credentials: state.connection_credentials.clone(),
+        verifier: state.webhook_verifier.clone(),
+        parser: state.webhook_parser.clone(),
+        deliveries: state.webhook_deliveries.clone(),
+        rules: state.automation_rules.clone(),
+        runs: state.automation_runs.clone(),
+        incidents: state.incidents.clone(),
+        notifier: state.notifier.clone(),
+        events: state.events.clone(),
+    })
+    .ingest(IngestTeamWebhookCommand {
+        connection_id,
+        provider_delivery_id,
+        provider_event,
+        signature,
+        body: body.to_vec(),
+    })
+    .await?;
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(TeamWebhookReceipt {
+            received: true,
+            duplicate: result.duplicate,
+            rules_triggered: result.rules_triggered,
+            rules_failed: result.rules_failed,
+        }),
+    ))
+}
+
 fn required_header(headers: &HeaderMap, name: &'static str) -> Result<String, DomainError> {
     headers
         .get(name)

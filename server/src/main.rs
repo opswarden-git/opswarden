@@ -22,7 +22,7 @@ use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::timeline::PgTimelineRepo;
 use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
-use opswarden_server::adapters::webhook::github::GithubParser;
+use opswarden_server::adapters::webhook::CompositeWebhookParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
@@ -109,7 +109,7 @@ async fn main() {
         events: Arc::new(WsHub::new()),
         clock: Arc::new(DummyClock),
         webhook_verifier: Arc::new(HmacSha256Verifier),
-        webhook_parser: Arc::new(GithubParser),
+        webhook_parser: Arc::new(CompositeWebhookParser::new()),
         service_connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
         connection_credentials: Arc::new(PgConnectionCredentialVault::new(
             pool.clone(),

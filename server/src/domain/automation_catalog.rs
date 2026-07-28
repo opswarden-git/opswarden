@@ -88,12 +88,84 @@ const CI_FILTERS: &[CatalogField] = &[
     },
 ];
 
-const GITHUB_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
-    kind: "ci_failed",
-    label: "CI run failed",
-    description: "A GitHub Actions workflow run completed with a failing conclusion",
-    connection_service: Some("github"),
-    fields: CI_FILTERS,
+const GITHUB_ACTIONS: &[CatalogCapability] = &[
+    CatalogCapability {
+        kind: "ci_failed",
+        label: "CI run failed",
+        description: "A GitHub Actions workflow run completed with a failing conclusion",
+        connection_service: Some("github"),
+        fields: CI_FILTERS,
+    },
+    CatalogCapability {
+        kind: "ci_succeeded",
+        label: "CI run succeeded",
+        description: "A GitHub Actions workflow run completed successfully",
+        connection_service: Some("github"),
+        fields: CI_FILTERS,
+    },
+    CatalogCapability {
+        kind: "tag_pushed",
+        label: "Tag pushed",
+        description: "A new Git tag was pushed to the repository",
+        connection_service: Some("github"),
+        fields: &[CatalogField {
+            name: "repository",
+            label: "Repository",
+            description: "Only match this repository",
+            input_type: "text",
+            required: false,
+            default_value: None,
+            options: NO_OPTIONS,
+        }],
+    },
+];
+
+const GITLAB_ACTIONS: &[CatalogCapability] = &[
+    CatalogCapability {
+        kind: "ci_failed",
+        label: "Pipeline failed",
+        description: "A GitLab CI pipeline completed with a failing status",
+        connection_service: Some("gitlab"),
+        fields: CI_FILTERS,
+    },
+    CatalogCapability {
+        kind: "ci_succeeded",
+        label: "Pipeline succeeded",
+        description: "A GitLab CI pipeline completed successfully",
+        connection_service: Some("gitlab"),
+        fields: CI_FILTERS,
+    },
+    CatalogCapability {
+        kind: "tag_pushed",
+        label: "Tag pushed",
+        description: "A new Git tag was pushed to the repository",
+        connection_service: Some("gitlab"),
+        fields: &[CatalogField {
+            name: "repository",
+            label: "Repository",
+            description: "Only match this repository",
+            input_type: "text",
+            required: false,
+            default_value: None,
+            options: NO_OPTIONS,
+        }],
+    },
+];
+
+const ALERTMANAGER_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
+    kind: "alert_firing",
+    label: "Alert firing",
+    description: "Prometheus Alertmanager sent a firing alert",
+    connection_service: Some("alertmanager"),
+    fields: &[CatalogField {
+        name: "severity",
+        label: "Alert Severity",
+        description: "Match specific alert severity (e.g., critical, warning)",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    }],
 }];
 
 const INCIDENT_FIELDS: &[CatalogField] = &[
@@ -142,6 +214,22 @@ const HTTP_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
     }],
 }];
 
+const SLACK_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
+    kind: "slack_notify",
+    label: "Send Slack message",
+    description: "Post a message to a Slack channel via Incoming Webhook",
+    connection_service: Some("slack"),
+    fields: &[CatalogField {
+        name: "message",
+        label: "Message",
+        description: "The text to post to the Slack channel",
+        input_type: "text",
+        required: true,
+        default_value: Some("Incident {{incident_id}} requires attention!"),
+        options: NO_OPTIONS,
+    }],
+}];
+
 const GITHUB_CONNECTION_FIELDS: &[CatalogField] = &[
     CatalogField {
         name: "webhook_signing_secret",
@@ -156,6 +244,30 @@ const GITHUB_CONNECTION_FIELDS: &[CatalogField] = &[
         name: "personal_token",
         label: "Personal access token",
         description: "Optional encrypted alternative to OAuth",
+        input_type: "password",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
+const GITLAB_CONNECTION_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "webhook_signing_secret",
+        label: "Webhook Secret Token",
+        description: "Required on first connection; leave blank later to preserve it",
+        input_type: "password",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
+const ALERTMANAGER_CONNECTION_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "webhook_signing_secret",
+        label: "Basic Auth Password or Token",
+        description: "Secret token configured in Alertmanager webhook_configs",
         input_type: "password",
         required: false,
         default_value: None,
@@ -190,6 +302,30 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         }),
     },
     AutomationServiceDefinition {
+        service: "gitlab",
+        label: "GitLab",
+        actions: GITLAB_ACTIONS,
+        reactions: &[],
+        connection: Some(CatalogConnection {
+            description: "Verify incoming GitLab webhooks",
+            fields: GITLAB_CONNECTION_FIELDS,
+            oauth: None,
+            testable: false,
+        }),
+    },
+    AutomationServiceDefinition {
+        service: "alertmanager",
+        label: "Prometheus Alertmanager",
+        actions: ALERTMANAGER_ACTIONS,
+        reactions: &[],
+        connection: Some(CatalogConnection {
+            description: "Receive standard alerts from Kubernetes or other Prometheus setups",
+            fields: ALERTMANAGER_CONNECTION_FIELDS,
+            oauth: None,
+            testable: false,
+        }),
+    },
+    AutomationServiceDefinition {
         service: "vigil",
         label: "VIGIL",
         actions: &[],
@@ -203,6 +339,18 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         reactions: HTTP_REACTIONS,
         connection: Some(CatalogConnection {
             description: "Send bounded notifications to a public HTTPS endpoint",
+            fields: HTTP_CONNECTION_FIELDS,
+            oauth: None,
+            testable: true,
+        }),
+    },
+    AutomationServiceDefinition {
+        service: "slack",
+        label: "Slack",
+        actions: &[],
+        reactions: SLACK_REACTIONS,
+        connection: Some(CatalogConnection {
+            description: "Send messages to a Slack channel via an Incoming Webhook",
             fields: HTTP_CONNECTION_FIELDS,
             oauth: None,
             testable: true,

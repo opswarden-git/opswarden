@@ -1344,7 +1344,7 @@ fn build_context() -> TestContext {
         events: events.clone(),
         clock: Arc::new(DummyClock),
         webhook_verifier: Arc::new(HmacSha256Verifier),
-        webhook_parser: Arc::new(GithubParser),
+        webhook_parser: Arc::new(opswarden_server::adapters::webhook::CompositeWebhookParser::new()),
         service_connections: service_connections.clone(),
         connection_credentials: connection_credentials.clone(),
         automation_rules: automation_rules.clone(),

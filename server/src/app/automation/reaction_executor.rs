@@ -46,7 +46,7 @@ impl AutomationReactionExecutor {
     ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         match rule.reaction_kind.as_str() {
             "vigil_create_incident" => self.create_incident(team_id, rule, event).await,
-            "http_notify" => self.notify_http(team_id, rule, event).await,
+            "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
             _ => Err(DomainError::InvalidAutomationRule),
         }
     }
@@ -83,7 +83,7 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != HTTP_SERVICE {
+        if connection.service != HTTP_SERVICE && connection.service != "slack" {
             return Err(DomainError::InvalidAutomationRule);
         }
         let endpoint = self
