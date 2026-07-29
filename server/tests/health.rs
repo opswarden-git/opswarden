@@ -76,7 +76,7 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     );
 
     let services = json["server"]["services"].as_array().unwrap();
-    assert_eq!(services.len(), 6);
+    assert_eq!(services.len(), 7);
     assert!(services.iter().any(|service| {
         service["name"] == "github"
             && service["actions"][0]["name"] == "ci_failed"
@@ -127,6 +127,13 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["reactions"][0]["fields"][0]["default_value"]
                 == "Automation event on {{repository}}"
             && service["connection"]["fields"][0]["name"] == "endpoint_url"
+            && service["connection"]["testable"] == true
+    }));
+    assert!(services.iter().any(|service| {
+        service["name"] == "email"
+            && service["reactions"][0]["name"] == "email_notify"
+            && service["reactions"][0]["fields"][0]["name"] == "to"
+            && service["connection"]["fields"][0]["name"] == "smtp_host"
             && service["connection"]["testable"] == true
     }));
 }
@@ -205,6 +212,16 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
     assert_eq!(
         opswarden["reactions"][0]["fields"][0]["options"][3],
         serde_json::json!({"value": "critical", "label": "Critique"})
+    );
+    let email = services
+        .iter()
+        .find(|service| service["name"] == "email")
+        .unwrap();
+    assert_eq!(email["connection"]["fields"][0]["label"], "Hôte SMTP");
+    assert_eq!(email["reactions"][0]["label"], "Envoyer un e-mail");
+    assert_eq!(
+        email["reactions"][0]["fields"][0]["label"],
+        "Destinataire (À)"
     );
 }
 

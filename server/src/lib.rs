@@ -16,10 +16,11 @@ use axum::{
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, GifSearch,
-    IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo, ReleaseRepo,
-    ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo, TokenRevocationRepo,
-    TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser, WebhookVerifier,
+    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailSender,
+    GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
+    ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo,
+    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser,
+    WebhookVerifier,
 };
 use std::sync::Arc;
 
@@ -48,6 +49,7 @@ pub struct AppState {
     pub webhook_deliveries: Arc<dyn WebhookDeliveryRepo + Send + Sync>,
     pub automation_runs: Arc<dyn AutomationRunRepo + Send + Sync>,
     pub notifier: Arc<dyn Notifier + Send + Sync>,
+    pub email_sender: Arc<dyn EmailSender + Send + Sync>,
     /// External GIF search (GIPHY) for timeline GIFs.
     pub gifs: Arc<dyn GifSearch + Send + Sync>,
     /// Bilateral 1-to-1 direct messages between team-sharing users.
@@ -152,7 +154,7 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/api/teams/{team_id}/service-connections/{connection_id}/test",
-            post(handlers::team_automation::test_http_connection),
+            post(handlers::team_automation::test_connection),
         )
         .route(
             "/api/teams/{team_id}/service-connections/{connection_id}",

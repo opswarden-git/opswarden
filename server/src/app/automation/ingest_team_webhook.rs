@@ -10,8 +10,8 @@ use crate::domain::error::DomainError;
 use crate::domain::event::AutomationRuleResult;
 use crate::domain::event::DomainEvent;
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EventPublisher, IncidentRepo,
-    Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookParser,
+    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EmailSender, EventPublisher,
+    IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookParser,
     WebhookVerifier,
 };
 
@@ -44,6 +44,7 @@ pub struct TeamWebhookDependencies {
     pub releases: Arc<dyn ReleaseRepo>,
     pub notifier: Arc<dyn Notifier>,
     pub events: Arc<dyn EventPublisher>,
+    pub email_sender: Arc<dyn EmailSender>,
 }
 
 pub struct IngestTeamWebhookUseCase {
@@ -141,6 +142,7 @@ impl IngestTeamWebhookUseCase {
             self.dependencies.releases.clone(),
             self.dependencies.notifier.clone(),
             self.dependencies.events.clone(),
+            self.dependencies.email_sender.clone(),
         );
         for rule in matching_rules {
             let mut run = AutomationRun::new(delivery.id, rule.id);

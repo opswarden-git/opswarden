@@ -14,13 +14,13 @@ use uuid::Uuid;
 
 use crate::app::automation::team_connection::GITHUB_SERVICE;
 use crate::app::automation::{
-    CompleteGithubOAuthCommand, ConfigureGenericConnectionCommand,
+    CompleteGithubOAuthCommand, ConfigureEmailConnectionCommand, ConfigureGenericConnectionCommand,
     ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
     ConfigureHttpConnectionCommand, CreateTeamRuleCommand, DeleteTeamConnectionCommand,
     DeleteTeamRuleCommand, ListTeamConnectionsCommand, ListTeamRulesCommand, ListTeamRunsCommand,
     RefreshGithubOAuthCommand, StartGithubOAuthCommand, TeamConnectionOAuthUseCase,
     TeamConnectionUseCase, TeamConnectionView, TeamRuleUseCase, TeamRunUseCase,
-    TestHttpConnectionCommand, UpdateTeamRuleCommand,
+    TestConnectionCommand, UpdateTeamRuleCommand,
 };
 use crate::domain::automation_config::{AutomationRule, AutomationRuleDefinition, AutomationRun};
 use crate::domain::error::DomainError;
@@ -50,6 +50,18 @@ pub struct ConfigureGenericPayload {
 #[serde(deny_unknown_fields)]
 pub struct ConfigureHttpPayload {
     pub endpoint_url: String,
+}
+
+/// Mirrors the `email` connection fields published by the catalogue. Every field
+/// is optional on the wire so the client can omit an unchanged secret.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigureEmailPayload {
+    pub smtp_host: Option<String>,
+    pub smtp_port: Option<String>,
+    pub smtp_username: Option<String>,
+    pub smtp_password: Option<String>,
+    pub from_address: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -120,6 +132,7 @@ pub async fn list_connections(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     )
     .list(ListTeamConnectionsCommand {
         team_id,
@@ -140,6 +153,7 @@ pub async fn configure_service(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     );
     let view = match service.as_str() {
         GITHUB_SERVICE => {
@@ -187,6 +201,21 @@ pub async fn configure_service(
                 })
                 .await?
         }
+        "email" => {
+            let payload: ConfigureEmailPayload =
+                serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
+            use_case
+                .configure_email(ConfigureEmailConnectionCommand {
+                    team_id,
+                    requester_id: session.user_id,
+                    smtp_host: payload.smtp_host,
+                    smtp_port: payload.smtp_port,
+                    smtp_username: payload.smtp_username,
+                    smtp_password: payload.smtp_password,
+                    from_address: payload.from_address,
+                })
+                .await?
+        }
         _ => return Err(DomainError::InvalidServiceConnection),
     };
     Ok(Json(view.into()))
@@ -203,6 +232,7 @@ pub async fn configure_github(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     )
     .configure_github(ConfigureGithubConnectionCommand {
         team_id,
@@ -401,6 +431,7 @@ pub async fn configure_http(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     )
     .configure_http(ConfigureHttpConnectionCommand {
         team_id,
@@ -411,7 +442,7 @@ pub async fn configure_http(
     Ok(Json(view.into()))
 }
 
-pub async fn test_http_connection(
+pub async fn test_connection(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
     Path((team_id, connection_id)): Path<(Uuid, Uuid)>,
@@ -421,8 +452,9 @@ pub async fn test_http_connection(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     )
-    .test_http(TestHttpConnectionCommand {
+    .test(TestConnectionCommand {
         team_id,
         requester_id: session.user_id,
         connection_id,
@@ -441,6 +473,7 @@ pub async fn delete_connection(
         state.service_connections.clone(),
         state.connection_credentials.clone(),
         state.notifier.clone(),
+        state.email_sender.clone(),
     )
     .delete(DeleteTeamConnectionCommand {
         team_id,

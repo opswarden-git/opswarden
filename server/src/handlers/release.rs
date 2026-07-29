@@ -191,6 +191,7 @@ pub async fn create_release(
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     })
     .dispatch(DispatchInternalAutomationCommand {
         team_id: detail.release.team_id,

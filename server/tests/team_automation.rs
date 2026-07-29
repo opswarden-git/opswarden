@@ -7,6 +7,7 @@ use axum::{
 };
 use common::test_context;
 use opswarden_server::domain::automation_config::{CredentialKind, ServiceConnection};
+use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::team::Role;
 use opswarden_server::ports::{
     AutomationRuleRepo, ConnectionCredentialVault, IncidentRepo, ServiceConnectionRepo,
@@ -22,6 +23,7 @@ const GITLAB_TOKEN: &str = "gitlab-webhook-token-never-returned";
 const GENERIC_TOKEN: &str = "generic-webhook-token-never-returned";
 const PERSONAL_TOKEN: &str = "github_pat_never_returned";
 const HTTP_ENDPOINT: &str = "https://hooks.example.com/services/secret-path";
+const SMTP_PASSWORD: &str = "smtp-password-never-returned";
 const OAUTH_ACCESS: &str = "github_oauth_access_never_returned";
 const OAUTH_REFRESH: &str = "github_oauth_refresh_never_returned";
 const OAUTH_ACCESS_ROTATED: &str = "github_oauth_access_rotated";
@@ -73,6 +75,31 @@ async fn configure_http(ctx: &common::TestContext, team_id: Uuid) -> Value {
             "PUT",
             &format!("/api/teams/{team_id}/service-connections/http"),
             Some(json!({"endpoint_url": HTTP_ENDPOINT})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
+}
+
+fn email_payload() -> Value {
+    json!({
+        "smtp_host": "smtp.example.com",
+        "smtp_port": "587",
+        "smtp_username": "opswarden",
+        "smtp_password": SMTP_PASSWORD,
+        "from_address": "alerts@example.com"
+    })
+}
+
+async fn configure_email(ctx: &common::TestContext, team_id: Uuid) -> Value {
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/api/teams/{team_id}/service-connections/by-service/email"),
+            Some(email_payload()),
         ))
         .await
         .unwrap();
@@ -512,6 +539,175 @@ async fn manager_configures_and_tests_http_without_exposing_the_endpoint() {
     assert!(persisted.verified_at.is_some());
     assert!(persisted.last_delivery_at.is_none());
     assert_eq!(persisted.last_error_code, None);
+}
+
+#[tokio::test]
+async fn manager_configures_and_tests_email_without_exposing_the_smtp_password() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+
+    let configured = configure_email(&ctx, team_id).await;
+    assert_eq!(configured["service"], "email");
+    assert!(!configured.to_string().contains(SMTP_PASSWORD));
+    let connection_id = Uuid::parse_str(configured["id"].as_str().unwrap()).unwrap();
+    for (kind, expected) in [
+        (CredentialKind::SmtpHost, "smtp.example.com"),
+        (CredentialKind::SmtpPort, "587"),
+        (CredentialKind::SmtpUsername, "opswarden"),
+        (CredentialKind::SmtpPassword, SMTP_PASSWORD),
+        (CredentialKind::FromAddress, "alerts@example.com"),
+    ] {
+        assert_eq!(
+            ctx.connection_credentials
+                .reveal_credential(connection_id, kind)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+    }
+
+    let tested = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/api/teams/{team_id}/service-connections/{connection_id}/test"),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(tested.status(), StatusCode::NO_CONTENT);
+    // The probe opens an SMTP session; it must never deliver a message.
+    let validated = ctx.email_sender.validated();
+    assert_eq!(validated.len(), 1);
+    assert_eq!(validated[0].host, "smtp.example.com");
+    assert_eq!(validated[0].port, 587);
+    assert_eq!(validated[0].from, "alerts@example.com");
+    assert!(ctx.email_sender.sent().is_empty());
+
+    let persisted = ctx
+        .service_connections
+        .find_connection_for_team(team_id, connection_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(persisted.verified_at.is_some());
+    assert_eq!(persisted.last_error_code, None);
+}
+
+#[tokio::test]
+async fn failed_email_test_records_the_transport_error_code() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let configured = configure_email(&ctx, team_id).await;
+    let connection_id = Uuid::parse_str(configured["id"].as_str().unwrap()).unwrap();
+    ctx.email_sender
+        .fail_with(|| DomainError::EmailTransportError);
+
+    let tested = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/api/teams/{team_id}/service-connections/{connection_id}/test"),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(tested.status(), StatusCode::BAD_GATEWAY);
+    let persisted = ctx
+        .service_connections
+        .find_connection_for_team(team_id, connection_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        persisted.last_error_code.as_deref(),
+        Some("email_transport_error")
+    );
+}
+
+#[tokio::test]
+async fn creating_an_email_connection_requires_every_credential() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+
+    let partial = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/api/teams/{team_id}/service-connections/by-service/email"),
+            Some(json!({"smtp_host": "smtp.example.com", "smtp_port": "587"})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(partial.status(), StatusCode::BAD_REQUEST);
+    assert!(ctx
+        .service_connections
+        .find_connection_by_service(team_id, "email")
+        .await
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn an_email_connection_rejects_a_malformed_port_or_sender() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+
+    for payload in [
+        json!({
+            "smtp_host": "smtp.example.com",
+            "smtp_port": "not-a-port",
+            "smtp_username": "opswarden",
+            "smtp_password": SMTP_PASSWORD,
+            "from_address": "alerts@example.com"
+        }),
+        json!({
+            "smtp_host": "smtp.example.com",
+            "smtp_port": "587",
+            "smtp_username": "opswarden",
+            "smtp_password": SMTP_PASSWORD,
+            "from_address": "not-an-address"
+        }),
+    ] {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "PUT",
+                &format!("/api/teams/{team_id}/service-connections/by-service/email"),
+                Some(payload),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+}
+
+#[tokio::test]
+async fn a_responder_cannot_configure_an_email_connection() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Responder);
+
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/api/teams/{team_id}/service-connections/by-service/email"),
+            Some(email_payload()),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]

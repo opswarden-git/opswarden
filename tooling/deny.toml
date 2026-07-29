@@ -33,6 +33,9 @@ allow = [
   # Mozilla CA certificate bundle (webpki-roots), pulled by sqlx via rustls.
   # Permissive data license, no copyleft obligation on our code.
   "CDLA-Permissive-2.0",
+  # quoted_printable, pulled by lettre for MIME encoding. BSD Zero Clause is
+  # public-domain-equivalent: permissive with no attribution requirement.
+  "0BSD",
 ]
 confidence-threshold = 0.8
 

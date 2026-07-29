@@ -20,10 +20,10 @@ pub use ingest_team_webhook::{
 };
 pub use reaction_executor::AutomationReactionExecutor;
 pub use team_connection::{
-    ConfigureGenericConnectionCommand, ConfigureGithubConnectionCommand,
-    ConfigureGitlabConnectionCommand, ConfigureHttpConnectionCommand, DeleteTeamConnectionCommand,
-    ListTeamConnectionsCommand, TeamConnectionUseCase, TeamConnectionView,
-    TestHttpConnectionCommand,
+    ConfigureEmailConnectionCommand, ConfigureGenericConnectionCommand,
+    ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
+    ConfigureHttpConnectionCommand, DeleteTeamConnectionCommand, ListTeamConnectionsCommand,
+    TeamConnectionUseCase, TeamConnectionView, TestConnectionCommand,
 };
 pub use team_connection_oauth::{
     CompleteGithubOAuthCommand, RefreshGithubOAuthCommand, StartGithubOAuthCommand,

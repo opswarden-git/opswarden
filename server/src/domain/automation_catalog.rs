@@ -509,6 +509,90 @@ const HTTP_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
     options: NO_OPTIONS,
 }];
 
+const EMAIL_CONNECTION_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "smtp_host",
+        label: "SMTP Host",
+        description: "Hostname or IP address of the SMTP server",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "smtp_port",
+        label: "SMTP Port",
+        description: "Port number (usually 587 or 465)",
+        input_type: "number",
+        required: true,
+        default_value: Some("587"),
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "smtp_username",
+        label: "SMTP Username",
+        description: "Username for SMTP authentication",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "smtp_password",
+        label: "SMTP Password",
+        description: "Password for SMTP authentication",
+        input_type: "password",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "from_address",
+        label: "From Address",
+        description: "The sender email address",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
+const EMAIL_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
+    kind: "email_notify",
+    label: "Send email",
+    description: "Send an email to a configured recipient",
+    connection_service: Some("email"),
+    fields: &[
+        CatalogField {
+            name: "to",
+            label: "Recipient (To)",
+            description: "The destination email address",
+            input_type: "text",
+            required: true,
+            default_value: None,
+            options: NO_OPTIONS,
+        },
+        CatalogField {
+            name: "subject",
+            label: "Subject",
+            description: "Template using normalized event variables such as {{repository}}, {{workflow}}, {{tag}} or {{pull_request_title}}",
+            input_type: "text",
+            required: false,
+            default_value: Some("Automation event on {{repository}}"),
+            options: NO_OPTIONS,
+        },
+        CatalogField {
+            name: "body",
+            label: "Body",
+            description: "Template using normalized event variables such as {{repository}}, {{workflow}}, {{tag}} or {{pull_request_title}}",
+            input_type: "text",
+            required: false,
+            default_value: Some("Automation event on {{repository}}"),
+            options: NO_OPTIONS,
+        },
+    ],
+}];
+
 pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
     AutomationServiceDefinition {
         service: "github",
@@ -571,6 +655,18 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         connection: Some(CatalogConnection {
             description: "Send bounded notifications to a public HTTPS endpoint",
             fields: HTTP_CONNECTION_FIELDS,
+            oauth: None,
+            testable: true,
+        }),
+    },
+    AutomationServiceDefinition {
+        service: "email",
+        label: "Email",
+        actions: &[],
+        reactions: EMAIL_REACTIONS,
+        connection: Some(CatalogConnection {
+            description: "Send emails via an external SMTP server",
+            fields: EMAIL_CONNECTION_FIELDS,
             oauth: None,
             testable: true,
         }),

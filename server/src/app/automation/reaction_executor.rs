@@ -14,11 +14,12 @@ use crate::domain::incident::{Incident, Severity};
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::release::ReleaseState;
 use crate::ports::{
-    ConnectionCredentialVault, EventPublisher, IncidentRepo, Notifier, ReleaseRepo,
-    ServiceConnectionRepo,
+    ConnectionCredentialVault, EmailMessage, EmailSender, EventPublisher, IncidentRepo, Notifier,
+    ReleaseRepo, ServiceConnectionRepo, SmtpConfig,
 };
 
 const HTTP_SERVICE: &str = "http";
+const EMAIL_SERVICE: &str = "email";
 const MAX_NOTIFICATION_TEXT_BYTES: usize = 1024;
 
 pub struct AutomationReactionExecutor {
@@ -28,6 +29,7 @@ pub struct AutomationReactionExecutor {
     releases: Arc<dyn ReleaseRepo>,
     notifier: Arc<dyn Notifier>,
     events: Arc<dyn EventPublisher>,
+    email_sender: Arc<dyn EmailSender>,
 }
 
 impl AutomationReactionExecutor {
@@ -38,6 +40,7 @@ impl AutomationReactionExecutor {
         releases: Arc<dyn ReleaseRepo>,
         notifier: Arc<dyn Notifier>,
         events: Arc<dyn EventPublisher>,
+        email_sender: Arc<dyn EmailSender>,
     ) -> Self {
         Self {
             connections,
@@ -46,6 +49,7 @@ impl AutomationReactionExecutor {
             releases,
             notifier,
             events,
+            email_sender,
         }
     }
 
@@ -61,6 +65,7 @@ impl AutomationReactionExecutor {
             "block_release" => self.block_release(team_id, rule, event).await,
             "escalate_incident" => self.escalate_incident(team_id, rule, event).await,
             "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
+            "email_notify" => self.notify_email(team_id, rule, event).await,
             _ => Err(DomainError::InvalidAutomationRule),
         }
     }
@@ -239,7 +244,7 @@ impl AutomationReactionExecutor {
             .reveal_credential(connection.id, CredentialKind::EndpointUrl)
             .await?
             .ok_or(DomainError::InvalidReactionEndpoint)?;
-        let message = configured_message(&rule.reaction_config, event)?
+        let message = configured_message_by_name(&rule.reaction_config, "message", event)?
             .unwrap_or_else(|| notification_text(event));
 
         match self.notifier.notify(&endpoint, &message).await {
@@ -258,6 +263,78 @@ impl AutomationReactionExecutor {
             }
         }
     }
+
+    async fn notify_email(
+        &self,
+        team_id: Uuid,
+        rule: &AutomationRule,
+        event: &ExternalEvent,
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
+        let connection_id = rule
+            .reaction_connection_id
+            .ok_or(DomainError::InvalidAutomationRule)?;
+        let connection = self
+            .connections
+            .find_connection_for_team(team_id, connection_id)
+            .await?
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        if connection.service != EMAIL_SERVICE {
+            return Err(DomainError::InvalidAutomationRule);
+        }
+
+        let config = smtp_config(self.credentials.as_ref(), connection.id).await?;
+        let message = EmailMessage {
+            to: configured_required_text(&rule.reaction_config, "to", event)?,
+            subject: configured_message_by_name(&rule.reaction_config, "subject", event)?
+                .unwrap_or_else(|| notification_text(event)),
+            body: configured_message_by_name(&rule.reaction_config, "body", event)?
+                .unwrap_or_else(|| notification_text(event)),
+        };
+
+        match self.email_sender.send_email(&config, &message).await {
+            Ok(()) => {
+                self.connections
+                    .record_reaction_result(connection.id, None)
+                    .await?;
+                Ok(None)
+            }
+            // Record the actual failure code: a malformed recipient must not be
+            // reported to the Manager as an SMTP outage.
+            Err(error) => {
+                let _ = self
+                    .connections
+                    .record_reaction_result(connection.id, Some(error.code()))
+                    .await;
+                Err(error)
+            }
+        }
+    }
+}
+
+/// Decrypt the five SMTP credentials of an email connection. Shared by the
+/// REAction and the Manager-facing connection test so both read the same vault
+/// contract and fail identically on a half-configured connection.
+pub(crate) async fn smtp_config(
+    credentials: &dyn ConnectionCredentialVault,
+    connection_id: Uuid,
+) -> Result<SmtpConfig, DomainError> {
+    let reveal = |kind: CredentialKind| async move {
+        credentials
+            .reveal_credential(connection_id, kind)
+            .await?
+            .ok_or(DomainError::InvalidReactionEndpoint)
+    };
+
+    Ok(SmtpConfig {
+        host: reveal(CredentialKind::SmtpHost).await?,
+        port: reveal(CredentialKind::SmtpPort)
+            .await?
+            .parse::<u16>()
+            .map_err(|_| DomainError::InvalidReactionEndpoint)?,
+        username: reveal(CredentialKind::SmtpUsername).await?,
+        password: reveal(CredentialKind::SmtpPassword).await?,
+        from: reveal(CredentialKind::FromAddress).await?,
+    })
 }
 
 fn configured_severity(config: &Value) -> Result<Severity, DomainError> {
@@ -274,11 +351,12 @@ fn configured_title(config: &Value, event: &ExternalEvent) -> Result<Option<Stri
     interpolate_config_field(config, "title", event, MAX_INTERPOLATED_TITLE_BYTES)
 }
 
-fn configured_message(
+fn configured_message_by_name(
     config: &Value,
+    field: &str,
     event: &ExternalEvent,
 ) -> Result<Option<String>, DomainError> {
-    interpolate_config_field(config, "message", event, MAX_INTERPOLATED_PAYLOAD_BYTES)
+    interpolate_config_field(config, field, event, MAX_INTERPOLATED_PAYLOAD_BYTES)
 }
 
 fn configured_required_text(
@@ -464,8 +542,9 @@ mod tests {
             Some("[opswarden/app] CI failed")
         );
         assert_eq!(
-            configured_message(
+            configured_message_by_name(
                 &json!({"message": "{{workflow}} failed on {{repository}}"}),
+                "message",
                 &event
             )
             .unwrap()
