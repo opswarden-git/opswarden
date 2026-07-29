@@ -1,6 +1,6 @@
 // --- server/src/app/private_message/mod.rs ---
 //
-// Private messaging use-cases (RTC 2). A private message is bilateral and
+// Private messaging use-cases. A private message is bilateral and
 // 1-to-1, not attached to any incident/release/team. The only authorization
 // rule is "the two users share at least one team"; it is enforced here, in the
 // app layer, by intersecting their team memberships through the existing

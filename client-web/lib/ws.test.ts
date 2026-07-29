@@ -135,7 +135,7 @@ describe("WebSocket contract consumers", () => {
     handleWsContractEvent(
       {
         type: "rule_triggered",
-        service: "vigil",
+        service: "opswarden",
         rule_name: "CI failure to incident",
         result: "incident_created",
         incident_id: "incident-1",

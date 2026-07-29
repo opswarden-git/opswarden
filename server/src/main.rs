@@ -73,7 +73,9 @@ async fn main() {
     let pool = connect_database(&database_url).await;
 
     if !skip_migrations {
-        sqlx::migrate!()
+        let mut migrator = sqlx::migrate!();
+        migrator.set_ignore_missing(true);
+        migrator
             .run(&pool)
             .await
             .expect("Failed to run database migrations");

@@ -254,11 +254,11 @@ const GITLAB_ACTIONS: &[CatalogCapability] = &[
     },
 ];
 
-const VIGIL_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
+const OPSWARDEN_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "release_created",
     label: "Release created",
     description: "A Release was created in the Team",
-    connection_service: Some("vigil"),
+    connection_service: Some("opswarden"),
     fields: RELEASE_FILTERS,
 }];
 
@@ -352,30 +352,30 @@ const ESCALATE_INCIDENT_REACTION_FIELDS: &[CatalogField] = &[CatalogField {
     options: NO_OPTIONS,
 }];
 
-const VIGIL_REACTIONS: &[CatalogCapability] = &[
+const OPSWARDEN_REACTIONS: &[CatalogCapability] = &[
     CatalogCapability {
-        kind: "vigil_create_incident",
+        kind: "create_incident",
         label: "Create incident",
         description: "Open an incident in the Team that owns the automation rule",
         connection_service: None,
         fields: INCIDENT_FIELDS,
     },
     CatalogCapability {
-        kind: "vigil_validate_release_step",
+        kind: "validate_release_step",
         label: "Validate Release step",
         description: "Validate the next sequential step of a Release",
         connection_service: None,
         fields: RELEASE_STEP_REACTION_FIELDS,
     },
     CatalogCapability {
-        kind: "vigil_block_release",
+        kind: "block_release",
         label: "Block Release",
         description: "Create and link an active blocker Incident to an in-progress Release",
         connection_service: None,
         fields: BLOCK_RELEASE_REACTION_FIELDS,
     },
     CatalogCapability {
-        kind: "vigil_escalate_incident",
+        kind: "escalate_incident",
         label: "Escalate Incident",
         description: "Escalate an acknowledged Incident while preserving its lifecycle",
         connection_service: None,
@@ -491,10 +491,10 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         }),
     },
     AutomationServiceDefinition {
-        service: "vigil",
-        label: "VIGIL",
-        actions: VIGIL_ACTIONS,
-        reactions: VIGIL_REACTIONS,
+        service: "opswarden",
+        label: "OpsWarden",
+        actions: OPSWARDEN_ACTIONS,
+        reactions: OPSWARDEN_REACTIONS,
         connection: None,
     },
     AutomationServiceDefinition {
@@ -545,12 +545,10 @@ mod tests {
         assert!(supports_action("gitlab", "ci_succeeded"));
         assert!(supports_action("gitlab", "tag_pushed"));
         assert!(supports_action("generic", "generic_event"));
-        assert!(supports_action("vigil", "release_created"));
+        assert!(supports_action("opswarden", "release_created"));
         assert!(!supports_action("http", "ci_failed"));
         assert_eq!(
-            reaction("vigil_create_incident")
-                .unwrap()
-                .connection_service,
+            reaction("create_incident").unwrap().connection_service,
             None
         );
         assert_eq!(
@@ -561,15 +559,9 @@ mod tests {
             AUTOMATION_CATALOG[0].connection.unwrap().fields[0].name,
             "webhook_signing_secret"
         );
-        assert_eq!(reaction("vigil_create_incident").unwrap().fields.len(), 2);
-        assert_eq!(
-            reaction("vigil_validate_release_step")
-                .unwrap()
-                .fields
-                .len(),
-            2
-        );
-        assert_eq!(reaction("vigil_block_release").unwrap().fields.len(), 3);
-        assert_eq!(reaction("vigil_escalate_incident").unwrap().fields.len(), 1);
+        assert_eq!(reaction("create_incident").unwrap().fields.len(), 2);
+        assert_eq!(reaction("validate_release_step").unwrap().fields.len(), 2);
+        assert_eq!(reaction("block_release").unwrap().fields.len(), 3);
+        assert_eq!(reaction("escalate_incident").unwrap().fields.len(), 1);
     }
 }

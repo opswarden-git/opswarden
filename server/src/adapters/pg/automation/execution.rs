@@ -273,7 +273,7 @@ mod tests {
             connection.id,
             "ci_failed",
             json!({}),
-            "vigil_create_incident",
+            "create_incident",
             None,
             json!({"severity": "high"}),
             user_id,

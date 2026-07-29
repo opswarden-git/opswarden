@@ -233,10 +233,10 @@ mod tests {
             "repository":{"full_name":"opswarden/app"},
             "pull_request":{
                 "merged":true,
-                "title":"Ship VIGIL",
+                "title":"Ship OpsWarden",
                 "html_url":"https://github.com/opswarden/app/pull/42",
                 "base":{"ref":"main"},
-                "head":{"ref":"feature/vigil"},
+                "head":{"ref":"feature/opswarden"},
                 "merged_by":{"login":"octocat"}
             }
         }"#;
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(event.kind, "pr_merged");
         assert_eq!(event.attributes["pull_request_number"], "42");
         assert_eq!(event.attributes["branch"], "main");
-        assert_eq!(event.attributes["source_branch"], "feature/vigil");
+        assert_eq!(event.attributes["source_branch"], "feature/opswarden");
     }
 
     #[test]

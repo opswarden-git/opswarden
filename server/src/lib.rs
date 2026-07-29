@@ -52,7 +52,7 @@ pub struct AppState {
     pub gifs: Arc<dyn GifSearch + Send + Sync>,
     /// Bilateral 1-to-1 direct messages between team-sharing users (RTC2 web_pm).
     pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
-    /// Releases with sequential steps and incident-driven blocking (VIGIL P1).
+    /// Releases with sequential steps and incident-driven blocking.
     pub releases: Arc<dyn ReleaseRepo + Send + Sync>,
     pub config: config::Config,
 }

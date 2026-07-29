@@ -68,10 +68,10 @@ const MERGED_PULL_REQUEST: &str = r#"{
     "repository":{"full_name":"opswarden/app"},
     "pull_request":{
         "merged":true,
-        "title":"Ship VIGIL",
+        "title":"Ship OpsWarden",
         "html_url":"https://github.com/opswarden/app/pull/42",
         "base":{"ref":"main"},
-        "head":{"ref":"feature/vigil"},
+        "head":{"ref":"feature/opswarden"},
         "merged_by":{"login":"octocat"}
     }
 }"#;
@@ -268,7 +268,7 @@ async fn seed_github_action(
         connection.id,
         trigger_kind,
         trigger_config,
-        "vigil_create_incident",
+        "create_incident",
         None,
         reaction_config,
         user_id,
@@ -343,7 +343,7 @@ async fn seed_gitlab_action(
         connection.id,
         trigger_kind,
         trigger_config,
-        "vigil_create_incident",
+        "create_incident",
         None,
         reaction_config,
         user_id,
@@ -379,7 +379,7 @@ async fn seed_generic_action(ctx: &common::TestContext, team_id: Uuid) -> Servic
             "source": "jury",
             "severity": "critical"
         }),
-        "vigil_create_incident",
+        "create_incident",
         None,
         json!({
             "severity": "critical",
@@ -402,7 +402,7 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
         team_id,
         SECRET_A,
         json!({"repository": "opswarden/app", "branch": "main"}),
-        "vigil_create_incident",
+        "create_incident",
     )
     .await;
     let mut definition = rule.definition();
@@ -532,9 +532,9 @@ async fn extended_github_actions_run_end_to_end_with_filters_and_templates() {
             "pr_merged",
             "pull_request",
             MERGED_PULL_REQUEST,
-            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/vigil"}),
+            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/opswarden"}),
             json!({"severity": "medium", "title": "PR #{{pull_request_number}} {{pull_request_title}}"}),
-            "PR #42 Ship VIGIL",
+            "PR #42 Ship OpsWarden",
         ),
     ];
 
@@ -893,24 +893,27 @@ async fn signed_delivery_notifies_http_once_and_persists_a_successful_run() {
 }
 
 #[tokio::test]
-async fn failed_http_reaction_does_not_block_the_vigil_reaction() {
+async fn failed_http_reaction_does_not_block_the_opswarden_reaction() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     let (github, http, _) = seed_http_automation(&ctx, team_id, SECRET_A).await;
-    let mut vigil_rule = AutomationRule::new(
+    let mut opswarden_rule = AutomationRule::new(
         team_id,
-        "GitHub CI failed to VIGIL",
+        "GitHub CI failed to OpsWarden",
         github.id,
         "ci_failed",
         json!({}),
-        "vigil_create_incident",
+        "create_incident",
         None,
         json!({"severity": "high"}),
         Uuid::new_v4(),
     )
     .unwrap();
-    vigil_rule.set_enabled(true);
-    ctx.automation_rules.insert_rule(&vigil_rule).await.unwrap();
+    opswarden_rule.set_enabled(true);
+    ctx.automation_rules
+        .insert_rule(&opswarden_rule)
+        .await
+        .unwrap();
     ctx.notifier.fail_requests();
 
     let response = ctx
@@ -964,8 +967,8 @@ async fn connection_secret_and_rules_are_isolated_between_teams() {
     let team_a = Uuid::new_v4();
     let team_b = Uuid::new_v4();
     let (connection_a, _) =
-        seed_automation(&ctx, team_a, SECRET_A, json!({}), "vigil_create_incident").await;
-    seed_automation(&ctx, team_b, SECRET_B, json!({}), "vigil_create_incident").await;
+        seed_automation(&ctx, team_a, SECRET_A, json!({}), "create_incident").await;
+    seed_automation(&ctx, team_b, SECRET_B, json!({}), "create_incident").await;
 
     let wrong_secret = ctx
         .app
@@ -1016,7 +1019,7 @@ async fn signed_ping_verifies_connection_without_running_rules() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     let (connection, _) =
-        seed_automation(&ctx, team_id, SECRET_A, json!({}), "vigil_create_incident").await;
+        seed_automation(&ctx, team_id, SECRET_A, json!({}), "create_incident").await;
     let ping = r#"{"zen":"Keep it logically awesome."}"#;
 
     let response = ctx
@@ -1058,7 +1061,7 @@ async fn filter_mismatch_creates_no_run_and_unsupported_reaction_records_failure
         filtered_team,
         SECRET_A,
         json!({"repository": "another/project"}),
-        "vigil_create_incident",
+        "create_incident",
     )
     .await;
     let ignored = ctx
@@ -1133,7 +1136,7 @@ async fn github_event_validates_the_next_release_step_and_records_the_run() {
     let (connection, rule) = seed_github_reaction(
         &ctx,
         team_id,
-        "vigil_validate_release_step",
+        "validate_release_step",
         json!({"release_id": release.id, "step": "build"}),
     )
     .await;
@@ -1182,7 +1185,7 @@ async fn github_event_blocks_an_in_progress_release_with_a_linked_incident() {
     let (connection, _) = seed_github_reaction(
         &ctx,
         team_id,
-        "vigil_block_release",
+        "block_release",
         json!({
             "release_id": release.id,
             "severity": "critical",
@@ -1245,7 +1248,7 @@ async fn github_event_escalates_an_acknowledged_incident_with_an_audit_event() {
     let (connection, _) = seed_github_reaction(
         &ctx,
         team_id,
-        "vigil_escalate_incident",
+        "escalate_incident",
         json!({"incident_id": incident.id}),
     )
     .await;
@@ -1298,7 +1301,7 @@ async fn native_reactions_cannot_mutate_another_teams_release() {
     let (connection, _) = seed_github_reaction(
         &ctx,
         source_team,
-        "vigil_validate_release_step",
+        "validate_release_step",
         json!({"release_id": foreign_release.id, "step": "build"}),
     )
     .await;

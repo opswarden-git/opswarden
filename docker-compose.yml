@@ -72,7 +72,7 @@ services:
   # It also serves the desktop artifact over HTTP: ./artifacts is mounted
   # read-only into Next's public/ so the .deb built by `client_desktop` is
   # downloadable at GET http://localhost:8081/client.deb. The Compose-built
-  # AppImage is exposed at the VIGIL-specified
+  # The AppImage is exposed at the documented
   # GET http://localhost:8081/client.AppImage.
   client_web:
     build:

@@ -89,6 +89,10 @@ function RuleForm({
   const triggerConnections = connections.filter(
     (connection) => connection.service === selectedAction?.connection_service,
   );
+  const isNativeAction = selectedAction?.service === "opswarden";
+  const effectiveTriggerConnectionId = isNativeAction
+    ? (triggerConnections[0]?.id ?? "")
+    : triggerConnectionId;
   const reactionConnections = selectedReaction?.connection_service
     ? connections.filter((connection) => connection.service === selectedReaction.connection_service)
     : [];
@@ -96,7 +100,7 @@ function RuleForm({
   const valid =
     !!name.trim() &&
     !!selectedAction &&
-    !!triggerConnectionId &&
+    !!effectiveTriggerConnectionId &&
     !!selectedReaction &&
     catalogFieldsAreValid(selectedAction.fields, triggerConfig) &&
     catalogFieldsAreValid(selectedReaction.fields, reactionConfig) &&
@@ -129,7 +133,7 @@ function RuleForm({
 
   const definition = (): AutomationRuleDefinition => ({
     name: name.trim(),
-    trigger_connection_id: triggerConnectionId,
+    trigger_connection_id: effectiveTriggerConnectionId,
     trigger_kind: actionName,
     trigger_config: catalogPayload(selectedAction?.fields ?? [], triggerConfig),
     reaction_kind: reactionName,
@@ -204,22 +208,24 @@ function RuleForm({
               ))}
             </select>
           </label>
-          <label className="text-text block text-sm font-medium">
-            <span>{t("sourceConnection")}</span>
-            <select
-              value={triggerConnectionId}
-              onChange={(event) => setTriggerConnectionId(event.target.value)}
-              className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
-              required
-            >
-              <option value="">{t("selectConnection")}</option>
-              {triggerConnections.map((connection) => (
-                <option key={connection.id} value={connection.id}>
-                  {selectedAction?.service} · {connection.id.slice(0, 8)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!isNativeAction ? (
+            <label className="text-text block text-sm font-medium">
+              <span>{t("sourceConnection")}</span>
+              <select
+                value={triggerConnectionId}
+                onChange={(event) => setTriggerConnectionId(event.target.value)}
+                className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                required
+              >
+                <option value="">{t("selectConnection")}</option>
+                {triggerConnections.map((connection) => (
+                  <option key={connection.id} value={connection.id}>
+                    {selectedAction?.service} · {connection.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {triggerConnections.length === 0 ? (
             <Alert tone="warning">{t("missingSourceConnection")}</Alert>
           ) : null}

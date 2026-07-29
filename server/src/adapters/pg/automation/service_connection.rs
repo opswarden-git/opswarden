@@ -383,8 +383,8 @@ mod tests {
     const KEY: [u8; aes::KEY_LEN] = [73; aes::KEY_LEN];
 
     #[sqlx::test]
-    async fn manager_membership_creates_one_credential_free_vigil_connection(pool: PgPool) {
-        let (team_id, manager_id) = seed_team(&pool, "internal-vigil").await;
+    async fn manager_membership_creates_one_credential_free_opswarden_connection(pool: PgPool) {
+        let (team_id, manager_id) = seed_team(&pool, "native-opswarden").await;
         PgTeamRepo::new(pool.clone())
             .add_member(team_id, manager_id, Role::Manager)
             .await
@@ -392,7 +392,7 @@ mod tests {
         let repo = PgServiceConnectionRepo::new(pool.clone());
 
         let connection = repo
-            .find_connection_by_service(team_id, "vigil")
+            .find_connection_by_service(team_id, "opswarden")
             .await
             .unwrap()
             .unwrap();

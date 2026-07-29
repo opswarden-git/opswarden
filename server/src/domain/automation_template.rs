@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn accepts_internal_vigil_event_variables() {
+    fn accepts_native_opswarden_event_variables() {
         for template in [
             "Release {{release_title}} ({{release_id}}) is {{release_state}}",
             "Incident {{incident_id}}",
