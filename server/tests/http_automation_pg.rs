@@ -12,21 +12,25 @@ use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
+use opswarden_server::adapters::pg::release::PgReleaseRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::app::automation::{
-    IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
+    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationUseCase,
+    IngestTeamWebhookCommand, IngestTeamWebhookUseCase, InternalAutomationDependencies,
+    TeamWebhookDependencies,
 };
 use opswarden_server::domain::automation_config::{
     AutomationRule, AutomationRunStatus, CredentialKind, ServiceConnection,
 };
-use opswarden_server::domain::team::Team;
+use opswarden_server::domain::release::Release;
+use opswarden_server::domain::team::{Role, Team};
 use opswarden_server::domain::user::{Email, User};
 use opswarden_server::ports::{
-    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, ServiceConnectionRepo,
-    TeamRepo, UserRepo,
+    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, IncidentRepo, ReleaseRepo,
+    ServiceConnectionRepo, TeamRepo, UserRepo,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -104,6 +108,9 @@ async fn postgres_chain_persists_one_http_run_and_deduplicates_the_delivery(pool
         rules: rules.clone(),
         runs: runs.clone(),
         incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
+        releases: Arc::new(opswarden_server::adapters::pg::release::PgReleaseRepo::new(
+            pool.clone(),
+        )),
         notifier: notifier.clone(),
         events: Arc::new(WsHub::new()),
     });
@@ -131,6 +138,95 @@ async fn postgres_chain_persists_one_http_run_and_deduplicates_the_delivery(pool
     assert!(duplicate.duplicate);
     assert_eq!(notifier.calls().len(), 1);
     assert_eq!(runs.list_runs_for_team(team.id, 10).await.unwrap().len(), 1);
+}
+
+#[sqlx::test]
+async fn postgres_internal_release_event_creates_one_incident_and_one_durable_run(pool: PgPool) {
+    let users = PgUserRepo::new(pool.clone());
+    let teams = PgTeamRepo::new(pool.clone());
+    let manager = User::new(
+        Email::new(format!("vigil-pg-{}@test.local", Uuid::new_v4())).unwrap(),
+        "hash",
+    );
+    users.save(&manager).await.unwrap();
+    let team = Team::new("Internal VIGIL PG").unwrap();
+    teams.save_team(&team).await.unwrap();
+    teams
+        .add_member(team.id, manager.id, Role::Manager)
+        .await
+        .unwrap();
+
+    let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
+    let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));
+    let rules = Arc::new(PgAutomationRuleRepo::new(pool.clone()));
+    let deliveries = Arc::new(PgWebhookDeliveryRepo::new(pool.clone()));
+    let runs = Arc::new(PgAutomationRunRepo::new(pool.clone()));
+    let incidents = Arc::new(PgIncidentRepo::new(pool.clone()));
+    let releases = Arc::new(PgReleaseRepo::new(pool.clone()));
+    let vigil = connections
+        .find_connection_by_service(team.id, "vigil")
+        .await
+        .unwrap()
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team.id,
+        "Release opens an incident",
+        vigil.id,
+        "release_created",
+        serde_json::json!({}),
+        "vigil_create_incident",
+        None,
+        serde_json::json!({"severity": "high", "title": "Release {{release_title}} created"}),
+        manager.id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    rules.insert_rule(&rule).await.unwrap();
+    let release = Release::new(team.id, "v1.2.0", vec!["build".into()]).unwrap();
+    releases.save_release(&release).await.unwrap();
+
+    let use_case = DispatchInternalAutomationUseCase::new(InternalAutomationDependencies {
+        connections,
+        credentials,
+        deliveries,
+        rules,
+        runs: runs.clone(),
+        incidents: incidents.clone(),
+        releases,
+        notifier: Arc::new(common::DummyNotifier::default()),
+        events: Arc::new(WsHub::new()),
+    });
+    let event = release_created_event(&release);
+    let delivery_id = format!("release:{}:created", release.id);
+    let first = use_case
+        .dispatch(DispatchInternalAutomationCommand {
+            team_id: team.id,
+            delivery_id: delivery_id.clone(),
+            event: event.clone(),
+        })
+        .await
+        .unwrap();
+    assert!(!first.duplicate);
+    assert_eq!(first.rules_triggered, 1);
+    let duplicate = use_case
+        .dispatch(DispatchInternalAutomationCommand {
+            team_id: team.id,
+            delivery_id,
+            event,
+        })
+        .await
+        .unwrap();
+    assert!(duplicate.duplicate);
+    let persisted_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
+    assert_eq!(persisted_runs.len(), 1);
+    assert_eq!(persisted_runs[0].status, AutomationRunStatus::Succeeded);
+    let persisted_incidents = incidents.list_incidents_for_team(team.id).await.unwrap();
+    assert_eq!(persisted_incidents.len(), 1);
+    assert_eq!(persisted_incidents[0].title, "Release v1.2.0 created");
+    assert_eq!(
+        persisted_runs[0].incident_id,
+        Some(persisted_incidents[0].id)
+    );
 }
 
 fn command(connection_id: Uuid, signature: String) -> IngestTeamWebhookCommand {

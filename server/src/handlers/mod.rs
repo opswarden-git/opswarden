@@ -269,9 +269,23 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("tag_pushed", false, _) => "Un nouveau tag Git a été poussé dans le dépôt",
         ("pr_merged", true, _) => "Pull request fusionnée",
         ("pr_merged", false, _) => "Une pull request a été fusionnée dans le dépôt",
+        ("release_created", true, _) => "Release créée",
+        ("release_created", false, _) => "Une Release a été créée dans l’équipe",
         ("vigil_create_incident", true, _) => "Créer un incident",
         ("vigil_create_incident", false, _) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
+        }
+        ("vigil_validate_release_step", true, _) => "Valider une étape de Release",
+        ("vigil_validate_release_step", false, _) => {
+            "Valider la prochaine étape séquentielle d’une Release"
+        }
+        ("vigil_block_release", true, _) => "Bloquer une Release",
+        ("vigil_block_release", false, _) => {
+            "Créer et lier un Incident actif à une Release en cours"
+        }
+        ("vigil_escalate_incident", true, _) => "Escalader un Incident",
+        ("vigil_escalate_incident", false, _) => {
+            "Escalader un Incident acquitté en respectant son cycle de vie"
         }
         ("http_notify", true, _) => "Envoyer une notification HTTP",
         ("http_notify", false, _) => "Envoyer une notification via une connexion HTTP configurée",
@@ -330,6 +344,16 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("branch", false) => "Limiter la règle à cette branche",
         ("source_branch", true) => "Branche source",
         ("source_branch", false) => "Limiter la règle à cette branche source",
+        ("release_id", true) => "Identifiant de Release",
+        ("release_id", false) => "UUID de Release ou variable {{release_id}} de l’événement",
+        ("release_title", true) => "Titre de Release",
+        ("release_title", false) => "Limiter la règle à ce titre exact de Release",
+        ("step", true) => "Étape",
+        ("step", false) => "Nom exact de la prochaine étape ou template d’événement",
+        ("incident_id", true) => "Identifiant d’Incident",
+        ("incident_id", false) => {
+            "UUID d’un Incident acquitté ou variable {{incident_id}} de l’événement"
+        }
         ("tag", true) => "Étiquette Git",
         ("tag", false) => "Limiter la règle à ce tag exact",
         ("conclusion", true) => "Résultat",

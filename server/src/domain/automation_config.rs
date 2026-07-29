@@ -95,6 +95,14 @@ impl ServiceConnection {
             last_error_code: None,
         })
     }
+
+    /// Credential-free connection used by events produced inside VIGIL. It has
+    /// no human creator because it is infrastructure owned by the Team itself.
+    pub fn new_internal(team_id: Uuid, service: impl Into<String>) -> Result<Self, DomainError> {
+        let mut connection = Self::new(team_id, service, Uuid::nil())?;
+        connection.created_by = None;
+        Ok(connection)
+    }
 }
 
 /// The purpose of one encrypted value attached to a service connection.

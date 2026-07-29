@@ -23,7 +23,10 @@ External events can trigger internal actions through an
 **Action&rarr;REAction** rule engine. GitHub and GitLab webhooks can create VIGIL
 incidents or notify a configured HTTP endpoint after signature/token validation,
 filtering and durable deduplication. Supported events include CI failure and
-success, new tags, and merged GitHub pull requests.
+success, new tags, and merged GitHub pull requests. Native Release events use
+the same durable engine without external credentials: a rule can create an
+Incident, validate the next Release step, block an in-progress Release through
+a linked Incident, or escalate an acknowledged Incident.
 
 ### Incident response
 

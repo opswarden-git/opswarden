@@ -23,6 +23,10 @@ const ALLOWED_VARIABLES: &[&str] = &[
     "source_branch",
     "actor",
     "event_url",
+    "release_id",
+    "release_title",
+    "release_state",
+    "incident_id",
 ];
 
 pub fn validate_template(template: &str) -> Result<(), DomainError> {
@@ -186,6 +190,16 @@ mod tests {
         for template in [
             "Tag {{tag}} at {{commit_sha}} by {{actor}}: {{event_url}}",
             "PR #{{pull_request_number}} {{pull_request_title}} from {{source_branch}}",
+        ] {
+            assert_eq!(validate_template(template), Ok(()));
+        }
+    }
+
+    #[test]
+    fn accepts_internal_vigil_event_variables() {
+        for template in [
+            "Release {{release_title}} ({{release_id}}) is {{release_state}}",
+            "Incident {{incident_id}}",
         ] {
             assert_eq!(validate_template(template), Ok(()));
         }
