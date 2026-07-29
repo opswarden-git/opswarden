@@ -48,9 +48,9 @@ pub struct AppState {
     pub webhook_deliveries: Arc<dyn WebhookDeliveryRepo + Send + Sync>,
     pub automation_runs: Arc<dyn AutomationRunRepo + Send + Sync>,
     pub notifier: Arc<dyn Notifier + Send + Sync>,
-    /// External GIF search (GIPHY) for timeline GIFs (RTC2 web_api_integration).
+    /// External GIF search (GIPHY) for timeline GIFs.
     pub gifs: Arc<dyn GifSearch + Send + Sync>,
-    /// Bilateral 1-to-1 direct messages between team-sharing users (RTC2 web_pm).
+    /// Bilateral 1-to-1 direct messages between team-sharing users.
     pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
     /// Releases with sequential steps and incident-driven blocking.
     pub releases: Arc<dyn ReleaseRepo + Send + Sync>,

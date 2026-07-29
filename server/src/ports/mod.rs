@@ -438,7 +438,7 @@ pub struct GifResult {
     pub height: u32,
 }
 
-/// External GIF search (RTC2 `web_api_integration`, backed by GIPHY). The
+/// External GIF search backed by GIPHY. The
 /// provider, HTTP transport and API-key handling are adapter concerns; the
 /// use-case only ever sees normalized `GifResult`s.
 #[async_trait]
