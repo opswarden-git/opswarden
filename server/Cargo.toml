@@ -2,7 +2,7 @@
 
 [package]
 name = "opswarden-server"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2021"
 description = "OpsWarden application server"
 license = "Apache-2.0"
