@@ -1,10 +1,12 @@
 // --- server/src/adapters/webhook/mod.rs ---
 
 pub mod alertmanager;
+pub mod generic;
 pub mod github;
 pub mod gitlab;
 
 pub use alertmanager::AlertmanagerParser;
+pub use generic::GenericParser;
 pub use github::GithubParser;
 pub use gitlab::GitlabParser;
 
@@ -21,6 +23,7 @@ impl CompositeWebhookParser {
             parsers: vec![
                 Box::new(GithubParser),
                 Box::new(GitlabParser),
+                Box::new(GenericParser),
                 Box::new(AlertmanagerParser),
             ],
         }

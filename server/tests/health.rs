@@ -76,7 +76,7 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     );
 
     let services = json["server"]["services"].as_array().unwrap();
-    assert_eq!(services.len(), 4);
+    assert_eq!(services.len(), 5);
     assert!(services.iter().any(|service| {
         service["name"] == "github"
             && service["actions"][0]["name"] == "ci_failed"
@@ -93,6 +93,13 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["actions"][0]["name"] == "ci_failed"
             && service["actions"][1]["name"] == "ci_succeeded"
             && service["actions"][2]["name"] == "tag_pushed"
+            && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
+            && service["connection"]["oauth"].is_null()
+    }));
+    assert!(services.iter().any(|service| {
+        service["name"] == "generic"
+            && service["actions"][0]["name"] == "generic_event"
+            && service["actions"][0]["fields"][0]["name"] == "event_type"
             && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
             && service["connection"]["oauth"].is_null()
     }));
@@ -154,6 +161,15 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
     assert_eq!(gitlab["actions"][0]["label"], "Échec d’une pipeline CI");
     assert_eq!(gitlab["actions"][1]["label"], "Succès d’une pipeline CI");
     assert_eq!(gitlab["actions"][2]["label"], "Nouveau tag poussé");
+    let generic = services
+        .iter()
+        .find(|service| service["name"] == "generic")
+        .unwrap();
+    assert_eq!(generic["actions"][0]["label"], "Événement JSON générique");
+    assert_eq!(
+        generic["connection"]["fields"][0]["label"],
+        "Jeton partagé du webhook"
+    );
     assert_eq!(
         github["connection"]["oauth"]["label"],
         "Autoriser avec GitHub"

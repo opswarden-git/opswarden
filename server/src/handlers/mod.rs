@@ -271,6 +271,10 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("pr_merged", false, _) => "Une pull request a été fusionnée dans le dépôt",
         ("release_created", true, _) => "Release créée",
         ("release_created", false, _) => "Une Release a été créée dans l’équipe",
+        ("generic_event", true, _) => "Événement JSON générique",
+        ("generic_event", false, _) => {
+            "Un webhook JSON borné et indépendant du fournisseur a été reçu"
+        }
         ("vigil_create_incident", true, _) => "Créer un incident",
         ("vigil_create_incident", false, _) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
@@ -303,6 +307,7 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
             "Vérifier les webhooks entrants et autoriser facultativement l’accès à l’API GitHub"
         }
         "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
+        "generic" => "Recevoir des webhooks JSON bornés authentifiés par un jeton partagé",
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
         _ => fallback,
     }
@@ -335,6 +340,17 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         return "Obligatoire à la première connexion ; envoyé par GitLab dans X-Gitlab-Token"
             .to_string();
     }
+    if name == "webhook_signing_secret" && fallback == "Shared webhook token" {
+        return "Jeton partagé du webhook".to_string();
+    }
+    if name == "webhook_signing_secret"
+        && fallback == "Required on first connection; sent in X-OpsWarden-Token"
+    {
+        return "Obligatoire à la première connexion ; envoyé dans X-OpsWarden-Token".to_string();
+    }
+    if name == "severity" && fallback == "Only match this severity" {
+        return "Limiter la règle à cette sévérité".to_string();
+    }
     match (name, label) {
         ("repository", true) => "Dépôt",
         ("repository", false) => "Limiter la règle à ce dépôt",
@@ -348,6 +364,12 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("release_id", false) => "UUID de Release ou variable {{release_id}} de l’événement",
         ("release_title", true) => "Titre de Release",
         ("release_title", false) => "Limiter la règle à ce titre exact de Release",
+        ("event_type", true) => "Type d’événement",
+        ("event_type", false) => "Limiter la règle à la valeur de X-OpsWarden-Event",
+        ("source", true) => "Origine",
+        ("source", false) => "Limiter la règle à cette source du payload",
+        ("external_id", true) => "Identifiant externe",
+        ("external_id", false) => "Limiter la règle à cet identifiant externe du payload",
         ("step", true) => "Étape",
         ("step", false) => "Nom exact de la prochaine étape ou template d’événement",
         ("incident_id", true) => "Identifiant d’Incident",

@@ -25,6 +25,16 @@ use uuid::Uuid;
 const SECRET_A: &str = "team-a-signing-secret";
 const SECRET_B: &str = "team-b-signing-secret";
 const GITLAB_TOKEN: &str = "team-gitlab-token";
+const GENERIC_TOKEN: &str = "team-generic-token";
+const GENERIC_EVENT: &str = r#"{
+    "source":"jury",
+    "title":"Production deployment failed",
+    "message":"Health check timed out",
+    "severity":"critical",
+    "external_id":"deploy-42",
+    "event_url":"https://example.test/deployments/42",
+    "ignored":{"token":"must-not-be-normalized"}
+}"#;
 const FAILED_RUN: &str = r#"{
     "repository":{"full_name":"opswarden/app"},
     "workflow_run":{
@@ -123,6 +133,24 @@ fn gitlab_webhook_request(
         .header("X-Gitlab-Event-UUID", delivery_id)
         .header("X-Gitlab-Event", event)
         .header("X-Gitlab-Token", token)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn generic_webhook_request(
+    connection_id: Uuid,
+    delivery_id: &str,
+    event: &str,
+    token: &str,
+    body: &str,
+) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(format!("/webhooks/generic/{connection_id}"))
+        .header("Content-Type", "application/json")
+        .header("X-OpsWarden-Delivery", delivery_id)
+        .header("X-OpsWarden-Event", event)
+        .header("X-OpsWarden-Token", token)
         .body(Body::from(body.to_string()))
         .unwrap()
 }
@@ -318,6 +346,45 @@ async fn seed_gitlab_action(
         "vigil_create_incident",
         None,
         reaction_config,
+        user_id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    ctx.automation_rules.insert_rule(&rule).await.unwrap();
+    connection
+}
+
+async fn seed_generic_action(ctx: &common::TestContext, team_id: Uuid) -> ServiceConnection {
+    let user_id = Uuid::new_v4();
+    let connection = ServiceConnection::new(team_id, "generic", user_id).unwrap();
+    ctx.service_connections
+        .insert_connection(&connection)
+        .await
+        .unwrap();
+    ctx.connection_credentials
+        .store_credential(
+            connection.id,
+            CredentialKind::WebhookSigningSecret,
+            GENERIC_TOKEN,
+        )
+        .await
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team_id,
+        "Generic deployment failure",
+        connection.id,
+        "generic_event",
+        json!({
+            "event_type": "deployment_failed",
+            "source": "jury",
+            "severity": "critical"
+        }),
+        "vigil_create_incident",
+        None,
+        json!({
+            "severity": "critical",
+            "title": "{{source}}: {{title}} ({{external_id}})"
+        }),
         user_id,
     )
     .unwrap();
@@ -609,6 +676,163 @@ async fn gitlab_actions_run_end_to_end_with_token_filters_templates_and_deduplic
         assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
         assert_eq!(ctx.automation_runs.all().len(), 1);
     }
+}
+
+#[tokio::test]
+async fn generic_json_runs_through_auth_filters_templates_durability_and_deduplication() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let connection = seed_generic_action(&ctx, team_id).await;
+
+    let accepted = ctx
+        .app
+        .clone()
+        .oneshot(generic_webhook_request(
+            connection.id,
+            "generic-delivery-42",
+            "deployment_failed",
+            GENERIC_TOKEN,
+            GENERIC_EVENT,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::ACCEPTED);
+    let receipt = json_body(accepted).await;
+    assert_eq!(receipt["duplicate"], false);
+    assert_eq!(receipt["rules_triggered"], 1);
+    assert_eq!(receipt["rules_failed"], 0);
+
+    let incidents = ctx
+        .incidents
+        .list_incidents_for_team(team_id)
+        .await
+        .unwrap();
+    assert_eq!(incidents.len(), 1);
+    assert_eq!(
+        incidents[0].title,
+        "jury: Production deployment failed (deploy-42)"
+    );
+    assert_eq!(incidents[0].severity, Severity::Critical);
+    assert!(incidents[0]
+        .description
+        .contains("Event type: deployment_failed"));
+    assert!(incidents[0]
+        .description
+        .contains("Message: Health check timed out"));
+    assert!(!incidents[0].description.contains("must-not-be-normalized"));
+    assert_eq!(ctx.automation_runs.all().len(), 1);
+    assert_eq!(
+        ctx.automation_runs.all()[0].status,
+        AutomationRunStatus::Succeeded
+    );
+    assert_eq!(ctx.webhook_deliveries.all().len(), 1);
+    assert_eq!(
+        ctx.webhook_deliveries.all()[0].status,
+        WebhookDeliveryStatus::Processed
+    );
+
+    let duplicate = ctx
+        .app
+        .clone()
+        .oneshot(generic_webhook_request(
+            connection.id,
+            "generic-delivery-42",
+            "deployment_failed",
+            GENERIC_TOKEN,
+            GENERIC_EVENT,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(json_body(duplicate).await["duplicate"], true);
+    assert_eq!(ctx.automation_runs.all().len(), 1);
+
+    let filtered = ctx
+        .app
+        .clone()
+        .oneshot(generic_webhook_request(
+            connection.id,
+            "generic-delivery-43",
+            "deployment_succeeded",
+            GENERIC_TOKEN,
+            GENERIC_EVENT,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(json_body(filtered).await["rules_triggered"], 0);
+    assert_eq!(ctx.automation_runs.all().len(), 1);
+    assert_eq!(ctx.webhook_deliveries.all().len(), 2);
+    let deliveries = ctx.webhook_deliveries.all();
+    assert_eq!(
+        deliveries
+            .iter()
+            .find(|delivery| delivery.provider_delivery_id == "generic-delivery-43")
+            .unwrap()
+            .status,
+        WebhookDeliveryStatus::Ignored
+    );
+
+    let rejected = ctx
+        .app
+        .clone()
+        .oneshot(generic_webhook_request(
+            connection.id,
+            "generic-delivery-44",
+            "deployment_failed",
+            "wrong-token",
+            GENERIC_EVENT,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(ctx.webhook_deliveries.all().len(), 2);
+}
+
+#[tokio::test]
+async fn generic_endpoint_rejects_missing_headers_content_type_and_invalid_or_large_json() {
+    let ctx = test_context();
+    let connection_id = Uuid::new_v4();
+    for request in [
+        Request::builder()
+            .method("POST")
+            .uri(format!("/webhooks/generic/{connection_id}"))
+            .header("Content-Type", "application/json")
+            .body(Body::from("{}"))
+            .unwrap(),
+        Request::builder()
+            .method("POST")
+            .uri(format!("/webhooks/generic/{connection_id}"))
+            .header("X-OpsWarden-Delivery", "delivery")
+            .header("X-OpsWarden-Event", "event")
+            .header("X-OpsWarden-Token", "token")
+            .body(Body::from("{}"))
+            .unwrap(),
+        generic_webhook_request(connection_id, "delivery", "event", "token", "not-json"),
+        generic_webhook_request(connection_id, "delivery", "event", "token", "[]"),
+        generic_webhook_request(
+            connection_id,
+            "delivery",
+            "event",
+            "token",
+            r#"{"severity":"urgent"}"#,
+        ),
+    ] {
+        let response = ctx.app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    let oversized = format!(r#"{{"ignored":"{}"}}"#, "x".repeat(64 * 1024));
+    let response = ctx
+        .app
+        .oneshot(generic_webhook_request(
+            connection_id,
+            "large",
+            "event",
+            "token",
+            &oversized,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[tokio::test]

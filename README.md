@@ -20,13 +20,23 @@ releases are validated step by step and automatically blocked when an active
 incident makes further deployment unsafe.
 
 External events can trigger internal actions through an
-**Action&rarr;REAction** rule engine. GitHub and GitLab webhooks can create VIGIL
-incidents or notify a configured HTTP endpoint after signature/token validation,
-filtering and durable deduplication. Supported events include CI failure and
-success, new tags, and merged GitHub pull requests. Native Release events use
-the same durable engine without external credentials: a rule can create an
-Incident, validate the next Release step, block an in-progress Release through
-a linked Incident, or escalate an acknowledged Incident.
+**Action&rarr;REAction** rule engine. GitHub, GitLab and provider-neutral JSON
+webhooks can create VIGIL incidents or notify a configured HTTP endpoint after
+signature/token validation, filtering and durable deduplication. Supported
+provider events include CI failure and success, new tags, and merged GitHub pull
+requests. Native Release events use the same durable engine without external
+credentials: a rule can create an Incident, validate the next Release step,
+block an in-progress Release through a linked Incident, or escalate an
+acknowledged Incident.
+
+The Generic Webhook contract is deliberately small and safe. After a Manager
+configures the `generic` service connection, JSON events are sent to
+`POST /webhooks/generic/{connection_id}` with `X-OpsWarden-Token`, a stable
+`X-OpsWarden-Delivery` id and an `X-OpsWarden-Event` value. Requests are limited
+to 64 KiB and bounded JSON; rules only receive the normalized `event_type`,
+`source`, `title`, `message`, `severity`, `external_id` and `event_url` fields.
+The raw payload and shared token are never exposed by the API or persisted in an
+automation run.
 
 ### Incident response
 
@@ -62,8 +72,9 @@ This keeps release state and operational risk in the same workspace.
 Teams are the security and collaboration boundary: membership, invitations,
 presence and Observer/Responder/Manager permissions govern every operation.
 Managers can transfer ownership, moderate or ban members, configure encrypted
-GitHub, GitLab and HTTP integrations, and create Action&rarr;REAction rules; teammates can
-also exchange private messages without leaving their shared operational context.
+GitHub, GitLab, Generic Webhook and HTTP integrations, and create
+Action&rarr;REAction rules; teammates can also exchange private messages without
+leaving their shared operational context.
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png">

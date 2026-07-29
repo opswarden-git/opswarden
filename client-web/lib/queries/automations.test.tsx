@@ -60,7 +60,7 @@ describe("GitHub service OAuth", () => {
     );
   });
 
-  it("configures any catalog service through the generic endpoint", async () => {
+  it("configures Generic Webhook through the catalog-driven endpoint", async () => {
     const queryClient = createTestQueryClient();
     mockedApiFetch.mockResolvedValueOnce(jsonResponse({ id: "connection-1" }));
     const { result } = renderHook(() => useConfigureTeamConnection("team-1"), {
@@ -69,16 +69,16 @@ describe("GitHub service OAuth", () => {
 
     await act(async () => {
       await result.current.mutateAsync({
-        service: "future-service",
-        payload: { api_key: "encrypted-server-side" },
+        service: "generic",
+        payload: { webhook_signing_secret: "encrypted-server-side" },
       });
     });
 
     expect(mockedApiFetch).toHaveBeenCalledWith(
-      "/api/teams/team-1/service-connections/by-service/future-service",
+      "/api/teams/team-1/service-connections/by-service/generic",
       {
         method: "PUT",
-        body: JSON.stringify({ api_key: "encrypted-server-side" }),
+        body: JSON.stringify({ webhook_signing_secret: "encrypted-server-side" }),
       },
     );
   });
