@@ -169,6 +169,14 @@ format:
 format-check:
     npx --yes prettier --check .
 
+# prépare un commit de release et son tag local (ne pousse rien)
+release version:
+    ./tooling/prepare_release.sh {{version}}
+
+# vérifie que la version est cohérente dans tous les manifestes et lockfiles
+release-check:
+    ./tooling/verify_release_version.sh
+
 # rapport de santé (tokei + deny + audit)
 health:
     @mkdir -p tooling
