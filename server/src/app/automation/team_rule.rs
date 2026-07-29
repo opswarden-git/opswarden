@@ -7,6 +7,7 @@ use super::team_access::require_manager;
 use crate::domain::automation_catalog::{action, reaction, CatalogField};
 use crate::domain::automation_config::{AutomationRule, AutomationRuleDefinition};
 use crate::domain::automation_template::{validate_template, MAX_TEMPLATE_BYTES};
+use crate::domain::automation_timer::{TimerSchedule, TIMER_SERVICE};
 use crate::domain::error::DomainError;
 use crate::ports::{AutomationRuleRepo, ServiceConnectionRepo, TeamRepo};
 
@@ -140,6 +141,9 @@ impl TeamRuleUseCase {
         let action = action(&trigger.service, &definition.trigger_kind)
             .ok_or(DomainError::InvalidAutomationRule)?;
         validate_catalog_config(&definition.trigger_config, action.fields, false)?;
+        if trigger.service == TIMER_SERVICE {
+            TimerSchedule::from_config(&definition.trigger_kind, &definition.trigger_config)?;
+        }
 
         let reaction =
             reaction(&definition.reaction_kind).ok_or(DomainError::InvalidAutomationRule)?;

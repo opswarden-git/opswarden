@@ -902,7 +902,11 @@ impl TeamRepo for DummyTeamRepo {
 
 pub struct DummyClock;
 
-impl Clock for DummyClock {}
+impl Clock for DummyClock {
+    fn now(&self) -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
+}
 
 #[derive(Default)]
 pub struct DummyIncidentRepo {

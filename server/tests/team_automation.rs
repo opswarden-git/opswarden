@@ -859,6 +859,102 @@ async fn manager_can_create_every_catalogued_gitlab_action_rule() {
 }
 
 #[tokio::test]
+async fn manager_can_create_bounded_timer_rules_and_invalid_schedule_is_rejected() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let timer = ServiceConnection::new_internal(team_id, "timer").unwrap();
+    ctx.service_connections
+        .insert_connection(&timer)
+        .await
+        .unwrap();
+
+    for (name, kind, config) in [
+        (
+            "Daily handover",
+            "daily_at",
+            json!({"time": "09:30", "timezone": "Europe/Paris"}),
+        ),
+        (
+            "Frequent check",
+            "every_minutes",
+            json!({"minutes": "15", "timezone": "UTC"}),
+        ),
+    ] {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/api/teams/{team_id}/automation-rules"),
+                Some(json!({
+                    "name": name,
+                    "trigger_connection_id": timer.id,
+                    "trigger_kind": kind,
+                    "trigger_config": config,
+                    "reaction_kind": "create_incident",
+                    "reaction_config": {"severity": "high"}
+                })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED, "{kind}");
+    }
+
+    let invalid = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/api/teams/{team_id}/automation-rules"),
+            Some(json!({
+                "name": "Invalid timer",
+                "trigger_connection_id": timer.id,
+                "trigger_kind": "every_minutes",
+                "trigger_config": {"minutes": "4", "timezone": "UTC"},
+                "reaction_kind": "create_incident",
+                "reaction_config": {"severity": "high"}
+            })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(json_body(invalid).await["code"], "invalid_timer_schedule");
+}
+
+#[tokio::test]
+async fn internal_automation_connections_cannot_be_deleted() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+
+    for service in ["opswarden", "timer"] {
+        let connection = ServiceConnection::new_internal(team_id, service).unwrap();
+        ctx.service_connections
+            .insert_connection(&connection)
+            .await
+            .unwrap();
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "DELETE",
+                &format!("/api/teams/{team_id}/service-connections/{}", connection.id),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{service}");
+        assert!(ctx
+            .service_connections
+            .find_connection_by_id(connection.id)
+            .await
+            .unwrap()
+            .is_some());
+    }
+}
+
+#[tokio::test]
 async fn manager_can_create_a_filtered_generic_event_rule() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();

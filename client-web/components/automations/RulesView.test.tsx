@@ -39,7 +39,12 @@ const catalog: AutomationService[] = [
   {
     name: "github",
     label: "GitHub",
-    connection: null,
+    connection: {
+      description: "GitHub webhook",
+      fields: [],
+      oauth: null,
+      testable: false,
+    },
     actions: [
       {
         name: "github_ci_failed",
@@ -97,6 +102,40 @@ const catalog: AutomationService[] = [
       },
     ],
   },
+  {
+    name: "timer",
+    label: "Timer",
+    connection: null,
+    actions: [
+      {
+        name: "daily_at",
+        label: "Every day",
+        description: "Run every day",
+        connection_service: "timer",
+        fields: [
+          {
+            name: "time",
+            label: "Local time",
+            description: "HH:MM",
+            input_type: "time",
+            required: true,
+            default_value: "09:00",
+            options: [],
+          },
+          {
+            name: "timezone",
+            label: "Timezone",
+            description: "IANA timezone",
+            input_type: "text",
+            required: true,
+            default_value: "Europe/Paris",
+            options: [],
+          },
+        ],
+      },
+    ],
+    reactions: [],
+  },
 ];
 
 const connection: TeamConnection = {
@@ -124,6 +163,14 @@ const opswardenConnection: TeamConnection = {
   webhook_path: null,
 };
 
+const timerConnection: TeamConnection = {
+  ...connection,
+  id: "connection-timer",
+  service: "timer",
+  secret_configured: false,
+  webhook_path: null,
+};
+
 const rule: AutomationRule = {
   id: "rule-1",
   team_id: "team-1",
@@ -138,6 +185,7 @@ const rule: AutomationRule = {
   created_by: "user-1",
   created_at: "2026-07-25T10:00:00Z",
   updated_at: "2026-07-25T10:00:00Z",
+  next_run_at: null,
 };
 
 afterEach(() => {
@@ -213,6 +261,38 @@ describe("RulesView", () => {
         trigger_connection_id: opswardenConnection.id,
         trigger_kind: "release_created",
         reaction_kind: "create_incident",
+      }),
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("creates a daily Timer rule through its internal connection", () => {
+    render(
+      <RulesView
+        catalog={catalog}
+        connections={[connection, opswardenConnection, timerConnection]}
+        rules={[]}
+        teamId="team-1"
+        isCreatingRule
+        setIsCreatingRule={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("ruleName"), {
+      target: { value: "Daily handover" },
+    });
+    fireEvent.change(screen.getByLabelText("event"), { target: { value: "daily_at" } });
+    expect(screen.queryByLabelText("sourceConnection")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Local time/), { target: { value: "09:30" } });
+    fireEvent.change(screen.getByLabelText(/Timezone/), { target: { value: "UTC" } });
+    fireEvent.click(screen.getByRole("button", { name: "createRule" }));
+
+    expect(createMutation.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Daily handover",
+        trigger_connection_id: timerConnection.id,
+        trigger_kind: "daily_at",
+        trigger_config: { time: "09:30", timezone: "UTC" },
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );

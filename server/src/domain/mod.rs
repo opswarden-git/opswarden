@@ -4,6 +4,7 @@ pub mod automation;
 pub mod automation_catalog;
 pub mod automation_config;
 pub mod automation_template;
+pub mod automation_timer;
 pub mod capabilities;
 pub mod error;
 pub mod event;
@@ -19,6 +20,9 @@ pub use automation::ExternalEvent;
 pub use automation_config::{
     AutomationRule, AutomationRuleDefinition, AutomationRun, AutomationRunStatus, CredentialKind,
     ServiceConnection, WebhookDelivery, WebhookDeliveryStatus,
+};
+pub use automation_timer::{
+    ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule, TimerScheduleProjection,
 };
 pub use capabilities::{derive_capabilities, TeamCapabilities};
 pub use error::DomainError;

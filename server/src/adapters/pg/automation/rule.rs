@@ -3,10 +3,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::domain::automation_config::AutomationRule;
+use crate::domain::automation_timer::{TimerSchedule, TIMER_SERVICE};
 use crate::domain::error::DomainError;
 use crate::ports::AutomationRuleRepo;
 
@@ -18,6 +19,60 @@ impl PgAutomationRuleRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+}
+
+async fn connection_service(
+    transaction: &mut Transaction<'_, Postgres>,
+    team_id: Uuid,
+    connection_id: Uuid,
+) -> Result<Option<String>, DomainError> {
+    sqlx::query_scalar("SELECT service FROM service_connections WHERE team_id = $1 AND id = $2")
+        .bind(team_id)
+        .bind(connection_id)
+        .fetch_optional(&mut **transaction)
+        .await
+        .map_err(|_| DomainError::Storage)
+}
+
+async fn insert_timer_projection(
+    transaction: &mut Transaction<'_, Postgres>,
+    rule: &AutomationRule,
+    schedule: &TimerSchedule,
+    next_run_at: DateTime<Utc>,
+) -> Result<(), DomainError> {
+    let (local_time, interval_minutes) = match schedule {
+        TimerSchedule::DailyAt { time, .. } => (Some(*time), None),
+        TimerSchedule::EveryMinutes { minutes, .. } => (None, Some(i32::from(*minutes))),
+    };
+    sqlx::query(
+        r#"
+        INSERT INTO automation_timer_schedules (
+            rule_id, schedule_kind, timezone, local_time, interval_minutes,
+            next_run_at, rule_updated_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+        ON CONFLICT (rule_id) DO UPDATE
+        SET schedule_kind = excluded.schedule_kind,
+            timezone = excluded.timezone,
+            local_time = excluded.local_time,
+            interval_minutes = excluded.interval_minutes,
+            next_run_at = excluded.next_run_at,
+            rule_updated_at = excluded.rule_updated_at,
+            last_claimed_at = null,
+            updated_at = now()
+        "#,
+    )
+    .bind(rule.id)
+    .bind(schedule.kind())
+    .bind(schedule.timezone().to_string())
+    .bind(local_time)
+    .bind(interval_minutes)
+    .bind(next_run_at)
+    .bind(rule.updated_at)
+    .execute(&mut **transaction)
+    .await
+    .map_err(|_| DomainError::Storage)?;
+    Ok(())
 }
 
 #[derive(FromRow)]
@@ -60,6 +115,17 @@ impl From<AutomationRuleRow> for AutomationRule {
 #[async_trait]
 impl AutomationRuleRepo for PgAutomationRuleRepo {
     async fn insert_rule(&self, rule: &AutomationRule) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let service =
+            connection_service(&mut transaction, rule.team_id, rule.trigger_connection_id).await?;
+        let timer_schedule = if service.as_deref() == Some(TIMER_SERVICE) {
+            Some(TimerSchedule::from_config(
+                &rule.trigger_kind,
+                &rule.trigger_config,
+            )?)
+        } else {
+            None
+        };
         sqlx::query(
             r#"
             INSERT INTO automation_rules (
@@ -83,13 +149,54 @@ impl AutomationRuleRepo for PgAutomationRuleRepo {
         .bind(rule.created_by)
         .bind(rule.created_at)
         .bind(rule.updated_at)
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if rule.enabled {
+            if let Some(schedule) = timer_schedule {
+                let next_run_at = schedule.next_after(rule.updated_at);
+                insert_timer_projection(&mut transaction, rule, &schedule, next_run_at).await?;
+            }
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
         Ok(())
     }
 
     async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let previous = sqlx::query_as::<_, (bool, Uuid, String, Value)>(
+            r#"
+            SELECT enabled, trigger_connection_id, trigger_kind, trigger_config
+            FROM automation_rules
+            WHERE team_id = $1 AND id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(rule.team_id)
+        .bind(rule.id)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        let Some(previous) = previous else {
+            transaction
+                .commit()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        };
+        let service =
+            connection_service(&mut transaction, rule.team_id, rule.trigger_connection_id).await?;
+        let timer_schedule = if service.as_deref() == Some(TIMER_SERVICE) {
+            Some(TimerSchedule::from_config(
+                &rule.trigger_kind,
+                &rule.trigger_config,
+            )?)
+        } else {
+            None
+        };
         let result = sqlx::query(
             r#"
             UPDATE automation_rules
@@ -116,9 +223,42 @@ impl AutomationRuleRepo for PgAutomationRuleRepo {
         .bind(rule.reaction_connection_id)
         .bind(&rule.reaction_config)
         .bind(rule.updated_at)
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if !rule.enabled || timer_schedule.is_none() {
+            sqlx::query("DELETE FROM automation_timer_schedules WHERE rule_id = $1")
+                .bind(rule.id)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|_| DomainError::Storage)?;
+        } else if let Some(schedule) = timer_schedule {
+            let schedule_changed = !previous.0
+                || previous.1 != rule.trigger_connection_id
+                || previous.2 != rule.trigger_kind
+                || previous.3 != rule.trigger_config;
+            if schedule_changed {
+                let next_run_at = schedule.next_after(rule.updated_at);
+                insert_timer_projection(&mut transaction, rule, &schedule, next_run_at).await?;
+            } else {
+                sqlx::query(
+                    r#"
+                    UPDATE automation_timer_schedules
+                    SET rule_updated_at = $2, updated_at = now()
+                    WHERE rule_id = $1
+                    "#,
+                )
+                .bind(rule.id)
+                .bind(rule.updated_at)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            }
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
         Ok(result.rows_affected() == 1)
     }
 
@@ -205,6 +345,26 @@ impl AutomationRuleRepo for PgAutomationRuleRepo {
             .await
             .map_err(|_| DomainError::Storage)?;
         Ok(result.rows_affected() == 1)
+    }
+
+    async fn next_run_at(
+        &self,
+        team_id: Uuid,
+        rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError> {
+        sqlx::query_scalar(
+            r#"
+            SELECT s.next_run_at
+            FROM automation_timer_schedules s
+            JOIN automation_rules r ON r.id = s.rule_id
+            WHERE r.team_id = $1 AND r.id = $2 AND r.enabled
+            "#,
+        )
+        .bind(team_id)
+        .bind(rule_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)
     }
 }
 

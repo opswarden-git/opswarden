@@ -416,6 +416,7 @@
     "colAction": "Action",
     "colReaction": "REAction",
     "colStatus": "Status",
+    "colNextRun": "Next run",
     "colUpdated": "Updated",
     "actionsMenu": "Rule actions",
     "enabled": "Enabled",

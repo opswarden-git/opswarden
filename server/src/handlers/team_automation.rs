@@ -503,6 +503,7 @@ pub struct AutomationRuleResponse {
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub next_run_at: Option<DateTime<Utc>>,
 }
 
 impl From<AutomationRule> for AutomationRuleResponse {
@@ -521,8 +522,22 @@ impl From<AutomationRule> for AutomationRuleResponse {
             created_by: rule.created_by,
             created_at: rule.created_at,
             updated_at: rule.updated_at,
+            next_run_at: None,
         }
     }
+}
+
+async fn rule_response(
+    state: &AppState,
+    rule: AutomationRule,
+) -> Result<AutomationRuleResponse, DomainError> {
+    let next_run_at = state
+        .automation_rules
+        .next_run_at(rule.team_id, rule.id)
+        .await?;
+    let mut response = AutomationRuleResponse::from(rule);
+    response.next_run_at = next_run_at;
+    Ok(response)
 }
 
 pub async fn list_rules(
@@ -540,7 +555,11 @@ pub async fn list_rules(
         requester_id: session.user_id,
     })
     .await?;
-    Ok(Json(rules.into_iter().map(Into::into).collect()))
+    let mut responses = Vec::with_capacity(rules.len());
+    for rule in rules {
+        responses.push(rule_response(&state, rule).await?);
+    }
+    Ok(Json(responses))
 }
 
 pub async fn create_rule(
@@ -568,7 +587,10 @@ pub async fn create_rule(
         },
     })
     .await?;
-    Ok((StatusCode::CREATED, Json(rule.into())))
+    Ok((
+        StatusCode::CREATED,
+        Json(rule_response(&state, rule).await?),
+    ))
 }
 
 pub async fn update_rule(
@@ -596,7 +618,7 @@ pub async fn update_rule(
         reaction_config: payload.reaction_config,
     })
     .await?;
-    Ok(Json(rule.into()))
+    Ok(Json(rule_response(&state, rule).await?))
 }
 
 pub async fn delete_rule(

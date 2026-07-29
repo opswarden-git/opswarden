@@ -80,6 +80,8 @@ pub enum DomainError {
     ServiceConnectionNotFound,
     /// A persisted automation rule has invalid names or non-object configs.
     InvalidAutomationRule,
+    /// A Timer rule contains an invalid kind, local time, interval or timezone.
+    InvalidTimerSchedule,
     /// No Team-scoped automation rule matches the requested id.
     AutomationRuleNotFound,
     /// A persisted automation run has invalid terminal metadata.
@@ -171,6 +173,7 @@ impl DomainError {
             DomainError::InvalidServiceConnection => "invalid_service_connection",
             DomainError::ServiceConnectionNotFound => "service_connection_not_found",
             DomainError::InvalidAutomationRule => "invalid_automation_rule",
+            DomainError::InvalidTimerSchedule => "invalid_timer_schedule",
             DomainError::AutomationRuleNotFound => "automation_rule_not_found",
             DomainError::InvalidAutomationRun => "invalid_automation_run",
             DomainError::InvalidWebhookDelivery => "invalid_webhook_delivery",
@@ -273,6 +276,7 @@ impl std::fmt::Display for DomainError {
                 write!(f, "Service connection was not found")
             }
             DomainError::InvalidAutomationRule => write!(f, "Automation rule is invalid"),
+            DomainError::InvalidTimerSchedule => write!(f, "Timer schedule is invalid"),
             DomainError::AutomationRuleNotFound => write!(f, "Automation rule was not found"),
             DomainError::InvalidAutomationRun => write!(f, "Automation run is invalid"),
             DomainError::InvalidWebhookDelivery => write!(f, "Webhook delivery is invalid"),

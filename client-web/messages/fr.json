@@ -416,6 +416,7 @@
     "colAction": "Action",
     "colReaction": "REAction",
     "colStatus": "État",
+    "colNextRun": "Prochaine exécution",
     "colUpdated": "Mise à jour",
     "actionsMenu": "Actions de la règle",
     "enabled": "Activée",

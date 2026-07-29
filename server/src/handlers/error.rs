@@ -129,6 +129,9 @@ impl IntoResponse for DomainError {
             DomainError::InvalidAutomationRule => {
                 (StatusCode::BAD_REQUEST, "Automation rule is invalid")
             }
+            DomainError::InvalidTimerSchedule => {
+                (StatusCode::BAD_REQUEST, "Timer schedule is invalid")
+            }
             DomainError::AutomationRuleNotFound => {
                 (StatusCode::NOT_FOUND, "Automation rule was not found")
             }

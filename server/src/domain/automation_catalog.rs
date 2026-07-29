@@ -262,6 +262,65 @@ const OPSWARDEN_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     fields: RELEASE_FILTERS,
 }];
 
+const TIMER_DAILY_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "time",
+        label: "Local time",
+        description: "Strict 24-hour time in HH:MM format",
+        input_type: "time",
+        required: true,
+        default_value: Some("09:00"),
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "timezone",
+        label: "Timezone",
+        description: "IANA timezone such as Europe/Paris or UTC",
+        input_type: "text",
+        required: true,
+        default_value: Some("Europe/Paris"),
+        options: NO_OPTIONS,
+    },
+];
+
+const TIMER_INTERVAL_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "minutes",
+        label: "Interval in minutes",
+        description: "Elapsed minutes between runs, from 5 through 1440",
+        input_type: "number",
+        required: true,
+        default_value: Some("15"),
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "timezone",
+        label: "Timezone",
+        description: "IANA timezone used to display occurrence context",
+        input_type: "text",
+        required: true,
+        default_value: Some("Europe/Paris"),
+        options: NO_OPTIONS,
+    },
+];
+
+const TIMER_ACTIONS: &[CatalogCapability] = &[
+    CatalogCapability {
+        kind: "daily_at",
+        label: "Every day at a local time",
+        description: "Run once per local calendar day at the configured time",
+        connection_service: Some("timer"),
+        fields: TIMER_DAILY_FIELDS,
+    },
+    CatalogCapability {
+        kind: "every_minutes",
+        label: "Every number of minutes",
+        description: "Run at a bounded elapsed-minute interval",
+        connection_service: Some("timer"),
+        fields: TIMER_INTERVAL_FIELDS,
+    },
+];
+
 const GENERIC_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "generic_event",
     label: "Generic JSON event",
@@ -498,6 +557,13 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         connection: None,
     },
     AutomationServiceDefinition {
+        service: "timer",
+        label: "Timer",
+        actions: TIMER_ACTIONS,
+        reactions: &[],
+        connection: None,
+    },
+    AutomationServiceDefinition {
         service: "http",
         label: "HTTP",
         actions: &[],
@@ -546,6 +612,8 @@ mod tests {
         assert!(supports_action("gitlab", "tag_pushed"));
         assert!(supports_action("generic", "generic_event"));
         assert!(supports_action("opswarden", "release_created"));
+        assert!(supports_action("timer", "daily_at"));
+        assert!(supports_action("timer", "every_minutes"));
         assert!(!supports_action("http", "ci_failed"));
         assert_eq!(
             reaction("create_incident").unwrap().connection_service,
