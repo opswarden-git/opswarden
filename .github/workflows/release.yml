@@ -338,7 +338,12 @@ jobs:
           find release-artifacts -mindepth 1 -type d -empty -delete
       - name: Generate checksums
         working-directory: release-artifacts
-        run: find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+        run: |
+          checksum_manifest="${RUNNER_TEMP}/opswarden-SHA256SUMS"
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > "$checksum_manifest"
+          mv "$checksum_manifest" SHA256SUMS
       - name: Attest desktop package provenance
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
