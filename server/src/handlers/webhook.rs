@@ -14,6 +14,7 @@ use axum::{
 };
 use serde::Serialize;
 
+use crate::adapters::webhook::generic::validate_payload;
 use crate::app::automation::{
     IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
 };
@@ -124,6 +125,55 @@ pub async fn receive_gitlab_for_connection(
     ))
 }
 
+/// Provider-neutral JSON webhook. Authentication, idempotency and event type
+/// are explicit headers; the payload is validated before durable ingestion.
+pub async fn receive_generic_for_connection(
+    State(state): State<AppState>,
+    Path(connection_id): Path<uuid::Uuid>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
+    if !is_json_content_type(&headers) {
+        return Err(DomainError::InvalidWebhookDelivery);
+    }
+    let provider_delivery_id = required_header(&headers, "X-OpsWarden-Delivery")?;
+    let provider_event = required_header(&headers, "X-OpsWarden-Event")?;
+    let signature = Some(required_header(&headers, "X-OpsWarden-Token")?);
+    validate_payload(&body)?;
+
+    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+        connections: state.service_connections.clone(),
+        credentials: state.connection_credentials.clone(),
+        verifier: state.webhook_verifier.clone(),
+        parser: state.webhook_parser.clone(),
+        deliveries: state.webhook_deliveries.clone(),
+        rules: state.automation_rules.clone(),
+        runs: state.automation_runs.clone(),
+        incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
+        notifier: state.notifier.clone(),
+        events: state.events.clone(),
+    })
+    .ingest(IngestTeamWebhookCommand {
+        connection_id,
+        provider_delivery_id,
+        provider_event,
+        signature,
+        body: body.to_vec(),
+    })
+    .await?;
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(TeamWebhookReceipt {
+            received: true,
+            duplicate: result.duplicate,
+            rules_triggered: result.rules_triggered,
+            rules_failed: result.rules_failed,
+        }),
+    ))
+}
+
 pub async fn receive_alertmanager_for_connection(
     State(state): State<AppState>,
     Path(connection_id): Path<uuid::Uuid>,
@@ -180,4 +230,12 @@ fn required_header(headers: &HeaderMap, name: &'static str) -> Result<String, Do
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .ok_or(DomainError::InvalidWebhookDelivery)
+}
+
+fn is_json_content_type(headers: &HeaderMap) -> bool {
+    headers
+        .get("Content-Type")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"))
 }

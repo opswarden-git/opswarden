@@ -14,7 +14,8 @@ use uuid::Uuid;
 
 use crate::app::automation::team_connection::GITHUB_SERVICE;
 use crate::app::automation::{
-    CompleteGithubOAuthCommand, ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
+    CompleteGithubOAuthCommand, ConfigureGenericConnectionCommand,
+    ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
     ConfigureHttpConnectionCommand, CreateTeamRuleCommand, DeleteTeamConnectionCommand,
     DeleteTeamRuleCommand, ListTeamConnectionsCommand, ListTeamRulesCommand, ListTeamRunsCommand,
     RefreshGithubOAuthCommand, StartGithubOAuthCommand, TeamConnectionOAuthUseCase,
@@ -36,6 +37,12 @@ pub struct ConfigureGithubPayload {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigureGitlabPayload {
+    pub webhook_signing_secret: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigureGenericPayload {
     pub webhook_signing_secret: Option<String>,
 }
 
@@ -68,7 +75,7 @@ impl From<TeamConnectionView> for TeamConnectionResponse {
         use crate::domain::automation_config::CredentialKind;
 
         let webhook_path = match view.connection.service.as_str() {
-            "github" | "gitlab" => Some(format!(
+            "github" | "gitlab" | "generic" => Some(format!(
                 "/webhooks/{}/{}",
                 view.connection.service, view.connection.id
             )),
@@ -152,6 +159,17 @@ pub async fn configure_service(
                 serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
             use_case
                 .configure_gitlab(ConfigureGitlabConnectionCommand {
+                    team_id,
+                    requester_id: session.user_id,
+                    webhook_token: payload.webhook_signing_secret,
+                })
+                .await?
+        }
+        "generic" => {
+            let payload: ConfigureGenericPayload =
+                serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
+            use_case
+                .configure_generic(ConfigureGenericConnectionCommand {
                     team_id,
                     requester_id: session.user_id,
                     webhook_token: payload.webhook_signing_secret,

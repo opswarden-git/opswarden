@@ -160,6 +160,45 @@ const RELEASE_FILTERS: &[CatalogField] = &[
     },
 ];
 
+const GENERIC_FILTERS: &[CatalogField] = &[
+    CatalogField {
+        name: "event_type",
+        label: "Event type",
+        description: "Only match the X-OpsWarden-Event value",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "source",
+        label: "Source",
+        description: "Only match this top-level payload source",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "severity",
+        label: "Severity",
+        description: "Only match this severity",
+        input_type: "select",
+        required: false,
+        default_value: None,
+        options: SEVERITY_OPTIONS,
+    },
+    CatalogField {
+        name: "external_id",
+        label: "External ID",
+        description: "Only match this top-level external identifier",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
 const GITHUB_ACTIONS: &[CatalogCapability] = &[
     CatalogCapability {
         kind: "ci_failed",
@@ -221,6 +260,14 @@ const VIGIL_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     description: "A Release was created in the Team",
     connection_service: Some("vigil"),
     fields: RELEASE_FILTERS,
+}];
+
+const GENERIC_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
+    kind: "generic_event",
+    label: "Generic JSON event",
+    description: "A bounded provider-neutral JSON webhook was received",
+    connection_service: Some("generic"),
+    fields: GENERIC_FILTERS,
 }];
 
 const INCIDENT_FIELDS: &[CatalogField] = &[
@@ -383,6 +430,16 @@ const GITLAB_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
     options: NO_OPTIONS,
 }];
 
+const GENERIC_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
+    name: "webhook_signing_secret",
+    label: "Shared webhook token",
+    description: "Required on first connection; sent in X-OpsWarden-Token",
+    input_type: "password",
+    required: true,
+    default_value: None,
+    options: NO_OPTIONS,
+}];
+
 const HTTP_CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
     name: "endpoint_url",
     label: "Endpoint URL",
@@ -417,6 +474,18 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
         connection: Some(CatalogConnection {
             description: "Verify incoming GitLab webhooks with their secret token",
             fields: GITLAB_CONNECTION_FIELDS,
+            oauth: None,
+            testable: false,
+        }),
+    },
+    AutomationServiceDefinition {
+        service: "generic",
+        label: "Generic Webhook",
+        actions: GENERIC_ACTIONS,
+        reactions: &[],
+        connection: Some(CatalogConnection {
+            description: "Receive bounded JSON webhooks authenticated with a shared token",
+            fields: GENERIC_CONNECTION_FIELDS,
             oauth: None,
             testable: false,
         }),
@@ -475,6 +544,7 @@ mod tests {
         assert!(supports_action("gitlab", "ci_failed"));
         assert!(supports_action("gitlab", "ci_succeeded"));
         assert!(supports_action("gitlab", "tag_pushed"));
+        assert!(supports_action("generic", "generic_event"));
         assert!(supports_action("vigil", "release_created"));
         assert!(!supports_action("http", "ci_failed"));
         assert_eq!(

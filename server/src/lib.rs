@@ -239,6 +239,14 @@ pub fn build_app(state: AppState) -> Router {
             post(handlers::webhook::receive_gitlab_for_connection)
                 .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
         )
+        .route(
+            "/webhooks/generic/{connection_id}",
+            post(handlers::webhook::receive_generic_for_connection).layer(
+                axum::extract::DefaultBodyLimit::max(
+                    crate::adapters::webhook::generic::MAX_GENERIC_BODY_BYTES,
+                ),
+            ),
+        )
         .merge(protected_routes)
         .with_state(state)
 }

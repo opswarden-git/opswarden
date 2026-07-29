@@ -19,6 +19,7 @@ const AUTH: &str = "Bearer mock_jwt_token";
 const REQUESTER: Uuid = Uuid::nil();
 const SIGNING_SECRET: &str = "github-signing-secret-never-returned";
 const GITLAB_TOKEN: &str = "gitlab-webhook-token-never-returned";
+const GENERIC_TOKEN: &str = "generic-webhook-token-never-returned";
 const PERSONAL_TOKEN: &str = "github_pat_never_returned";
 const HTTP_ENDPOINT: &str = "https://hooks.example.com/services/secret-path";
 const OAUTH_ACCESS: &str = "github_oauth_access_never_returned";
@@ -87,6 +88,21 @@ async fn configure_gitlab(ctx: &common::TestContext, team_id: Uuid) -> Value {
             "PUT",
             &format!("/api/teams/{team_id}/service-connections/by-service/gitlab"),
             Some(json!({"webhook_signing_secret": GITLAB_TOKEN})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
+}
+
+async fn configure_generic(ctx: &common::TestContext, team_id: Uuid) -> Value {
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/api/teams/{team_id}/service-connections/by-service/generic"),
+            Some(json!({"webhook_signing_secret": GENERIC_TOKEN})),
         ))
         .await
         .unwrap();
@@ -422,6 +438,15 @@ async fn catalog_service_route_configures_known_services_and_rejects_unknown_one
     );
     assert!(!gitlab.to_string().contains(GITLAB_TOKEN));
 
+    let generic = configure_generic(&ctx, team_id).await;
+    assert_eq!(generic["service"], "generic");
+    assert_eq!(generic["secret_configured"], true);
+    assert_eq!(
+        generic["webhook_path"],
+        format!("/webhooks/generic/{}", generic["id"].as_str().unwrap())
+    );
+    assert!(!generic.to_string().contains(GENERIC_TOKEN));
+
     let unknown = ctx
         .app
         .oneshot(request(
@@ -438,7 +463,7 @@ async fn catalog_service_route_configures_known_services_and_rejects_unknown_one
             .await
             .unwrap()
             .len(),
-        2
+        3
     );
 }
 
@@ -557,6 +582,19 @@ async fn only_manager_can_read_connections_or_runs() {
             .unwrap();
         assert_eq!(configure.status(), StatusCode::FORBIDDEN);
         assert_eq!(json_body(configure).await["code"], "not_manager");
+
+        let configure_generic = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "PUT",
+                &format!("/api/teams/{team_id}/service-connections/by-service/generic"),
+                Some(json!({"webhook_signing_secret": GENERIC_TOKEN})),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(configure_generic.status(), StatusCode::FORBIDDEN);
+        assert_eq!(json_body(configure_generic).await["code"], "not_manager");
 
         let configure_http = ctx
             .app
@@ -818,6 +856,40 @@ async fn manager_can_create_every_catalogued_gitlab_action_rule() {
         assert_eq!(response.status(), StatusCode::CREATED, "{trigger_kind}");
         assert_eq!(json_body(response).await["trigger_kind"], trigger_kind);
     }
+}
+
+#[tokio::test]
+async fn manager_can_create_a_filtered_generic_event_rule() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let connection = configure_generic(&ctx, team_id).await;
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/api/teams/{team_id}/automation-rules"),
+            Some(json!({
+                "name": "Generic deployment failed",
+                "trigger_connection_id": connection["id"],
+                "trigger_kind": "generic_event",
+                "trigger_config": {
+                    "event_type": "deployment_failed",
+                    "source": "jury",
+                    "severity": "critical"
+                },
+                "reaction_kind": "vigil_create_incident",
+                "reaction_config": {
+                    "severity": "critical",
+                    "title": "{{source}}: {{title}} ({{external_id}})"
+                }
+            })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    assert_eq!(json_body(response).await["enabled"], false);
 }
 
 #[tokio::test]

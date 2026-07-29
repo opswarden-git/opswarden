@@ -15,6 +15,7 @@ use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
+use opswarden_server::adapters::webhook::generic::GenericParser;
 use opswarden_server::adapters::webhook::github::GithubParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::app::automation::{
@@ -46,6 +47,12 @@ const FAILED_RUN: &[u8] = br#"{
         "conclusion":"failure",
         "html_url":"https://github.com/opswarden/pg/actions/runs/94"
     }
+}"#;
+const GENERIC_BODY: &[u8] = br#"{
+    "source":"pg-monitor",
+    "title":"Database unavailable",
+    "severity":"critical",
+    "external_id":"pg-alert-42"
 }"#;
 
 #[sqlx::test]
@@ -223,6 +230,90 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     let persisted_incidents = incidents.list_incidents_for_team(team.id).await.unwrap();
     assert_eq!(persisted_incidents.len(), 1);
     assert_eq!(persisted_incidents[0].title, "Release v1.2.0 created");
+    assert_eq!(
+        persisted_runs[0].incident_id,
+        Some(persisted_incidents[0].id)
+    );
+}
+
+#[sqlx::test]
+async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: PgPool) {
+    let users = PgUserRepo::new(pool.clone());
+    let teams = PgTeamRepo::new(pool.clone());
+    let user = User::new(
+        Email::new(format!("generic-pg-{}@test.local", Uuid::new_v4())).unwrap(),
+        "hash",
+    );
+    users.save(&user).await.unwrap();
+    let team = Team::new("Generic automation PG").unwrap();
+    teams.save_team(&team).await.unwrap();
+
+    let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
+    let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));
+    let rules = Arc::new(PgAutomationRuleRepo::new(pool.clone()));
+    let deliveries = Arc::new(PgWebhookDeliveryRepo::new(pool.clone()));
+    let runs = Arc::new(PgAutomationRunRepo::new(pool.clone()));
+    let incidents = Arc::new(PgIncidentRepo::new(pool.clone()));
+    let generic = ServiceConnection::new(team.id, "generic", user.id).unwrap();
+    connections.insert_connection(&generic).await.unwrap();
+    credentials
+        .store_credential(
+            generic.id,
+            CredentialKind::WebhookSigningSecret,
+            SIGNING_SECRET,
+        )
+        .await
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team.id,
+        "Generic alert to Incident",
+        generic.id,
+        "generic_event",
+        serde_json::json!({"event_type":"alert_firing", "source":"pg-monitor"}),
+        "vigil_create_incident",
+        None,
+        serde_json::json!({"severity":"critical", "title":"{{source}}: {{title}}"}),
+        user.id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    rules.insert_rule(&rule).await.unwrap();
+
+    let use_case = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+        connections: connections.clone(),
+        credentials,
+        verifier: Arc::new(HmacSha256Verifier),
+        parser: Arc::new(GenericParser),
+        deliveries,
+        rules,
+        runs: runs.clone(),
+        incidents: incidents.clone(),
+        releases: Arc::new(PgReleaseRepo::new(pool.clone())),
+        notifier: Arc::new(common::DummyNotifier::default()),
+        events: Arc::new(WsHub::new()),
+    });
+    let command = || IngestTeamWebhookCommand {
+        connection_id: generic.id,
+        provider_delivery_id: "pg-generic-delivery-42".into(),
+        provider_event: "alert_firing".into(),
+        signature: Some(SIGNING_SECRET.into()),
+        body: GENERIC_BODY.to_vec(),
+    };
+    let first = use_case.ingest(command()).await.unwrap();
+    assert!(!first.duplicate);
+    assert_eq!(first.rules_triggered, 1);
+    let duplicate = use_case.ingest(command()).await.unwrap();
+    assert!(duplicate.duplicate);
+
+    let persisted_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
+    assert_eq!(persisted_runs.len(), 1);
+    assert_eq!(persisted_runs[0].status, AutomationRunStatus::Succeeded);
+    let persisted_incidents = incidents.list_incidents_for_team(team.id).await.unwrap();
+    assert_eq!(persisted_incidents.len(), 1);
+    assert_eq!(
+        persisted_incidents[0].title,
+        "pg-monitor: Database unavailable"
+    );
     assert_eq!(
         persisted_runs[0].incident_id,
         Some(persisted_incidents[0].id)

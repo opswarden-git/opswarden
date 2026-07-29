@@ -27,6 +27,12 @@ const ALLOWED_VARIABLES: &[&str] = &[
     "release_title",
     "release_state",
     "incident_id",
+    "event_type",
+    "source",
+    "title",
+    "message",
+    "severity",
+    "external_id",
 ];
 
 pub fn validate_template(template: &str) -> Result<(), DomainError> {

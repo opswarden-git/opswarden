@@ -348,6 +348,12 @@ fn default_incident_title(event: &ExternalEvent) -> String {
             let title = attribute(event, "release_title").unwrap_or("Release");
             format!("Release {title} created")
         }
+        "generic_event" => attribute(event, "title")
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                let event_type = attribute(event, "event_type").unwrap_or("generic");
+                format!("Generic event: {event_type}")
+            }),
         _ => format!("Automation event on {repository}"),
     }
 }
@@ -384,6 +390,12 @@ fn event_lines(event: &ExternalEvent) -> Vec<String> {
         ("Release title", attribute(event, "release_title")),
         ("Release state", attribute(event, "release_state")),
         ("Incident", attribute(event, "incident_id")),
+        ("Event type", attribute(event, "event_type")),
+        ("Source", attribute(event, "source")),
+        ("Title", attribute(event, "title")),
+        ("Message", attribute(event, "message")),
+        ("Severity", attribute(event, "severity")),
+        ("External ID", attribute(event, "external_id")),
     ]
     .into_iter()
     .filter_map(|(label, value)| value.map(|value| format!("{label}: {value}")))
