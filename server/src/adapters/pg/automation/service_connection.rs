@@ -376,8 +376,34 @@ impl ConnectionCredentialVault for PgConnectionCredentialVault {
 mod tests {
     use super::super::test_support::seed_team;
     use super::*;
+    use crate::adapters::pg::team::PgTeamRepo;
+    use crate::domain::team::Role;
+    use crate::ports::TeamRepo;
 
     const KEY: [u8; aes::KEY_LEN] = [73; aes::KEY_LEN];
+
+    #[sqlx::test]
+    async fn manager_membership_creates_one_credential_free_vigil_connection(pool: PgPool) {
+        let (team_id, manager_id) = seed_team(&pool, "internal-vigil").await;
+        PgTeamRepo::new(pool.clone())
+            .add_member(team_id, manager_id, Role::Manager)
+            .await
+            .unwrap();
+        let repo = PgServiceConnectionRepo::new(pool.clone());
+
+        let connection = repo
+            .find_connection_by_service(team_id, "vigil")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(connection.team_id, team_id);
+        assert_eq!(connection.created_by, Some(manager_id));
+        assert!(PgConnectionCredentialVault::new(pool, KEY)
+            .configured_credential_kinds(connection.id)
+            .await
+            .unwrap()
+            .is_empty());
+    }
 
     #[sqlx::test]
     async fn the_same_provider_is_isolated_between_teams(pool: PgPool) {

@@ -53,6 +53,7 @@ pub async fn receive_github_for_connection(
         rules: state.automation_rules.clone(),
         runs: state.automation_runs.clone(),
         incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
     })
@@ -99,6 +100,7 @@ pub async fn receive_gitlab_for_connection(
         rules: state.automation_rules.clone(),
         runs: state.automation_runs.clone(),
         incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
     })
@@ -146,6 +148,7 @@ pub async fn receive_alertmanager_for_connection(
         rules: state.automation_rules.clone(),
         runs: state.automation_runs.clone(),
         incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
     })

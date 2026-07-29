@@ -9,7 +9,7 @@ use common::test_context;
 use opswarden_server::domain::automation_config::{CredentialKind, ServiceConnection};
 use opswarden_server::domain::team::Role;
 use opswarden_server::ports::{
-    AutomationRuleRepo, ConnectionCredentialVault, ServiceConnectionRepo,
+    AutomationRuleRepo, ConnectionCredentialVault, IncidentRepo, ServiceConnectionRepo,
 };
 use serde_json::{json, Value};
 use tower::ServiceExt;
@@ -821,6 +821,58 @@ async fn manager_can_create_every_catalogued_gitlab_action_rule() {
 }
 
 #[tokio::test]
+async fn manager_can_create_every_catalogued_native_vigil_reaction_rule() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let github = configure_github(&ctx, team_id).await;
+    let release_id = Uuid::new_v4();
+    let incident_id = Uuid::new_v4();
+    let cases = [
+        (
+            "vigil_validate_release_step",
+            json!({"release_id": release_id, "step": "build"}),
+        ),
+        (
+            "vigil_block_release",
+            json!({
+                "release_id": release_id,
+                "severity": "critical",
+                "title": "{{workflow}} blocks the release"
+            }),
+        ),
+        (
+            "vigil_escalate_incident",
+            json!({"incident_id": incident_id}),
+        ),
+    ];
+
+    for (reaction_kind, reaction_config) in cases {
+        let response = ctx
+            .app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/api/teams/{team_id}/automation-rules"),
+                Some(json!({
+                    "name": format!("CI failed to {reaction_kind}"),
+                    "trigger_connection_id": github["id"],
+                    "trigger_kind": "ci_failed",
+                    "trigger_config": {},
+                    "reaction_kind": reaction_kind,
+                    "reaction_config": reaction_config
+                })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED, "{reaction_kind}");
+        let rule = json_body(response).await;
+        assert_eq!(rule["reaction_kind"], reaction_kind);
+        assert_eq!(rule["enabled"], false);
+    }
+}
+
+#[tokio::test]
 async fn http_rule_requires_its_own_team_connection_and_a_catalog_bounded_payload() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
@@ -1003,4 +1055,86 @@ async fn team_automation_routes_require_authentication() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn release_creation_triggers_a_durable_internal_vigil_rule() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
+    let vigil = ServiceConnection::new_internal(team_id, "vigil").unwrap();
+    ctx.service_connections
+        .insert_connection(&vigil)
+        .await
+        .unwrap();
+
+    let created = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/api/teams/{team_id}/automation-rules"),
+            Some(json!({
+                "name": "Release created -> Incident",
+                "trigger_connection_id": vigil.id,
+                "trigger_kind": "release_created",
+                "trigger_config": {},
+                "reaction_kind": "vigil_create_incident",
+                "reaction_config": {
+                    "severity": "high",
+                    "title": "Release {{release_title}} requires coordination"
+                }
+            })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let rule = json_body(created).await;
+    let enabled = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "PATCH",
+            &format!(
+                "/api/teams/{team_id}/automation-rules/{}",
+                rule["id"].as_str().unwrap()
+            ),
+            Some(json!({"enabled": true})),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(enabled.status(), StatusCode::OK);
+
+    let release = ctx
+        .app
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/api/releases",
+            Some(json!({
+                "team_id": team_id,
+                "title": "v2.0.0",
+                "steps": ["build", "production"]
+            })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(release.status(), StatusCode::CREATED);
+
+    let incidents = ctx
+        .incidents
+        .list_incidents_for_team(team_id)
+        .await
+        .unwrap();
+    assert_eq!(incidents.len(), 1);
+    assert_eq!(incidents[0].title, "Release v2.0.0 requires coordination");
+    assert_eq!(incidents[0].severity.to_string(), "high");
+    let deliveries = ctx.webhook_deliveries.all();
+    assert_eq!(deliveries.len(), 1);
+    assert_eq!(deliveries[0].provider_event, "release_created");
+    assert_eq!(deliveries[0].status.to_string(), "processed");
+    let runs = ctx.automation_runs.all();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].status.to_string(), "succeeded");
+    assert_eq!(runs[0].incident_id, Some(incidents[0].id));
 }

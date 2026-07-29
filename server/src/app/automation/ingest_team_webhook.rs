@@ -11,7 +11,8 @@ use crate::domain::event::AutomationRuleResult;
 use crate::domain::event::DomainEvent;
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EventPublisher, IncidentRepo,
-    Notifier, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookParser, WebhookVerifier,
+    Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookParser,
+    WebhookVerifier,
 };
 
 use super::reaction_executor::AutomationReactionExecutor;
@@ -40,6 +41,7 @@ pub struct TeamWebhookDependencies {
     pub rules: Arc<dyn AutomationRuleRepo>,
     pub runs: Arc<dyn AutomationRunRepo>,
     pub incidents: Arc<dyn IncidentRepo>,
+    pub releases: Arc<dyn ReleaseRepo>,
     pub notifier: Arc<dyn Notifier>,
     pub events: Arc<dyn EventPublisher>,
 }
@@ -136,7 +138,9 @@ impl IngestTeamWebhookUseCase {
             self.dependencies.connections.clone(),
             self.dependencies.credentials.clone(),
             self.dependencies.incidents.clone(),
+            self.dependencies.releases.clone(),
             self.dependencies.notifier.clone(),
+            self.dependencies.events.clone(),
         );
         for rule in matching_rules {
             let mut run = AutomationRun::new(delivery.id, rule.id);
@@ -231,7 +235,7 @@ impl IngestTeamWebhookUseCase {
     }
 }
 
-fn trigger_matches(rule: &AutomationRule, event: &ExternalEvent) -> bool {
+pub(crate) fn trigger_matches(rule: &AutomationRule, event: &ExternalEvent) -> bool {
     let Some(filters) = rule.trigger_config.as_object() else {
         return false;
     };

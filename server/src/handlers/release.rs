@@ -13,6 +13,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::app::automation::{
+    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationUseCase,
+    InternalAutomationDependencies,
+};
 use crate::app::release::{
     CancelReleaseCommand, CancelReleaseUseCase, CreateReleaseCommand, CreateReleaseUseCase,
     GetReleaseCommand, GetReleaseUseCase, LinkIncidentCommand, LinkIncidentUseCase,
@@ -176,6 +180,24 @@ pub async fn create_release(
             requester_id: session.user_id,
         })
         .await?;
+    let release_event = release_created_event(&detail.release);
+    DispatchInternalAutomationUseCase::new(InternalAutomationDependencies {
+        connections: state.service_connections.clone(),
+        credentials: state.connection_credentials.clone(),
+        deliveries: state.webhook_deliveries.clone(),
+        rules: state.automation_rules.clone(),
+        runs: state.automation_runs.clone(),
+        incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
+        notifier: state.notifier.clone(),
+        events: state.events.clone(),
+    })
+    .dispatch(DispatchInternalAutomationCommand {
+        team_id: detail.release.team_id,
+        delivery_id: format!("release:{}:created", detail.release.id),
+        event: release_event,
+    })
+    .await?;
     Ok((StatusCode::CREATED, Json(detail.into())))
 }
 

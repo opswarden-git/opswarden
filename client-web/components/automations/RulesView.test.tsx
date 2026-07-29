@@ -65,7 +65,15 @@ const catalog: AutomationService[] = [
     name: "vigil",
     label: "OpsWarden",
     connection: null,
-    actions: [],
+    actions: [
+      {
+        name: "release_created",
+        label: "Release created",
+        description: "A release was created",
+        connection_service: "vigil",
+        fields: [],
+      },
+    ],
     reactions: [
       {
         name: "create_incident",
@@ -106,6 +114,14 @@ const connection: TeamConnection = {
   last_delivery_at: null,
   last_error_code: null,
   webhook_path: "/webhooks/github/connection-github",
+};
+
+const vigilConnection: TeamConnection = {
+  ...connection,
+  id: "connection-vigil",
+  service: "vigil",
+  secret_configured: false,
+  webhook_path: null,
 };
 
 const rule: AutomationRule = {
@@ -166,6 +182,40 @@ describe("RulesView", () => {
         reaction_connection_id: null,
         reaction_config: { severity: "critical" },
       },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("creates a rule from the credential-free internal VIGIL connection", () => {
+    render(
+      <RulesView
+        catalog={catalog}
+        connections={[connection, vigilConnection]}
+        rules={[]}
+        teamId="team-1"
+        isCreatingRule
+        setIsCreatingRule={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("ruleName"), {
+      target: { value: "Release opens incident" },
+    });
+    fireEvent.change(screen.getByLabelText("event"), {
+      target: { value: "release_created" },
+    });
+    fireEvent.change(screen.getByLabelText("sourceConnection"), {
+      target: { value: vigilConnection.id },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "createRule" }));
+
+    expect(createMutation.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Release opens incident",
+        trigger_connection_id: vigilConnection.id,
+        trigger_kind: "release_created",
+        reaction_kind: "create_incident",
+      }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });

@@ -139,6 +139,27 @@ const PULL_REQUEST_FILTERS: &[CatalogField] = &[
     },
 ];
 
+const RELEASE_FILTERS: &[CatalogField] = &[
+    CatalogField {
+        name: "release_id",
+        label: "Release ID",
+        description: "Only match this Release",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "release_title",
+        label: "Release title",
+        description: "Only match this exact Release title",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
 const GITHUB_ACTIONS: &[CatalogCapability] = &[
     CatalogCapability {
         kind: "ci_failed",
@@ -194,6 +215,14 @@ const GITLAB_ACTIONS: &[CatalogCapability] = &[
     },
 ];
 
+const VIGIL_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
+    kind: "release_created",
+    label: "Release created",
+    description: "A Release was created in the Team",
+    connection_service: Some("vigil"),
+    fields: RELEASE_FILTERS,
+}];
+
 const INCIDENT_FIELDS: &[CatalogField] = &[
     CatalogField {
         name: "severity",
@@ -215,13 +244,97 @@ const INCIDENT_FIELDS: &[CatalogField] = &[
     },
 ];
 
-const VIGIL_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
-    kind: "vigil_create_incident",
-    label: "Create incident",
-    description: "Open an incident in the Team that owns the automation rule",
-    connection_service: None,
-    fields: INCIDENT_FIELDS,
+const RELEASE_STEP_REACTION_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "release_id",
+        label: "Release ID",
+        description: "Release UUID or {{release_id}} from the triggering event",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "step",
+        label: "Step",
+        description: "Exact next step name or an event template",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
+const BLOCK_RELEASE_REACTION_FIELDS: &[CatalogField] = &[
+    CatalogField {
+        name: "release_id",
+        label: "Release ID",
+        description: "Release UUID or {{release_id}} from the triggering event",
+        input_type: "text",
+        required: true,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+    CatalogField {
+        name: "severity",
+        label: "Blocker severity",
+        description: "Severity assigned to the blocking Incident",
+        input_type: "select",
+        required: true,
+        default_value: Some("high"),
+        options: SEVERITY_OPTIONS,
+    },
+    CatalogField {
+        name: "title",
+        label: "Blocker title",
+        description: "Optional Incident title template",
+        input_type: "text",
+        required: false,
+        default_value: None,
+        options: NO_OPTIONS,
+    },
+];
+
+const ESCALATE_INCIDENT_REACTION_FIELDS: &[CatalogField] = &[CatalogField {
+    name: "incident_id",
+    label: "Incident ID",
+    description: "Acknowledged Incident UUID or {{incident_id}} from the event",
+    input_type: "text",
+    required: true,
+    default_value: None,
+    options: NO_OPTIONS,
 }];
+
+const VIGIL_REACTIONS: &[CatalogCapability] = &[
+    CatalogCapability {
+        kind: "vigil_create_incident",
+        label: "Create incident",
+        description: "Open an incident in the Team that owns the automation rule",
+        connection_service: None,
+        fields: INCIDENT_FIELDS,
+    },
+    CatalogCapability {
+        kind: "vigil_validate_release_step",
+        label: "Validate Release step",
+        description: "Validate the next sequential step of a Release",
+        connection_service: None,
+        fields: RELEASE_STEP_REACTION_FIELDS,
+    },
+    CatalogCapability {
+        kind: "vigil_block_release",
+        label: "Block Release",
+        description: "Create and link an active blocker Incident to an in-progress Release",
+        connection_service: None,
+        fields: BLOCK_RELEASE_REACTION_FIELDS,
+    },
+    CatalogCapability {
+        kind: "vigil_escalate_incident",
+        label: "Escalate Incident",
+        description: "Escalate an acknowledged Incident while preserving its lifecycle",
+        connection_service: None,
+        fields: ESCALATE_INCIDENT_REACTION_FIELDS,
+    },
+];
 
 const HTTP_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "http_notify",
@@ -311,7 +424,7 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
     AutomationServiceDefinition {
         service: "vigil",
         label: "VIGIL",
-        actions: &[],
+        actions: VIGIL_ACTIONS,
         reactions: VIGIL_REACTIONS,
         connection: None,
     },
@@ -362,6 +475,7 @@ mod tests {
         assert!(supports_action("gitlab", "ci_failed"));
         assert!(supports_action("gitlab", "ci_succeeded"));
         assert!(supports_action("gitlab", "tag_pushed"));
+        assert!(supports_action("vigil", "release_created"));
         assert!(!supports_action("http", "ci_failed"));
         assert_eq!(
             reaction("vigil_create_incident")
@@ -378,5 +492,14 @@ mod tests {
             "webhook_signing_secret"
         );
         assert_eq!(reaction("vigil_create_incident").unwrap().fields.len(), 2);
+        assert_eq!(
+            reaction("vigil_validate_release_step")
+                .unwrap()
+                .fields
+                .len(),
+            2
+        );
+        assert_eq!(reaction("vigil_block_release").unwrap().fields.len(), 3);
+        assert_eq!(reaction("vigil_escalate_incident").unwrap().fields.len(), 1);
     }
 }

@@ -97,7 +97,13 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["connection"]["oauth"].is_null()
     }));
     assert!(services.iter().any(|service| {
-        service["name"] == "vigil" && service["reactions"][0]["name"] == "vigil_create_incident"
+        service["name"] == "vigil"
+            && service["actions"][0]["name"] == "release_created"
+            && service["actions"][0]["connection_service"] == "vigil"
+            && service["reactions"][0]["name"] == "vigil_create_incident"
+            && service["reactions"][1]["name"] == "vigil_validate_release_step"
+            && service["reactions"][2]["name"] == "vigil_block_release"
+            && service["reactions"][3]["name"] == "vigil_escalate_incident"
     }));
     assert!(services.iter().any(|service| {
         service["name"] == "http"
@@ -156,6 +162,13 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
         .iter()
         .find(|service| service["name"] == "vigil")
         .unwrap();
+    assert_eq!(vigil["actions"][0]["label"], "Release créée");
+    assert_eq!(
+        vigil["reactions"][1]["label"],
+        "Valider une étape de Release"
+    );
+    assert_eq!(vigil["reactions"][2]["label"], "Bloquer une Release");
+    assert_eq!(vigil["reactions"][3]["label"], "Escalader un Incident");
     assert_eq!(
         vigil["reactions"][0]["fields"][0]["options"][3],
         serde_json::json!({"value": "critical", "label": "Critique"})

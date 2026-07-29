@@ -9,9 +9,14 @@ use crate::domain::automation_template::{
     interpolate, MAX_INTERPOLATED_PAYLOAD_BYTES, MAX_INTERPOLATED_TITLE_BYTES,
 };
 use crate::domain::error::DomainError;
+use crate::domain::event::DomainEvent;
 use crate::domain::incident::{Incident, Severity};
 use crate::domain::incident_event::IncidentEvent;
-use crate::ports::{ConnectionCredentialVault, IncidentRepo, Notifier, ServiceConnectionRepo};
+use crate::domain::release::ReleaseState;
+use crate::ports::{
+    ConnectionCredentialVault, EventPublisher, IncidentRepo, Notifier, ReleaseRepo,
+    ServiceConnectionRepo,
+};
 
 const HTTP_SERVICE: &str = "http";
 const MAX_NOTIFICATION_TEXT_BYTES: usize = 1024;
@@ -20,7 +25,9 @@ pub struct AutomationReactionExecutor {
     connections: Arc<dyn ServiceConnectionRepo>,
     credentials: Arc<dyn ConnectionCredentialVault>,
     incidents: Arc<dyn IncidentRepo>,
+    releases: Arc<dyn ReleaseRepo>,
     notifier: Arc<dyn Notifier>,
+    events: Arc<dyn EventPublisher>,
 }
 
 impl AutomationReactionExecutor {
@@ -28,13 +35,17 @@ impl AutomationReactionExecutor {
         connections: Arc<dyn ServiceConnectionRepo>,
         credentials: Arc<dyn ConnectionCredentialVault>,
         incidents: Arc<dyn IncidentRepo>,
+        releases: Arc<dyn ReleaseRepo>,
         notifier: Arc<dyn Notifier>,
+        events: Arc<dyn EventPublisher>,
     ) -> Self {
         Self {
             connections,
             credentials,
             incidents,
+            releases,
             notifier,
+            events,
         }
     }
 
@@ -46,9 +57,146 @@ impl AutomationReactionExecutor {
     ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         match rule.reaction_kind.as_str() {
             "vigil_create_incident" => self.create_incident(team_id, rule, event).await,
+            "vigil_validate_release_step" => self.validate_release_step(team_id, rule, event).await,
+            "vigil_block_release" => self.block_release(team_id, rule, event).await,
+            "vigil_escalate_incident" => self.escalate_incident(team_id, rule, event).await,
             "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
             _ => Err(DomainError::InvalidAutomationRule),
         }
+    }
+
+    async fn validate_release_step(
+        &self,
+        team_id: Uuid,
+        rule: &AutomationRule,
+        event: &ExternalEvent,
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
+        let release_id = configured_uuid(&rule.reaction_config, "release_id", event)?;
+        let step = configured_required_text(&rule.reaction_config, "step", event)?;
+        let actor = rule.created_by.ok_or(DomainError::InvalidAutomationRule)?;
+        let mut release = self
+            .releases
+            .find_release_by_id(release_id)
+            .await?
+            .filter(|release| release.team_id == team_id)
+            .ok_or(DomainError::ReleaseNotFound)?;
+        let has_active = self
+            .releases
+            .count_active_linked_incidents(release.id)
+            .await?
+            > 0;
+        let old_state = release.effective_state(has_active);
+        release.validate_step(&step, actor, has_active)?;
+        self.releases.update_release(&release).await?;
+        self.events
+            .publish(DomainEvent::ReleaseStepValidated {
+                team_id,
+                release_id,
+                step,
+                by: actor,
+            })
+            .await;
+        let new_state = release.effective_state(has_active);
+        if new_state != old_state {
+            self.events
+                .publish(DomainEvent::ReleaseStateChanged {
+                    team_id,
+                    release_id,
+                    new_state,
+                })
+                .await;
+        }
+        Ok(None)
+    }
+
+    async fn block_release(
+        &self,
+        team_id: Uuid,
+        rule: &AutomationRule,
+        event: &ExternalEvent,
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
+        let release_id = configured_uuid(&rule.reaction_config, "release_id", event)?;
+        let release = self
+            .releases
+            .find_release_by_id(release_id)
+            .await?
+            .filter(|release| release.team_id == team_id)
+            .ok_or(DomainError::ReleaseNotFound)?;
+        let has_active = self
+            .releases
+            .count_active_linked_incidents(release.id)
+            .await?
+            > 0;
+        let old_state = release.effective_state(has_active);
+        if release.base_state != ReleaseState::InProgress {
+            return Err(DomainError::InvalidReleaseTransition);
+        }
+        if old_state == ReleaseState::Blocked {
+            return Err(DomainError::ReleaseBlocked);
+        }
+
+        let severity = configured_severity(&rule.reaction_config)?;
+        let title = configured_title(&rule.reaction_config, event)?
+            .unwrap_or_else(|| format!("Automation blocked {}", release.title));
+        let incident =
+            Incident::new_with_description(team_id, title, incident_description(event), severity)?;
+        let created = IncidentEvent::created(&incident, None);
+        self.incidents
+            .save_incident_with_event(&incident, &created)
+            .await?;
+        self.releases.link_incident(release.id, incident.id).await?;
+        let new_state = release.effective_state(true);
+        if new_state != old_state {
+            self.events
+                .publish(DomainEvent::ReleaseStateChanged {
+                    team_id,
+                    release_id,
+                    new_state,
+                })
+                .await;
+        }
+        Ok(Some((incident.id, incident.severity)))
+    }
+
+    async fn escalate_incident(
+        &self,
+        team_id: Uuid,
+        rule: &AutomationRule,
+        event: &ExternalEvent,
+    ) -> Result<Option<(Uuid, Severity)>, DomainError> {
+        let incident_id = configured_uuid(&rule.reaction_config, "incident_id", event)?;
+        let actor = rule.created_by.ok_or(DomainError::InvalidAutomationRule)?;
+        let mut incident = self
+            .incidents
+            .find_incident_by_id(incident_id)
+            .await?
+            .filter(|incident| incident.team_id == team_id)
+            .ok_or(DomainError::IncidentNotFound)?;
+        let previous = incident.status;
+        if incident.escalate()? {
+            let audit =
+                IncidentEvent::status_changed(incident.id, actor, previous, incident.status);
+            self.incidents
+                .update_incident_with_event(&incident, &audit)
+                .await?;
+            self.events
+                .publish(DomainEvent::IncidentStateChanged {
+                    team_id,
+                    incident_id,
+                    new_status: incident.status,
+                    by: actor,
+                })
+                .await;
+            self.events
+                .publish(DomainEvent::IncidentEscalated {
+                    team_id,
+                    incident_id,
+                    new_severity: incident.severity,
+                    by: actor,
+                })
+                .await;
+        }
+        Ok(None)
     }
 
     async fn create_incident(
@@ -133,6 +281,25 @@ fn configured_message(
     interpolate_config_field(config, "message", event, MAX_INTERPOLATED_PAYLOAD_BYTES)
 }
 
+fn configured_required_text(
+    config: &Value,
+    field: &str,
+    event: &ExternalEvent,
+) -> Result<String, DomainError> {
+    interpolate_config_field(config, field, event, MAX_INTERPOLATED_PAYLOAD_BYTES)?
+        .ok_or(DomainError::InvalidAutomationRule)
+}
+
+fn configured_uuid(
+    config: &Value,
+    field: &str,
+    event: &ExternalEvent,
+) -> Result<Uuid, DomainError> {
+    configured_required_text(config, field, event)?
+        .parse()
+        .map_err(|_| DomainError::InvalidAutomationRule)
+}
+
 fn interpolate_config_field(
     config: &Value,
     field: &str,
@@ -157,7 +324,7 @@ fn attribute<'a>(event: &'a ExternalEvent, name: &str) -> Option<&'a str> {
 }
 
 fn default_incident_title(event: &ExternalEvent) -> String {
-    let repository = attribute(event, "repository").unwrap_or("GitHub");
+    let repository = attribute(event, "repository").unwrap_or("VIGIL");
     match event.kind.as_str() {
         "ci_failed" => {
             let workflow = attribute(event, "workflow").unwrap_or("CI");
@@ -176,6 +343,10 @@ fn default_incident_title(event: &ExternalEvent) -> String {
                 .map(|number| format!(" #{number}"))
                 .unwrap_or_default();
             format!("Pull request{number} merged on {repository}")
+        }
+        "release_created" => {
+            let title = attribute(event, "release_title").unwrap_or("Release");
+            format!("Release {title} created")
         }
         _ => format!("Automation event on {repository}"),
     }
@@ -209,6 +380,10 @@ fn event_lines(event: &ExternalEvent) -> Vec<String> {
         ("Source branch", attribute(event, "source_branch")),
         ("Actor", attribute(event, "actor")),
         ("Event", attribute(event, "event_url")),
+        ("Release", attribute(event, "release_id")),
+        ("Release title", attribute(event, "release_title")),
+        ("Release state", attribute(event, "release_state")),
+        ("Incident", attribute(event, "incident_id")),
     ]
     .into_iter()
     .filter_map(|(label, value)| value.map(|value| format!("{label}: {value}")))
