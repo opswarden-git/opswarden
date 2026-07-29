@@ -275,6 +275,12 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("generic_event", false, _) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
+        ("daily_at", true, _) => "Tous les jours à une heure locale",
+        ("daily_at", false, _) => {
+            "Exécuter une fois par jour calendaire local à l’heure configurée"
+        }
+        ("every_minutes", true, _) => "Toutes les N minutes",
+        ("every_minutes", false, _) => "Exécuter selon un intervalle borné en minutes écoulées",
         ("create_incident", true, _) => "Créer un incident",
         ("create_incident", false, _) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
@@ -386,6 +392,12 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         }
         ("message", true) => "Message",
         ("message", false) => "Template utilisant les variables normalisées de l’événement",
+        ("time", true) => "Heure locale",
+        ("time", false) => "Heure stricte sur 24 heures au format HH:MM",
+        ("timezone", true) => "Fuseau horaire",
+        ("timezone", false) => "Fuseau IANA tel que Europe/Paris ou UTC",
+        ("minutes", true) => "Intervalle en minutes",
+        ("minutes", false) => "Durée entre deux exécutions, de 5 à 1 440 minutes",
         ("webhook_signing_secret", true) => "Secret de signature du webhook",
         ("webhook_signing_secret", false) => {
             "Obligatoire à la première connexion ; laisser vide ensuite pour le conserver"

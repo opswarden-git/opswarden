@@ -4,6 +4,7 @@ use crate::domain::automation::ExternalEvent;
 use crate::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,
 };
+use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::Incident;
@@ -275,7 +276,9 @@ pub trait TokenRevocationRepo: Send + Sync {
     async fn revoke(&self, token: &str, expires_at: DateTime<Utc>) -> Result<(), DomainError>;
     async fn is_revoked(&self, token: &str) -> Result<bool, DomainError>;
 }
-pub trait Clock: Send + Sync {}
+pub trait Clock: Send + Sync {
+    fn now(&self) -> DateTime<Utc>;
+}
 
 // --- Phase 2: automation & secrets -----------------------------------------
 
@@ -373,6 +376,62 @@ pub trait AutomationRuleRepo: Send + Sync {
         trigger_kind: &str,
     ) -> Result<Vec<AutomationRule>, DomainError>;
     async fn delete_rule(&self, team_id: Uuid, rule_id: Uuid) -> Result<bool, DomainError>;
+    async fn next_run_at(
+        &self,
+        _team_id: Uuid,
+        _rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError> {
+        Ok(None)
+    }
+}
+
+/// Durable Timer projection and cross-replica occurrence claims.
+#[async_trait]
+pub trait AutomationTimerRepo: Send + Sync {
+    /// Insert or replace the projection only when the referenced rule is an
+    /// enabled Timer rule with the same source revision.
+    async fn upsert_schedule(
+        &self,
+        rule_id: Uuid,
+        schedule: &TimerSchedule,
+        next_run_at: DateTime<Utc>,
+        rule_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError>;
+
+    async fn delete_schedule(&self, rule_id: Uuid) -> Result<bool, DomainError>;
+
+    /// Claim at most one due occurrence. Implementations must persist the
+    /// delivery, occurrence key and next-run advancement atomically.
+    async fn claim_due(
+        &self,
+        now: DateTime<Utc>,
+    ) -> Result<Option<ClaimedTimerOccurrence>, DomainError>;
+
+    /// Recheck the rule revision and atomically turn a claim into a running
+    /// automation run. Returns false when a disable/edit won the race.
+    async fn start_execution(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        run: &AutomationRun,
+    ) -> Result<bool, DomainError>;
+
+    async fn list_unstarted_claims(
+        &self,
+        claimed_before: DateTime<Utc>,
+        limit: u32,
+    ) -> Result<Vec<ClaimedTimerOccurrence>, DomainError>;
+
+    async fn abandon_claim(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        finished_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError>;
+
+    async fn finalize_stale_runs(
+        &self,
+        started_before: DateTime<Utc>,
+        finished_at: DateTime<Utc>,
+    ) -> Result<u64, DomainError>;
 }
 
 /// Idempotency ledger for inbound provider deliveries.

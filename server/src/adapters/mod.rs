@@ -1,5 +1,6 @@
 // --- server/src/adapters/mod.rs ---
 
+pub mod clock;
 pub mod crypto;
 pub mod giphy;
 pub mod notify;

@@ -26,6 +26,9 @@ pub struct Config {
     /// exposed to the client). `None` => the search endpoint reports
     /// `giphy_not_configured`.
     pub giphy_api_key: Option<String>,
+    /// Poll cadence for the durable Timer worker. Claims remain coordinated by
+    /// PostgreSQL; this only controls how quickly a replica looks for work.
+    pub timer_poll_seconds: u64,
 }
 
 impl Config {
@@ -80,6 +83,10 @@ impl Config {
             .filter(|hops| *hops <= 16)
             .unwrap_or(0);
         let giphy_api_key = optional_env("GIPHY_API_KEY");
+        let timer_poll_seconds = optional_env("OPSWARDEN_TIMER_POLL_SECONDS")
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|seconds| (5..=60).contains(seconds))
+            .unwrap_or(15);
 
         Self {
             kickoff_token_secret,
@@ -94,6 +101,7 @@ impl Config {
             web_origin,
             trusted_proxy_hops,
             giphy_api_key,
+            timer_poll_seconds,
         }
     }
 

@@ -33,16 +33,32 @@ import {
 } from "@/components/ui/OperationalTable";
 import { AutomationDialog } from "./AutomationDialog";
 
-type CapabilityWithService = CatalogCapability & { service: string };
+type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
 
 function capabilities(catalog: AutomationService[], type: "actions" | "reactions") {
   return catalog.flatMap((service) =>
-    service[type].map((capability) => ({ ...capability, service: service.name })),
+    service[type].map((capability) => ({
+      ...capability,
+      service: service.name,
+      builtIn: service.connection === null,
+    })),
   );
 }
 
 function capabilityLabel(options: CapabilityWithService[], name: string, fallback: string) {
   return options.find((option) => option.name === name)?.label ?? fallback;
+}
+
+function nextRunLabel(rule: AutomationRule, locale: string, disabledLabel: string) {
+  if (!rule.enabled) return disabledLabel;
+  if (!rule.next_run_at) return "—";
+  const timezone =
+    typeof rule.trigger_config.timezone === "string" ? rule.trigger_config.timezone : undefined;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: timezone,
+  }).format(new Date(rule.next_run_at));
 }
 
 function RuleForm({
@@ -89,8 +105,8 @@ function RuleForm({
   const triggerConnections = connections.filter(
     (connection) => connection.service === selectedAction?.connection_service,
   );
-  const isNativeAction = selectedAction?.service === "opswarden";
-  const effectiveTriggerConnectionId = isNativeAction
+  const isBuiltInAction = selectedAction?.builtIn === true;
+  const effectiveTriggerConnectionId = isBuiltInAction
     ? (triggerConnections[0]?.id ?? "")
     : triggerConnectionId;
   const reactionConnections = selectedReaction?.connection_service
@@ -208,7 +224,7 @@ function RuleForm({
               ))}
             </select>
           </label>
-          {!isNativeAction ? (
+          {!isBuiltInAction ? (
             <label className="text-text block text-sm font-medium">
               <span>{t("sourceConnection")}</span>
               <select
@@ -259,6 +275,10 @@ function RuleForm({
                     ) : (
                       <input
                         type={field.input_type}
+                        min={field.name === "minutes" ? 5 : undefined}
+                        max={field.name === "minutes" ? 1440 : undefined}
+                        step={field.name === "minutes" ? 1 : undefined}
+                        list={field.name === "timezone" ? "opswarden-timezones" : undefined}
                         value={triggerConfig[field.name] ?? ""}
                         onChange={(event) =>
                           setTriggerConfig((current) => ({
@@ -270,6 +290,12 @@ function RuleForm({
                         required={field.required}
                       />
                     )}
+                    {field.name === "timezone" ? (
+                      <datalist id="opswarden-timezones">
+                        <option value="Europe/Paris" />
+                        <option value="UTC" />
+                      </datalist>
+                    ) : null}
                     <span className="mt-1 block font-normal">{field.description}</span>
                   </label>
                 ))}
@@ -431,9 +457,11 @@ export function RulesView({
         <OperationalTable label={t("rulesList")}>
           <OperationalTableHead>
             <tr>
-              {["colRule", "colAction", "colReaction", "colStatus", "colUpdated"].map((column) => (
-                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
-              ))}
+              {["colRule", "colAction", "colReaction", "colStatus", "colNextRun", "colUpdated"].map(
+                (column) => (
+                  <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
+                ),
+              )}
               <th className="px-5 py-3.5">
                 <span className="sr-only">{t("actionsMenu")}</span>
               </th>
@@ -455,6 +483,9 @@ export function RulesView({
                   <span className={rule.enabled ? "text-st-res" : "text-muted"}>
                     {rule.enabled ? t("enabled") : t("disabled")}
                   </span>
+                </OperationalTableCell>
+                <OperationalTableCell className="text-muted whitespace-nowrap">
+                  {nextRunLabel(rule, locale, t("disabled"))}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted whitespace-nowrap">
                   {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
@@ -552,6 +583,12 @@ export function RulesView({
                     <span className="text-muted shrink-0 text-xs uppercase">{t("colAction")}</span>
                     <span className="text-text truncate text-right">
                       {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted shrink-0 text-xs uppercase">{t("colNextRun")}</span>
+                    <span className="text-text text-right">
+                      {nextRunLabel(rule, locale, t("disabled"))}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">

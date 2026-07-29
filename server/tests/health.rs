@@ -76,7 +76,7 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     );
 
     let services = json["server"]["services"].as_array().unwrap();
-    assert_eq!(services.len(), 5);
+    assert_eq!(services.len(), 6);
     assert!(services.iter().any(|service| {
         service["name"] == "github"
             && service["actions"][0]["name"] == "ci_failed"
@@ -111,6 +111,14 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["reactions"][1]["name"] == "validate_release_step"
             && service["reactions"][2]["name"] == "block_release"
             && service["reactions"][3]["name"] == "escalate_incident"
+    }));
+    assert!(services.iter().any(|service| {
+        service["name"] == "timer"
+            && service["actions"][0]["name"] == "daily_at"
+            && service["actions"][0]["fields"][0]["input_type"] == "time"
+            && service["actions"][1]["name"] == "every_minutes"
+            && service["actions"][1]["fields"][0]["input_type"] == "number"
+            && service["connection"].is_null()
     }));
     assert!(services.iter().any(|service| {
         service["name"] == "http"
@@ -185,6 +193,15 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
     );
     assert_eq!(opswarden["reactions"][2]["label"], "Bloquer une Release");
     assert_eq!(opswarden["reactions"][3]["label"], "Escalader un Incident");
+    let timer = services
+        .iter()
+        .find(|service| service["name"] == "timer")
+        .unwrap();
+    assert_eq!(
+        timer["actions"][0]["label"],
+        "Tous les jours à une heure locale"
+    );
+    assert_eq!(timer["actions"][1]["label"], "Toutes les N minutes");
     assert_eq!(
         opswarden["reactions"][0]["fields"][0]["options"][3],
         serde_json::json!({"value": "critical", "label": "Critique"})

@@ -8,6 +8,7 @@ pub mod team_connection;
 pub mod team_connection_oauth;
 pub mod team_rule;
 pub mod team_run;
+pub mod timer_worker;
 
 pub use dispatch_internal_event::{
     release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationResult,
@@ -33,3 +34,6 @@ pub use team_rule::{
     UpdateTeamRuleCommand,
 };
 pub use team_run::{ListTeamRunsCommand, TeamRunUseCase};
+pub use timer_worker::{
+    TimerReconcileResult, TimerTickResult, TimerWorker, TimerWorkerDependencies,
+};

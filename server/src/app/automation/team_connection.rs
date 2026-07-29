@@ -295,6 +295,14 @@ impl TeamConnectionUseCase {
 
     pub async fn delete(&self, cmd: DeleteTeamConnectionCommand) -> Result<(), DomainError> {
         require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
+        let connection = self
+            .connections
+            .find_connection_for_team(cmd.team_id, cmd.connection_id)
+            .await?
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        if matches!(connection.service.as_str(), "opswarden" | "timer") {
+            return Err(DomainError::InvalidServiceConnection);
+        }
         if !self
             .connections
             .delete_connection(cmd.team_id, cmd.connection_id)

@@ -14,7 +14,7 @@ export interface CatalogField {
   name: string;
   label: string;
   description: string;
-  input_type: "text" | "password" | "url" | "select";
+  input_type: "text" | "password" | "url" | "select" | "time" | "number";
   required: boolean;
   default_value: string | null;
   options: { value: string; label: string }[];
@@ -73,6 +73,7 @@ export interface AutomationRule extends AutomationRuleDefinition {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  next_run_at: string | null;
 }
 
 export interface AutomationRun {

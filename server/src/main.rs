@@ -2,6 +2,7 @@
 
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::{trace as sdktrace, Resource};
+use opswarden_server::adapters::clock::SystemClock;
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
@@ -15,6 +16,7 @@ use opswarden_server::adapters::pg::automation::rule::PgAutomationRuleRepo;
 use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
+use opswarden_server::adapters::pg::automation::timer::PgAutomationTimerRepo;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::private_message::PgPrivateMessageRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
@@ -24,6 +26,7 @@ use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::adapters::webhook::CompositeWebhookParser;
 use opswarden_server::adapters::ws::WsHub;
+use opswarden_server::app::automation::{TimerWorker, TimerWorkerDependencies};
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
 use tower_http::trace::TraceLayer;
@@ -35,9 +38,6 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 const DATABASE_CONNECT_ATTEMPTS: usize = 30;
 const DATABASE_CONNECT_RETRY_DELAY: Duration = Duration::from_secs(2);
-
-struct DummyClock;
-impl Clock for DummyClock {}
 
 #[tokio::main]
 async fn main() {
@@ -109,7 +109,7 @@ async fn main() {
         )),
         token_revocations: Arc::new(PgTokenRevocationRepo::new(pool.clone())),
         events: Arc::new(WsHub::new()),
-        clock: Arc::new(DummyClock),
+        clock: Arc::new(SystemClock),
         webhook_verifier: Arc::new(HmacSha256Verifier),
         webhook_parser: Arc::new(CompositeWebhookParser::new()),
         service_connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
@@ -128,6 +128,21 @@ async fn main() {
         config,
     };
 
+    let timer_poll = Duration::from_secs(state.config.timer_poll_seconds);
+    let timer_clock = state.clock.clone();
+    let timer_worker = Arc::new(TimerWorker::new(TimerWorkerDependencies {
+        timers: Arc::new(PgAutomationTimerRepo::new(pool.clone())),
+        connections: state.service_connections.clone(),
+        credentials: state.connection_credentials.clone(),
+        deliveries: state.webhook_deliveries.clone(),
+        rules: state.automation_rules.clone(),
+        runs: state.automation_runs.clone(),
+        incidents: state.incidents.clone(),
+        releases: state.releases.clone(),
+        notifier: state.notifier.clone(),
+        events: state.events.clone(),
+    }));
+
     let app = build_app(state).layer(TraceLayer::new_for_http());
 
     let addr = "0.0.0.0:8080";
@@ -135,12 +150,87 @@ async fn main() {
         .await
         .expect("failed to bind address");
     println!("OpsWarden server listening on {addr}");
-    axum::serve(
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let timer_task = tokio::spawn(run_timer_worker(
+        timer_worker,
+        timer_clock,
+        timer_poll,
+        shutdown_rx,
+    ));
+    let server_result = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await
-    .expect("server error");
+    .with_graceful_shutdown(shutdown_signal())
+    .await;
+    let _ = shutdown_tx.send(true);
+    let _ = timer_task.await;
+    server_result.expect("server error");
+}
+
+async fn run_timer_worker(
+    worker: Arc<TimerWorker>,
+    clock: Arc<dyn Clock + Send + Sync>,
+    poll_interval: Duration,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+) {
+    let mut interval = tokio::time::interval(poll_interval);
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                let now = clock.now();
+                if let Err(error) = worker.reconcile(now).await {
+                    tracing::error!(
+                        error_code = error.code(),
+                        "timer reconciliation failed"
+                    );
+                }
+                match worker.tick(now).await {
+                    Ok(result) if result.claimed > 0 => tracing::info!(
+                        claimed = result.claimed,
+                        succeeded = result.succeeded,
+                        failed = result.failed,
+                        skipped = result.skipped,
+                        "timer tick completed"
+                    ),
+                    Ok(_) => {}
+                    Err(error) => tracing::error!(
+                        error_code = error.code(),
+                        "timer tick failed"
+                    ),
+                }
+            }
+            changed = shutdown.changed() => {
+                if changed.is_err() || *shutdown.borrow() {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
 
 async fn connect_database(database_url: &str) -> PgPool {
