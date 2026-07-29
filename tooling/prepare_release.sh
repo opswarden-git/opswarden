@@ -110,7 +110,9 @@ mv package-lock.json.tmp package-lock.json
 
 git add -A
 git commit --quiet --message "Release v$version"
-git tag "v$version"
+# Annotated, not lightweight: `git push --follow-tags` silently skips lightweight
+# tags, so the release would never trigger and the push would look like it worked.
+git tag --annotate "v$version" --message "Release v$version"
 
 echo
 echo ">> Release v$version prepared on main."
