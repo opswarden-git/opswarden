@@ -81,7 +81,7 @@ if [[ -z "$demo_rule_id" ]]; then
       trigger_connection_id: $connection,
       trigger_kind: "ci_failed",
       trigger_config: {},
-      reaction_kind: "vigil_create_incident",
+      reaction_kind: "create_incident",
       reaction_connection_id: null,
       reaction_config: {severity: "high"}
     }')")

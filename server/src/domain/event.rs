@@ -61,7 +61,7 @@ pub enum DomainEvent {
         author: Uuid,
         at: DateTime<Utc>,
     },
-    /// A timeline entry's content was edited (RTC 2). `edited_at` is the new stamp.
+    /// A timeline entry's content was edited. `edited_at` is the new stamp.
     TimelineEntryEdited {
         team_id: Uuid,
         incident_id: Uuid,
@@ -69,7 +69,7 @@ pub enum DomainEvent {
         content: String,
         edited_at: DateTime<Utc>,
     },
-    /// A user added an emoji reaction to a timeline entry (RTC 2).
+    /// A user added an emoji reaction to a timeline entry.
     ReactionAdded {
         team_id: Uuid,
         incident_id: Uuid,
@@ -77,7 +77,7 @@ pub enum DomainEvent {
         emoji: String,
         user_id: Uuid,
     },
-    /// A user removed an emoji reaction from a timeline entry (RTC 2).
+    /// A user removed an emoji reaction from a timeline entry.
     ReactionRemoved {
         team_id: Uuid,
         incident_id: Uuid,
@@ -121,7 +121,7 @@ pub enum DomainEvent {
         until: Option<DateTime<Utc>>,
         by: Uuid,
     },
-    /// A private message was sent (RTC 2). Unlike every other event this is *not*
+    /// A private message was sent. Unlike every other event this is *not*
     /// team-scoped: it must reach exactly the two participants (sender +
     /// recipient), never a whole team. See `delivery`.
     PrivateMessageReceived {
@@ -131,14 +131,14 @@ pub enum DomainEvent {
         content: String,
         at: DateTime<Utc>,
     },
-    /// A release step was validated (VIGIL Phase 1). Team-scoped.
+    /// A release step was validated. Team-scoped.
     ReleaseStepValidated {
         team_id: Uuid,
         release_id: Uuid,
         step: String,
         by: Uuid,
     },
-    /// A release's *effective* state changed (VIGIL Phase 1) — including the
+    /// A release's *effective* state changed — including the
     /// derived `blocked`/auto-unblock transitions driven by linked incidents.
     /// Team-scoped.
     ReleaseStateChanged {

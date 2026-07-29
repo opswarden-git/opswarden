@@ -16,7 +16,7 @@ use crate::ports::{
 use super::ingest_team_webhook::trigger_matches;
 use super::AutomationReactionExecutor;
 
-pub const VIGIL_SERVICE: &str = "vigil";
+pub const OPSWARDEN_SERVICE: &str = "opswarden";
 
 pub struct DispatchInternalAutomationCommand {
     pub team_id: Uuid,
@@ -56,18 +56,18 @@ impl DispatchInternalAutomationUseCase {
         &self,
         cmd: DispatchInternalAutomationCommand,
     ) -> Result<DispatchInternalAutomationResult, DomainError> {
-        if cmd.event.service != VIGIL_SERVICE {
+        if cmd.event.service != OPSWARDEN_SERVICE {
             return Err(DomainError::InvalidAutomationRule);
         }
         let connection = match self
             .dependencies
             .connections
-            .find_connection_by_service(cmd.team_id, VIGIL_SERVICE)
+            .find_connection_by_service(cmd.team_id, OPSWARDEN_SERVICE)
             .await?
         {
             Some(connection) => connection,
             None => {
-                let connection = ServiceConnection::new_internal(cmd.team_id, VIGIL_SERVICE)?;
+                let connection = ServiceConnection::new_internal(cmd.team_id, OPSWARDEN_SERVICE)?;
                 self.dependencies
                     .connections
                     .insert_connection(&connection)
@@ -137,7 +137,7 @@ impl DispatchInternalAutomationUseCase {
                         .events
                         .publish(DomainEvent::RuleTriggered {
                             team_id: cmd.team_id,
-                            service: VIGIL_SERVICE.to_string(),
+                            service: OPSWARDEN_SERVICE.to_string(),
                             rule_name: rule.name,
                             result: if incident_id.is_some() {
                                 AutomationRuleResult::IncidentCreated
@@ -158,7 +158,7 @@ impl DispatchInternalAutomationUseCase {
                         .events
                         .publish(DomainEvent::RuleFailed {
                             team_id: cmd.team_id,
-                            service: VIGIL_SERVICE.to_string(),
+                            service: OPSWARDEN_SERVICE.to_string(),
                             rule_name: rule.name,
                             error: code.to_string(),
                         })
@@ -210,7 +210,7 @@ pub fn release_created_event(release: &Release) -> ExternalEvent {
         "release_state".into(),
         Value::String(release.base_state.to_string()),
     );
-    ExternalEvent::new(VIGIL_SERVICE, "release_created").with_attributes(attributes)
+    ExternalEvent::new(OPSWARDEN_SERVICE, "release_created").with_attributes(attributes)
 }
 
 #[cfg(test)]
@@ -221,7 +221,7 @@ mod tests {
     fn release_created_event_contains_only_normalized_release_facts() {
         let release = Release::new(Uuid::new_v4(), "v2.0.0", vec!["build".to_string()]).unwrap();
         let event = release_created_event(&release);
-        assert_eq!(event.service, "vigil");
+        assert_eq!(event.service, "opswarden");
         assert_eq!(event.kind, "release_created");
         assert_eq!(event.attributes["release_id"], release.id.to_string());
         assert_eq!(event.attributes["release_title"], "v2.0.0");

@@ -152,11 +152,11 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     let users = PgUserRepo::new(pool.clone());
     let teams = PgTeamRepo::new(pool.clone());
     let manager = User::new(
-        Email::new(format!("vigil-pg-{}@test.local", Uuid::new_v4())).unwrap(),
+        Email::new(format!("opswarden-pg-{}@test.local", Uuid::new_v4())).unwrap(),
         "hash",
     );
     users.save(&manager).await.unwrap();
-    let team = Team::new("Internal VIGIL PG").unwrap();
+    let team = Team::new("Native OpsWarden PG").unwrap();
     teams.save_team(&team).await.unwrap();
     teams
         .add_member(team.id, manager.id, Role::Manager)
@@ -170,18 +170,18 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     let runs = Arc::new(PgAutomationRunRepo::new(pool.clone()));
     let incidents = Arc::new(PgIncidentRepo::new(pool.clone()));
     let releases = Arc::new(PgReleaseRepo::new(pool.clone()));
-    let vigil = connections
-        .find_connection_by_service(team.id, "vigil")
+    let opswarden = connections
+        .find_connection_by_service(team.id, "opswarden")
         .await
         .unwrap()
         .unwrap();
     let mut rule = AutomationRule::new(
         team.id,
         "Release opens an incident",
-        vigil.id,
+        opswarden.id,
         "release_created",
         serde_json::json!({}),
-        "vigil_create_incident",
+        "create_incident",
         None,
         serde_json::json!({"severity": "high", "title": "Release {{release_title}} created"}),
         manager.id,
@@ -270,7 +270,7 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
         generic.id,
         "generic_event",
         serde_json::json!({"event_type":"alert_firing", "source":"pg-monitor"}),
-        "vigil_create_incident",
+        "create_incident",
         None,
         serde_json::json!({"severity":"critical", "title":"{{source}}: {{title}}"}),
         user.id,

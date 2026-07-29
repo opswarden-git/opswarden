@@ -619,7 +619,7 @@ async fn get_incident_is_forbidden_for_a_non_member() {
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
 
-// --- RTC 2: timeline edit + reactions ---
+// --- Timeline edit and reactions ---
 
 fn edit_request(incident_id: Uuid, entry_id: Uuid, content: &str) -> Request<Body> {
     Request::builder()

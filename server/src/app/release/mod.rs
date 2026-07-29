@@ -1,6 +1,6 @@
 // --- server/src/app/release/mod.rs ---
 //
-// Release use-cases (VIGIL Phase 1 core). Authorization: Observer read-only,
+// Release use-cases. Authorization: Observer read-only,
 // Responder+ links and validates, Manager-only creates and cancels. The `blocked`
 // effective state is derived (never stored) from active linked incidents, so the
 // shared helpers here are the single place that turns a base-state change into a

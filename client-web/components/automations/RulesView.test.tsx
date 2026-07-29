@@ -62,7 +62,7 @@ const catalog: AutomationService[] = [
     reactions: [],
   },
   {
-    name: "vigil",
+    name: "opswarden",
     label: "OpsWarden",
     connection: null,
     actions: [
@@ -70,7 +70,7 @@ const catalog: AutomationService[] = [
         name: "release_created",
         label: "Release created",
         description: "A release was created",
-        connection_service: "vigil",
+        connection_service: "opswarden",
         fields: [],
       },
     ],
@@ -116,10 +116,10 @@ const connection: TeamConnection = {
   webhook_path: "/webhooks/github/connection-github",
 };
 
-const vigilConnection: TeamConnection = {
+const opswardenConnection: TeamConnection = {
   ...connection,
-  id: "connection-vigil",
-  service: "vigil",
+  id: "connection-opswarden",
+  service: "opswarden",
   secret_configured: false,
   webhook_path: null,
 };
@@ -186,11 +186,11 @@ describe("RulesView", () => {
     );
   });
 
-  it("creates a rule from the credential-free internal VIGIL connection", () => {
+  it("creates a rule from a native OpsWarden event without exposing a connection", () => {
     render(
       <RulesView
         catalog={catalog}
-        connections={[connection, vigilConnection]}
+        connections={[connection, opswardenConnection]}
         rules={[]}
         teamId="team-1"
         isCreatingRule
@@ -204,15 +204,13 @@ describe("RulesView", () => {
     fireEvent.change(screen.getByLabelText("event"), {
       target: { value: "release_created" },
     });
-    fireEvent.change(screen.getByLabelText("sourceConnection"), {
-      target: { value: vigilConnection.id },
-    });
+    expect(screen.queryByLabelText("sourceConnection")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "createRule" }));
 
     expect(createMutation.mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Release opens incident",
-        trigger_connection_id: vigilConnection.id,
+        trigger_connection_id: opswardenConnection.id,
         trigger_kind: "release_created",
         reaction_kind: "create_incident",
       }),

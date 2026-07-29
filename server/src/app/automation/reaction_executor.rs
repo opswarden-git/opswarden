@@ -56,10 +56,10 @@ impl AutomationReactionExecutor {
         event: &ExternalEvent,
     ) -> Result<Option<(Uuid, Severity)>, DomainError> {
         match rule.reaction_kind.as_str() {
-            "vigil_create_incident" => self.create_incident(team_id, rule, event).await,
-            "vigil_validate_release_step" => self.validate_release_step(team_id, rule, event).await,
-            "vigil_block_release" => self.block_release(team_id, rule, event).await,
-            "vigil_escalate_incident" => self.escalate_incident(team_id, rule, event).await,
+            "create_incident" => self.create_incident(team_id, rule, event).await,
+            "validate_release_step" => self.validate_release_step(team_id, rule, event).await,
+            "block_release" => self.block_release(team_id, rule, event).await,
+            "escalate_incident" => self.escalate_incident(team_id, rule, event).await,
             "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
             _ => Err(DomainError::InvalidAutomationRule),
         }
@@ -324,7 +324,7 @@ fn attribute<'a>(event: &'a ExternalEvent, name: &str) -> Option<&'a str> {
 }
 
 fn default_incident_title(event: &ExternalEvent) -> String {
-    let repository = attribute(event, "repository").unwrap_or("VIGIL");
+    let repository = attribute(event, "repository").unwrap_or("OpsWarden");
     match event.kind.as_str() {
         "ci_failed" => {
             let workflow = attribute(event, "workflow").unwrap_or("CI");

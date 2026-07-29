@@ -708,7 +708,7 @@ async fn manager_creates_updates_lists_and_deletes_a_disabled_by_default_rule() 
                 "trigger_connection_id": connection_id,
                 "trigger_kind": "ci_failed",
                 "trigger_config": {"repository": "opswarden/app"},
-                "reaction_kind": "vigil_create_incident",
+                "reaction_kind": "create_incident",
                 "reaction_config": {"severity": "high"}
             })),
         ))
@@ -785,7 +785,7 @@ async fn manager_can_create_every_catalogued_github_action_rule() {
         ),
         (
             "pr_merged",
-            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/vigil"}),
+            json!({"repository": "opswarden/app", "branch": "main", "source_branch": "feature/opswarden"}),
             "PR #{{pull_request_number}} {{pull_request_title}}",
         ),
     ];
@@ -802,7 +802,7 @@ async fn manager_can_create_every_catalogued_github_action_rule() {
                     "trigger_connection_id": connection_id,
                     "trigger_kind": trigger_kind,
                     "trigger_config": trigger_config,
-                    "reaction_kind": "vigil_create_incident",
+                    "reaction_kind": "create_incident",
                     "reaction_config": {"severity": "high", "title": title}
                 })),
             ))
@@ -847,7 +847,7 @@ async fn manager_can_create_every_catalogued_gitlab_action_rule() {
                     "trigger_connection_id": connection["id"],
                     "trigger_kind": trigger_kind,
                     "trigger_config": trigger_config,
-                    "reaction_kind": "vigil_create_incident",
+                    "reaction_kind": "create_incident",
                     "reaction_config": {"severity": "high"}
                 })),
             ))
@@ -879,7 +879,7 @@ async fn manager_can_create_a_filtered_generic_event_rule() {
                     "source": "jury",
                     "severity": "critical"
                 },
-                "reaction_kind": "vigil_create_incident",
+                "reaction_kind": "create_incident",
                 "reaction_config": {
                     "severity": "critical",
                     "title": "{{source}}: {{title}} ({{external_id}})"
@@ -893,7 +893,7 @@ async fn manager_can_create_a_filtered_generic_event_rule() {
 }
 
 #[tokio::test]
-async fn manager_can_create_every_catalogued_native_vigil_reaction_rule() {
+async fn manager_can_create_every_catalogued_native_opswarden_reaction_rule() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
@@ -902,21 +902,18 @@ async fn manager_can_create_every_catalogued_native_vigil_reaction_rule() {
     let incident_id = Uuid::new_v4();
     let cases = [
         (
-            "vigil_validate_release_step",
+            "validate_release_step",
             json!({"release_id": release_id, "step": "build"}),
         ),
         (
-            "vigil_block_release",
+            "block_release",
             json!({
                 "release_id": release_id,
                 "severity": "critical",
                 "title": "{{workflow}} blocks the release"
             }),
         ),
-        (
-            "vigil_escalate_incident",
-            json!({"incident_id": incident_id}),
-        ),
+        ("escalate_incident", json!({"incident_id": incident_id})),
     ];
 
     for (reaction_kind, reaction_config) in cases {
@@ -1071,7 +1068,7 @@ async fn cross_team_trigger_and_secret_shaped_rule_config_are_rejected() {
         "trigger_connection_id": connection_b.id,
         "trigger_kind": "ci_failed",
         "trigger_config": {},
-        "reaction_kind": "vigil_create_incident",
+        "reaction_kind": "create_incident",
         "reaction_config": {}
     });
     let cross_team = ctx
@@ -1102,7 +1099,7 @@ async fn cross_team_trigger_and_secret_shaped_rule_config_are_rejected() {
                 "trigger_connection_id": own_connection["id"],
                 "trigger_kind": "ci_failed",
                 "trigger_config": {"access_token": "must-not-be-persisted"},
-                "reaction_kind": "vigil_create_incident",
+                "reaction_kind": "create_incident",
                 "reaction_config": {}
             })),
         ))
@@ -1130,13 +1127,13 @@ async fn team_automation_routes_require_authentication() {
 }
 
 #[tokio::test]
-async fn release_creation_triggers_a_durable_internal_vigil_rule() {
+async fn release_creation_triggers_a_durable_native_opswarden_rule() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
-    let vigil = ServiceConnection::new_internal(team_id, "vigil").unwrap();
+    let opswarden = ServiceConnection::new_internal(team_id, "opswarden").unwrap();
     ctx.service_connections
-        .insert_connection(&vigil)
+        .insert_connection(&opswarden)
         .await
         .unwrap();
 
@@ -1148,10 +1145,10 @@ async fn release_creation_triggers_a_durable_internal_vigil_rule() {
             &format!("/api/teams/{team_id}/automation-rules"),
             Some(json!({
                 "name": "Release created -> Incident",
-                "trigger_connection_id": vigil.id,
+                "trigger_connection_id": opswarden.id,
                 "trigger_kind": "release_created",
                 "trigger_config": {},
-                "reaction_kind": "vigil_create_incident",
+                "reaction_kind": "create_incident",
                 "reaction_config": {
                     "severity": "high",
                     "title": "Release {{release_title}} requires coordination"

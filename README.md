@@ -21,7 +21,7 @@ incident makes further deployment unsafe.
 
 External events can trigger internal actions through an
 **Action&rarr;REAction** rule engine. GitHub, GitLab and provider-neutral JSON
-webhooks can create VIGIL incidents or notify a configured HTTP endpoint after
+webhooks can create OpsWarden incidents or notify a configured HTTP endpoint after
 signature/token validation, filtering and durable deduplication. Supported
 provider events include CI failure and success, new tags, and merged GitHub pull
 requests. Native Release events use the same durable engine without external

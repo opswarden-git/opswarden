@@ -37,8 +37,8 @@ impl Config {
         // `${VAR:-}` passes an empty string when the host hasn't set it, and an
         // empty HMAC secret / OAuth id / notify URL must mean "not configured",
         // never a meaningless `Some("")`.
-        let kickoff_token_secret = optional_env("OPSWARDEN_KICKOFF_TOKEN")
-            .unwrap_or_else(|| "Romeo Cavazza VIGIL2026".to_string());
+        let kickoff_token_secret =
+            optional_env("OPSWARDEN_KICKOFF_TOKEN").unwrap_or_else(|| "OpsWarden".to_string());
 
         // Fail-fast in release builds: a missing (or blank) JWT_SECRET in
         // production would silently fall back to a publicly-known key, letting
@@ -193,10 +193,10 @@ mod tests {
 
     #[test]
     fn sha256_is_64_hex_chars_and_deterministic() {
-        let digest = sha256_hex("Romeo Cavazza VIGIL2026");
+        let digest = sha256_hex("OpsWarden");
         assert_eq!(digest.len(), 64);
         assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(digest, sha256_hex("Romeo Cavazza VIGIL2026"));
+        assert_eq!(digest, sha256_hex("OpsWarden"));
     }
 
     #[test]

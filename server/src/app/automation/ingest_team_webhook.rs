@@ -259,7 +259,7 @@ mod tests {
             connection_id,
             "ci_failed",
             json!({"repository": "opswarden/app", "branch": "main"}),
-            "vigil_create_incident",
+            "create_incident",
             None,
             json!({}),
             Uuid::new_v4(),

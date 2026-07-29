@@ -208,7 +208,7 @@ Incident or sending an HTTP notification.
 5. Test success, provider failure, invalid configuration and output limits.
    Add an integration test proving the Automation Run and WebSocket result.
 
-Use `vigil_create_incident` for a domain-side example and `http_notify` for an
+Use `create_incident` for a domain-side example and `http_notify` for an
 external side effect.
 
 ### Add a WebSocket event

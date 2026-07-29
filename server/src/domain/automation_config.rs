@@ -96,7 +96,7 @@ impl ServiceConnection {
         })
     }
 
-    /// Credential-free connection used by events produced inside VIGIL. It has
+    /// Credential-free system connection used by native OpsWarden events. It has
     /// no human creator because it is infrastructure owned by the Team itself.
     pub fn new_internal(team_id: Uuid, service: impl Into<String>) -> Result<Self, DomainError> {
         let mut connection = Self::new(team_id, service, Uuid::nil())?;
@@ -496,7 +496,7 @@ mod tests {
             connection_id,
             "ci_failed",
             json!({"repository": "opswarden/app"}),
-            "vigil_create_incident",
+            "create_incident",
             None,
             json!({"severity": "high"}),
             user_id,
@@ -511,7 +511,7 @@ mod tests {
                 connection_id,
                 "ci_failed",
                 json!([]),
-                "vigil_create_incident",
+                "create_incident",
                 None,
                 json!({}),
                 user_id,
@@ -527,7 +527,7 @@ mod tests {
                 connection_id,
                 "ci_failed",
                 json!({"nested": {"access_token": "must-not-live-here"}}),
-                "vigil_create_incident",
+                "create_incident",
                 None,
                 json!({}),
                 user_id,

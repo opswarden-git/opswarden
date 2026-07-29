@@ -275,20 +275,18 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("generic_event", false, _) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
-        ("vigil_create_incident", true, _) => "Créer un incident",
-        ("vigil_create_incident", false, _) => {
+        ("create_incident", true, _) => "Créer un incident",
+        ("create_incident", false, _) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
         }
-        ("vigil_validate_release_step", true, _) => "Valider une étape de Release",
-        ("vigil_validate_release_step", false, _) => {
+        ("validate_release_step", true, _) => "Valider une étape de Release",
+        ("validate_release_step", false, _) => {
             "Valider la prochaine étape séquentielle d’une Release"
         }
-        ("vigil_block_release", true, _) => "Bloquer une Release",
-        ("vigil_block_release", false, _) => {
-            "Créer et lier un Incident actif à une Release en cours"
-        }
-        ("vigil_escalate_incident", true, _) => "Escalader un Incident",
-        ("vigil_escalate_incident", false, _) => {
+        ("block_release", true, _) => "Bloquer une Release",
+        ("block_release", false, _) => "Créer et lier un Incident actif à une Release en cours",
+        ("escalate_incident", true, _) => "Escalader un Incident",
+        ("escalate_incident", false, _) => {
             "Escalader un Incident acquitté en respectant son cycle de vie"
         }
         ("http_notify", true, _) => "Envoyer une notification HTTP",

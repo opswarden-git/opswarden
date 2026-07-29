@@ -236,7 +236,7 @@ mod tests {
             trigger,
             "ci_failed",
             json!({"repository": "opswarden/app"}),
-            "vigil_create_incident",
+            "create_incident",
             None,
             json!({"title": "CI failed", "severity": "high"}),
             user_id,
