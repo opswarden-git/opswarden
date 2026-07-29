@@ -382,6 +382,41 @@ mod tests {
 
     const KEY: [u8; aes::KEY_LEN] = [73; aes::KEY_LEN];
 
+    /// `service_connection_secrets.kind` carries an allowlist constraint, so a
+    /// variant the migrations do not know about is rejected by Postgres and
+    /// surfaces as `storage_error`. The HTTP-level tests use an in-memory vault
+    /// that enforces nothing, which is how the Email vertical reached production
+    /// with five unusable credential kinds. This exercises every variant against
+    /// the real schema.
+    #[sqlx::test]
+    async fn every_credential_kind_round_trips_through_postgres(pool: PgPool) {
+        let (team_id, manager_id) = seed_team(&pool, "credential-kinds").await;
+        let connections = PgServiceConnectionRepo::new(pool.clone());
+        let connection = ServiceConnection::new(team_id, "github", manager_id).unwrap();
+        connections.insert_connection(&connection).await.unwrap();
+        let vault = PgConnectionCredentialVault::new(pool, KEY);
+
+        for kind in CredentialKind::ALL {
+            let secret = format!("secret-for-{kind}");
+            vault
+                .store_credential(connection.id, *kind, &secret)
+                .await
+                .unwrap_or_else(|error| {
+                    panic!("storing {kind} failed with {error:?}; a migration is missing")
+                });
+            assert_eq!(
+                vault.reveal_credential(connection.id, *kind).await.unwrap(),
+                Some(secret)
+            );
+        }
+
+        let configured = vault
+            .configured_credential_kinds(connection.id)
+            .await
+            .unwrap();
+        assert_eq!(configured.len(), CredentialKind::ALL.len());
+    }
+
     #[sqlx::test]
     async fn manager_membership_creates_one_credential_free_opswarden_connection(pool: PgPool) {
         let (team_id, manager_id) = seed_team(&pool, "native-opswarden").await;

@@ -123,6 +123,46 @@ pub enum CredentialKind {
 }
 
 impl CredentialKind {
+    /// Every variant, so a storage test can prove the whole enum survives a
+    /// round-trip through Postgres. `service_connection_secrets.kind` carries an
+    /// allowlist constraint, and the Email vertical shipped five variants that
+    /// were missing from it; the in-memory vault used by the HTTP tests enforces
+    /// nothing, so nothing failed until production.
+    ///
+    /// `exhaustiveness_guard` below makes the compiler reject a new variant that
+    /// is not added here.
+    pub const ALL: &'static [CredentialKind] = &[
+        Self::WebhookSigningSecret,
+        Self::PersonalToken,
+        Self::OAuthAccessToken,
+        Self::OAuthRefreshToken,
+        Self::EndpointUrl,
+        Self::SmtpHost,
+        Self::SmtpPort,
+        Self::SmtpUsername,
+        Self::SmtpPassword,
+        Self::FromAddress,
+    ];
+
+    /// Not called at runtime. The match is exhaustive on purpose: adding a
+    /// variant stops compilation here, which is the reminder to extend `ALL` and
+    /// to write the migration that widens the storage allowlist.
+    #[cfg(test)]
+    fn exhaustiveness_guard(self) -> usize {
+        match self {
+            Self::WebhookSigningSecret => 0,
+            Self::PersonalToken => 1,
+            Self::OAuthAccessToken => 2,
+            Self::OAuthRefreshToken => 3,
+            Self::EndpointUrl => 4,
+            Self::SmtpHost => 5,
+            Self::SmtpPort => 6,
+            Self::SmtpUsername => 7,
+            Self::SmtpPassword => 8,
+            Self::FromAddress => 9,
+        }
+    }
+
     pub fn from_stored(value: &str) -> Result<Self, DomainError> {
         match value {
             "webhook_signing_secret" => Ok(Self::WebhookSigningSecret),
@@ -492,6 +532,28 @@ impl AutomationRun {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn all_credential_kinds_are_listed_and_round_trip_their_stored_name() {
+        let mut tags: Vec<usize> = CredentialKind::ALL
+            .iter()
+            .map(|kind| kind.exhaustiveness_guard())
+            .collect();
+        tags.sort_unstable();
+        tags.dedup();
+        assert_eq!(
+            tags.len(),
+            10,
+            "CredentialKind::ALL must list every variant exactly once"
+        );
+
+        for kind in CredentialKind::ALL {
+            assert_eq!(
+                CredentialKind::from_stored(&kind.to_string()).unwrap(),
+                *kind
+            );
+        }
+    }
 
     #[test]
     fn connection_normalizes_provider_name() {
