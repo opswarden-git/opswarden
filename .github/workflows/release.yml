@@ -348,6 +348,31 @@ jobs:
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: release-artifacts/*
+      - name: Check out tooling and optional release highlights
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: repo
+
+      - name: Compose release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ needs.docker-image.outputs.image }}
+          DIGEST: ${{ needs.docker-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/release-notes.md"
+          ./repo/tooling/compose_release_notes.sh \
+            "$GITHUB_REF_NAME" \
+            "$GITHUB_REPOSITORY" \
+            "$IMAGE" \
+            "$DIGEST" \
+            release-artifacts \
+            "repo/docs/release-notes/${GITHUB_REF_NAME}.md" >"$notes"
+          echo "RELEASE_NOTES=$notes" >> "$GITHUB_ENV"
+
+          echo "RELEASE_NOTES=$notes" >> "$GITHUB_ENV"
+
       - name: Create immutable GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -359,7 +384,8 @@ jobs:
             release-artifacts/*-setup.exe \
             release-artifacts/*.dmg \
             release-artifacts/SHA256SUMS \
-            --generate-notes \
+            --title "OpsWarden ${GITHUB_REF_NAME}" \
+            --notes-file "$RELEASE_NOTES" \
             --verify-tag
       - name: Publish release summary
         env:
