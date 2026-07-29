@@ -16,10 +16,11 @@ use opswarden_server::domain::team::{
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::{Locale, User};
 use opswarden_server::ports::{
-    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, GifResult, GifSearch,
-    IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, PrivateMessageRepo,
-    ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, ServiceOAuthTokens, TeamRepo,
-    TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailMessage,
+    EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile,
+    PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient,
+    ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
+    TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -44,6 +45,7 @@ pub struct TestContext {
     pub webhook_deliveries: Arc<DummyWebhookDeliveryRepo>,
     pub automation_runs: Arc<DummyAutomationRunRepo>,
     pub notifier: Arc<DummyNotifier>,
+    pub email_sender: Arc<DummyEmailSender>,
 }
 
 #[derive(Default)]
@@ -458,6 +460,59 @@ impl Notifier for DummyNotifier {
         } else {
             Ok(())
         }
+    }
+}
+
+/// `DomainError` is deliberately not `Clone`, so the injected failure is stored
+/// as a constructor the double can call on every attempt.
+#[derive(Default)]
+pub struct DummyEmailSender {
+    sent: Mutex<Vec<(SmtpConfig, EmailMessage)>>,
+    validated: Mutex<Vec<SmtpConfig>>,
+    failure: Mutex<Option<fn() -> DomainError>>,
+}
+
+#[allow(dead_code)]
+impl DummyEmailSender {
+    pub fn sent(&self) -> Vec<(SmtpConfig, EmailMessage)> {
+        self.sent.lock().unwrap().clone()
+    }
+
+    pub fn validated(&self) -> Vec<SmtpConfig> {
+        self.validated.lock().unwrap().clone()
+    }
+
+    pub fn fail_with(&self, error: fn() -> DomainError) {
+        *self.failure.lock().unwrap() = Some(error);
+    }
+
+    fn outcome(&self) -> Result<(), DomainError> {
+        match *self.failure.lock().unwrap() {
+            Some(error) => Err(error()),
+            None => Ok(()),
+        }
+    }
+}
+
+#[async_trait]
+impl EmailSender for DummyEmailSender {
+    async fn validate_smtp(&self, config: &SmtpConfig) -> Result<(), DomainError> {
+        self.validated.lock().unwrap().push(config.clone());
+        self.outcome()
+    }
+
+    async fn send_email(
+        &self,
+        config: &SmtpConfig,
+        message: &EmailMessage,
+    ) -> Result<(), DomainError> {
+        // Record before failing so a test can assert what the executor built even
+        // on the error path.
+        self.sent
+            .lock()
+            .unwrap()
+            .push((config.clone(), message.clone()));
+        self.outcome()
     }
 }
 
@@ -1327,6 +1382,7 @@ fn build_context() -> TestContext {
     let webhook_deliveries = Arc::new(DummyWebhookDeliveryRepo::default());
     let automation_runs = Arc::new(DummyAutomationRunRepo::default());
     let notifier = Arc::new(DummyNotifier::default());
+    let email_sender = Arc::new(DummyEmailSender::default());
     let mut config = Config::from_env();
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
@@ -1356,6 +1412,7 @@ fn build_context() -> TestContext {
         webhook_deliveries: webhook_deliveries.clone(),
         automation_runs: automation_runs.clone(),
         notifier: notifier.clone(),
+        email_sender: email_sender.clone(),
         gifs: Arc::new(DummyGifSearch),
         config,
     });
@@ -1377,6 +1434,7 @@ fn build_context() -> TestContext {
         webhook_deliveries,
         automation_runs,
         notifier,
+        email_sender,
     }
 }
 

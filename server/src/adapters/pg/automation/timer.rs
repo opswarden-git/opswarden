@@ -597,6 +597,7 @@ mod tests {
             releases: Arc::new(PgReleaseRepo::new(pool.clone())),
             notifier: Arc::new(HttpNotifier::new()),
             events: Arc::new(WsHub::new()),
+            email_sender: Arc::new(crate::adapters::email::SmtpEmailSender::new()),
         })
     }
 

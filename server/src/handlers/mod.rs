@@ -297,6 +297,8 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         }
         ("http_notify", true, _) => "Envoyer une notification HTTP",
         ("http_notify", false, _) => "Envoyer une notification via une connexion HTTP configurée",
+        ("email_notify", true, _) => "Envoyer un e-mail",
+        ("email_notify", false, _) => "Envoyer un e-mail à une adresse configurée",
         _ => fallback,
     }
     .to_string()
@@ -313,6 +315,7 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
         "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
         "generic" => "Recevoir des webhooks JSON bornés authentifiés par un jeton partagé",
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
+        "email" => "Configurer les identifiants SMTP pour l’envoi d’e-mails",
         _ => fallback,
     }
     .to_string()
@@ -408,6 +411,22 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("endpoint_url", false) => {
             "Destination HTTPS publique ; les réseaux locaux et URL avec identifiants sont refusés"
         }
+        ("smtp_host", true) => "Hôte SMTP",
+        ("smtp_host", false) => "Nom d’hôte ou adresse IP du serveur SMTP",
+        ("smtp_port", true) => "Port SMTP",
+        ("smtp_port", false) => "Numéro de port (généralement 587 ou 465)",
+        ("smtp_username", true) => "Nom d’utilisateur SMTP",
+        ("smtp_username", false) => "Nom d’utilisateur pour l’authentification SMTP",
+        ("smtp_password", true) => "Mot de passe SMTP",
+        ("smtp_password", false) => "Mot de passe pour l’authentification SMTP",
+        ("from_address", true) => "Adresse d’expédition",
+        ("from_address", false) => "L’adresse e-mail de l’expéditeur",
+        ("to", true) => "Destinataire (À)",
+        ("to", false) => "L’adresse e-mail de destination",
+        ("subject", true) => "Sujet",
+        ("subject", false) => "Template utilisant les variables normalisées de l’événement telles que {{repository}}, {{workflow}}, {{tag}} ou {{pull_request_title}}",
+        ("body", true) => "Corps du message",
+        ("body", false) => "Template utilisant les variables normalisées de l’événement telles que {{repository}}, {{workflow}}, {{tag}} ou {{pull_request_title}}",
         _ => fallback,
     }
     .to_string()

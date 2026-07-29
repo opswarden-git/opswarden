@@ -57,6 +57,7 @@ pub async fn receive_github_for_connection(
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     })
     .ingest(IngestTeamWebhookCommand {
         connection_id,
@@ -104,6 +105,7 @@ pub async fn receive_gitlab_for_connection(
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     })
     .ingest(IngestTeamWebhookCommand {
         connection_id,
@@ -153,6 +155,7 @@ pub async fn receive_generic_for_connection(
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     })
     .ingest(IngestTeamWebhookCommand {
         connection_id,
@@ -201,6 +204,7 @@ pub async fn receive_alertmanager_for_connection(
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     })
     .ingest(IngestTeamWebhookCommand {
         connection_id,

@@ -112,6 +112,12 @@ pub enum DomainError {
     ReactionHttp5xx,
     /// DNS, TLS or transport failed without exposing internal details.
     ReactionNetworkError,
+    /// An email REAction target address is malformed.
+    InvalidEmailRecipient,
+    /// The configured sender address of an email connection is malformed.
+    InvalidEmailSender,
+    /// An email REAction failed during SMTP transmission.
+    EmailTransportError,
     OAuthNotConfigured,
     OAuthFailed,
     /// GIF search was requested but no GIPHY API key is configured server-side.
@@ -189,6 +195,9 @@ impl DomainError {
             DomainError::ReactionHttp4xx => "reaction_http_4xx",
             DomainError::ReactionHttp5xx => "reaction_http_5xx",
             DomainError::ReactionNetworkError => "reaction_network_error",
+            DomainError::InvalidEmailRecipient => "invalid_email_recipient",
+            DomainError::InvalidEmailSender => "invalid_email_sender",
+            DomainError::EmailTransportError => "email_transport_error",
             DomainError::OAuthNotConfigured => "oauth_not_configured",
             DomainError::OAuthFailed => "oauth_failed",
             DomainError::GiphyNotConfigured => "giphy_not_configured",
@@ -300,6 +309,9 @@ impl std::fmt::Display for DomainError {
             DomainError::ReactionHttp4xx => write!(f, "Reaction endpoint rejected the request"),
             DomainError::ReactionHttp5xx => write!(f, "Reaction endpoint failed"),
             DomainError::ReactionNetworkError => write!(f, "Reaction network request failed"),
+            DomainError::InvalidEmailRecipient => write!(f, "Invalid email recipient address"),
+            DomainError::InvalidEmailSender => write!(f, "Invalid email sender address"),
+            DomainError::EmailTransportError => write!(f, "Email transport failed"),
             DomainError::OAuthNotConfigured => write!(f, "OAuth provider is not configured"),
             DomainError::OAuthFailed => write!(f, "OAuth authentication failed"),
             DomainError::GiphyNotConfigured => write!(f, "GIF search is not configured"),

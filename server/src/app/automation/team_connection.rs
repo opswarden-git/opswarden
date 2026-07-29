@@ -2,15 +2,20 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use super::reaction_executor::smtp_config;
 use super::team_access::require_manager;
 use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
-use crate::ports::{ConnectionCredentialVault, Notifier, ServiceConnectionRepo, TeamRepo};
+use crate::domain::user::Email;
+use crate::ports::{
+    ConnectionCredentialVault, EmailSender, Notifier, ServiceConnectionRepo, TeamRepo,
+};
 
 pub const GITHUB_SERVICE: &str = "github";
 pub const GITLAB_SERVICE: &str = "gitlab";
 pub const GENERIC_SERVICE: &str = "generic";
 pub const HTTP_SERVICE: &str = "http";
+pub const EMAIL_SERVICE: &str = "email";
 const CONNECTION_TEST_MESSAGE: &str = "OpsWarden connection test";
 
 pub struct ConfigureGithubConnectionCommand {
@@ -38,7 +43,20 @@ pub struct ConfigureHttpConnectionCommand {
     pub endpoint_url: String,
 }
 
-pub struct TestHttpConnectionCommand {
+/// Every field is optional so a Manager can rotate one credential without
+/// retyping the others; the use-case still requires a complete set the first
+/// time the connection is created.
+pub struct ConfigureEmailConnectionCommand {
+    pub team_id: Uuid,
+    pub requester_id: Uuid,
+    pub smtp_host: Option<String>,
+    pub smtp_port: Option<String>,
+    pub smtp_username: Option<String>,
+    pub smtp_password: Option<String>,
+    pub from_address: Option<String>,
+}
+
+pub struct TestConnectionCommand {
     pub team_id: Uuid,
     pub requester_id: Uuid,
     pub connection_id: Uuid,
@@ -66,6 +84,7 @@ pub struct TeamConnectionUseCase {
     connections: Arc<dyn ServiceConnectionRepo>,
     credentials: Arc<dyn ConnectionCredentialVault>,
     notifier: Arc<dyn Notifier>,
+    email_sender: Arc<dyn EmailSender>,
 }
 
 impl TeamConnectionUseCase {
@@ -74,12 +93,14 @@ impl TeamConnectionUseCase {
         connections: Arc<dyn ServiceConnectionRepo>,
         credentials: Arc<dyn ConnectionCredentialVault>,
         notifier: Arc<dyn Notifier>,
+        email_sender: Arc<dyn EmailSender>,
     ) -> Self {
         Self {
             teams,
             connections,
             credentials,
             notifier,
+            email_sender,
         }
     }
 
@@ -234,27 +255,93 @@ impl TeamConnectionUseCase {
         self.connection_view(cmd.team_id, connection.id).await
     }
 
-    pub async fn test_http(&self, cmd: TestHttpConnectionCommand) -> Result<(), DomainError> {
+    pub async fn configure_email(
+        &self,
+        cmd: ConfigureEmailConnectionCommand,
+    ) -> Result<TeamConnectionView, DomainError> {
+        require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
+        validate_optional_secret(&cmd.smtp_username)?;
+        validate_optional_secret(&cmd.smtp_password)?;
+
+        if let Some(port) = &cmd.smtp_port {
+            port.trim()
+                .parse::<u16>()
+                .map_err(|_| DomainError::InvalidReactionEndpoint)?;
+        }
+        if let Some(host) = &cmd.smtp_host {
+            if host.trim().is_empty() {
+                return Err(DomainError::InvalidReactionEndpoint);
+            }
+        }
+        // Catch an obviously malformed sender before it reaches the SMTP relay.
+        if let Some(from) = &cmd.from_address {
+            Email::new(from.trim()).map_err(|_| DomainError::InvalidEmailSender)?;
+        }
+
+        let existing = self
+            .connections
+            .find_connection_by_service(cmd.team_id, EMAIL_SERVICE)
+            .await?;
+        // A partially configured connection could never authenticate, so refuse
+        // to create one rather than surface a confusing SMTP error later.
+        if existing.is_none()
+            && (cmd.smtp_host.is_none()
+                || cmd.smtp_port.is_none()
+                || cmd.smtp_username.is_none()
+                || cmd.smtp_password.is_none()
+                || cmd.from_address.is_none())
+        {
+            return Err(DomainError::InvalidServiceSecret);
+        }
+
+        let connection = match existing {
+            Some(connection) => connection,
+            None => {
+                let connection =
+                    ServiceConnection::new(cmd.team_id, EMAIL_SERVICE, cmd.requester_id)?;
+                self.connections.insert_connection(&connection).await?;
+                connection
+            }
+        };
+
+        for (kind, value) in [
+            (CredentialKind::SmtpHost, cmd.smtp_host),
+            (CredentialKind::SmtpPort, cmd.smtp_port),
+            (CredentialKind::SmtpUsername, cmd.smtp_username),
+            (CredentialKind::SmtpPassword, cmd.smtp_password),
+            (CredentialKind::FromAddress, cmd.from_address),
+        ] {
+            if let Some(value) = value {
+                self.credentials
+                    .store_credential(connection.id, kind, value.trim())
+                    .await?;
+            }
+        }
+        self.connections
+            .reset_connection_health(connection.id)
+            .await?;
+        self.connection_view(cmd.team_id, connection.id).await
+    }
+
+    /// Exercise a testable connection without emitting a business notification,
+    /// and record the outcome on the connection's health the same way a real
+    /// REAction would. Only services advertised as `testable` in the catalogue
+    /// reach a probe; anything else is refused rather than silently accepted.
+    pub async fn test(&self, cmd: TestConnectionCommand) -> Result<(), DomainError> {
         require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
         let connection = self
             .connections
             .find_connection_for_team(cmd.team_id, cmd.connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != HTTP_SERVICE {
-            return Err(DomainError::InvalidServiceConnection);
-        }
-        let endpoint = self
-            .credentials
-            .reveal_credential(connection.id, CredentialKind::EndpointUrl)
-            .await?
-            .ok_or(DomainError::InvalidReactionEndpoint)?;
 
-        match self
-            .notifier
-            .notify(&endpoint, CONNECTION_TEST_MESSAGE)
-            .await
-        {
+        let outcome = match connection.service.as_str() {
+            HTTP_SERVICE => self.probe_http(connection.id).await,
+            EMAIL_SERVICE => self.probe_smtp(connection.id).await,
+            _ => return Err(DomainError::InvalidServiceConnection),
+        };
+
+        match outcome {
             Ok(()) => {
                 self.connections
                     .record_reaction_result(connection.id, None)
@@ -268,6 +355,24 @@ impl TeamConnectionUseCase {
                 Err(error)
             }
         }
+    }
+
+    async fn probe_http(&self, connection_id: Uuid) -> Result<(), DomainError> {
+        let endpoint = self
+            .credentials
+            .reveal_credential(connection_id, CredentialKind::EndpointUrl)
+            .await?
+            .ok_or(DomainError::InvalidReactionEndpoint)?;
+        self.notifier
+            .notify(&endpoint, CONNECTION_TEST_MESSAGE)
+            .await
+    }
+
+    /// Open an authenticated SMTP session and issue NOOP. No message is sent, so
+    /// a Manager can validate credentials without mailing anyone.
+    async fn probe_smtp(&self, connection_id: Uuid) -> Result<(), DomainError> {
+        let config = smtp_config(self.credentials.as_ref(), connection_id).await?;
+        self.email_sender.validate_smtp(&config).await
     }
 
     pub async fn list(

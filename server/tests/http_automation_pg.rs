@@ -120,6 +120,7 @@ async fn postgres_chain_persists_one_http_run_and_deduplicates_the_delivery(pool
         )),
         notifier: notifier.clone(),
         events: Arc::new(WsHub::new()),
+        email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
     });
     let signature = format!(
         "sha256={}",
@@ -202,6 +203,7 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
         releases,
         notifier: Arc::new(common::DummyNotifier::default()),
         events: Arc::new(WsHub::new()),
+        email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
     });
     let event = release_created_event(&release);
     let delivery_id = format!("release:{}:created", release.id);
@@ -291,6 +293,7 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
         releases: Arc::new(PgReleaseRepo::new(pool.clone())),
         notifier: Arc::new(common::DummyNotifier::default()),
         events: Arc::new(WsHub::new()),
+        email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
     });
     let command = || IngestTeamWebhookCommand {
         connection_id: generic.id,

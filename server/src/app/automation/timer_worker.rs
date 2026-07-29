@@ -8,7 +8,7 @@ use crate::domain::error::DomainError;
 use crate::domain::event::{AutomationRuleResult, DomainEvent};
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, AutomationTimerRepo, ConnectionCredentialVault,
-    EventPublisher, IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo,
+    EmailSender, EventPublisher, IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo,
     WebhookDeliveryRepo,
 };
 
@@ -43,6 +43,7 @@ pub struct TimerWorkerDependencies {
     pub releases: Arc<dyn ReleaseRepo>,
     pub notifier: Arc<dyn Notifier>,
     pub events: Arc<dyn EventPublisher>,
+    pub email_sender: Arc<dyn EmailSender>,
 }
 
 pub struct TimerWorker {
@@ -138,6 +139,7 @@ impl TimerWorker {
             self.dependencies.releases.clone(),
             self.dependencies.notifier.clone(),
             self.dependencies.events.clone(),
+            self.dependencies.email_sender.clone(),
         );
         match executor.execute(claim.team_id, &rule, &event).await {
             Ok(created_incident) => {

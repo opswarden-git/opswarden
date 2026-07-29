@@ -174,6 +174,15 @@ impl IntoResponse for DomainError {
             DomainError::ReactionNetworkError => {
                 (StatusCode::BAD_GATEWAY, "Reaction network request failed")
             }
+            DomainError::InvalidEmailRecipient => {
+                (StatusCode::BAD_REQUEST, "Invalid email recipient address")
+            }
+            DomainError::InvalidEmailSender => {
+                (StatusCode::BAD_REQUEST, "Invalid email sender address")
+            }
+            DomainError::EmailTransportError => {
+                (StatusCode::BAD_GATEWAY, "Email transport failed")
+            }
             DomainError::OAuthNotConfigured => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "OAuth provider is not configured",

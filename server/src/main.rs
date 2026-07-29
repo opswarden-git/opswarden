@@ -6,6 +6,7 @@ use opswarden_server::adapters::clock::SystemClock;
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
 use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
+use opswarden_server::adapters::email::SmtpEmailSender;
 use opswarden_server::adapters::giphy::GiphyClient;
 use opswarden_server::adapters::notify::HttpNotifier;
 use opswarden_server::adapters::oauth::{GithubServiceOAuthClient, GoogleOAuthClient};
@@ -121,6 +122,7 @@ async fn main() {
         webhook_deliveries: Arc::new(PgWebhookDeliveryRepo::new(pool.clone())),
         automation_runs: Arc::new(PgAutomationRunRepo::new(pool.clone())),
         notifier: Arc::new(HttpNotifier::new()),
+        email_sender: Arc::new(SmtpEmailSender::new()),
         gifs: Arc::new(GiphyClient::new(
             config.giphy_api_key.clone(),
             "https://api.giphy.com".to_string(),
@@ -141,6 +143,7 @@ async fn main() {
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
+        email_sender: state.email_sender.clone(),
     }));
 
     let app = build_app(state).layer(TraceLayer::new_for_http());

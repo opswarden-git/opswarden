@@ -9,8 +9,8 @@ use crate::domain::error::DomainError;
 use crate::domain::event::{AutomationRuleResult, DomainEvent};
 use crate::domain::release::Release;
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EventPublisher, IncidentRepo,
-    Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EmailSender, EventPublisher,
+    IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo,
 };
 
 use super::ingest_team_webhook::trigger_matches;
@@ -41,6 +41,7 @@ pub struct InternalAutomationDependencies {
     pub releases: Arc<dyn ReleaseRepo>,
     pub notifier: Arc<dyn Notifier>,
     pub events: Arc<dyn EventPublisher>,
+    pub email_sender: Arc<dyn EmailSender>,
 }
 
 pub struct DispatchInternalAutomationUseCase {
@@ -109,6 +110,7 @@ impl DispatchInternalAutomationUseCase {
             self.dependencies.releases.clone(),
             self.dependencies.notifier.clone(),
             self.dependencies.events.clone(),
+            self.dependencies.email_sender.clone(),
         );
         let mut rules_triggered = 0;
         let mut rules_failed = 0;

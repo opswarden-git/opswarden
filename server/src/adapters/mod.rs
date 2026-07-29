@@ -2,6 +2,7 @@
 
 pub mod clock;
 pub mod crypto;
+pub mod email;
 pub mod giphy;
 pub mod notify;
 pub mod oauth;

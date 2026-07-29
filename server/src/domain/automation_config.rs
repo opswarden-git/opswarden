@@ -115,6 +115,11 @@ pub enum CredentialKind {
     OAuthAccessToken,
     OAuthRefreshToken,
     EndpointUrl,
+    SmtpHost,
+    SmtpPort,
+    SmtpUsername,
+    SmtpPassword,
+    FromAddress,
 }
 
 impl CredentialKind {
@@ -125,6 +130,11 @@ impl CredentialKind {
             "oauth_access_token" => Ok(Self::OAuthAccessToken),
             "oauth_refresh_token" => Ok(Self::OAuthRefreshToken),
             "endpoint_url" => Ok(Self::EndpointUrl),
+            "smtp_host" => Ok(Self::SmtpHost),
+            "smtp_port" => Ok(Self::SmtpPort),
+            "smtp_username" => Ok(Self::SmtpUsername),
+            "smtp_password" => Ok(Self::SmtpPassword),
+            "from_address" => Ok(Self::FromAddress),
             _ => Err(DomainError::Storage),
         }
     }
@@ -138,6 +148,11 @@ impl fmt::Display for CredentialKind {
             Self::OAuthAccessToken => "oauth_access_token",
             Self::OAuthRefreshToken => "oauth_refresh_token",
             Self::EndpointUrl => "endpoint_url",
+            Self::SmtpHost => "smtp_host",
+            Self::SmtpPort => "smtp_port",
+            Self::SmtpUsername => "smtp_username",
+            Self::SmtpPassword => "smtp_password",
+            Self::FromAddress => "from_address",
         })
     }
 }
