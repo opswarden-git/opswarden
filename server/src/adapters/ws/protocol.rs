@@ -232,11 +232,7 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "name": name,
             "by": by,
         }),
-        DomainEvent::ChannelDeleted {
-            channel_id,
-            by,
-            ..
-        } => json!({
+        DomainEvent::ChannelDeleted { channel_id, by, .. } => json!({
             "type": "channel_deleted",
             "channel_id": channel_id,
             "by": by,

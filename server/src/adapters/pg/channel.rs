@@ -49,7 +49,7 @@ impl ChannelRepo for PgChannelRepo {
             from channels
             where team_id = $1
             order by created_at asc
-            "#
+            "#,
         )
         .bind(team_id)
         .fetch_all(&self.pool)
@@ -64,7 +64,7 @@ impl ChannelRepo for PgChannelRepo {
             select id, team_id, name, created_at
             from channels
             where id = $1
-            "#
+            "#,
         )
         .bind(channel_id)
         .fetch_optional(&self.pool)

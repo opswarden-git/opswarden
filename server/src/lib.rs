@@ -16,11 +16,10 @@ use axum::{
 
 use crate::adapters::ws::WsHub;
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailSender,
-    GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
-    ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo,
-    ChannelRepo,
-    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser,
+    AutomationRuleRepo, AutomationRunRepo, ChannelRepo, Clock, ConnectionCredentialVault,
+    EmailSender, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher,
+    PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo,
+    TimelineRepo, TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser,
     WebhookVerifier,
 };
 use std::sync::Arc;

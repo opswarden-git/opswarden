@@ -5,9 +5,9 @@ use crate::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,
 };
 use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
+use crate::domain::channel::Channel;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::channel::Channel;
 use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::PrivateMessage;

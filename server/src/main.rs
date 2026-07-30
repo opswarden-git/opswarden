@@ -18,11 +18,11 @@ use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
 use opswarden_server::adapters::pg::automation::timer::PgAutomationTimerRepo;
+use opswarden_server::adapters::pg::channel::PgChannelRepo;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::private_message::PgPrivateMessageRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
-use opswarden_server::adapters::pg::channel::PgChannelRepo;
 use opswarden_server::adapters::pg::timeline::PgTimelineRepo;
 use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;

@@ -39,7 +39,11 @@ impl From<Channel> for ChannelResponse {
     }
 }
 
-async fn require_responder(state: &AppState, team_id: Uuid, user_id: Uuid) -> Result<Role, DomainError> {
+async fn require_responder(
+    state: &AppState,
+    team_id: Uuid,
+    user_id: Uuid,
+) -> Result<Role, DomainError> {
     let role = state.teams.find_member_role(team_id, user_id).await?;
     match role {
         Some(r) if r == Role::Manager || r == Role::Responder => Ok(r),
@@ -81,12 +85,15 @@ pub async fn create_channel(
 
     state.channels.create_channel(&channel).await?;
 
-    state.events.publish(DomainEvent::ChannelCreated {
-        team_id,
-        channel_id: channel.id,
-        name: channel.name.clone(),
-        by: session.user_id,
-    }).await;
+    state
+        .events
+        .publish(DomainEvent::ChannelCreated {
+            team_id,
+            channel_id: channel.id,
+            name: channel.name.clone(),
+            by: session.user_id,
+        })
+        .await;
 
     Ok((StatusCode::CREATED, Json(ChannelResponse::from(channel))))
 }
@@ -100,11 +107,14 @@ pub async fn delete_channel(
 
     state.channels.delete_channel(team_id, channel_id).await?;
 
-    state.events.publish(DomainEvent::ChannelDeleted {
-        team_id,
-        channel_id,
-        by: session.user_id,
-    }).await;
+    state
+        .events
+        .publish(DomainEvent::ChannelDeleted {
+            team_id,
+            channel_id,
+            by: session.user_id,
+        })
+        .await;
 
     Ok(StatusCode::NO_CONTENT)
 }
