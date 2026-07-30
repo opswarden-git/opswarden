@@ -78,7 +78,7 @@ impl IngestTeamWebhookUseCase {
                 .dependencies
                 .verifier
                 .verify(&secret, &cmd.body, authentication),
-            "gitlab" | "generic" | "alertmanager" => self
+            "gitlab" | "generic" => self
                 .dependencies
                 .verifier
                 .verify_token(&secret, authentication),
