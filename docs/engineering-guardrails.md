@@ -43,3 +43,21 @@ Every integration must cover:
 
 Do not remove fixtures or helpers because a linter reveals that their intended
 test is missing. Finish the test or remove the unfinished feature from the PR.
+
+New behavior tests should use a clear given/when/then structure, name the
+business rule they protect and verify durable effects rather than only an HTTP
+status. Sensitive paths need at least one negative case.
+
+## Release ordering
+
+Prepare version changes in a dedicated pull request. After the required gate is
+green:
+
+1. merge the release PR into `main`;
+2. fetch and verify the resulting `main` commit;
+3. create the annotated version tag on that merged commit;
+4. push the tag and monitor the Release workflow through artifact publication.
+
+Never tag the release branch before it is merged. Squash merging changes the
+commit ID, and the workflow intentionally rejects a tag that is not reachable
+from `main`.
