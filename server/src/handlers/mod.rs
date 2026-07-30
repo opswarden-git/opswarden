@@ -276,8 +276,6 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("generic_event", false, _) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
-        ("alert_firing", true, _) => "Une alerte se déclenche",
-        ("alert_firing", false, _) => "Une alerte générée par Prometheus Alertmanager se déclenche",
         ("daily_at", true, _) => "Tous les jours à une heure locale",
         ("daily_at", false, _) => {
             "Exécuter une fois par jour calendaire local à l’heure configurée"
@@ -317,9 +315,6 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
         }
         "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
         "generic" => "Recevoir des webhooks JSON bornés authentifiés par un jeton partagé",
-        "alertmanager" => {
-            "Recevoir des webhooks de Alertmanager authentifiés via l’en-tête Authorization"
-        }
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
         "email" => "Configurer les identifiants SMTP pour l’envoi d’e-mails",
         _ => fallback,
@@ -361,14 +356,6 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
     {
         return "Obligatoire à la première connexion ; envoyé dans X-OpsWarden-Token".to_string();
     }
-    if name == "webhook_signing_secret" && fallback == "Authorization header" {
-        return "En-tête Authorization".to_string();
-    }
-    if name == "webhook_signing_secret"
-        && fallback == "Required. The exact expected Authorization header value (e.g. Basic ... or Bearer ...)"
-    {
-        return "Obligatoire. La valeur exacte attendue de l’en-tête Authorization (ex. Basic ... ou Bearer ...)".to_string();
-    }
     if name == "severity" && fallback == "Only match this severity" {
         return "Limiter la règle à cette sévérité".to_string();
     }
@@ -403,8 +390,6 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("conclusion", false) => "Limiter la règle à ce résultat de workflow",
         ("severity", true) => "Sévérité",
         ("severity", false) => "Sévérité affectée à l’incident créé",
-        ("alertname", true) => "Nom de l’alerte",
-        ("alertname", false) => "Limiter la règle à ce nom d’alerte spécifique",
         ("title", true) => "Titre de l’incident",
         ("title", false) => {
             "Template facultatif utilisant les variables normalisées de l’événement"

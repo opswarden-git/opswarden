@@ -258,11 +258,6 @@ pub fn build_app(state: AppState) -> Router {
                 ),
             ),
         )
-        .route(
-            "/webhooks/alertmanager/{connection_id}",
-            post(handlers::webhook::receive_alertmanager_for_connection)
-                .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
-        )
         .merge(protected_routes)
         .with_state(state)
 }
