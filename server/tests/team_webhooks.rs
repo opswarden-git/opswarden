@@ -94,6 +94,21 @@ const GITLAB_NEW_TAG: &str = r#"{
     "user_username":"octocat",
     "project":{"path_with_namespace":"opswarden/app","web_url":"https://gitlab.com/opswarden/app"}
 }"#;
+const ALERTMANAGER_FIRING: &str = r#"{
+    "status":"firing",
+    "alerts":[
+        {
+            "status":"firing",
+            "labels":{
+                "severity":"critical",
+                "alertname":"HighCPUUsage"
+            },
+            "annotations":{
+                "summary":"CPU usage > 90%"
+            }
+        }
+    ]
+}"#;
 
 fn signature(secret: &str, body: &str) -> String {
     format!(
@@ -152,6 +167,20 @@ fn generic_webhook_request(
         .header("X-OpsWarden-Delivery", delivery_id)
         .header("X-OpsWarden-Event", event)
         .header("X-OpsWarden-Token", token)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn alertmanager_webhook_request(
+    connection_id: Uuid,
+    token: &str,
+    body: &str,
+) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(format!("/webhooks/alertmanager/{connection_id}"))
+        .header("Content-Type", "application/json")
+        .header("Authorization", token)
         .body(Body::from(body.to_string()))
         .unwrap()
 }
@@ -598,6 +627,43 @@ async fn seed_generic_action(ctx: &common::TestContext, team_id: Uuid) -> Servic
         json!({
             "severity": "critical",
             "title": "{{source}}: {{title}} ({{external_id}})"
+        }),
+        user_id,
+    )
+    .unwrap();
+    rule.set_enabled(true);
+    ctx.automation_rules.insert_rule(&rule).await.unwrap();
+    connection
+}
+
+async fn seed_alertmanager_action(ctx: &common::TestContext, team_id: Uuid) -> ServiceConnection {
+    let user_id = Uuid::new_v4();
+    let connection = ServiceConnection::new(team_id, "alertmanager", user_id).unwrap();
+    ctx.service_connections
+        .insert_connection(&connection)
+        .await
+        .unwrap();
+    ctx.connection_credentials
+        .store_credential(
+            connection.id,
+            CredentialKind::WebhookSigningSecret,
+            "Bearer am-secret-token",
+        )
+        .await
+        .unwrap();
+    let mut rule = AutomationRule::new(
+        team_id,
+        "Alertmanager trigger",
+        connection.id,
+        "alert_firing",
+        json!({
+            "severity": "critical"
+        }),
+        "create_incident",
+        None,
+        json!({
+            "severity": "critical",
+            "title": "Alert: {{alertname}} - {{summary}}"
         }),
         user_id,
     )
