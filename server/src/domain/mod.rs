@@ -3,6 +3,7 @@
 pub mod automation;
 pub mod automation_catalog;
 pub mod automation_config;
+mod automation_credential;
 pub mod automation_template;
 pub mod automation_timer;
 pub mod capabilities;
