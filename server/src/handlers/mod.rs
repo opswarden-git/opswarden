@@ -1,17 +1,16 @@
-use std::net::{IpAddr, SocketAddr};
-
 use axum::{
     extract::{ConnectInfo, Query, State},
     http::{header::HeaderName, HeaderMap},
     Json,
 };
 use serde::{Deserialize, Serialize};
-
+use std::net::{IpAddr, SocketAddr};
 pub mod auth;
 pub mod channel;
 pub mod error;
 pub mod gif;
 pub mod incident;
+pub mod metrics;
 pub mod middleware;
 pub mod private_message;
 pub mod release;
@@ -19,7 +18,6 @@ pub mod team;
 pub mod team_automation;
 pub mod webhook;
 pub mod ws;
-
 #[derive(Serialize)]
 pub struct Health {
     pub status: &'static str,
@@ -261,8 +259,10 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("generic_event", false, _) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
-        ("alert_firing", true, _) => "Groupe d’alertes actif",
-        ("alert_firing", false, _) => "Un groupe de notifications Alertmanager est actif",
+        ("alert_firing", true, _) => "Alerte active",
+        ("alert_firing", false, _) => "Une alerte Alertmanager est devenue active",
+        ("alert_resolved", true, _) => "Alerte résolue",
+        ("alert_resolved", false, _) => "Une alerte Alertmanager a été résolue",
         ("daily_at", true, _) => "Tous les jours à une heure locale",
         ("daily_at", false, _) => {
             "Exécuter une fois par jour calendaire local à l’heure configurée"

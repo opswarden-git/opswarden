@@ -1,6 +1,6 @@
 # ADR 0001: Alertmanager webhook contract
 
-- Status: Accepted for `v1.0.11`
+- Status: Superseded by [ADR 0002](0002-alertmanager-lifecycle-contract.md)
 - Date: 2026-07-30
 - Scope: inbound Alertmanager notification groups
 

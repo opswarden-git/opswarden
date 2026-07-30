@@ -297,6 +297,7 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
     });
     let command = || IngestTeamWebhookCommand {
         connection_id: generic.id,
+        expected_service: "generic",
         provider_delivery_id: "pg-generic-delivery-42".into(),
         provider_event: "alert_firing".into(),
         signature: Some(SIGNING_SECRET.into()),
@@ -326,6 +327,7 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
 fn command(connection_id: Uuid, signature: String) -> IngestTeamWebhookCommand {
     IngestTeamWebhookCommand {
         connection_id,
+        expected_service: "github",
         provider_delivery_id: "pg-http-delivery-94".to_string(),
         provider_event: "workflow_run".to_string(),
         signature: Some(signature),

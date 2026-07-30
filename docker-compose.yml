@@ -55,6 +55,20 @@ services:
       timeout: 3s
       retries: 10
 
+  # Real Alertmanager used by the webhook lifecycle E2E. Its runtime config is
+  # generated under target/ after OpsWarden creates the team connection.
+  alertmanager:
+    image: quay.io/prometheus/alertmanager:v0.32.1@sha256:51a825c2a40acc3e338fdd00d622e01ec090f72be2b3ea46be0839cd47a4d286
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    volumes:
+      - ./target/e2e-alertmanager:/etc/alertmanager:ro
+    ports:
+      - "9093:9093"
+    depends_on:
+      server:
+        condition: service_healthy
+
   # Build-only desktop artifact: produces both the installable Linux `.deb` and
   # canonical AppImage in an Ubuntu/FHS container, validates the AppImage, copies
   # both to ./artifacts on the host, then exits.

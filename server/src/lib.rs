@@ -14,7 +14,7 @@ use axum::{
     Router,
 };
 
-use crate::adapters::ws::WsHub;
+use crate::adapters::{metrics::AlertmanagerWebhookMetrics, ws::WsHub};
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, ChannelRepo, Clock, ConnectionCredentialVault,
     EmailSender, GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher,
@@ -42,6 +42,7 @@ pub struct AppState {
     pub clock: Arc<dyn Clock + Send + Sync>,
     pub webhook_verifier: Arc<dyn WebhookVerifier + Send + Sync>,
     pub webhook_parser: Arc<dyn WebhookParser + Send + Sync>,
+    pub alertmanager_metrics: Arc<AlertmanagerWebhookMetrics>,
     /// Team-scoped automation resources. Connections own every credential and
     /// every inbound webhook resolves through an opaque connection id.
     pub service_connections: Arc<dyn ServiceConnectionRepo + Send + Sync>,
@@ -225,6 +226,7 @@ pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(handlers::health))
+        .route("/metrics", get(handlers::metrics::metrics))
         .route("/about.json", get(handlers::about))
         .route("/api/auth/sign-up", post(handlers::auth::sign_up))
         .route("/api/auth/sign-in", post(handlers::auth::sign_in))
@@ -260,11 +262,7 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/webhooks/alertmanager/{connection_id}",
-            post(handlers::webhook::receive_alertmanager_for_connection).layer(
-                axum::extract::DefaultBodyLimit::max(
-                    crate::adapters::webhook::alertmanager::MAX_ALERTMANAGER_BODY_BYTES,
-                ),
-            ),
+            post(handlers::webhook::receive_alertmanager_for_connection),
         )
         .merge(protected_routes)
         .with_state(state)

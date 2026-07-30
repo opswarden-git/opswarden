@@ -7,7 +7,7 @@ const FILTERS: &[CatalogField] = &[
     CatalogField {
         name: "severity",
         label: "Severity",
-        description: "Only match a severity shared by every alert in the notification group",
+        description: "Only match this alert severity",
         input_type: "select",
         required: false,
         default_value: None,
@@ -16,7 +16,7 @@ const FILTERS: &[CatalogField] = &[
     CatalogField {
         name: "alertname",
         label: "Alert name",
-        description: "Only match an alert name shared by every alert in the notification group",
+        description: "Only match this alert name",
         input_type: "text",
         required: false,
         default_value: None,
@@ -33,13 +33,22 @@ const FILTERS: &[CatalogField] = &[
     },
 ];
 
-const ACTIONS: &[CatalogCapability] = &[CatalogCapability {
-    kind: "alert_firing",
-    label: "Alert group firing",
-    description: "An authenticated Alertmanager notification group is firing",
-    connection_service: Some("alertmanager"),
-    fields: FILTERS,
-}];
+const ACTIONS: &[CatalogCapability] = &[
+    CatalogCapability {
+        kind: "alert_firing",
+        label: "Alert firing",
+        description: "One authenticated Alertmanager alert entered the firing state",
+        connection_service: Some("alertmanager"),
+        fields: FILTERS,
+    },
+    CatalogCapability {
+        kind: "alert_resolved",
+        label: "Alert resolved",
+        description: "One authenticated Alertmanager alert entered the resolved state",
+        connection_service: Some("alertmanager"),
+        fields: FILTERS,
+    },
+];
 
 const CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
     name: "webhook_signing_secret",

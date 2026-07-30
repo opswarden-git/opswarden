@@ -8,6 +8,7 @@ use opswarden_server::adapters::crypto::hmac::HmacSha256Verifier;
 use opswarden_server::adapters::crypto::jwt::JwtTokenService;
 use opswarden_server::adapters::email::SmtpEmailSender;
 use opswarden_server::adapters::giphy::GiphyClient;
+use opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics;
 use opswarden_server::adapters::notify::HttpNotifier;
 use opswarden_server::adapters::oauth::{GithubServiceOAuthClient, GoogleOAuthClient};
 use opswarden_server::adapters::pg::automation::execution::{
@@ -115,6 +116,7 @@ async fn main() {
         clock: Arc::new(SystemClock),
         webhook_verifier: Arc::new(HmacSha256Verifier),
         webhook_parser: Arc::new(CompositeWebhookParser::new()),
+        alertmanager_metrics: Arc::new(AlertmanagerWebhookMetrics::default()),
         service_connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
         connection_credentials: Arc::new(PgConnectionCredentialVault::new(
             pool.clone(),
