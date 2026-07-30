@@ -70,6 +70,7 @@
     "integrationsPreview": "Your workspace is ready. Service tokens are configured after onboarding through the server-side vault, so this step is only a connector preview.",
     "githubDescription": "Link actions and deployment flows",
     "gitlabDescription": "Synchronize pipelines and issue boards",
+    "alertmanagerDescription": "Receive authenticated firing and resolved alert groups",
     "kubernetesDescription": "Monitor container deployment metrics",
     "sentryDescription": "Track application exceptions and crashes",
     "datadogDescription": "Synchronize system APM telemetry",

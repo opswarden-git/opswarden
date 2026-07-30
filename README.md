@@ -72,7 +72,7 @@ This keeps release state and operational risk in the same workspace.
 Teams are the security and collaboration boundary: membership, invitations,
 presence and Observer/Responder/Manager permissions govern every operation.
 Managers can transfer ownership, moderate or ban members, configure encrypted
-GitHub, GitLab, Generic Webhook and HTTP integrations, and create
+GitHub, GitLab, Alertmanager, Generic Webhook and HTTP integrations, and create
 Action&rarr;REAction rules; teammates can also exchange private messages without
 leaving their shared operational context.
 
@@ -148,6 +148,8 @@ Finally, if you're looking for our public-facing presentation, you can find the 
 ## Contributing
 
 Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
+
+Repository and source-quality requirements are documented in [Engineering guardrails](docs/engineering-guardrails.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden/ci-success.png" alt="CI Success" width="100%" />

@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Metadata, Viewport } from "next";
+import { isAppLocale } from "@/i18n/locales";
 import { routing } from "@/i18n/routing";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "../globals.css";
@@ -49,7 +50,7 @@ export default async function LocaleLayout({
   const { locale } = await params;
 
   // Ensure that the incoming `locale` is valid
-  if (!routing.locales.includes(locale as any)) {
+  if (!isAppLocale(locale)) {
     notFound();
   }
 

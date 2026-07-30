@@ -89,6 +89,7 @@ describe("onboarding steps", () => {
     for (const integration of [
       "GitHub",
       "GitLab",
+      "Alertmanager",
       "Kubernetes",
       "Sentry",
       "Datadog",

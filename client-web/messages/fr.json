@@ -70,6 +70,7 @@
     "integrationsPreview": "Votre espace est prêt. Les jetons de service sont configurés après l’inscription dans le coffre-fort côté serveur ; cette étape est donc un aperçu des connecteurs.",
     "githubDescription": "Relier les actions et les flux de déploiement",
     "gitlabDescription": "Synchroniser les pipelines et les tableaux de tickets",
+    "alertmanagerDescription": "Recevoir les groupes d’alertes actives et résolues authentifiés",
     "kubernetesDescription": "Surveiller les métriques de déploiement des conteneurs",
     "sentryDescription": "Suivre les exceptions et les plantages applicatifs",
     "datadogDescription": "Synchroniser la télémétrie APM du système",

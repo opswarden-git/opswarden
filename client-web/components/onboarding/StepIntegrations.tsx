@@ -26,6 +26,12 @@ const AVAILABLE_INTEGRATIONS = [
     icon: "/assets/gitlab.webp",
   },
   {
+    id: "alertmanager",
+    name: "Alertmanager",
+    descriptionKey: "alertmanagerDescription",
+    icon: "/assets/alertmanager.svg",
+  },
+  {
     id: "k8s",
     name: "Kubernetes",
     descriptionKey: "kubernetesDescription",
@@ -49,7 +55,7 @@ const AVAILABLE_INTEGRATIONS = [
     descriptionKey: "pagerDutyDescription",
     icon: "/assets/pagerduty.webp",
   },
-];
+] as const;
 
 export function StepIntegrations({ next, back }: StepProps) {
   const t = useTranslations("Onboarding");

@@ -1,7 +1,5 @@
-//! Server-owned catalog for Team automation.
-//!
-//! Stored rule kinds, API validation and `/about.json` all consume this same
-//! registry. That keeps the future UI descriptive instead of hard-coded.
+//! Server-owned automation catalog shared by validation and `/about.json`.
+mod alertmanager;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CatalogCapability {
@@ -48,7 +46,6 @@ pub struct AutomationServiceDefinition {
 
 const NO_OPTIONS: &[&str] = &[];
 const SEVERITY_OPTIONS: &[&str] = &["low", "medium", "high", "critical"];
-
 const CI_FILTERS: &[CatalogField] = &[
     CatalogField {
         name: "repository",
@@ -633,6 +630,7 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
             testable: false,
         }),
     },
+    alertmanager::DEFINITION,
     AutomationServiceDefinition {
         service: "opswarden",
         label: "OpsWarden",
@@ -707,6 +705,7 @@ mod tests {
         assert!(supports_action("gitlab", "ci_succeeded"));
         assert!(supports_action("gitlab", "tag_pushed"));
         assert!(supports_action("generic", "generic_event"));
+        assert!(supports_action("alertmanager", "alert_firing"));
         assert!(supports_action("opswarden", "release_created"));
         assert!(supports_action("timer", "daily_at"));
         assert!(supports_action("timer", "every_minutes"));

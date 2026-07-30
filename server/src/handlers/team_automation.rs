@@ -12,7 +12,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::app::automation::team_connection::GITHUB_SERVICE;
+use crate::app::automation::team_connection::{ALERTMANAGER_SERVICE, GITHUB_SERVICE};
 use crate::app::automation::{
     CompleteGithubOAuthCommand, ConfigureEmailConnectionCommand, ConfigureGenericConnectionCommand,
     ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
@@ -45,15 +45,12 @@ pub struct ConfigureGitlabPayload {
 pub struct ConfigureGenericPayload {
     pub webhook_signing_secret: Option<String>,
 }
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigureHttpPayload {
     pub endpoint_url: String,
 }
 
-/// Mirrors the `email` connection fields published by the catalogue. Every field
-/// is optional on the wire so the client can omit an unchanged secret.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigureEmailPayload {
@@ -87,7 +84,7 @@ impl From<TeamConnectionView> for TeamConnectionResponse {
         use crate::domain::automation_config::CredentialKind;
 
         let webhook_path = match view.connection.service.as_str() {
-            "github" | "gitlab" | "generic" => Some(format!(
+            "github" | "gitlab" | "generic" | "alertmanager" => Some(format!(
                 "/webhooks/{}/{}",
                 view.connection.service, view.connection.id
             )),
@@ -179,16 +176,19 @@ pub async fn configure_service(
                 })
                 .await?
         }
-        "generic" => {
+        "generic" | ALERTMANAGER_SERVICE => {
             let payload: ConfigureGenericPayload =
                 serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
-            use_case
-                .configure_generic(ConfigureGenericConnectionCommand {
-                    team_id,
-                    requester_id: session.user_id,
-                    webhook_token: payload.webhook_signing_secret,
-                })
-                .await?
+            let command = ConfigureGenericConnectionCommand {
+                team_id,
+                requester_id: session.user_id,
+                webhook_token: payload.webhook_signing_secret,
+            };
+            if service == ALERTMANAGER_SERVICE {
+                use_case.configure_alertmanager(command).await?
+            } else {
+                use_case.configure_generic(command).await?
+            }
         }
         "http" => {
             let payload: ConfigureHttpPayload = serde_json::from_value(payload)
