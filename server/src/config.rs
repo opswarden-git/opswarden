@@ -19,6 +19,9 @@ pub struct Config {
     pub github_oauth_client_secret: Option<String>,
     pub github_oauth_redirect_uri: String,
     pub web_origin: String,
+    /// Exact browser origins allowed to open a WebSocket handshake. Requests
+    /// without Origin remain valid for native and service clients.
+    pub ws_allowed_origins: Vec<String>,
     /// Number of reverse-proxy hops controlled by the deployment. `0` means
     /// forwarded client-address headers are ignored.
     pub trusted_proxy_hops: usize,
@@ -78,6 +81,10 @@ impl Config {
             });
         let web_origin = optional_env("OPSWARDEN_WEB_ORIGIN")
             .unwrap_or_else(|| "http://localhost:4242".to_string());
+        let ws_allowed_origins = optional_env("OPSWARDEN_WS_ALLOWED_ORIGINS")
+            .map(|value| parse_origins(&value))
+            .filter(|origins| !origins.is_empty())
+            .unwrap_or_else(|| vec![web_origin.trim_end_matches('/').to_string()]);
         let trusted_proxy_hops = optional_env("OPSWARDEN_TRUSTED_PROXY_HOPS")
             .and_then(|value| value.parse::<usize>().ok())
             .filter(|hops| *hops <= 16)
@@ -99,6 +106,7 @@ impl Config {
             github_oauth_client_secret,
             github_oauth_redirect_uri,
             web_origin,
+            ws_allowed_origins,
             trusted_proxy_hops,
             giphy_api_key,
             timer_poll_seconds,
@@ -126,6 +134,16 @@ fn nonblank(value: Option<String>) -> Option<String> {
 /// Read an optional environment variable, treating blank/whitespace as unset.
 fn optional_env(key: &str) -> Option<String> {
     nonblank(std::env::var(key).ok())
+}
+
+fn parse_origins(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .map(|origin| origin.trim_end_matches('/'))
+        .filter(|origin| origin.starts_with("https://") || origin.starts_with("http://"))
+        .map(str::to_string)
+        .collect()
 }
 
 pub fn sha256_hex(input: &str) -> String {
@@ -180,7 +198,7 @@ fn is_env_key(key: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_env_key, nonblank, sha256_hex};
+    use super::{is_env_key, nonblank, parse_origins, sha256_hex};
 
     #[test]
     fn nonblank_treats_empty_and_whitespace_as_none() {
@@ -214,5 +232,16 @@ mod tests {
         assert!(!is_env_key("1PRIVATE"));
         assert!(!is_env_key("GOOGLE-OAUTH-CLIENT-ID"));
         assert!(!is_env_key(""));
+    }
+
+    #[test]
+    fn websocket_origins_are_exact_normalized_http_origins() {
+        assert_eq!(
+            parse_origins(" https://app.opswarden.dev/,http://localhost:4242, null "),
+            vec![
+                "https://app.opswarden.dev".to_string(),
+                "http://localhost:4242".to_string()
+            ]
+        );
     }
 }

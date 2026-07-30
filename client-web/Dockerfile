@@ -11,7 +11,7 @@
 # explicit localhost URL and the self-hosted ingress routes `/ws` to Rust.
 
 # ---- build ----
-FROM node:24-bookworm-slim AS builder
+FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS builder
 WORKDIR /app
 # Manifests first so the `npm ci` layer caches on lockfile changes only.
 COPY package.json package-lock.json ./
@@ -28,7 +28,7 @@ ENV OPSWARDEN_API_ORIGIN=${OPSWARDEN_API_ORIGIN}
 RUN npm run build --workspace client-web
 
 # ---- runtime ----
-FROM node:24-bookworm-slim AS runner
+FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

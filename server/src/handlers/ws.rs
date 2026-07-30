@@ -7,7 +7,8 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
-    response::Response,
+    http::{header::ORIGIN, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -21,8 +22,29 @@ use crate::AppState;
 /// happens in-band via the first message (browsers cannot set an Authorization
 /// header on the WS handshake), so the connection is anonymous until it sends a
 /// valid `{"type":"auth","token":"..."}`.
-pub async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> Response {
+pub async fn ws_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ws: WebSocketUpgrade,
+) -> Response {
+    if !origin_is_allowed(&headers, &state.config.ws_allowed_origins) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
     ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+fn origin_is_allowed(headers: &HeaderMap, allowed_origins: &[String]) -> bool {
+    let mut origins = headers.get_all(ORIGIN).iter();
+    let Some(origin) = origins.next() else {
+        return true;
+    };
+    if origins.next().is_some() {
+        return false;
+    }
+    origin
+        .to_str()
+        .ok()
+        .is_some_and(|origin| allowed_origins.iter().any(|allowed| allowed == origin))
 }
 
 #[derive(Deserialize)]
@@ -179,4 +201,51 @@ async fn authenticate(text: &str, state: &AppState) -> Option<Uuid> {
         return None;
     }
     Some(claims.user_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{header::ORIGIN, HeaderMap, HeaderValue};
+
+    use super::origin_is_allowed;
+
+    fn allowlist() -> Vec<String> {
+        vec![
+            "https://app.opswarden.dev".to_string(),
+            "http://localhost:4242".to_string(),
+        ]
+    }
+
+    #[test]
+    fn accepts_exact_browser_origin_and_originless_native_client() {
+        let mut headers = HeaderMap::new();
+        assert!(origin_is_allowed(&headers, &allowlist()));
+
+        headers.insert(
+            ORIGIN,
+            HeaderValue::from_static("https://app.opswarden.dev"),
+        );
+        assert!(origin_is_allowed(&headers, &allowlist()));
+    }
+
+    #[test]
+    fn rejects_cross_site_null_and_multiple_origins() {
+        for origin in [
+            "https://attacker.example",
+            "null",
+            "https://app.opswarden.dev/",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(ORIGIN, HeaderValue::from_str(origin).unwrap());
+            assert!(!origin_is_allowed(&headers, &allowlist()));
+        }
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            ORIGIN,
+            HeaderValue::from_static("https://app.opswarden.dev"),
+        );
+        headers.append(ORIGIN, HeaderValue::from_static("https://attacker.example"));
+        assert!(!origin_is_allowed(&headers, &allowlist()));
+    }
 }
