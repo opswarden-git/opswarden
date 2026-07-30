@@ -62,6 +62,8 @@ export function RuleForm({
 
   const selectedAction = actions.find((action) => action.name === actionName);
   const selectedReaction = reactions.find((reaction) => reaction.name === reactionName);
+  const isAlertmanagerLifecycleEvent =
+    selectedAction?.name === "alert_firing" || selectedAction?.name === "alert_resolved";
   const triggerConnections = connections.filter(
     (connection) => connection.service === selectedAction?.connection_service,
   );
@@ -204,6 +206,11 @@ export function RuleForm({
           ) : null}
           {triggerConnections.length === 0 ? (
             <Alert tone="warning">{t("missingSourceConnection")}</Alert>
+          ) : null}
+          {isAlertmanagerLifecycleEvent ? (
+            <Alert tone="info" data-testid="alertmanager-lifecycle-contract">
+              {t("alertmanagerLifecycleContract")}
+            </Alert>
           ) : null}
           {selectedAction?.fields.length ? (
             <div>

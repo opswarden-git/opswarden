@@ -67,6 +67,33 @@ const catalog: AutomationService[] = [
     reactions: [],
   },
   {
+    name: "alertmanager",
+    label: "Alertmanager",
+    connection: {
+      description: "Authenticated Alertmanager webhook",
+      fields: [],
+      oauth: null,
+      testable: false,
+    },
+    actions: [
+      {
+        name: "alert_firing",
+        label: "Alert firing",
+        description: "One Alertmanager alert started firing",
+        connection_service: "alertmanager",
+        fields: [],
+      },
+      {
+        name: "alert_resolved",
+        label: "Alert resolved",
+        description: "One Alertmanager alert was resolved",
+        connection_service: "alertmanager",
+        fields: [],
+      },
+    ],
+    reactions: [],
+  },
+  {
     name: "opswarden",
     label: "OpsWarden",
     connection: null,
@@ -161,6 +188,13 @@ const opswardenConnection: TeamConnection = {
   service: "opswarden",
   secret_configured: false,
   webhook_path: null,
+};
+
+const alertmanagerConnection: TeamConnection = {
+  ...connection,
+  id: "connection-alertmanager",
+  service: "alertmanager",
+  webhook_path: "/webhooks/alertmanager/connection-alertmanager",
 };
 
 const timerConnection: TeamConnection = {
@@ -293,6 +327,42 @@ describe("RulesView", () => {
         trigger_connection_id: timerConnection.id,
         trigger_kind: "daily_at",
         trigger_config: { time: "09:30", timezone: "UTC" },
+      }),
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it.each([
+    ["alert_firing", "Open incident for firing alert"],
+    ["alert_resolved", "Notify when alert resolves"],
+  ])("creates an accessible Alertmanager %s rule", (triggerKind, ruleName) => {
+    render(
+      <RulesView
+        catalog={catalog}
+        connections={[connection, alertmanagerConnection]}
+        rules={[]}
+        teamId="team-1"
+        isCreatingRule
+        setIsCreatingRule={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("ruleName"), { target: { value: ruleName } });
+    fireEvent.change(screen.getByLabelText("event"), { target: { value: triggerKind } });
+    fireEvent.change(screen.getByLabelText("sourceConnection"), {
+      target: { value: alertmanagerConnection.id },
+    });
+
+    const lifecycleContract = screen.getByTestId("alertmanager-lifecycle-contract");
+    expect(lifecycleContract).toHaveAttribute("role", "status");
+    expect(lifecycleContract).toHaveTextContent("alertmanagerLifecycleContract");
+
+    fireEvent.click(screen.getByRole("button", { name: "createRule" }));
+    expect(createMutation.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: ruleName,
+        trigger_connection_id: alertmanagerConnection.id,
+        trigger_kind: triggerKind,
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );

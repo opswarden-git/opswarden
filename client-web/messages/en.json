@@ -392,6 +392,7 @@
     "sourceConnection": "Source connection",
     "selectConnection": "Select a connection…",
     "missingSourceConnection": "Connect the source service before saving this rule.",
+    "alertmanagerLifecycleContract": "Alertmanager firing and resolved notifications are independent events. A resolved event does not automatically close an incident created by a firing rule.",
     "optionalFilters": "Optional filters",
     "filtersHint": "Every filled value must exactly match the normalized incoming event.",
     "actionConfiguration": "Action filters",

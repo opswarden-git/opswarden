@@ -392,6 +392,7 @@
     "sourceConnection": "Connexion source",
     "selectConnection": "Sélectionner une connexion…",
     "missingSourceConnection": "Connectez le service source avant d’enregistrer cette règle.",
+    "alertmanagerLifecycleContract": "Les notifications Alertmanager firing et resolved sont des événements indépendants. Un événement resolved ne ferme pas automatiquement un incident créé par une règle firing.",
     "optionalFilters": "Filtres facultatifs",
     "filtersHint": "Chaque valeur renseignée doit correspondre exactement à l’événement normalisé entrant.",
     "actionConfiguration": "Filtres de l’Action",
