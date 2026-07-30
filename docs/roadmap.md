@@ -6,20 +6,24 @@ considered reproducible until its corresponding Ops change is also merged.
 
 ## Current state
 
-| Area                            | Status  | Evidence                                                                                                        | Remaining work                                                              |
-| ------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Recovery and corrective release | Shipped | PR #122 was reverted; `v1.0.10` restored the app and `v1.0.11` reintroduced the safe Alertmanager foundation    | Preserve history for audit                                                  |
-| Protected delivery              | Shipped | Pull requests, current required gate, linear history, admin enforcement, no force-push/delete                   | Require human approval when a second maintainer is available                |
-| Source hygiene                  | Shipped | PRs #131–#134; no tracked owned source file exceeds 500 lines                                                   | Keep the 500-line ratchet                                                   |
-| Lifecycle contract              | Shipped | [ADR 0002](adr/0002-alertmanager-lifecycle-contract.md), per-alert firing/resolved events and mixed-state tests | Observe real traffic                                                        |
-| Semantic idempotency            | Shipped | Versioned transition identity and formatting/lifecycle retry tests                                              | Tune duplicate-ratio alerts from real traffic                               |
-| HTTP/security matrix            | Shipped | 1 MiB, authentication, provider mismatch, disabled rules, tenant isolation and persisted reaction failure tests | Add mutation tests                                                          |
-| Metrics                         | Shipped | Five counters, production Prometheus scrape, Grafana dashboard and three alert rules                            | Tune thresholds from real traffic                                           |
-| Real Alertmanager E2E           | Shipped | CI plus production firing/resolved, two durable runs, `accepted +2`, `failed +0`                                | None                                                                        |
-| Frontend onboarding             | Partial | English/French catalog, icon, generic accessibility contract and component test                                 | Add focused Alertmanager accessibility/visual assertions and lifecycle copy |
-| Operator documentation          | Shipped | Setup, contract, metrics, rotation, troubleshooting and deployed rollback proofs                                | Keep operational evidence current                                           |
-| Structural refactoring          | Shipped | All 18 grandfathered files were split by behavior-neutral PRs #131–#134                                         | Keep future files below 500 lines                                           |
-| Mutation testing                | Open    | Unit, integration and E2E coverage exists                                                                       | Target authentication, tenancy, identity, filtering and lifecycle mutations |
+| Area                            | Status  | Evidence                                                                                                        | Remaining work                                                       |
+| ------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Recovery and corrective release | Shipped | PR #122 was reverted; `v1.0.10` restored the app and `v1.0.11` reintroduced the safe Alertmanager foundation    | Preserve history for audit                                           |
+| Protected delivery              | Shipped | Pull requests, current required gate, linear history, admin enforcement, no force-push/delete                   | Require human approval when a second maintainer is available         |
+| Source hygiene                  | Shipped | PRs #131–#134; no tracked owned source file exceeds 500 lines                                                   | Keep the 500-line ratchet                                            |
+| Lifecycle contract              | Shipped | [ADR 0002](adr/0002-alertmanager-lifecycle-contract.md), per-alert firing/resolved events and mixed-state tests | Observe real traffic                                                 |
+| Semantic idempotency            | Shipped | Versioned transition identity and formatting/lifecycle retry tests                                              | Tune duplicate-ratio alerts from real traffic                        |
+| HTTP/security matrix            | Shipped | 1 MiB, authentication, provider mismatch, disabled rules, tenant isolation and persisted reaction failure tests | None                                                                 |
+| Metrics                         | Shipped | Five counters, production Prometheus scrape, Grafana dashboard and three alert rules                            | Tune thresholds from real traffic                                    |
+| Real Alertmanager E2E           | Shipped | CI plus production firing/resolved, two durable runs, `accepted +2`, `failed +0`                                | None                                                                 |
+| Frontend onboarding             | Shipped | English/French lifecycle copy, focused component acceptance and mobile browser assertion                        | None                                                                 |
+| Operator documentation          | Shipped | Setup, contract, metrics, rotation, troubleshooting and deployed rollback proofs                                | Keep operational evidence current                                    |
+| Structural refactoring          | Shipped | All 18 grandfathered files were split by behavior-neutral PRs #131–#134                                         | Keep future files below 500 lines                                    |
+| Mutation testing                | Shipped | Pinned bounded campaign: 48 mutants, 45 caught, three compile-time unviable, zero survivors/timeouts            | Expand only when a new critical boundary justifies the gate duration |
+| Backup operations               | Shipped | Encrypted upload/restore plus five healthy CronJob freshness/failure rules in production                        | Retain the time-gated scheduled and 30-day deletion evidence         |
+| Release-state recovery          | Shipped | Reverse-order snapshot restoration, release annotations and production disposable-resource proof                | Do not inject a full failed production release solely for evidence   |
+| Centralized logs                | Shipped | Digest-pinned Loki/Alloy, retained PVC, Grafana source, two healthy alerts and queried production marker        | Decide whether multi-zone object storage is warranted                |
+| Supply-chain/WS/migrations      | Shipped | Digest-only Docker bases, exact Origin allowlist and immutable phase-labelled migration CI                      | Keep the ratchets enabled                                            |
 
 ## Final self-healing contract
 
@@ -56,49 +60,32 @@ The release and operational tasks formerly listed as P0 are complete:
 - checksum and full isolated PostgreSQL restore with schema and SQLx migration
   assertions.
 
-## Remaining work, in priority order
+## P0–P3 closure
 
-### P0 — Publish the proven Ops state
+The recovery roadmap is closed:
 
-The backup resources and documentation are already active and proven in
-production, but their `opswarden-ops` worktree still needs a reviewed PR, green
-Ops CI and merge. No application release is required for this infrastructure
-change.
+- **P0:** backup manifests, encrypted secret and restore evidence are merged;
+- **P1:** CronJob state, failure and 26-hour freshness are monitored in
+  production;
+- **P2:** both Alertmanager lifecycle actions have focused accessible component
+  and browser acceptance;
+- **P3:** targeted mutation testing has no surviving viable mutant;
+- **production hardening:** Kubernetes release state is restorable, migrations
+  are forward-only, logs are centralized, Docker bases are immutable and
+  browser WebSocket origins are allow-listed.
 
-### P1 — Backup operations
+## Remaining operational evidence
 
-1. Observe the first scheduled `02:17 UTC` execution.
-2. Alert on CronJob failure and stale backup age.
-3. Prove retention deletion after 30 days.
-4. Store the matching age identity in an audited offline recovery location.
-5. Decide whether daily full-download verification is worth Cold Storage
-   retrieval charges.
-6. Monitor the FRA1 internal Spaces `/32` allowlist for DNS changes.
+These are time- or operator-gated observations, not missing implementation:
 
-### P2 — Frontend acceptance
-
-1. Add an accessibility assertion for the Alertmanager connection and both
-   lifecycle actions.
-2. Add a focused visual/browser onboarding assertion.
-3. Explain `alert_resolved` in rule creation copy so it is not mistaken for an
-   automatic incident close.
-
-### P3 — Test effectiveness
-
-- Introduce targeted mutation testing for authentication, provider mismatch,
-  tenant isolation, semantic identity, filters and lifecycle status.
-- Keep given/when/then names and assertions on durable effects.
-- Keep the required gate duration bounded.
-
-### P4 — Remaining production hardening
-
-1. Version ConfigMaps, HPA and PDB as one atomic release unit.
-2. Formalize forward-only migration recovery boundaries and rehearse full
-   disaster recovery including credential rotation.
-3. Add centralized log alerting.
-4. Pin mutable application build-stage base images.
-5. Add an explicit WebSocket Origin allowlist for the Vercel frontend.
-6. Tune Alertmanager rejection and duplicate thresholds from real traffic.
+1. retain the first scheduled `02:17 UTC` backup proof;
+2. retain evidence of deletion after the real 30-day retention window;
+3. place the matching age identity in an audited offline recovery location;
+4. reevaluate full-download Cold Storage verification costs and the FRA1 DNS
+   `/32`;
+5. tune Alertmanager thresholds from real traffic;
+6. decide whether seven-day retained-volume logs also need multi-zone object
+   storage.
 
 ## Release rule
 
