@@ -10,6 +10,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 pub mod auth;
+pub mod channel;
 pub mod error;
 pub mod gif;
 pub mod incident;

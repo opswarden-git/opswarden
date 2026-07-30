@@ -19,6 +19,7 @@ use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailSender,
     GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
     ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo,
+    ChannelRepo,
     TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser,
     WebhookVerifier,
 };
@@ -28,6 +29,7 @@ use std::sync::Arc;
 pub struct AppState {
     pub users: Arc<dyn UserRepo + Send + Sync>,
     pub teams: Arc<dyn TeamRepo + Send + Sync>,
+    pub channels: Arc<dyn ChannelRepo + Send + Sync>,
     pub incidents: Arc<dyn IncidentRepo + Send + Sync>,
     pub timeline: Arc<dyn TimelineRepo + Send + Sync>,
     pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
@@ -127,6 +129,14 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/teams/{team_id}/manager",
             put(handlers::team::transfer_manager),
+        )
+        .route(
+            "/api/teams/{team_id}/channels",
+            get(handlers::channel::list_channels).post(handlers::channel::create_channel),
+        )
+        .route(
+            "/api/teams/{team_id}/channels/{channel_id}",
+            delete(handlers::channel::delete_channel),
         )
         .route(
             "/api/teams/{team_id}/service-connections",

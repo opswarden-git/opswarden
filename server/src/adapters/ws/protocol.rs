@@ -221,6 +221,26 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "release_id": release_id,
             "new_state": new_state.to_string(),
         }),
+        DomainEvent::ChannelCreated {
+            channel_id,
+            name,
+            by,
+            ..
+        } => json!({
+            "type": "channel_created",
+            "channel_id": channel_id,
+            "name": name,
+            "by": by,
+        }),
+        DomainEvent::ChannelDeleted {
+            channel_id,
+            by,
+            ..
+        } => json!({
+            "type": "channel_deleted",
+            "channel_id": channel_id,
+            "by": by,
+        }),
     };
     value.to_string()
 }

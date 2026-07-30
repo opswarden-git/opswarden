@@ -146,6 +146,17 @@ pub enum DomainEvent {
         release_id: Uuid,
         new_state: ReleaseState,
     },
+    ChannelCreated {
+        team_id: Uuid,
+        channel_id: Uuid,
+        name: String,
+        by: Uuid,
+    },
+    ChannelDeleted {
+        team_id: Uuid,
+        channel_id: Uuid,
+        by: Uuid,
+    },
 }
 
 /// How the WebSocket adapter should fan an event out. Keeps the routing rule in
@@ -179,7 +190,9 @@ impl DomainEvent {
             | DomainEvent::MemberKicked { team_id, .. }
             | DomainEvent::MemberBanned { team_id, .. }
             | DomainEvent::ReleaseStepValidated { team_id, .. }
-            | DomainEvent::ReleaseStateChanged { team_id, .. } => EventDelivery::Team(*team_id),
+            | DomainEvent::ReleaseStateChanged { team_id, .. }
+            | DomainEvent::ChannelCreated { team_id, .. }
+            | DomainEvent::ChannelDeleted { team_id, .. } => EventDelivery::Team(*team_id),
             DomainEvent::PrivateMessageReceived {
                 sender_id,
                 recipient_id,
