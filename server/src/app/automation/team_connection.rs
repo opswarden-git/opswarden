@@ -14,6 +14,7 @@ use crate::ports::{
 pub const GITHUB_SERVICE: &str = "github";
 pub const GITLAB_SERVICE: &str = "gitlab";
 pub const GENERIC_SERVICE: &str = "generic";
+pub const ALERTMANAGER_SERVICE: &str = "alertmanager";
 pub const HTTP_SERVICE: &str = "http";
 pub const EMAIL_SERVICE: &str = "email";
 const CONNECTION_TEST_MESSAGE: &str = "OpsWarden connection test";
@@ -157,58 +158,66 @@ impl TeamConnectionUseCase {
         &self,
         cmd: ConfigureGitlabConnectionCommand,
     ) -> Result<TeamConnectionView, DomainError> {
-        require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
-        validate_optional_secret(&cmd.webhook_token)?;
-        let existing = self
-            .connections
-            .find_connection_by_service(cmd.team_id, GITLAB_SERVICE)
-            .await?;
-        if existing.is_none() && cmd.webhook_token.is_none() {
-            return Err(DomainError::InvalidServiceSecret);
-        }
-        let connection = match existing {
-            Some(connection) => connection,
-            None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, GITLAB_SERVICE, cmd.requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                connection
-            }
-        };
-        if let Some(token) = cmd.webhook_token {
-            self.credentials
-                .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &token)
-                .await?;
-            self.connections
-                .reset_connection_health(connection.id)
-                .await?;
-        }
-        self.connection_view(cmd.team_id, connection.id).await
+        self.configure_token_webhook(
+            GITLAB_SERVICE,
+            cmd.team_id,
+            cmd.requester_id,
+            cmd.webhook_token,
+        )
+        .await
     }
 
     pub async fn configure_generic(
         &self,
         cmd: ConfigureGenericConnectionCommand,
     ) -> Result<TeamConnectionView, DomainError> {
-        require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
-        validate_optional_secret(&cmd.webhook_token)?;
+        self.configure_token_webhook(
+            GENERIC_SERVICE,
+            cmd.team_id,
+            cmd.requester_id,
+            cmd.webhook_token,
+        )
+        .await
+    }
+
+    pub async fn configure_alertmanager(
+        &self,
+        cmd: ConfigureGenericConnectionCommand,
+    ) -> Result<TeamConnectionView, DomainError> {
+        self.configure_token_webhook(
+            ALERTMANAGER_SERVICE,
+            cmd.team_id,
+            cmd.requester_id,
+            cmd.webhook_token,
+        )
+        .await
+    }
+
+    async fn configure_token_webhook(
+        &self,
+        service: &'static str,
+        team_id: Uuid,
+        requester_id: Uuid,
+        webhook_token: Option<String>,
+    ) -> Result<TeamConnectionView, DomainError> {
+        require_manager(&self.teams, team_id, requester_id).await?;
+        validate_optional_secret(&webhook_token)?;
         let existing = self
             .connections
-            .find_connection_by_service(cmd.team_id, GENERIC_SERVICE)
+            .find_connection_by_service(team_id, service)
             .await?;
-        if existing.is_none() && cmd.webhook_token.is_none() {
+        if existing.is_none() && webhook_token.is_none() {
             return Err(DomainError::InvalidServiceSecret);
         }
         let connection = match existing {
             Some(connection) => connection,
             None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, GENERIC_SERVICE, cmd.requester_id)?;
+                let connection = ServiceConnection::new(team_id, service, requester_id)?;
                 self.connections.insert_connection(&connection).await?;
                 connection
             }
         };
-        if let Some(token) = cmd.webhook_token {
+        if let Some(token) = webhook_token {
             self.credentials
                 .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &token)
                 .await?;
@@ -216,7 +225,7 @@ impl TeamConnectionUseCase {
                 .reset_connection_health(connection.id)
                 .await?;
         }
-        self.connection_view(cmd.team_id, connection.id).await
+        self.connection_view(team_id, connection.id).await
     }
 
     pub async fn configure_http(

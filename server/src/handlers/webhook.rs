@@ -14,7 +14,7 @@ use axum::{
 };
 use serde::Serialize;
 
-use crate::adapters::webhook::generic::validate_payload;
+use crate::adapters::webhook::{alertmanager, generic::validate_payload};
 use crate::app::automation::{
     IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
 };
@@ -183,14 +183,12 @@ pub async fn receive_alertmanager_for_connection(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
-    let provider_delivery_id = uuid::Uuid::new_v4().to_string();
+    if !is_json_content_type(&headers) {
+        return Err(DomainError::InvalidWebhookDelivery);
+    }
+    let provider_delivery_id = alertmanager::delivery_id(&body)?;
     let provider_event = "alertmanager_webhook".to_string();
-
-    // Alertmanager can send basic auth or bearer token in Authorization header
-    let signature = headers
-        .get("Authorization")
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_string);
+    let signature = Some(bearer_token(&headers)?);
 
     let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
         connections: state.service_connections.clone(),
@@ -224,6 +222,16 @@ pub async fn receive_alertmanager_for_connection(
             rules_failed: result.rules_failed,
         }),
     ))
+}
+
+fn bearer_token(headers: &HeaderMap) -> Result<String, DomainError> {
+    let authorization = required_header(headers, "Authorization")?;
+    let token = authorization
+        .strip_prefix("Bearer ")
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+        .ok_or(DomainError::InvalidWebhookDelivery)?;
+    Ok(token.to_string())
 }
 
 fn required_header(headers: &HeaderMap, name: &'static str) -> Result<String, DomainError> {

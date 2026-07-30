@@ -76,7 +76,23 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     );
 
     let services = json["server"]["services"].as_array().unwrap();
-    assert_eq!(services.len(), 7);
+    let service_names: Vec<_> = services
+        .iter()
+        .map(|service| service["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        service_names,
+        [
+            "github",
+            "gitlab",
+            "generic",
+            "alertmanager",
+            "opswarden",
+            "timer",
+            "http",
+            "email"
+        ]
+    );
     assert!(services.iter().any(|service| {
         service["name"] == "github"
             && service["actions"][0]["name"] == "ci_failed"
@@ -102,6 +118,15 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
             && service["actions"][0]["fields"][0]["name"] == "event_type"
             && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
             && service["connection"]["oauth"].is_null()
+    }));
+    assert!(services.iter().any(|service| {
+        service["name"] == "alertmanager"
+            && service["actions"][0]["name"] == "alert_firing"
+            && service["actions"][0]["connection_service"] == "alertmanager"
+            && service["actions"][0]["fields"][0]["name"] == "severity"
+            && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
+            && service["connection"]["fields"][0]["label"] == "Bearer token"
+            && service["connection"]["testable"] == false
     }));
     assert!(services.iter().any(|service| {
         service["name"] == "opswarden"
@@ -180,6 +205,18 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
         .iter()
         .find(|service| service["name"] == "generic")
         .unwrap();
+    let alertmanager = services
+        .iter()
+        .find(|service| service["name"] == "alertmanager")
+        .unwrap();
+    assert_eq!(
+        alertmanager["actions"][0]["label"],
+        "Groupe d’alertes actif"
+    );
+    assert_eq!(
+        alertmanager["connection"]["fields"][0]["label"],
+        "Jeton Bearer"
+    );
     assert_eq!(generic["actions"][0]["label"], "Événement JSON générique");
     assert_eq!(
         generic["connection"]["fields"][0]["label"],

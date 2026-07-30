@@ -33,6 +33,10 @@ const ALLOWED_VARIABLES: &[&str] = &[
     "message",
     "severity",
     "external_id",
+    "alertname",
+    "summary",
+    "receiver",
+    "group_key",
 ];
 
 pub fn validate_template(template: &str) -> Result<(), DomainError> {
@@ -209,5 +213,13 @@ mod tests {
         ] {
             assert_eq!(validate_template(template), Ok(()));
         }
+    }
+
+    #[test]
+    fn accepts_normalized_alertmanager_string_variables() {
+        assert_eq!(
+            validate_template("{{alertname}} via {{receiver}}: {{summary}} ({{group_key}})"),
+            Ok(())
+        );
     }
 }

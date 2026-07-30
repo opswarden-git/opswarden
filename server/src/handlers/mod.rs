@@ -1,5 +1,3 @@
-// --- server/src/handlers/mod.rs ---
-
 use std::net::{IpAddr, SocketAddr};
 
 use axum::{
@@ -26,7 +24,6 @@ pub mod ws;
 pub struct Health {
     pub status: &'static str,
 }
-
 pub async fn health() -> Json<Health> {
     Json(Health { status: "ok" })
 }
@@ -36,19 +33,16 @@ pub struct About {
     pub client: ClientInfo,
     pub server: ServerInfo,
 }
-
 #[derive(Serialize)]
 pub struct ClientInfo {
     pub host: String,
 }
-
 #[derive(Serialize)]
 pub struct ServerInfo {
     pub current_time: u64,
     pub token: String,
     pub services: Vec<ServiceCatalog>,
 }
-
 #[derive(Serialize)]
 pub struct ServiceCatalog {
     pub name: String,
@@ -57,7 +51,6 @@ pub struct ServiceCatalog {
     pub reactions: Vec<CatalogItem>,
     pub connection: Option<ConnectionCatalog>,
 }
-
 #[derive(Serialize)]
 pub struct CatalogItem {
     pub name: String,
@@ -66,7 +59,6 @@ pub struct CatalogItem {
     pub connection_service: Option<String>,
     pub fields: Vec<CatalogField>,
 }
-
 #[derive(Serialize)]
 pub struct CatalogField {
     pub name: String,
@@ -77,13 +69,11 @@ pub struct CatalogField {
     pub default_value: Option<String>,
     pub options: Vec<CatalogOption>,
 }
-
 #[derive(Serialize)]
 pub struct CatalogOption {
     pub value: String,
     pub label: String,
 }
-
 #[derive(Serialize)]
 pub struct ConnectionCatalog {
     pub description: String,
@@ -91,7 +81,6 @@ pub struct ConnectionCatalog {
     pub oauth: Option<OAuthCatalog>,
     pub testable: bool,
 }
-
 #[derive(Serialize)]
 pub struct OAuthCatalog {
     pub label: String,
@@ -168,10 +157,6 @@ fn resolve_client_ip(peer: IpAddr, headers: &HeaderMap, trusted_proxy_hops: usiz
     }
 }
 
-/// The Action -> REAction catalog the engine actually supports, surfaced on
-/// `/about.json` so the contract is server-driven (nothing hard-coded client
-/// side). Grows as services/Actions/REActions are added in `adapters/webhook`
-/// and the rule engine.
 fn automation_catalog(locale: &str) -> Vec<ServiceCatalog> {
     crate::domain::automation_catalog::AUTOMATION_CATALOG
         .iter()
@@ -276,6 +261,8 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
         ("generic_event", false, _) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
+        ("alert_firing", true, _) => "Groupe d’alertes actif",
+        ("alert_firing", false, _) => "Un groupe de notifications Alertmanager est actif",
         ("daily_at", true, _) => "Tous les jours à une heure locale",
         ("daily_at", false, _) => {
             "Exécuter une fois par jour calendaire local à l’heure configurée"
@@ -315,6 +302,7 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
         }
         "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
         "generic" => "Recevoir des webhooks JSON bornés authentifiés par un jeton partagé",
+        "alertmanager" => "Recevoir les groupes Alertmanager authentifiés par un jeton Bearer",
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
         "email" => "Configurer les identifiants SMTP pour l’envoi d’e-mails",
         _ => fallback,
@@ -351,6 +339,13 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
     if name == "webhook_signing_secret" && fallback == "Shared webhook token" {
         return "Jeton partagé du webhook".to_string();
     }
+    if name == "webhook_signing_secret" && fallback == "Bearer token" {
+        return "Jeton Bearer".to_string();
+    }
+    if name == "webhook_signing_secret" && fallback.contains("Authorization: Bearer") {
+        return "Obligatoire à la première connexion ; envoyé dans Authorization: Bearer <jeton>"
+            .to_string();
+    }
     if name == "webhook_signing_secret"
         && fallback == "Required on first connection; sent in X-OpsWarden-Token"
     {
@@ -378,6 +373,10 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("source", false) => "Limiter la règle à cette source du payload",
         ("external_id", true) => "Identifiant externe",
         ("external_id", false) => "Limiter la règle à cet identifiant externe du payload",
+        ("alertname", true) => "Nom d’alerte",
+        ("alertname", false) => "Limiter la règle au nom partagé par toutes les alertes du groupe",
+        ("receiver", true) => "Récepteur",
+        ("receiver", false) => "Limiter la règle à ce récepteur Alertmanager",
         ("step", true) => "Étape",
         ("step", false) => "Nom exact de la prochaine étape ou template d’événement",
         ("incident_id", true) => "Identifiant d’Incident",
