@@ -1,7 +1,5 @@
-use super::{
-    AutomationServiceDefinition, CatalogCapability, CatalogConnection, CatalogField, NO_OPTIONS,
-    SEVERITY_OPTIONS,
-};
+use super::capabilities::{NO_OPTIONS, SEVERITY_OPTIONS};
+use super::{AutomationServiceDefinition, CatalogCapability, CatalogConnection, CatalogField};
 
 const FILTERS: &[CatalogField] = &[
     CatalogField {
