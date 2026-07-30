@@ -45,6 +45,10 @@ dev:
 test:
     cargo test --workspace
 
+# campagne de mutations bornée au contrat de confiance Alertmanager
+test-mutations-alertmanager:
+    ./tooling/test_alertmanager_mutations.sh
+
 # tests avec base de données éphémère (nettoyage garanti)
 test-integration:
     #!/usr/bin/env bash

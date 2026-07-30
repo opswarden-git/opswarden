@@ -257,6 +257,11 @@ mod tests {
         assert_eq!(firing.attributes["alertname"], "ApiDown");
         assert_eq!(firing.attributes["description"], "Health probe failed");
         assert_eq!(firing.attributes["starts_at"], "2026-07-30T12:00:00Z");
+        assert_eq!(firing.attributes["ends_at"], "2026-07-30T12:05:00Z");
+        assert_eq!(
+            firing.attributes["generator_url"],
+            "https://prometheus.example/graph"
+        );
         assert!(!firing.attributes.contains_key("token"));
         assert!(!firing.attributes.contains_key("secret"));
 
@@ -306,5 +311,26 @@ mod tests {
                 Err(DomainError::InvalidWebhookDelivery)
             );
         }
+    }
+
+    #[test]
+    fn accepts_exact_body_limit_and_rejects_one_byte_more() {
+        assert_eq!(MAX_ALERTMANAGER_BODY_BYTES, 1_048_576);
+        let prefix = br#"{"status":"firing","receiver":"opswarden","groupKey":"api","alerts":[{"status":"firing","fingerprint":"api-1","startsAt":"2026-07-30T12:00:00Z"}],"padding":""#;
+        let suffix = br#""}"#;
+        let padding_len = MAX_ALERTMANAGER_BODY_BYTES - prefix.len() - suffix.len();
+        let mut at_limit = Vec::with_capacity(MAX_ALERTMANAGER_BODY_BYTES + 1);
+        at_limit.extend_from_slice(prefix);
+        at_limit.extend(std::iter::repeat_n(b'a', padding_len));
+        at_limit.extend_from_slice(suffix);
+
+        assert_eq!(at_limit.len(), MAX_ALERTMANAGER_BODY_BYTES);
+        assert!(transitions(&at_limit).is_ok());
+
+        at_limit.push(b' ');
+        assert_eq!(
+            transitions(&at_limit).map(|_| ()),
+            Err(DomainError::InvalidWebhookDelivery)
+        );
     }
 }

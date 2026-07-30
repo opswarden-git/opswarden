@@ -48,6 +48,21 @@ New behavior tests should use a clear given/when/then structure, name the
 business rule they protect and verify durable effects rather than only an HTTP
 status. Sensitive paths need at least one negative case.
 
+### Targeted mutation testing
+
+The Alertmanager trust boundary has a reproducible campaign:
+
+```bash
+cargo install --locked cargo-mutants --version 27.1.0
+just test-mutations-alertmanager
+```
+
+The campaign is intentionally limited to the Alertmanager parser/idempotence
+and bounded outcome metrics. It runs library tests only, with two jobs and a
+120-second timeout per mutant. Every surviving, non-viable or timed-out mutant
+must be investigated; the command is green only when tests catch every viable
+mutation.
+
 ## Release ordering
 
 Prepare version changes in a dedicated pull request. After the required gate is
