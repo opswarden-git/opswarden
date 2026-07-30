@@ -2,11 +2,10 @@
 
 use crate::domain::error::DomainError;
 use crate::domain::team::{
-    BanKind, InvitationCode, Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
+    InvitationCode, Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
 };
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
-use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
