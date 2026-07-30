@@ -94,22 +94,6 @@ const GITLAB_NEW_TAG: &str = r#"{
     "user_username":"octocat",
     "project":{"path_with_namespace":"opswarden/app","web_url":"https://gitlab.com/opswarden/app"}
 }"#;
-const ALERTMANAGER_FIRING: &str = r#"{
-    "status":"firing",
-    "alerts":[
-        {
-            "status":"firing",
-            "labels":{
-                "severity":"critical",
-                "alertname":"HighCPUUsage"
-            },
-            "annotations":{
-                "summary":"CPU usage > 90%"
-            }
-        }
-    ]
-}"#;
-
 fn signature(secret: &str, body: &str) -> String {
     format!(
         "sha256={}",
