@@ -1437,7 +1437,6 @@ impl ReleaseRepo for DummyReleaseRepo {
 pub fn test_context() -> TestContext {
     build_context()
 }
-
 fn build_context() -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
@@ -1456,11 +1455,12 @@ fn build_context() -> TestContext {
     let automation_runs = Arc::new(DummyAutomationRunRepo::default());
     let notifier = Arc::new(DummyNotifier::default());
     let email_sender = Arc::new(DummyEmailSender::default());
+    let alertmanager_metrics =
+        Arc::new(opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics::default());
     let mut config = Config::from_env();
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;
-
     let app = build_app(AppState {
         users: users.clone(),
         teams: teams.clone(),
@@ -1480,6 +1480,7 @@ fn build_context() -> TestContext {
         webhook_parser: Arc::new(
             opswarden_server::adapters::webhook::CompositeWebhookParser::new(),
         ),
+        alertmanager_metrics: alertmanager_metrics.clone(),
         service_connections: service_connections.clone(),
         connection_credentials: connection_credentials.clone(),
         automation_rules: automation_rules.clone(),
@@ -1490,7 +1491,6 @@ fn build_context() -> TestContext {
         gifs: Arc::new(DummyGifSearch),
         config,
     });
-
     TestContext {
         app,
         users,

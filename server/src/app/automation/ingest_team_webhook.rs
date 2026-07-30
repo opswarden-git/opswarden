@@ -19,6 +19,7 @@ use super::reaction_executor::AutomationReactionExecutor;
 
 pub struct IngestTeamWebhookCommand {
     pub connection_id: Uuid,
+    pub expected_service: &'static str,
     pub provider_delivery_id: String,
     pub provider_event: String,
     pub signature: Option<String>,
@@ -28,6 +29,7 @@ pub struct IngestTeamWebhookCommand {
 #[derive(Debug, PartialEq, Eq)]
 pub struct IngestTeamWebhookResult {
     pub duplicate: bool,
+    pub ignored: bool,
     pub rules_triggered: usize,
     pub rules_failed: usize,
 }
@@ -66,6 +68,9 @@ impl IngestTeamWebhookUseCase {
             .find_connection_by_id(cmd.connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
+        if connection.service != cmd.expected_service {
+            return Err(DomainError::ServiceConnectionNotFound);
+        }
         let secret = self
             .dependencies
             .credentials
@@ -97,6 +102,7 @@ impl IngestTeamWebhookUseCase {
         {
             return Ok(IngestTeamWebhookResult {
                 duplicate: true,
+                ignored: false,
                 rules_triggered: 0,
                 rules_failed: 0,
             });
@@ -117,6 +123,7 @@ impl IngestTeamWebhookUseCase {
             self.persist_delivery(&delivery).await?;
             return Ok(IngestTeamWebhookResult {
                 duplicate: false,
+                ignored: true,
                 rules_triggered: 0,
                 rules_failed: 0,
             });
@@ -212,6 +219,7 @@ impl IngestTeamWebhookUseCase {
 
         Ok(IngestTeamWebhookResult {
             duplicate: false,
+            ignored: rules_triggered == 0 && rules_failed == 0,
             rules_triggered,
             rules_failed,
         })

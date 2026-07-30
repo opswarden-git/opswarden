@@ -694,7 +694,6 @@ pub fn reaction(kind: &str) -> Option<&'static CatalogCapability> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn catalog_resolves_action_and_reaction_connection_requirements() {
         assert!(supports_action("github", "ci_failed"));
@@ -706,6 +705,7 @@ mod tests {
         assert!(supports_action("gitlab", "tag_pushed"));
         assert!(supports_action("generic", "generic_event"));
         assert!(supports_action("alertmanager", "alert_firing"));
+        assert!(supports_action("alertmanager", "alert_resolved"));
         assert!(supports_action("opswarden", "release_created"));
         assert!(supports_action("timer", "daily_at"));
         assert!(supports_action("timer", "every_minutes"));

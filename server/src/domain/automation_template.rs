@@ -35,8 +35,19 @@ const ALLOWED_VARIABLES: &[&str] = &[
     "external_id",
     "alertname",
     "summary",
+    "description",
     "receiver",
     "group_key",
+    "instance",
+    "namespace",
+    "pod",
+    "service",
+    "job",
+    "fingerprint",
+    "starts_at",
+    "ends_at",
+    "generator_url",
+    "status",
 ];
 
 pub fn validate_template(template: &str) -> Result<(), DomainError> {
@@ -218,7 +229,9 @@ mod tests {
     #[test]
     fn accepts_normalized_alertmanager_string_variables() {
         assert_eq!(
-            validate_template("{{alertname}} via {{receiver}}: {{summary}} ({{group_key}})"),
+            validate_template(
+                "{{alertname}} {{status}} on {{instance}}: {{summary}} ({{fingerprint}})"
+            ),
             Ok(())
         );
     }

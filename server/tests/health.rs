@@ -122,6 +122,7 @@ async fn about_exposes_the_request_client_and_complete_server_contract() {
     assert!(services.iter().any(|service| {
         service["name"] == "alertmanager"
             && service["actions"][0]["name"] == "alert_firing"
+            && service["actions"][1]["name"] == "alert_resolved"
             && service["actions"][0]["connection_service"] == "alertmanager"
             && service["actions"][0]["fields"][0]["name"] == "severity"
             && service["connection"]["fields"][0]["name"] == "webhook_signing_secret"
@@ -209,10 +210,8 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
         .iter()
         .find(|service| service["name"] == "alertmanager")
         .unwrap();
-    assert_eq!(
-        alertmanager["actions"][0]["label"],
-        "Groupe d’alertes actif"
-    );
+    assert_eq!(alertmanager["actions"][0]["label"], "Alerte active");
+    assert_eq!(alertmanager["actions"][1]["label"], "Alerte résolue");
     assert_eq!(
         alertmanager["connection"]["fields"][0]["label"],
         "Jeton Bearer"

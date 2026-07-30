@@ -38,11 +38,11 @@ to 64 KiB and bounded JSON; rules only receive the normalized `event_type`,
 The raw payload and shared token are never exposed by the API or persisted in an
 automation run.
 
-Alertmanager uses a separate, group-aware contract. Managers configure an
-encrypted bearer token, then Alertmanager sends bounded JSON notifications to
-`POST /webhooks/alertmanager/{connection_id}`. Firing groups can trigger rules;
-resolved groups are durably accepted and ignored in `v1.0.11`; exact retries
-are deduplicated from the raw body. See the
+Alertmanager uses a lifecycle-aware contract. Managers configure an encrypted
+bearer token, then Alertmanager sends bounded JSON notifications to
+`POST /webhooks/alertmanager/{connection_id}`. Each alert in a group becomes an
+independent `alert_firing` or `alert_resolved` transition; semantic retries are
+deduplicated without confusing formatting changes with new events. See the
 [Alertmanager operator guide](docs/integrations/alertmanager.md) for setup,
 normalization and token rotation.
 

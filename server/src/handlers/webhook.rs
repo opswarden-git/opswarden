@@ -14,6 +14,7 @@ use axum::{
 };
 use serde::Serialize;
 
+use crate::adapters::metrics::AlertmanagerOutcome;
 use crate::adapters::webhook::{alertmanager, generic::validate_payload};
 use crate::app::automation::{
     IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
@@ -25,8 +26,25 @@ use crate::AppState;
 pub struct TeamWebhookReceipt {
     pub received: bool,
     pub duplicate: bool,
+    pub transitions_received: usize,
+    pub transitions_duplicate: usize,
+    pub transitions_ignored: usize,
     pub rules_triggered: usize,
     pub rules_failed: usize,
+}
+
+impl TeamWebhookReceipt {
+    fn single(result: crate::app::automation::IngestTeamWebhookResult) -> Self {
+        Self {
+            received: true,
+            duplicate: result.duplicate,
+            transitions_received: 1,
+            transitions_duplicate: usize::from(result.duplicate),
+            transitions_ignored: usize::from(result.ignored),
+            rules_triggered: result.rules_triggered,
+            rules_failed: result.rules_failed,
+        }
+    }
 }
 
 /// `POST /webhooks/github/{connection_id}` — durable R9 webhook endpoint.
@@ -45,37 +63,20 @@ pub async fn receive_github_for_connection(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
 
-    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
-        connections: state.service_connections.clone(),
-        credentials: state.connection_credentials.clone(),
-        verifier: state.webhook_verifier.clone(),
-        parser: state.webhook_parser.clone(),
-        deliveries: state.webhook_deliveries.clone(),
-        rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
-        incidents: state.incidents.clone(),
-        releases: state.releases.clone(),
-        notifier: state.notifier.clone(),
-        events: state.events.clone(),
-        email_sender: state.email_sender.clone(),
-    })
-    .ingest(IngestTeamWebhookCommand {
-        connection_id,
-        provider_delivery_id,
-        provider_event,
-        signature,
-        body: body.to_vec(),
-    })
-    .await?;
+    let result = webhook_use_case(&state)
+        .ingest(IngestTeamWebhookCommand {
+            connection_id,
+            expected_service: "github",
+            provider_delivery_id,
+            provider_event,
+            signature,
+            body: body.to_vec(),
+        })
+        .await?;
 
     Ok((
         StatusCode::ACCEPTED,
-        Json(TeamWebhookReceipt {
-            received: true,
-            duplicate: result.duplicate,
-            rules_triggered: result.rules_triggered,
-            rules_failed: result.rules_failed,
-        }),
+        Json(TeamWebhookReceipt::single(result)),
     ))
 }
 
@@ -93,37 +94,20 @@ pub async fn receive_gitlab_for_connection(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
 
-    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
-        connections: state.service_connections.clone(),
-        credentials: state.connection_credentials.clone(),
-        verifier: state.webhook_verifier.clone(),
-        parser: state.webhook_parser.clone(),
-        deliveries: state.webhook_deliveries.clone(),
-        rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
-        incidents: state.incidents.clone(),
-        releases: state.releases.clone(),
-        notifier: state.notifier.clone(),
-        events: state.events.clone(),
-        email_sender: state.email_sender.clone(),
-    })
-    .ingest(IngestTeamWebhookCommand {
-        connection_id,
-        provider_delivery_id,
-        provider_event,
-        signature,
-        body: body.to_vec(),
-    })
-    .await?;
+    let result = webhook_use_case(&state)
+        .ingest(IngestTeamWebhookCommand {
+            connection_id,
+            expected_service: "gitlab",
+            provider_delivery_id,
+            provider_event,
+            signature,
+            body: body.to_vec(),
+        })
+        .await?;
 
     Ok((
         StatusCode::ACCEPTED,
-        Json(TeamWebhookReceipt {
-            received: true,
-            duplicate: result.duplicate,
-            rules_triggered: result.rules_triggered,
-            rules_failed: result.rules_failed,
-        }),
+        Json(TeamWebhookReceipt::single(result)),
     ))
 }
 
@@ -143,37 +127,20 @@ pub async fn receive_generic_for_connection(
     let signature = Some(required_header(&headers, "X-OpsWarden-Token")?);
     validate_payload(&body)?;
 
-    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
-        connections: state.service_connections.clone(),
-        credentials: state.connection_credentials.clone(),
-        verifier: state.webhook_verifier.clone(),
-        parser: state.webhook_parser.clone(),
-        deliveries: state.webhook_deliveries.clone(),
-        rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
-        incidents: state.incidents.clone(),
-        releases: state.releases.clone(),
-        notifier: state.notifier.clone(),
-        events: state.events.clone(),
-        email_sender: state.email_sender.clone(),
-    })
-    .ingest(IngestTeamWebhookCommand {
-        connection_id,
-        provider_delivery_id,
-        provider_event,
-        signature,
-        body: body.to_vec(),
-    })
-    .await?;
+    let result = webhook_use_case(&state)
+        .ingest(IngestTeamWebhookCommand {
+            connection_id,
+            expected_service: "generic",
+            provider_delivery_id,
+            provider_event,
+            signature,
+            body: body.to_vec(),
+        })
+        .await?;
 
     Ok((
         StatusCode::ACCEPTED,
-        Json(TeamWebhookReceipt {
-            received: true,
-            duplicate: result.duplicate,
-            rules_triggered: result.rules_triggered,
-            rules_failed: result.rules_failed,
-        }),
+        Json(TeamWebhookReceipt::single(result)),
     ))
 }
 
@@ -183,14 +150,80 @@ pub async fn receive_alertmanager_for_connection(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
+    let metrics = state.alertmanager_metrics.clone();
+    let response = receive_alertmanager(state, connection_id, headers, body).await;
+    if let Err(error) = &response {
+        metrics.record(error_outcome(error));
+    }
+    response
+}
+
+async fn receive_alertmanager(
+    state: AppState,
+    connection_id: uuid::Uuid,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<(StatusCode, Json<TeamWebhookReceipt>), DomainError> {
     if !is_json_content_type(&headers) {
         return Err(DomainError::InvalidWebhookDelivery);
     }
-    let provider_delivery_id = alertmanager::delivery_id(&body)?;
-    let provider_event = "alertmanager_webhook".to_string();
+    let transitions = alertmanager::transitions(&body)?;
     let signature = Some(bearer_token(&headers)?);
+    let use_case = webhook_use_case(&state);
+    let mut receipt = TeamWebhookReceipt {
+        received: true,
+        duplicate: true,
+        transitions_received: transitions.len(),
+        transitions_duplicate: 0,
+        transitions_ignored: 0,
+        rules_triggered: 0,
+        rules_failed: 0,
+    };
+    for transition in transitions {
+        let result = use_case
+            .ingest(IngestTeamWebhookCommand {
+                connection_id,
+                expected_service: "alertmanager",
+                provider_delivery_id: transition.delivery_id,
+                provider_event: "alertmanager_webhook".to_string(),
+                signature: signature.clone(),
+                body: transition.body,
+            })
+            .await?;
+        state.alertmanager_metrics.record(result_outcome(&result));
+        receipt.transitions_duplicate += usize::from(result.duplicate);
+        receipt.transitions_ignored += usize::from(result.ignored);
+        receipt.rules_triggered += result.rules_triggered;
+        receipt.rules_failed += result.rules_failed;
+    }
+    receipt.duplicate = receipt.transitions_duplicate == receipt.transitions_received;
 
-    let result = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+    Ok((StatusCode::ACCEPTED, Json(receipt)))
+}
+
+fn result_outcome(result: &crate::app::automation::IngestTeamWebhookResult) -> AlertmanagerOutcome {
+    if result.rules_failed > 0 {
+        AlertmanagerOutcome::Failed
+    } else if result.duplicate {
+        AlertmanagerOutcome::Duplicate
+    } else if result.ignored {
+        AlertmanagerOutcome::Ignored
+    } else {
+        AlertmanagerOutcome::Accepted
+    }
+}
+
+fn error_outcome(error: &DomainError) -> AlertmanagerOutcome {
+    match error {
+        DomainError::Storage | DomainError::Crypto | DomainError::InvalidAutomationTransition => {
+            AlertmanagerOutcome::Failed
+        }
+        _ => AlertmanagerOutcome::Rejected,
+    }
+}
+
+fn webhook_use_case(state: &AppState) -> IngestTeamWebhookUseCase {
+    IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
         connections: state.service_connections.clone(),
         credentials: state.connection_credentials.clone(),
         verifier: state.webhook_verifier.clone(),
@@ -204,24 +237,6 @@ pub async fn receive_alertmanager_for_connection(
         events: state.events.clone(),
         email_sender: state.email_sender.clone(),
     })
-    .ingest(IngestTeamWebhookCommand {
-        connection_id,
-        provider_delivery_id,
-        provider_event,
-        signature,
-        body: body.to_vec(),
-    })
-    .await?;
-
-    Ok((
-        StatusCode::ACCEPTED,
-        Json(TeamWebhookReceipt {
-            received: true,
-            duplicate: result.duplicate,
-            rules_triggered: result.rules_triggered,
-            rules_failed: result.rules_failed,
-        }),
-    ))
 }
 
 fn bearer_token(headers: &HeaderMap) -> Result<String, DomainError> {
