@@ -21,8 +21,8 @@ maintained solo. Increase it when another regular reviewer is available.
 `tooling/check_source_hygiene.sh` is part of the workflow validation job.
 
 - New Rust, TypeScript, JavaScript and shell files may not exceed 500 lines.
-- Existing files above 500 lines are grandfathered, but any changed oversized
-  file must stay the same size or shrink.
+- No tracked owned source file currently exceeds 500 lines. Any file crossing
+  that ceiling fails the required gate.
 - `as any`, `@ts-ignore` and `@ts-nocheck` are forbidden in application code.
 - Test files may not be deleted inside an unrelated change. Move or replace
   tests in a dedicated refactor instead.

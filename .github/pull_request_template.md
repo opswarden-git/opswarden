@@ -14,7 +14,7 @@
 - [ ] Rust formatting and lint pass.
 - [ ] Web lint, formatting and type checks pass.
 - [ ] Relevant tests cover the main flow and at least one failure path.
-- [ ] New source files stay at or below 500 lines; oversized legacy files do not grow.
+- [ ] Changed source files stay at or below 500 lines.
 - [ ] No type/lint bypass (`as any`, `@ts-ignore`, disabled dead-code checks) was added.
 - [ ] Tests were not removed merely to satisfy lint or CI.
 - [ ] User-facing or contract changes are documented.

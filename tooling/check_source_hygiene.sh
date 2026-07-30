@@ -35,7 +35,7 @@ while IFS= read -r file; do
     echo "source hygiene: new file '$file' has ${current_lines} lines (maximum ${MAX_SOURCE_LINES})" >&2
     failures=1
   elif [[ -n "$base_lines" && "$current_lines" -gt "$MAX_SOURCE_LINES" && "$current_lines" -gt "$base_lines" ]]; then
-    echo "source hygiene: legacy file '$file' grew from ${base_lines} to ${current_lines} lines; files above ${MAX_SOURCE_LINES} lines may only shrink" >&2
+    echo "source hygiene: '$file' grew from ${base_lines} to ${current_lines} lines (maximum ${MAX_SOURCE_LINES})" >&2
     failures=1
   fi
 done < <(git diff --name-only --diff-filter=AM "$merge_base" --)
@@ -56,4 +56,4 @@ if [[ "$failures" -ne 0 ]]; then
   exit 1
 fi
 
-echo "Source hygiene passed (new files <= ${MAX_SOURCE_LINES} lines; legacy oversized files did not grow; no unsafe TypeScript bypasses)."
+echo "Source hygiene passed (changed files <= ${MAX_SOURCE_LINES} lines; no unsafe TypeScript bypasses)."
