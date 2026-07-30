@@ -171,15 +171,6 @@ fn generic_webhook_request(
         .unwrap()
 }
 
-fn alertmanager_webhook_request(connection_id: Uuid, token: &str, body: &str) -> Request<Body> {
-    Request::builder()
-        .method("POST")
-        .uri(format!("/webhooks/alertmanager/{connection_id}"))
-        .header("Content-Type", "application/json")
-        .header("Authorization", token)
-        .body(Body::from(body.to_string()))
-        .unwrap()
-}
 
 async fn json_body(response: Response) -> Value {
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -632,42 +623,6 @@ async fn seed_generic_action(ctx: &common::TestContext, team_id: Uuid) -> Servic
     connection
 }
 
-async fn seed_alertmanager_action(ctx: &common::TestContext, team_id: Uuid) -> ServiceConnection {
-    let user_id = Uuid::new_v4();
-    let connection = ServiceConnection::new(team_id, "alertmanager", user_id).unwrap();
-    ctx.service_connections
-        .insert_connection(&connection)
-        .await
-        .unwrap();
-    ctx.connection_credentials
-        .store_credential(
-            connection.id,
-            CredentialKind::WebhookSigningSecret,
-            "Bearer am-secret-token",
-        )
-        .await
-        .unwrap();
-    let mut rule = AutomationRule::new(
-        team_id,
-        "Alertmanager trigger",
-        connection.id,
-        "alert_firing",
-        json!({
-            "severity": "critical"
-        }),
-        "create_incident",
-        None,
-        json!({
-            "severity": "critical",
-            "title": "Alert: {{alertname}} - {{summary}}"
-        }),
-        user_id,
-    )
-    .unwrap();
-    rule.set_enabled(true);
-    ctx.automation_rules.insert_rule(&rule).await.unwrap();
-    connection
-}
 
 #[tokio::test]
 async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop() {
