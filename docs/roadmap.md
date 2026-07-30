@@ -74,6 +74,15 @@ The recovery roadmap is closed:
   are forward-only, logs are centralized, Docker bases are immutable and
   browser WebSocket origins are allow-listed.
 
+The closure is published as `v1.0.13`. Release run `30580631905` passed the
+quality gate, real browser E2E, Linux/Windows/macOS packages and both attested
+container builds. Guarded production run `30582420348` resolved the server to
+`sha256:1acd2b9bff23bf61bd014cfe38d1680ab0f9a9bd301a15c8f167720d7b488919`,
+completed a pre-deploy encrypted backup, rolled two ready replicas and passed
+the application, Prometheus and backup checks. Independent probes returned
+WebSocket `101` for the exact browser Origin, `403` cross-site and `101` for an
+originless service client.
+
 ## Remaining operational evidence
 
 These are time- or operator-gated observations, not missing implementation:
