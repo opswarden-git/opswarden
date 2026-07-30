@@ -94,7 +94,6 @@ const GITLAB_NEW_TAG: &str = r#"{
     "user_username":"octocat",
     "project":{"path_with_namespace":"opswarden/app","web_url":"https://gitlab.com/opswarden/app"}
 }"#;
-
 fn signature(secret: &str, body: &str) -> String {
     format!(
         "sha256={}",

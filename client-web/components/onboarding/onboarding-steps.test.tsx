@@ -89,12 +89,12 @@ describe("onboarding steps", () => {
     for (const integration of [
       "GitHub",
       "GitLab",
-      "Kubernetes",
-      "Sentry",
-      "Datadog",
-      "PagerDuty",
+      "Alertmanager",
+      "Generic Webhook",
+      "HTTP Request",
+      "Email (SMTP)",
     ]) {
-      expect(screen.getByRole("img", { name: integration })).toBeInTheDocument();
+      expect(screen.getByText(integration)).toBeInTheDocument();
     }
     fireEvent.click(screen.getByRole("button", { name: "back" }));
     fireEvent.click(screen.getByRole("button", { name: "skipForNow" }));

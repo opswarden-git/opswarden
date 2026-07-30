@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Webhook, Globe2, Mail, Siren } from "lucide-react";
 import Image from "next/image";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button } from "@/components/ui/Button";
@@ -26,28 +26,28 @@ const AVAILABLE_INTEGRATIONS = [
     icon: "/assets/gitlab.webp",
   },
   {
-    id: "k8s",
-    name: "Kubernetes",
-    descriptionKey: "kubernetesDescription",
-    icon: "/assets/kubernetes.webp",
+    id: "alertmanager",
+    name: "Alertmanager",
+    descriptionKey: "alertmanagerDescription",
+    LucideIcon: Siren,
   },
   {
-    id: "sentry",
-    name: "Sentry",
-    descriptionKey: "sentryDescription",
-    icon: "/assets/sentry.webp",
+    id: "generic",
+    name: "Generic Webhook",
+    descriptionKey: "genericDescription",
+    LucideIcon: Webhook,
   },
   {
-    id: "datadog",
-    name: "Datadog",
-    descriptionKey: "datadogDescription",
-    icon: "/assets/datadog.webp",
+    id: "http",
+    name: "HTTP Request",
+    descriptionKey: "httpDescription",
+    LucideIcon: Globe2,
   },
   {
-    id: "pagerduty",
-    name: "PagerDuty",
-    descriptionKey: "pagerDutyDescription",
-    icon: "/assets/pagerduty.webp",
+    id: "email",
+    name: "Email (SMTP)",
+    descriptionKey: "emailDescription",
+    LucideIcon: Mail,
   },
 ];
 
@@ -66,19 +66,25 @@ export function StepIntegrations({ next, back }: StepProps) {
             >
               <div className="flex min-w-0 items-center gap-4 pr-4">
                 <div className="flex shrink-0 items-center justify-center">
-                  <Image
-                    src={integ.icon}
-                    alt={integ.name}
-                    width={24}
-                    height={24}
-                    className="size-5 object-contain"
-                  />
+                  {integ.icon ? (
+                    <Image
+                      src={integ.icon}
+                      alt={integ.name}
+                      width={24}
+                      height={24}
+                      className="size-5 object-contain"
+                    />
+                  ) : integ.LucideIcon ? (
+                    <integ.LucideIcon className="text-muted size-5" />
+                  ) : null}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-text truncate text-sm font-medium">{integ.name}</span>
                   </div>
-                  <p className="text-muted mt-0.5 truncate text-xs">{t(integ.descriptionKey)}</p>
+                  <p className="text-muted mt-0.5 truncate text-xs">
+                    {t(integ.descriptionKey as any)}
+                  </p>
                 </div>
               </div>
 
