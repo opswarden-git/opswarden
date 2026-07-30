@@ -15,6 +15,11 @@ client, and the desktop client. It describes the protocol implemented on
 
 ## Connection lifecycle
 
+Browser handshakes must send an `Origin` that exactly matches one entry in
+`OPSWARDEN_WS_ALLOWED_ORIGINS`. A cross-site, `null`, malformed or repeated
+Origin is rejected with HTTP 403 before upgrade. Originless handshakes remain
+valid for native and service clients; they must still authenticate in-band.
+
 The first text frame must be:
 
 ```json

@@ -56,6 +56,12 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: ./tooling/check_source_hygiene.sh "$BASE_SHA"
+      - name: Enforce forward-only migration policy
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: ./tooling/check_migration_policy.sh "$BASE_SHA"
+      - name: Enforce immutable Docker base images
+        run: ./tooling/check_dockerfile_pins.sh
       - name: Validate Compose configuration
         env:
           OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY

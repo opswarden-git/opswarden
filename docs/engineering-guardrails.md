@@ -30,6 +30,9 @@ maintained solo. Increase it when another regular reviewer is available.
 The line cap is a ceiling, not a target. Prefer modules around 200–350 lines
 when they represent a coherent responsibility.
 
+Every Docker `FROM` reference is pinned to a full `sha256` manifest digest.
+`tooling/check_dockerfile_pins.sh` rejects mutable base tags in CI.
+
 ## Feature acceptance
 
 Every integration must cover:
@@ -62,6 +65,22 @@ and bounded outcome metrics. It runs library tests only, with two jobs and a
 120-second timeout per mutant. Every surviving, non-viable or timed-out mutant
 must be investigated; the command is green only when tests catch every viable
 mutation.
+
+### Forward-only migrations
+
+Released migration files are immutable. Every new SQL file declares exactly one
+phase on its own line:
+
+```sql
+-- opswarden: migration-phase=expand
+-- opswarden: migration-phase=backfill
+-- opswarden: migration-phase=contract
+```
+
+Expand and backfill phases may not contain destructive or narrowing DDL.
+Contract migrations are isolated to a later release after a compatibility
+window and verified backup. CI enforces the marker, migration immutability and
+the destructive-SQL boundary with `tooling/check_migration_policy.sh`.
 
 ## Release ordering
 
