@@ -171,7 +171,6 @@ fn generic_webhook_request(
         .unwrap()
 }
 
-
 async fn json_body(response: Response) -> Value {
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -622,7 +621,6 @@ async fn seed_generic_action(ctx: &common::TestContext, team_id: Uuid) -> Servic
     ctx.automation_rules.insert_rule(&rule).await.unwrap();
     connection
 }
-
 
 #[tokio::test]
 async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop() {
