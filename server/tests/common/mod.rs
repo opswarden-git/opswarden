@@ -8,6 +8,7 @@ use opswarden_server::domain::automation_config::{
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::{Incident, IncidentStatus};
 use opswarden_server::domain::incident_event::IncidentEvent;
+use opswarden_server::domain::channel::Channel;
 use opswarden_server::domain::private_message::PrivateMessage;
 use opswarden_server::domain::release::{Release, ReleaseState};
 use opswarden_server::domain::team::{
@@ -16,11 +17,11 @@ use opswarden_server::domain::team::{
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::{Locale, User};
 use opswarden_server::ports::{
-    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailMessage,
-    EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile,
-    PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient,
-    ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
-    TokenService, UserRepo, WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationRunRepo, ChannelRepo, Clock, ConnectionCredentialVault,
+    EmailMessage, EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient,
+    OAuthProfile, PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo,
+    ServiceOAuthClient, ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims,
+    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -32,6 +33,7 @@ pub struct TestContext {
     pub app: axum::Router,
     pub users: Arc<DummyUserRepo>,
     pub teams: Arc<DummyTeamRepo>,
+    pub channels: Arc<DummyChannelRepo>,
     pub incidents: Arc<DummyIncidentRepo>,
     pub timeline: Arc<DummyTimelineRepo>,
     pub private_messages: Arc<DummyPrivateMessageRepo>,
@@ -1204,6 +1206,76 @@ impl TimelineRepo for DummyTimelineRepo {
 }
 
 #[derive(Default)]
+pub struct DummyChannelRepo {
+    channels: Mutex<Vec<Channel>>,
+}
+
+#[allow(dead_code)]
+impl DummyChannelRepo {
+    pub fn all(&self) -> Vec<Channel> {
+        self.channels.lock().unwrap().clone()
+    }
+
+    pub fn all_for_team(&self, team_id: Uuid) -> Vec<Channel> {
+        self.channels
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c.team_id == team_id)
+            .cloned()
+            .collect()
+    }
+}
+
+#[async_trait]
+impl ChannelRepo for DummyChannelRepo {
+    async fn create_channel(&self, channel: &Channel) -> Result<(), DomainError> {
+        let mut channels = self.channels.lock().unwrap();
+        if channels
+            .iter()
+            .any(|c| c.team_id == channel.team_id && c.name == channel.name)
+        {
+            return Err(DomainError::InvalidChannelName);
+        }
+        channels.push(channel.clone());
+        Ok(())
+    }
+
+    async fn list_channels_for_team(&self, team_id: Uuid) -> Result<Vec<Channel>, DomainError> {
+        let mut channels: Vec<_> = self
+            .channels
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c.team_id == team_id)
+            .cloned()
+            .collect();
+        channels.sort_by_key(|c| c.created_at);
+        Ok(channels)
+    }
+
+    async fn find_channel_by_id(&self, channel_id: Uuid) -> Result<Option<Channel>, DomainError> {
+        Ok(self
+            .channels
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|c| c.id == channel_id)
+            .cloned())
+    }
+
+    async fn delete_channel(&self, team_id: Uuid, channel_id: Uuid) -> Result<(), DomainError> {
+        let mut channels = self.channels.lock().unwrap();
+        let before = channels.len();
+        channels.retain(|c| !(c.team_id == team_id && c.id == channel_id));
+        if channels.len() == before {
+            return Err(DomainError::ChannelNotFound);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
 pub struct DummyPrivateMessageRepo {
     messages: Mutex<Vec<PrivateMessage>>,
 }
@@ -1369,6 +1441,7 @@ pub fn test_context() -> TestContext {
 fn build_context() -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
+    let channels = Arc::new(DummyChannelRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
     let timeline = Arc::new(DummyTimelineRepo::default());
     let private_messages = Arc::new(DummyPrivateMessageRepo::default());
@@ -1391,6 +1464,7 @@ fn build_context() -> TestContext {
     let app = build_app(AppState {
         users: users.clone(),
         teams: teams.clone(),
+        channels: channels.clone(),
         incidents: incidents.clone(),
         timeline: timeline.clone(),
         private_messages: private_messages.clone(),
@@ -1421,6 +1495,7 @@ fn build_context() -> TestContext {
         app,
         users,
         teams,
+        channels,
         incidents,
         timeline,
         private_messages,
