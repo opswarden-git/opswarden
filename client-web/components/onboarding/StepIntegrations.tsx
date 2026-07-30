@@ -82,7 +82,9 @@ export function StepIntegrations({ next, back }: StepProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-text truncate text-sm font-medium">{integ.name}</span>
                   </div>
-                  <p className="text-muted mt-0.5 truncate text-xs">{t(integ.descriptionKey as any)}</p>
+                  <p className="text-muted mt-0.5 truncate text-xs">
+                    {t(integ.descriptionKey as any)}
+                  </p>
                 </div>
               </div>
 

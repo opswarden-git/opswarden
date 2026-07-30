@@ -277,9 +277,7 @@ fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) ->
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
         ("alert_firing", true, _) => "Une alerte se déclenche",
-        ("alert_firing", false, _) => {
-            "Une alerte générée par Prometheus Alertmanager se déclenche"
-        }
+        ("alert_firing", false, _) => "Une alerte générée par Prometheus Alertmanager se déclenche",
         ("daily_at", true, _) => "Tous les jours à une heure locale",
         ("daily_at", false, _) => {
             "Exécuter une fois par jour calendaire local à l’heure configurée"
@@ -319,7 +317,9 @@ fn localize_connection(service: &str, locale: &str, fallback: &str) -> String {
         }
         "gitlab" => "Vérifier les webhooks GitLab entrants avec leur jeton secret",
         "generic" => "Recevoir des webhooks JSON bornés authentifiés par un jeton partagé",
-        "alertmanager" => "Recevoir des webhooks de Alertmanager authentifiés via l’en-tête Authorization",
+        "alertmanager" => {
+            "Recevoir des webhooks de Alertmanager authentifiés via l’en-tête Authorization"
+        }
         "http" => "Envoyer des notifications bornées vers un endpoint HTTPS public",
         "email" => "Configurer les identifiants SMTP pour l’envoi d’e-mails",
         _ => fallback,

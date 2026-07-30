@@ -171,11 +171,7 @@ fn generic_webhook_request(
         .unwrap()
 }
 
-fn alertmanager_webhook_request(
-    connection_id: Uuid,
-    token: &str,
-    body: &str,
-) -> Request<Body> {
+fn alertmanager_webhook_request(connection_id: Uuid, token: &str, body: &str) -> Request<Body> {
     Request::builder()
         .method("POST")
         .uri(format!("/webhooks/alertmanager/{connection_id}"))
