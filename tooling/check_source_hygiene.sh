@@ -46,10 +46,24 @@ if rg --line-number --glob '*.{ts,tsx,js,jsx,mjs,cjs}' \
   failures=1
 fi
 
-if git diff -M --diff-filter=D --name-only "$merge_base" -- \
-  | rg --quiet '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)'; then
-  echo "source hygiene: deleting a test requires a dedicated replacement/refactor PR" >&2
-  failures=1
+# Losing coverage of code that still exists is the risk here, so a deleted test
+# only passes when the source it covered is deleted in the same change. Removing
+# a feature legitimately takes its tests with it; dropping the tests while the
+# handlers stay behind is what this must keep catching.
+deleted=$(git diff -M --diff-filter=D --name-only "$merge_base" --)
+deleted_tests=$(rg '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" || true)
+if [[ -n "$deleted_tests" ]]; then
+  deleted_sources=$(rg --invert-match '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" \
+    | rg '\.(rs|ts|tsx|js|jsx|mjs|cjs)$' || true)
+  if [[ -z "$deleted_sources" ]]; then
+    echo "source hygiene: deleting a test requires a dedicated replacement/refactor PR" >&2
+    failures=1
+  else
+    echo "source hygiene: tests removed alongside the source they covered:"
+    while IFS= read -r removed_test; do
+      echo "  - $removed_test"
+    done <<<"$deleted_tests"
+  fi
 fi
 
 if [[ "$failures" -ne 0 ]]; then

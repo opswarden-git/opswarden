@@ -8,7 +8,6 @@ pub enum DomainError {
     InvalidCredentials,
     InvalidToken,
     InvalidTeamName,
-    InvalidChannelName,
     InvalidIncidentTitle,
     InvalidIncidentStatus,
     InvalidSeverity,
@@ -37,7 +36,6 @@ pub enum DomainError {
     /// or cancelled release).
     InvalidReleaseTransition,
     TeamNotFound,
-    ChannelNotFound,
     IncidentNotFound,
     AlreadyMember,
     MemberNotFound,
@@ -143,7 +141,6 @@ impl DomainError {
             DomainError::InvalidCredentials => "invalid_credentials",
             DomainError::InvalidToken => "invalid_token",
             DomainError::InvalidTeamName => "invalid_team_name",
-            DomainError::InvalidChannelName => "invalid_channel_name",
             DomainError::InvalidIncidentTitle => "invalid_incident_title",
             DomainError::InvalidIncidentStatus => "invalid_incident_status",
             DomainError::InvalidSeverity => "invalid_severity",
@@ -159,7 +156,6 @@ impl DomainError {
             DomainError::ReleaseBlocked => "release_blocked",
             DomainError::InvalidReleaseTransition => "invalid_release_transition",
             DomainError::TeamNotFound => "team_not_found",
-            DomainError::ChannelNotFound => "channel_not_found",
             DomainError::IncidentNotFound => "incident_not_found",
             DomainError::AlreadyMember => "already_member",
             DomainError::MemberNotFound => "member_not_found",
@@ -221,7 +217,6 @@ impl std::fmt::Display for DomainError {
             DomainError::InvalidCredentials => write!(f, "Invalid email or password"),
             DomainError::InvalidToken => write!(f, "Invalid or expired token"),
             DomainError::InvalidTeamName => write!(f, "Team name cannot be empty"),
-            DomainError::InvalidChannelName => write!(f, "Channel name cannot be empty"),
             DomainError::InvalidIncidentTitle => write!(f, "Incident title cannot be empty"),
             DomainError::InvalidIncidentStatus => write!(f, "Incident status is invalid"),
             DomainError::InvalidSeverity => write!(f, "Incident severity is invalid"),
@@ -253,7 +248,6 @@ impl std::fmt::Display for DomainError {
                 write!(f, "Invalid release lifecycle transition")
             }
             DomainError::TeamNotFound => write!(f, "No team matches this invitation code"),
-            DomainError::ChannelNotFound => write!(f, "Channel was not found"),
             DomainError::IncidentNotFound => write!(f, "Incident was not found"),
             DomainError::AlreadyMember => write!(f, "User is already a member of this team"),
             DomainError::MemberNotFound => write!(f, "User is not a member of this team"),

@@ -1,7 +1,6 @@
 // --- server/src/adapters/pg/mod.rs ---
 
 pub mod automation;
-pub mod channel;
 pub mod incident;
 pub mod private_message;
 pub mod release;

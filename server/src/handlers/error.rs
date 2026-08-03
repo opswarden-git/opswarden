@@ -208,8 +208,6 @@ impl IntoResponse for DomainError {
                 "Transfer the Manager role (or delete the station) before deleting your account",
             ),
             DomainError::Storage => (StatusCode::INTERNAL_SERVER_ERROR, "Storage failure"),
-            DomainError::InvalidChannelName => (StatusCode::BAD_REQUEST, "Channel name cannot be empty"),
-            DomainError::ChannelNotFound => (StatusCode::NOT_FOUND, "Channel was not found"),
         };
 
         let body = Json(json!({

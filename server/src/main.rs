@@ -19,7 +19,6 @@ use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
 use opswarden_server::adapters::pg::automation::timer::PgAutomationTimerRepo;
-use opswarden_server::adapters::pg::channel::PgChannelRepo;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::private_message::PgPrivateMessageRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
@@ -103,7 +102,6 @@ async fn main() {
     let state = AppState {
         users: Arc::new(PgUserRepo::new(pool.clone())),
         teams: Arc::new(PgTeamRepo::new(pool.clone())),
-        channels: Arc::new(PgChannelRepo::new(pool.clone())),
         incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
         timeline: Arc::new(PgTimelineRepo::new(pool.clone())),
         private_messages: Arc::new(PgPrivateMessageRepo::new(pool.clone())),

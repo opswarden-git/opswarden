@@ -13,7 +13,6 @@ pub fn test_context_with_auth_rate_limit(attempts: u32, window_seconds: u64) -> 
 fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
-    let channels = Arc::new(DummyChannelRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
     let timeline = Arc::new(DummyTimelineRepo::default());
     let private_messages = Arc::new(DummyPrivateMessageRepo::default());
@@ -39,7 +38,6 @@ fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> Tes
     let app = build_app(AppState {
         users: users.clone(),
         teams: teams.clone(),
-        channels: channels.clone(),
         incidents: incidents.clone(),
         timeline: timeline.clone(),
         private_messages: private_messages.clone(),
@@ -76,7 +74,6 @@ fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> Tes
         app,
         users,
         teams,
-        channels,
         incidents,
         timeline,
         private_messages,

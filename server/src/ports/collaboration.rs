@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::channel::Channel;
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
@@ -18,14 +17,6 @@ pub trait UserRepo: Send + Sync {
     async fn save(&self, user: &User) -> Result<(), DomainError>;
     async fn update_locale(&self, user_id: Uuid, locale: Locale) -> Result<(), DomainError>;
     async fn delete_account(&self, user_id: Uuid) -> Result<(), DomainError>;
-}
-
-#[async_trait]
-pub trait ChannelRepo: Send + Sync {
-    async fn create_channel(&self, channel: &Channel) -> Result<(), DomainError>;
-    async fn list_channels_for_team(&self, team_id: Uuid) -> Result<Vec<Channel>, DomainError>;
-    async fn find_channel_by_id(&self, channel_id: Uuid) -> Result<Option<Channel>, DomainError>;
-    async fn delete_channel(&self, team_id: Uuid, channel_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]
