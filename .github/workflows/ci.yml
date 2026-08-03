@@ -92,6 +92,9 @@ jobs:
               - 'server/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              # Audited by the backend job, so a desktop-only lockfile change
+              # must still trigger it.
+              - 'client-desktop/src-tauri/Cargo.lock'
               - 'tooling/deny.toml'
               - 'tooling/tarpaulin.toml'
               - 'tooling/summarize_{rust_tests,source_coverage}.sh'
@@ -151,6 +154,11 @@ jobs:
           tool: cargo-audit
       - name: Audit Rust dependencies
         run: cargo audit
+      # The desktop crate carries its own lockfile, outside the server
+      # workspace, so the command above never sees it. Four advisories reached
+      # a shipped client that way before this step existed.
+      - name: Audit desktop dependencies
+        run: cargo audit --file client-desktop/src-tauri/Cargo.lock
       - name: Install cargo-deny
         uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf # v2
         with:

@@ -44,10 +44,10 @@ password-hash = { version = "0.6", features = ["getrandom"] }
 rand = "0.10"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-opentelemetry = { version = "0.22" }
-opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic", "http-proto"] }
-tracing-opentelemetry = "0.23"
+opentelemetry = { version = "0.32" }
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic", "http-proto"] }
+tracing-opentelemetry = "0.33"
 tower-http = { version = "0.5", features = ["trace"] }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
