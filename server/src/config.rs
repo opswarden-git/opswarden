@@ -32,6 +32,9 @@ pub struct Config {
     /// Poll cadence for the durable Timer worker. Claims remain coordinated by
     /// PostgreSQL; this only controls how quickly a replica looks for work.
     pub timer_poll_seconds: u64,
+    /// Socket the HTTP server listens on. Configurable so a native `just dev`
+    /// run can coexist with the Compose stack, which already publishes 8080.
+    pub bind_addr: String,
 }
 
 impl Config {
@@ -94,6 +97,9 @@ impl Config {
             .and_then(|value| value.parse::<u64>().ok())
             .filter(|seconds| (5..=60).contains(seconds))
             .unwrap_or(15);
+        // Unchanged default: every deployment that sets nothing keeps 0.0.0.0:8080.
+        let bind_addr =
+            optional_env("OPSWARDEN_BIND_ADDR").unwrap_or_else(|| "0.0.0.0:8080".to_string());
 
         Self {
             kickoff_token_secret,
@@ -110,6 +116,7 @@ impl Config {
             trusted_proxy_hops,
             giphy_api_key,
             timer_poll_seconds,
+            bind_addr,
         }
     }
 

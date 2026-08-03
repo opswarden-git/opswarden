@@ -63,7 +63,9 @@ demo-webhook:
 
 # ----- Server (Rust) -----
 
-# serveur en mode développement
+# serveur en mode développement.
+# La stack compose publie déjà 8080 : si elle tourne, choisis un autre socket
+# avec OPSWARDEN_BIND_ADDR (ex. OPSWARDEN_BIND_ADDR=0.0.0.0:8090 just dev).
 dev:
     cargo run -p opswarden-server
 

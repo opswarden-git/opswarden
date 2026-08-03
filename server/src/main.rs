@@ -135,6 +135,7 @@ async fn main() {
     };
 
     let timer_poll = Duration::from_secs(state.config.timer_poll_seconds);
+    let bind_addr = state.config.bind_addr.clone();
     let timer_clock = state.clock.clone();
     let timer_worker = Arc::new(TimerWorker::new(TimerWorkerDependencies {
         timers: Arc::new(PgAutomationTimerRepo::new(pool.clone())),
@@ -152,10 +153,24 @@ async fn main() {
 
     let app = build_app(state).layer(TraceLayer::new_for_http());
 
-    let addr = "0.0.0.0:8080";
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("failed to bind address");
+    let addr = bind_addr;
+    let listener = match tokio::net::TcpListener::bind(&addr).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            // A raw panic here is unhelpful: the overwhelmingly common cause is
+            // `just dev` next to a running Compose stack, which already
+            // publishes 8080.
+            eprintln!("OpsWarden server cannot listen on {addr}: {error}");
+            if error.kind() == std::io::ErrorKind::AddrInUse {
+                eprintln!(
+                    "Another process already holds {addr} -- the Compose stack publishes 8080. \
+                     Stop it with `just down`, or pick a free socket with \
+                     OPSWARDEN_BIND_ADDR (for example OPSWARDEN_BIND_ADDR=0.0.0.0:8090 just dev)."
+                );
+            }
+            std::process::exit(1);
+        }
+    };
     println!("OpsWarden server listening on {addr}");
     let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
     let timer_task = tokio::spawn(run_timer_worker(
