@@ -330,6 +330,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The Compose desktop image is built by no workflow (both stacks start
+      # client_web with --no-deps), so a drifting upstream pin can only surface
+      # on a contributor's `just up`. This re-checks every preseeded digest.
+      - name: Verify pinned desktop asset digests
+        run: ./tooling/verify_desktop_asset_pins.sh
       - name: Install Node.js 24
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:

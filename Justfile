@@ -13,8 +13,34 @@ default:
 # ----- App (docker compose) -----
 
 # lance server + db (contrat jury)
-up:
+up: seed-alertmanager
     docker compose up --build
+
+# installe la configuration Alertmanager attendue par le service compose.
+# Sans elle le conteneur sort en erreur 1 dès le démarrage : son fichier est
+# monté depuis target/, que seul l'E2E remplissait. La CI fait déjà ce geste
+# avant `docker compose up` ; cette recette le reproduit à l'identique pour
+# que `just up` parte propre sur un clone neuf.
+seed-alertmanager:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    dir=target/e2e-alertmanager
+    config="$dir/alertmanager.yml"
+
+    # Never overwrite a config the E2E run generated for a live connection.
+    [[ -f "$config" ]] && exit 0
+
+    # A plain `docker compose up` creates the bind-mount source as root when it
+    # is missing, so the directory can already exist and be unwritable. Say so
+    # instead of failing on a bare "Permission denied" from cp.
+    if ! mkdir -p "$dir" 2>/dev/null \
+      || ! install -m 0644 tooling/e2e/alertmanager-bootstrap.yml "$config" 2>/dev/null; then
+        echo "Cannot write $config." >&2
+        echo "A previous 'docker compose up' likely created $dir as root." >&2
+        echo "Remove it, then retry:  sudo rm -rf $dir && just up" >&2
+        exit 1
+    fi
 
 # arrête la stack
 down:
