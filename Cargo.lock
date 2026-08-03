@@ -1572,6 +1572,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry"
+version = "0.32.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0142c63252a9e054e68a4c61a5778f7b14f576274d593f8ce883d191a099682"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "pin-project-lite",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "opentelemetry-http"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1580,7 +1594,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "http 0.2.12",
- "opentelemetry",
+ "opentelemetry 0.22.0",
 ]
 
 [[package]]
@@ -1592,11 +1606,11 @@ dependencies = [
  "async-trait",
  "futures-core",
  "http 0.2.12",
- "opentelemetry",
+ "opentelemetry 0.22.0",
  "opentelemetry-http",
  "opentelemetry-proto",
  "opentelemetry-semantic-conventions",
- "opentelemetry_sdk",
+ "opentelemetry_sdk 0.22.1",
  "prost",
  "thiserror 1.0.69",
  "tokio",
@@ -1609,8 +1623,8 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a8fddc9b68f5b80dae9d6f510b88e02396f006ad48cac349411fbecc80caae4"
 dependencies = [
- "opentelemetry",
- "opentelemetry_sdk",
+ "opentelemetry 0.22.0",
+ "opentelemetry_sdk 0.22.1",
  "prost",
  "tonic",
 ]
@@ -1634,11 +1648,27 @@ dependencies = [
  "futures-util",
  "glob",
  "once_cell",
- "opentelemetry",
+ "opentelemetry 0.22.0",
  "ordered-float",
  "percent-encoding",
  "rand 0.8.7",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "opentelemetry_sdk"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b59f80e1ac4d5ff7a2db8fb6c80badb7f0f3f858211fba08dd9aaec750894f9"
+dependencies = [
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "opentelemetry 0.32.0",
+ "percent-encoding",
+ "portable-atomic",
+ "rand 0.9.4",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
 ]
@@ -1659,9 +1689,9 @@ dependencies = [
  "ipnet",
  "jsonwebtoken",
  "lettre",
- "opentelemetry",
+ "opentelemetry 0.22.0",
  "opentelemetry-otlp",
- "opentelemetry_sdk",
+ "opentelemetry_sdk 0.32.1",
  "password-hash 0.6.1",
  "rand 0.10.2",
  "reqwest",
@@ -1825,6 +1855,12 @@ dependencies = [
  "opaque-debug",
  "universal-hash",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d20d5497ef88037a52ff98267d066e7f11fcc5e99bbfbd58a42336193aacec3"
 
 [[package]]
 name = "potential_utf"
@@ -3005,8 +3041,8 @@ checksum = "a9be14ba1bbe4ab79e9229f7f89fab8d120b865859f10527f31c033e599d2284"
 dependencies = [
  "js-sys",
  "once_cell",
- "opentelemetry",
- "opentelemetry_sdk",
+ "opentelemetry 0.22.0",
+ "opentelemetry_sdk 0.22.1",
  "smallvec",
  "tracing",
  "tracing-core",
