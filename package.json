@@ -14,11 +14,11 @@
     "knip": "knip --config client-web/knip.json"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "brace-expansion": "1.1.16",
     "knip": "^5.30.0",
-    "prettier": "^3.3.3",
-    "prettier-plugin-tailwindcss": "^0.8.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "stylelint": "^16.9.0",
     "stylelint-config-standard": "^36.0.1"
   },
