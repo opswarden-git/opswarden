@@ -1,6 +1,6 @@
 // --- server/src/main.rs ---
 
-use opentelemetry::KeyValue;
+use opentelemetry::{trace::TracerProvider as _, KeyValue};
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 use opswarden_server::adapters::clock::SystemClock;
 use opswarden_server::adapters::crypto::hasher::Argon2Hasher;
@@ -51,18 +51,27 @@ async fn main() {
         "OPSWARDEN_MIGRATE_ONLY and OPSWARDEN_SKIP_MIGRATIONS are mutually exclusive"
     );
 
-    // Initialize Tracing and OpenTelemetry
-    let tracer =
-        opentelemetry_otlp::new_pipeline()
-            .tracing()
-            .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-            .with_trace_config(sdktrace::config().with_resource(Resource::new(vec![
-                KeyValue::new("service.name", "opswarden-server"),
-            ])))
-            .install_batch(opentelemetry_sdk::runtime::Tokio)
-            .expect("failed to install OpenTelemetry tracer");
+    // Initialize Tracing and OpenTelemetry.
+    //
+    // The 0.32 SDK replaced the `new_pipeline()` builder with an explicit
+    // exporter + provider pair, and dropped the `runtime::Tokio` argument:
+    // batching now uses the ambient runtime.
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .build()
+        .expect("failed to build the OTLP span exporter");
 
-    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let tracer_provider = sdktrace::SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(
+            Resource::builder()
+                .with_attribute(KeyValue::new("service.name", "opswarden-server"))
+                .build(),
+        )
+        .build();
+
+    let telemetry_layer =
+        tracing_opentelemetry::layer().with_tracer(tracer_provider.tracer("opswarden-server"));
     let fmt_layer = tracing_subscriber::fmt::layer().json();
 
     tracing_subscriber::registry()
