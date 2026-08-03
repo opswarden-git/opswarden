@@ -35,6 +35,10 @@ pub struct Config {
     /// Socket the HTTP server listens on. Configurable so a native `just dev`
     /// run can coexist with the Compose stack, which already publishes 8080.
     pub bind_addr: String,
+    /// Unauthenticated `/api/auth/*` attempts allowed per client address and
+    /// per `auth_rate_limit_window_seconds`. Counted per replica.
+    pub auth_rate_limit_attempts: u32,
+    pub auth_rate_limit_window_seconds: u64,
 }
 
 impl Config {
@@ -100,6 +104,17 @@ impl Config {
         // Unchanged default: every deployment that sets nothing keeps 0.0.0.0:8080.
         let bind_addr =
             optional_env("OPSWARDEN_BIND_ADDR").unwrap_or_else(|| "0.0.0.0:8080".to_string());
+        // 20 attempts per 5 minutes leaves a forgetful human comfortable while
+        // turning an unbounded guessing loop into roughly four tries a minute.
+        let auth_rate_limit_attempts = optional_env("OPSWARDEN_AUTH_RATE_LIMIT_ATTEMPTS")
+            .and_then(|value| value.parse::<u32>().ok())
+            .filter(|attempts| (1..=1000).contains(attempts))
+            .unwrap_or(20);
+        let auth_rate_limit_window_seconds =
+            optional_env("OPSWARDEN_AUTH_RATE_LIMIT_WINDOW_SECONDS")
+                .and_then(|value| value.parse::<u64>().ok())
+                .filter(|seconds| (1..=3600).contains(seconds))
+                .unwrap_or(300);
 
         Self {
             kickoff_token_secret,
@@ -117,6 +132,8 @@ impl Config {
             giphy_api_key,
             timer_poll_seconds,
             bind_addr,
+            auth_rate_limit_attempts,
+            auth_rate_limit_window_seconds,
         }
     }
 

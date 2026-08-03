@@ -1,7 +1,16 @@
 pub fn test_context() -> TestContext {
-    build_context()
+    // Suites replay sign-in and sign-up many times from one synthetic address;
+    // a production-sized budget would make them flaky for a reason unrelated to
+    // what they assert. `test_context_with_auth_rate_limit` covers the limiter.
+    build_context(10_000, 300)
 }
-fn build_context() -> TestContext {
+
+/// Build a context whose auth routes carry a deliberately small budget.
+#[allow(dead_code)]
+pub fn test_context_with_auth_rate_limit(attempts: u32, window_seconds: u64) -> TestContext {
+    build_context(attempts, window_seconds)
+}
+fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
     let channels = Arc::new(DummyChannelRepo::default());
@@ -25,6 +34,8 @@ fn build_context() -> TestContext {
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;
+    config.auth_rate_limit_attempts = auth_rate_limit_attempts;
+    config.auth_rate_limit_window_seconds = auth_window_seconds;
     let app = build_app(AppState {
         users: users.clone(),
         teams: teams.clone(),
@@ -53,6 +64,12 @@ fn build_context() -> TestContext {
         notifier: notifier.clone(),
         email_sender: email_sender.clone(),
         gifs: Arc::new(DummyGifSearch),
+        auth_rate_limiter: Arc::new(
+            opswarden_server::adapters::rate_limit::RateLimiter::new(
+                config.auth_rate_limit_attempts,
+                config.auth_rate_limit_window_seconds,
+            ),
+        ),
         config,
     });
     TestContext {

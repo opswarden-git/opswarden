@@ -1,13 +1,43 @@
 // --- server/src/handlers/middleware.rs ---
+use crate::adapters::rate_limit::Decision;
 use crate::AppState;
 use axum::{
-    extract::{Request, State},
-    http::StatusCode,
+    extract::{ConnectInfo, Request, State},
+    http::{header::RETRY_AFTER, StatusCode},
     middleware::Next,
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
+use std::net::SocketAddr;
 use uuid::Uuid;
+
+/// Bounds credential guessing on the unauthenticated `/api/auth/*` routes.
+///
+/// The caller is identified with the same `resolve_client_ip` the rest of the
+/// server uses, so the configured proxy depth decides how far an
+/// `X-Forwarded-For` chain is trusted. Without that, a single reverse proxy
+/// would share one bucket across every user, and a spoofed header would let a
+/// caller mint a fresh budget per request.
+pub async fn rate_limit_auth(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let caller =
+        super::resolve_client_ip(peer.ip(), req.headers(), state.config.trusted_proxy_hops);
+
+    match state.auth_rate_limiter.check(caller, Utc::now()) {
+        Decision::Allow => next.run(req).await,
+        Decision::Deny {
+            retry_after_seconds,
+        } => (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(RETRY_AFTER, retry_after_seconds.to_string())],
+        )
+            .into_response(),
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct AuthenticatedSession {

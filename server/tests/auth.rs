@@ -3,13 +3,22 @@
 mod common;
 use axum::{
     body::Body,
+    extract::ConnectInfo,
     http::{header, Request, StatusCode},
 };
 use common::test_context;
 use opswarden_server::domain::user::Locale;
 use opswarden_server::ports::UserRepo;
 use serde_json::json;
+use std::net::SocketAddr;
 use tower::ServiceExt;
+
+/// The auth routes carry a per-caller budget, so every request must arrive with
+/// the peer address the middleware keys on. Production supplies it through
+/// `into_make_service_with_connect_info`; `oneshot` needs it injected.
+fn client_addr() -> ConnectInfo<SocketAddr> {
+    ConnectInfo("203.0.113.7:54321".parse().unwrap())
+}
 
 #[tokio::test]
 async fn signup_returns_created_for_new_user() {
@@ -24,6 +33,7 @@ async fn signup_returns_created_for_new_user() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-up")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -47,6 +57,7 @@ async fn signup_returns_conflict_for_existing_user() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-up")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -70,6 +81,7 @@ async fn signup_returns_bad_request_for_invalid_email() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-up")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -93,6 +105,7 @@ async fn signin_returns_ok_with_token_for_valid_credentials() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-in")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -123,6 +136,7 @@ async fn signin_returns_unauthorized_for_invalid_password() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-in")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -146,6 +160,7 @@ async fn signin_returns_unauthorized_for_unknown_user() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/sign-in")
+                .extension(client_addr())
                 .header("Content-Type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),
@@ -167,6 +182,7 @@ async fn logout_revokes_the_bearer_token() {
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/logout")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -183,6 +199,7 @@ async fn logout_revokes_the_bearer_token() {
             Request::builder()
                 .method("GET")
                 .uri("/api/me")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -203,6 +220,7 @@ async fn me_exposes_and_updates_the_persisted_supported_locale() {
             Request::builder()
                 .method("PUT")
                 .uri("/api/me/locale")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({"locale": "fr"}).to_string()))
@@ -223,6 +241,7 @@ async fn me_exposes_and_updates_the_persisted_supported_locale() {
         .oneshot(
             Request::builder()
                 .uri("/api/me")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -253,6 +272,7 @@ async fn locale_update_rejects_values_outside_english_and_french() {
             Request::builder()
                 .method("PUT")
                 .uri("/api/me/locale")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({"locale": "de"}).to_string()))
@@ -276,6 +296,7 @@ async fn delete_me_removes_the_authenticated_account() {
             Request::builder()
                 .method("DELETE")
                 .uri("/api/me")
+                .extension(client_addr())
                 .header("Authorization", "Bearer mock_jwt_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -294,6 +315,7 @@ async fn google_start_redirects_and_sets_state_cookie() {
             Request::builder()
                 .method("GET")
                 .uri("/api/auth/google/start")
+                .extension(client_addr())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -337,5 +359,86 @@ async fn google_callback_exchanges_code_and_redirects_with_token() {
     assert_eq!(
         location,
         "http://localhost:4242/en/login#oauth_token=mock_jwt_token"
+    );
+}
+
+#[tokio::test]
+async fn repeated_sign_in_attempts_from_one_address_are_rate_limited() {
+    let ctx = common::test_context_with_auth_rate_limit(3, 300);
+    let payload = json!({ "email": "victim@test.com", "password": "wrong-guess" });
+
+    let attempt = |app: axum::Router| {
+        let body = payload.to_string();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/sign-in")
+                    .extension(client_addr())
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+        }
+    };
+
+    // The budget is spent on failed guesses, which still answer 401.
+    for _ in 0..3 {
+        let response = attempt(ctx.app.clone()).await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    // The next guess never reaches the handler.
+    let blocked = attempt(ctx.app.clone()).await;
+    assert_eq!(blocked.status(), StatusCode::TOO_MANY_REQUESTS);
+    let retry_after = blocked
+        .headers()
+        .get(header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .expect("a throttled response must tell the caller when to retry");
+    assert!(retry_after >= 1);
+}
+
+#[tokio::test]
+async fn one_address_cannot_lock_out_another() {
+    let ctx = common::test_context_with_auth_rate_limit(2, 300);
+    let payload = json!({ "email": "victim@test.com", "password": "wrong-guess" });
+
+    let attempt = |app: axum::Router, peer: &'static str| {
+        let body = payload.to_string();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/sign-in")
+                    .extension(ConnectInfo(peer.parse::<SocketAddr>().unwrap()))
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+        }
+    };
+
+    for _ in 0..2 {
+        attempt(ctx.app.clone(), "198.51.100.10:1111").await;
+    }
+    assert_eq!(
+        attempt(ctx.app.clone(), "198.51.100.10:1111")
+            .await
+            .status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+
+    // A different caller keeps its own untouched budget.
+    assert_eq!(
+        attempt(ctx.app.clone(), "198.51.100.20:2222")
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
     );
 }

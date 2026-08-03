@@ -218,29 +218,6 @@ pub async fn configure_service(
     Ok(Json(view.into()))
 }
 
-pub async fn configure_github(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path(team_id): Path<Uuid>,
-    Json(payload): Json<ConfigureGithubPayload>,
-) -> Result<Json<TeamConnectionResponse>, DomainError> {
-    let view = TeamConnectionUseCase::new(
-        state.teams.clone(),
-        state.service_connections.clone(),
-        state.connection_credentials.clone(),
-        state.notifier.clone(),
-        state.email_sender.clone(),
-    )
-    .configure_github(ConfigureGithubConnectionCommand {
-        team_id,
-        requester_id: session.user_id,
-        webhook_signing_secret: payload.webhook_signing_secret,
-        personal_token: payload.personal_token,
-    })
-    .await?;
-    Ok(Json(view.into()))
-}
-
 #[derive(Deserialize)]
 pub struct StartGithubOAuthQuery {
     pub locale: Option<String>,
@@ -415,28 +392,6 @@ fn read_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
         let (key, value) = part.trim().split_once('=')?;
         (key == name).then(|| value.to_string())
     })
-}
-
-pub async fn configure_http(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path(team_id): Path<Uuid>,
-    Json(payload): Json<ConfigureHttpPayload>,
-) -> Result<Json<TeamConnectionResponse>, DomainError> {
-    let view = TeamConnectionUseCase::new(
-        state.teams.clone(),
-        state.service_connections.clone(),
-        state.connection_credentials.clone(),
-        state.notifier.clone(),
-        state.email_sender.clone(),
-    )
-    .configure_http(ConfigureHttpConnectionCommand {
-        team_id,
-        requester_id: session.user_id,
-        endpoint_url: payload.endpoint_url,
-    })
-    .await?;
-    Ok(Json(view.into()))
 }
 
 pub async fn test_connection(

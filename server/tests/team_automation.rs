@@ -55,7 +55,7 @@ async fn configure_github(ctx: &common::TestContext, team_id: Uuid) -> Value {
         .clone()
         .oneshot(request(
             "PUT",
-            &format!("/api/teams/{team_id}/service-connections/github"),
+            &format!("/api/teams/{team_id}/service-connections/by-service/github"),
             Some(json!({
                 "webhook_signing_secret": SIGNING_SECRET,
                 "personal_token": PERSONAL_TOKEN
@@ -73,7 +73,7 @@ async fn configure_http(ctx: &common::TestContext, team_id: Uuid) -> Value {
         .clone()
         .oneshot(request(
             "PUT",
-            &format!("/api/teams/{team_id}/service-connections/http"),
+            &format!("/api/teams/{team_id}/service-connections/by-service/http"),
             Some(json!({"endpoint_url": HTTP_ENDPOINT})),
         ))
         .await

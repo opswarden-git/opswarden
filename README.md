@@ -95,6 +95,19 @@ client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
 strongly typed, PostgreSQL protects concurrent multi-user state, and Tauri adds
 native desktop behavior without introducing a second application architecture.
 
+### Collaboration limits
+
+The server owns these values; clients read them rather than hard-coding them.
+
+| Rule                          | Value                                                              | Served by                    |
+| ----------------------------- | ------------------------------------------------------------------ | ---------------------------- |
+| Timeline reaction set         | 👍 👀 ✅ 🚨 ❤️ 🎉 — six emojis, anything else is rejected          | `GET /reactions/available`   |
+| Private message length        | 2 000 characters, enforced server-side                             | `POST /api/private-messages` |
+| Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                |
+
+Reactions apply to Incident timeline entries only — not to Release step
+validations and not to private messages.
+
 ## For developers
 
 OpsWarden is built to be run both locally for development and in the cloud for production. To get a feel for the platform on your own machine, you can launch the entire stack in just a few commands using Docker:

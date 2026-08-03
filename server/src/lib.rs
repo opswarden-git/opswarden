@@ -58,6 +58,9 @@ pub struct AppState {
     pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
     /// Releases with sequential steps and incident-driven blocking.
     pub releases: Arc<dyn ReleaseRepo + Send + Sync>,
+    /// Bounds credential guessing on the unauthenticated auth routes.
+    /// Shared across handlers so every replica keeps one budget per caller.
+    pub auth_rate_limiter: Arc<crate::adapters::rate_limit::RateLimiter>,
     pub config: config::Config,
 }
 
@@ -151,14 +154,6 @@ pub fn build_app(state: AppState) -> Router {
             post(handlers::team_automation::start_github_oauth),
         )
         .route(
-            "/api/teams/{team_id}/service-connections/github",
-            put(handlers::team_automation::configure_github),
-        )
-        .route(
-            "/api/teams/{team_id}/service-connections/http",
-            put(handlers::team_automation::configure_http),
-        )
-        .route(
             "/api/teams/{team_id}/service-connections/{connection_id}/oauth/refresh",
             post(handlers::team_automation::refresh_github_oauth),
         )
@@ -228,9 +223,18 @@ pub fn build_app(state: AppState) -> Router {
         .route("/health", get(handlers::health))
         .route("/metrics", get(handlers::metrics::metrics))
         .route("/about.json", get(handlers::about))
-        .route("/api/auth/sign-up", post(handlers::auth::sign_up))
-        .route("/api/auth/sign-in", post(handlers::auth::sign_in))
-        .route("/api/auth/google/start", get(handlers::auth::google_start))
+        // Credential guessing is the one unauthenticated surface with no
+        // ceiling of its own, so these three carry a per-caller budget.
+        .merge(
+            Router::new()
+                .route("/api/auth/sign-up", post(handlers::auth::sign_up))
+                .route("/api/auth/sign-in", post(handlers::auth::sign_in))
+                .route("/api/auth/google/start", get(handlers::auth::google_start))
+                .route_layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    handlers::middleware::rate_limit_auth,
+                )),
+        )
         .route(
             "/api/auth/google/callback",
             get(handlers::auth::google_callback),
