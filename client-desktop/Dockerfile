@@ -58,15 +58,18 @@ RUN mkdir -p /root/.cache/tauri \
     && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
       https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/2a2e67491c32995a3f279ad0ecbe77abd512b42a/linuxdeploy-plugin-gstreamer.sh \
       -o /root/.cache/tauri/linuxdeploy-plugin-gstreamer.sh \
+    # Pin an immutable tagged release, never the project's `continuous` tag:
+    # that tag is rolling and its assets were rewritten upstream on 2026-08-01,
+    # which broke the digest below and made `just up` fail on every fresh clone.
     && curl -fL --retry 5 --retry-delay 2 --retry-all-errors -sS \
-      "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage?download=1" \
+      "https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage" \
       -o /root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage \
     && printf '%s\n' \
       'f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f  /root/.cache/tauri/AppRun-x86_64' \
       'e762bea85c8eb0d4b3508d46e5c1f037f717d0f9303ae3b4aafc8b04991fa1ef  /root/.cache/tauri/linuxdeploy-x86_64.AppImage' \
       'cb379f9b0733e9ad9f8bd78f8c2fa038aef2478523bb7d4c8e64ff6a1ea3501a  /root/.cache/tauri/linuxdeploy-plugin-gtk.sh' \
       'c107b49d84edbffc6ab226ed1007e0626a4f7aa2c3a36b7782bef62351d49e94  /root/.cache/tauri/linuxdeploy-plugin-gstreamer.sh' \
-      '1da16a46fa5e058ae740e7c35ed0d36d86cb869ac9cc8a5fd9a1847d7978d99a  /root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage' \
+      '992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3  /root/.cache/tauri/linuxdeploy-plugin-appimage.AppImage' \
       | sha256sum -c - \
     && chmod 755 /root/.cache/tauri/* \
     && dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc \
