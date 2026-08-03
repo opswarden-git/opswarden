@@ -6,7 +6,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 pub mod auth;
-pub mod channel;
 pub mod error;
 pub mod gif;
 pub mod incident;

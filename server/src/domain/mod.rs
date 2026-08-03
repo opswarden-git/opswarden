@@ -7,7 +7,6 @@ mod automation_credential;
 pub mod automation_template;
 pub mod automation_timer;
 pub mod capabilities;
-pub mod channel;
 pub mod error;
 pub mod event;
 pub mod incident;
@@ -27,7 +26,6 @@ pub use automation_timer::{
     ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule, TimerScheduleProjection,
 };
 pub use capabilities::{derive_capabilities, TeamCapabilities};
-pub use channel::Channel;
 pub use error::DomainError;
 pub use event::DomainEvent;
 pub use incident::{Incident, IncidentStatus, Severity};

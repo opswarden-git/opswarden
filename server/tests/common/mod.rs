@@ -5,7 +5,6 @@ use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, ServiceConnection, WebhookDelivery,
 };
-use opswarden_server::domain::channel::Channel;
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::{Incident, IncidentStatus};
 use opswarden_server::domain::incident_event::IncidentEvent;
@@ -17,11 +16,11 @@ use opswarden_server::domain::team::{
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::{Locale, User};
 use opswarden_server::ports::{
-    AutomationRuleRepo, AutomationRunRepo, ChannelRepo, Clock, ConnectionCredentialVault,
-    EmailMessage, EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient,
-    OAuthProfile, PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo,
-    ServiceOAuthClient, ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims,
-    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailMessage,
+    EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile,
+    PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient,
+    ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
+    TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -33,7 +32,6 @@ pub struct TestContext {
     pub app: axum::Router,
     pub users: Arc<DummyUserRepo>,
     pub teams: Arc<DummyTeamRepo>,
-    pub channels: Arc<DummyChannelRepo>,
     pub incidents: Arc<DummyIncidentRepo>,
     pub timeline: Arc<DummyTimelineRepo>,
     pub private_messages: Arc<DummyPrivateMessageRepo>,
