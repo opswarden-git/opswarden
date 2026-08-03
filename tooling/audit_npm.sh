@@ -51,7 +51,7 @@ if jq -e '.vulnerabilities["brace-expansion"]' "$audit_report" >/dev/null; then
     echo "The brace-expansion development-only exception expired on $exception_expires" >&2
     exit 1
   fi
-  jq -e '.devDependencies["brace-expansion"] == "1.1.16"' package.json >/dev/null || {
+  jq -e '.devDependencies["brace-expansion"] == "1.1.18"' package.json >/dev/null || {
     echo "The brace-expansion exception is valid only for the pinned ESLint 9 compatibility package" >&2
     exit 1
   }

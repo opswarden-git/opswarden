@@ -16,7 +16,7 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@vitest/coverage-v8": "^4.1.10",
-    "brace-expansion": "1.1.16",
+    "brace-expansion": "1.1.18",
     "knip": "^5.30.0",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
