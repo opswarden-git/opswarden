@@ -120,7 +120,7 @@ pub async fn about(
     })
 }
 
-fn canonical_ip(ip: IpAddr) -> IpAddr {
+pub(crate) fn canonical_ip(ip: IpAddr) -> IpAddr {
     match ip {
         IpAddr::V6(ipv6) => ipv6
             .to_ipv4_mapped()
@@ -130,7 +130,11 @@ fn canonical_ip(ip: IpAddr) -> IpAddr {
     }
 }
 
-fn resolve_client_ip(peer: IpAddr, headers: &HeaderMap, trusted_proxy_hops: usize) -> IpAddr {
+pub(crate) fn resolve_client_ip(
+    peer: IpAddr,
+    headers: &HeaderMap,
+    trusted_proxy_hops: usize,
+) -> IpAddr {
     let peer = canonical_ip(peer);
     if trusted_proxy_hops == 0 {
         return peer;

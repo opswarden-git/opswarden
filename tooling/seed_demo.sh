@@ -60,7 +60,7 @@ token=$(curl --fail --silent \
   | jq -er '.token')
 
 github_connection=$(curl --fail --silent \
-  --request PUT "$api_origin/api/teams/$automation_team_id/service-connections/github" \
+  --request PUT "$api_origin/api/teams/$automation_team_id/service-connections/by-service/github" \
   --header "Authorization: Bearer $token" \
   --header 'Content-Type: application/json' \
   --data "$(jq -nc --arg secret "$webhook_secret" '{webhook_signing_secret: $secret}')")

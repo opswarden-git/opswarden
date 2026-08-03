@@ -373,7 +373,7 @@ async fn only_manager_can_read_connections_or_runs() {
             .clone()
             .oneshot(request(
                 "PUT",
-                &format!("/api/teams/{team_id}/service-connections/github"),
+                &format!("/api/teams/{team_id}/service-connections/by-service/github"),
                 Some(json!({"webhook_signing_secret": SIGNING_SECRET})),
             ))
             .await
@@ -399,7 +399,7 @@ async fn only_manager_can_read_connections_or_runs() {
             .clone()
             .oneshot(request(
                 "PUT",
-                &format!("/api/teams/{team_id}/service-connections/http"),
+                &format!("/api/teams/{team_id}/service-connections/by-service/http"),
                 Some(json!({"endpoint_url": HTTP_ENDPOINT})),
             ))
             .await

@@ -8,5 +8,6 @@ pub mod metrics;
 pub mod notify;
 pub mod oauth;
 pub mod pg;
+pub mod rate_limit;
 pub mod webhook;
 pub mod ws;
