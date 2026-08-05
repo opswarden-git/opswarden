@@ -149,7 +149,7 @@ function HumanNoteItem({
   return (
     <li className="surface border-border relative z-10 mb-5 rounded-md border p-4 last:mb-0 sm:p-5">
       <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="bg-panel-2 text-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase">
             {item.author?.email.slice(0, 2) ?? "?"}
           </span>

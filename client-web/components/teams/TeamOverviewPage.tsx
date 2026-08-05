@@ -32,7 +32,7 @@ function AttentionRow({ item, teamId }: { item: AttentionItem; teamId: string })
     <li>
       <Link
         href={href}
-        className="group hover:bg-panel-2 flex min-w-0 gap-3 px-4 py-3.5 transition-colors sm:px-5"
+        className="group hover:bg-panel-2 flex min-w-0 gap-3 px-4 py-3 transition-colors sm:px-5"
       >
         <span className="surface-subtle text-muted group-hover:text-gold mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors">
           {isIncident ? (

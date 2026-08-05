@@ -36,7 +36,19 @@ describe("OperationalTable", () => {
       "scope",
       "row",
     );
-    expect(screen.getByRole("columnheader", { name: "Incident" })).toHaveClass("px-4", "py-3");
-    expect(screen.getByRole("cell", { name: "Open" })).toHaveClass("px-4", "py-3");
+    // "Shared" is the contract, not the literal values: a header and a cell in
+    // the same table must carry identical padding. Which step of the scale they
+    // land on is the spacing-scale contract's business, so a density change
+    // does not have to be restated here.
+    const padding = (element: HTMLElement) =>
+      element.className
+        .split(/\s+/)
+        .filter((token) => /^p[xy]?-/.test(token))
+        .sort();
+
+    const header = screen.getByRole("columnheader", { name: "Incident" });
+    const cell = screen.getByRole("cell", { name: "Open" });
+    expect(padding(header).length).toBeGreaterThan(0);
+    expect(padding(header)).toEqual(padding(cell));
   });
 });

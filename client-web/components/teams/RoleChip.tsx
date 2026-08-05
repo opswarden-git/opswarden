@@ -27,7 +27,7 @@ export function RoleChip({ role }: { role: TeamRole }) {
         : t("roleObserver");
 
   return (
-    <span className="surface-subtle text-text border-border inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">
+    <span className="surface-subtle text-text border-border inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium">
       {icon}
       {label}
     </span>

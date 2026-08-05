@@ -60,7 +60,7 @@ export function RunsView({
             <tr>
               {["colRun", "colRule", "colStatus", "colResult", "colStarted", "colDuration"].map(
                 (column) => (
-                  <th key={column} className="text-muted px-5 py-3.5 font-medium">
+                  <th key={column} className="text-muted px-5 py-3 font-medium">
                     {t(column)}
                   </th>
                 ),
