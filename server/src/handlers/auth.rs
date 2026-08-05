@@ -69,6 +69,19 @@ pub async fn sign_in(
     State(state): State<AppState>,
     Json(payload): Json<SignInPayload>,
 ) -> Result<(StatusCode, Json<SignInResponse>), DomainError> {
+    // Keyed by the account under attack rather than by address: the proxy in
+    // front may hide every visitor behind one address, but it cannot blur which
+    // account the credentials are being guessed against. Lowercased and trimmed
+    // so neither casing nor padding buys a fresh budget.
+    let account_key = format!("account:{}", payload.email.trim().to_lowercase());
+    let now = chrono::Utc::now();
+
+    if let crate::adapters::rate_limit::Decision::Deny { .. } =
+        state.account_rate_limiter.peek(&account_key, now)
+    {
+        return Err(DomainError::TooManyAttempts);
+    }
+
     let use_case = SignInUseCase::new(
         state.users.clone(),
         state.hasher.clone(),
@@ -80,14 +93,22 @@ pub async fn sign_in(
         plain_password: payload.password,
     };
 
-    let result = use_case.sign_in(command).await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(SignInResponse {
-            token: result.token,
-        }),
-    ))
+    // Only failures spend budget. A successful sign-in is evidence the caller
+    // is not guessing, so metering it would throttle the people the product is
+    // for — a shift handover, a demo, a test suite — while an attacker pays the
+    // same price either way.
+    match use_case.sign_in(command).await {
+        Ok(result) => Ok((
+            StatusCode::OK,
+            Json(SignInResponse {
+                token: result.token,
+            }),
+        )),
+        Err(error) => {
+            state.account_rate_limiter.record_failure(&account_key, now);
+            Err(error)
+        }
+    }
 }
 
 #[derive(Serialize)]

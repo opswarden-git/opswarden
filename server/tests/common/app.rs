@@ -2,15 +2,28 @@ pub fn test_context() -> TestContext {
     // Suites replay sign-in and sign-up many times from one synthetic address;
     // a production-sized budget would make them flaky for a reason unrelated to
     // what they assert. `test_context_with_auth_rate_limit` covers the limiter.
-    build_context(10_000, 300)
+    build_context(10_000, 10_000, 300)
 }
 
 /// Build a context whose auth routes carry a deliberately small budget.
+///
+/// The address ceiling stays wide so a suite can exercise the per-account limit
+/// without the coarse one firing first and hiding which rule actually held.
 #[allow(dead_code)]
 pub fn test_context_with_auth_rate_limit(attempts: u32, window_seconds: u64) -> TestContext {
-    build_context(attempts, window_seconds)
+    build_context(10_000, attempts, window_seconds)
 }
-fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> TestContext {
+
+/// Build a context whose coarse address ceiling is the one under test.
+#[allow(dead_code)]
+pub fn test_context_with_address_rate_limit(attempts: u32, window_seconds: u64) -> TestContext {
+    build_context(attempts, 10_000, window_seconds)
+}
+fn build_context(
+    address_attempts: u32,
+    account_attempts: u32,
+    auth_window_seconds: u64,
+) -> TestContext {
     let users = Arc::new(DummyUserRepo::default());
     let teams = Arc::new(DummyTeamRepo::default());
     let incidents = Arc::new(DummyIncidentRepo::default());
@@ -33,7 +46,8 @@ fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> Tes
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;
-    config.auth_rate_limit_attempts = auth_rate_limit_attempts;
+    config.auth_rate_limit_attempts = address_attempts;
+    config.auth_rate_limit_per_account = account_attempts;
     config.auth_rate_limit_window_seconds = auth_window_seconds;
     let app = build_app(AppState {
         users: users.clone(),
@@ -65,6 +79,12 @@ fn build_context(auth_rate_limit_attempts: u32, auth_window_seconds: u64) -> Tes
         auth_rate_limiter: Arc::new(
             opswarden_server::adapters::rate_limit::RateLimiter::new(
                 config.auth_rate_limit_attempts,
+                config.auth_rate_limit_window_seconds,
+            ),
+        ),
+        account_rate_limiter: Arc::new(
+            opswarden_server::adapters::rate_limit::RateLimiter::new(
+                config.auth_rate_limit_per_account,
                 config.auth_rate_limit_window_seconds,
             ),
         ),

@@ -20,6 +20,10 @@ impl IntoResponse for DomainError {
             DomainError::InvalidCredentials => {
                 (StatusCode::UNAUTHORIZED, "Invalid email or password")
             }
+            DomainError::TooManyAttempts => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "Too many sign-in attempts for this account",
+            ),
             DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
             DomainError::InvalidTeamName => (StatusCode::BAD_REQUEST, "Team name cannot be empty"),
             DomainError::InvalidIncidentTitle => {

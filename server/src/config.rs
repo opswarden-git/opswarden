@@ -35,9 +35,13 @@ pub struct Config {
     /// Socket the HTTP server listens on. Configurable so a native `just dev`
     /// run can coexist with the Compose stack, which already publishes 8080.
     pub bind_addr: String,
-    /// Unauthenticated `/api/auth/*` attempts allowed per client address and
-    /// per `auth_rate_limit_window_seconds`. Counted per replica.
+    /// Coarse ceiling on unauthenticated `/api/auth/*` attempts per client
+    /// address. Loose on purpose: a proxy that forwards no client address puts
+    /// every visitor in one bucket. Counted per replica.
     pub auth_rate_limit_attempts: u32,
+    /// Sign-in attempts allowed per account. This is the limit that bounds
+    /// credential stuffing, and it is unaffected by proxy topology.
+    pub auth_rate_limit_per_account: u32,
     pub auth_rate_limit_window_seconds: u64,
 }
 
@@ -104,12 +108,18 @@ impl Config {
         // Unchanged default: every deployment that sets nothing keeps 0.0.0.0:8080.
         let bind_addr =
             optional_env("OPSWARDEN_BIND_ADDR").unwrap_or_else(|| "0.0.0.0:8080".to_string());
-        // 20 attempts per 5 minutes leaves a forgetful human comfortable while
-        // turning an unbounded guessing loop into roughly four tries a minute.
+        // Loose: this bucket may hold an entire deployment when the proxy in
+        // front forwards no client address.
         let auth_rate_limit_attempts = optional_env("OPSWARDEN_AUTH_RATE_LIMIT_ATTEMPTS")
             .and_then(|value| value.parse::<u32>().ok())
+            .filter(|attempts| (1..=100_000).contains(attempts))
+            .unwrap_or(600);
+        // Tight: 10 tries per 5 minutes on one account leaves a forgetful human
+        // comfortable and turns guessing into two tries a minute.
+        let auth_rate_limit_per_account = optional_env("OPSWARDEN_AUTH_RATE_LIMIT_PER_ACCOUNT")
+            .and_then(|value| value.parse::<u32>().ok())
             .filter(|attempts| (1..=1000).contains(attempts))
-            .unwrap_or(20);
+            .unwrap_or(10);
         let auth_rate_limit_window_seconds =
             optional_env("OPSWARDEN_AUTH_RATE_LIMIT_WINDOW_SECONDS")
                 .and_then(|value| value.parse::<u64>().ok())
@@ -133,6 +143,7 @@ impl Config {
             timer_poll_seconds,
             bind_addr,
             auth_rate_limit_attempts,
+            auth_rate_limit_per_account,
             auth_rate_limit_window_seconds,
         }
     }
