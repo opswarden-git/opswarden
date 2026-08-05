@@ -142,6 +142,10 @@ async fn main() {
             config.auth_rate_limit_attempts,
             config.auth_rate_limit_window_seconds,
         )),
+        account_rate_limiter: Arc::new(opswarden_server::adapters::rate_limit::RateLimiter::new(
+            config.auth_rate_limit_per_account,
+            config.auth_rate_limit_window_seconds,
+        )),
         config,
     };
 

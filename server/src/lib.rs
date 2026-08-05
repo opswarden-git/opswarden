@@ -57,9 +57,13 @@ pub struct AppState {
     pub private_messages: Arc<dyn PrivateMessageRepo + Send + Sync>,
     /// Releases with sequential steps and incident-driven blocking.
     pub releases: Arc<dyn ReleaseRepo + Send + Sync>,
-    /// Bounds credential guessing on the unauthenticated auth routes.
-    /// Shared across handlers so every replica keeps one budget per caller.
+    /// Coarse ceiling on the unauthenticated auth routes, keyed by client
+    /// address. Loose, because a proxy that forwards nothing collapses every
+    /// visitor into one bucket.
     pub auth_rate_limiter: Arc<crate::adapters::rate_limit::RateLimiter>,
+    /// Bounds credential stuffing where it actually happens: on one account.
+    /// Keyed by the submitted address, so no proxy topology can blur it.
+    pub account_rate_limiter: Arc<crate::adapters::rate_limit::RateLimiter>,
     pub config: config::Config,
 }
 

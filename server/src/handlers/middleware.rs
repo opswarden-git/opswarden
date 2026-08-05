@@ -11,13 +11,18 @@ use chrono::{DateTime, Utc};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-/// Bounds credential guessing on the unauthenticated `/api/auth/*` routes.
+/// Coarse ceiling on the unauthenticated `/api/auth/*` routes.
 ///
 /// The caller is identified with the same `resolve_client_ip` the rest of the
 /// server uses, so the configured proxy depth decides how far an
-/// `X-Forwarded-For` chain is trusted. Without that, a single reverse proxy
-/// would share one bucket across every user, and a spoofed header would let a
-/// caller mint a fresh budget per request.
+/// `X-Forwarded-For` chain is trusted, and a spoofed header cannot mint a fresh
+/// budget.
+///
+/// This ceiling is deliberately loose. A proxy that forwards nothing — Compose's
+/// Next client is one — collapses every visitor onto its own address, and a
+/// tight budget there locks out the whole deployment rather than an attacker.
+/// The tight limit that actually stops credential stuffing is keyed by account
+/// in the sign-in handler, where no topology can blur it.
 pub async fn rate_limit_auth(
     State(state): State<AppState>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
@@ -27,7 +32,10 @@ pub async fn rate_limit_auth(
     let caller =
         super::resolve_client_ip(peer.ip(), req.headers(), state.config.trusted_proxy_hops);
 
-    match state.auth_rate_limiter.check(caller, Utc::now()) {
+    match state
+        .auth_rate_limiter
+        .check(&format!("addr:{caller}"), Utc::now())
+    {
         Decision::Allow => next.run(req).await,
         Decision::Deny {
             retry_after_seconds,
