@@ -16,8 +16,8 @@ type OperationalTableDensity = "compact" | "normal";
 const DensityContext = createContext<OperationalTableDensity>("normal");
 
 const cellDensityClasses: Record<OperationalTableDensity, string> = {
-  compact: "px-4 py-3",
-  normal: "px-5 py-3.5",
+  compact: "px-4 py-2",
+  normal: "px-5 py-3",
 };
 
 /** Desktop-only table chrome. Data mapping, actions, destinations and mobile

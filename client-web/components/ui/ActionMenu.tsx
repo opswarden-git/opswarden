@@ -52,7 +52,7 @@ export function ActionMenu({
                 data-tone={item.tone ?? "neutral"}
                 onSelect={item.onSelect}
                 className={cn(
-                  "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                   item.tone === "danger"
                     ? "text-sev-critical data-[highlighted]:bg-sev-critical/10"
                     : "text-text",
