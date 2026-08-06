@@ -173,7 +173,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     });
 
   return (
-    <PageLayout width="workspace">
+    <PageLayout fill width="workspace">
       <IncidentBreadcrumb
         currentHref={currentHref}
         incidentsHref={incidentsHref}
@@ -231,15 +231,15 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         <Alert tone="danger">{errorText(updateStatus.error.message)}</Alert>
       ) : null}
 
-      <PageContent>
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <PageContent className="flex min-h-0 flex-1 flex-col">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <IncidentActivity
             incidentId={incident.id}
             canCompose={actions.canWriteTimeline}
             people={people}
           />
 
-          <div className="hidden lg:block">
+          <div className="hidden min-h-0 overflow-y-auto lg:block">
             <IncidentContextPanel
               incident={incident}
               team={currentTeam}

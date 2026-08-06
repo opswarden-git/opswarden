@@ -333,46 +333,67 @@ export function IncidentActivity({
   const { data: availableReactions = [] } = useAvailableReactions();
 
   return (
-    <section aria-labelledby="activity-title" className="min-w-0 space-y-4">
-      <div className="flex items-center gap-2">
+    <section
+      aria-labelledby="activity-title"
+      data-incident-room="true"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
+    >
+      <div className="flex shrink-0 items-center gap-2">
         <Activity className="text-muted h-4 w-4" aria-hidden="true" />
         <h2 id="activity-title" className="text-text text-base font-semibold">
           {t("activity")}
         </h2>
       </div>
 
-      {canCompose ? <ActivityComposer incidentId={incidentId} people={people} /> : null}
+      {/*
+       * Only the transcript scrolls. The heading above and the composer below
+       * stay put, which is what separates a room from a record: you can read
+       * back through an incident without losing the way to answer it.
+       */}
+      <div data-incident-transcript="true" className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+        {isLoading ? (
+          <div className="space-y-3" aria-label={t("loadingActivity")}>
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="surface h-24 animate-pulse rounded-md" />
+            ))}
+          </div>
+        ) : error ? (
+          <Alert tone="danger">{t("failedToLoadActivity")}</Alert>
+        ) : data.length === 0 ? (
+          <div className="surface border-border rounded-md border p-8 text-center">
+            <CircleDot className="text-muted mx-auto h-5 w-5" aria-hidden="true" />
+            <p className="text-text mt-3 text-sm font-medium">{t("noActivity")}</p>
+            <p className="text-muted mt-1 text-xs">{t("noActivityDescription")}</p>
+          </div>
+        ) : (
+          <ol className="before:bg-border relative space-y-0 before:absolute before:top-3 before:bottom-3 before:left-3.5 before:w-px">
+            {data.map((item) =>
+              item.type === "system_event" ? (
+                <SystemEventItem key={item.id} item={item} />
+              ) : (
+                <HumanNoteItem
+                  key={item.entry_id}
+                  availableReactions={availableReactions}
+                  incidentId={incidentId}
+                  item={item}
+                />
+              ),
+            )}
+          </ol>
+        )}
+      </div>
 
-      {isLoading ? (
-        <div className="space-y-3" aria-label={t("loadingActivity")}>
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="surface h-24 animate-pulse rounded-md" />
-          ))}
+      {/*
+       * Anchored below the transcript rather than above it. A composer at the
+       * top reads as "post an update"; at the bottom, after what has already
+       * been said, it reads as answering — the difference between a feed and a
+       * room.
+       */}
+      {canCompose ? (
+        <div data-incident-composer="true" className="shrink-0">
+          <ActivityComposer incidentId={incidentId} people={people} />
         </div>
-      ) : error ? (
-        <Alert tone="danger">{t("failedToLoadActivity")}</Alert>
-      ) : data.length === 0 ? (
-        <div className="surface border-border rounded-md border p-8 text-center">
-          <CircleDot className="text-muted mx-auto h-5 w-5" aria-hidden="true" />
-          <p className="text-text mt-3 text-sm font-medium">{t("noActivity")}</p>
-          <p className="text-muted mt-1 text-xs">{t("noActivityDescription")}</p>
-        </div>
-      ) : (
-        <ol className="before:bg-border relative space-y-0 before:absolute before:top-3 before:bottom-3 before:left-3.5 before:w-px">
-          {data.map((item) =>
-            item.type === "system_event" ? (
-              <SystemEventItem key={item.id} item={item} />
-            ) : (
-              <HumanNoteItem
-                key={item.entry_id}
-                availableReactions={availableReactions}
-                incidentId={incidentId}
-                item={item}
-              />
-            ),
-          )}
-        </ol>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -20,13 +20,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TeamScopeProvider>
-      <div className="text-text flex min-h-screen flex-col md:flex-row">
+      {/*
+       * `h-dvh` rather than `min-h-screen`: a bounded shell is what lets a page
+       * opt into filling the viewport and scrolling its own middle, which is
+       * how the incident room keeps its composer reachable. Dynamic viewport
+       * units track the mobile keyboard, which `vh` does not.
+       *
+       * Pages that simply grow are unaffected: `main` already scrolled, and
+       * `min-h-full` below keeps short pages filling the frame as before.
+       */}
+      <div className="text-text flex h-dvh flex-col overflow-hidden md:flex-row">
         {/* Sidebar - hidden on mobile, visible on medium screens and up */}
         <Sidebar className="hidden md:flex" />
 
         {/* Main content area */}
         <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto pb-16 md:pb-0">
-          <div className="flex-1">{children}</div>
+          <div className="flex min-h-full flex-1 flex-col">{children}</div>
         </main>
 
         {/* Bottom Bar - visible on mobile, hidden on medium screens and up */}
