@@ -20,6 +20,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { ReactionToggle } from "@/components/ui/ReactionToggle";
 import { ToggleButton } from "@/components/ui/ToggleButton";
 import { GifSearchPanel } from "./GifSearchPanel";
+import { resolveGrouping } from "./activity-grouping";
 
 function valueAsString(data: Record<string, unknown>, key: string) {
   const value = data[key];
@@ -119,10 +120,14 @@ function NoteReactions({
 
 function HumanNoteItem({
   availableReactions,
+  continuesAbove,
+  continuesBelow,
   incidentId,
   item,
 }: {
   availableReactions: string[];
+  continuesAbove: boolean;
+  continuesBelow: boolean;
   incidentId: string;
   item: Extract<IncidentActivityItem, { type: "human_note" }>;
 }) {
@@ -147,25 +152,54 @@ function HumanNoteItem({
   };
 
   return (
-    <li className="surface border-border relative z-10 mb-5 rounded-md border p-4 last:mb-0 sm:p-5">
-      <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="bg-panel-2 text-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase">
-            {item.author?.email.slice(0, 2) ?? "?"}
-          </span>
-          <div className="min-w-0">
-            <p className="text-text truncate text-sm font-medium">
-              {item.author?.email ?? t("deletedUser")}
-            </p>
-            <time className="text-muted block text-xs" dateTime={item.created_at}>
-              {new Intl.DateTimeFormat(locale, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }).format(new Date(item.created_at))}
-              {item.edited_at ? ` · ${t("edited")}` : ""}
-            </time>
+    <li
+      data-note-continues-above={continuesAbove ? "true" : undefined}
+      className={`surface border-border group relative z-10 border px-4 sm:px-5 ${
+        continuesAbove ? "rounded-t-none border-t-0 pt-3" : "rounded-t-md pt-4 sm:pt-5"
+      } ${continuesBelow ? "pb-3" : "mb-5 rounded-b-md pb-4 last:mb-0 sm:pb-5"}`}
+    >
+      <div
+        className={`flex min-w-0 items-start justify-between gap-3 ${
+          continuesAbove ? "mb-2" : "mb-3"
+        }`}
+      >
+        {continuesAbove ? (
+          // The block already carries this author's name and avatar. Only the
+          // time is repeated, revealed on hover or keyboard focus — it stays in
+          // the accessibility tree either way, because during an incident when
+          // something was said is part of the record.
+          <time
+            className="text-muted text-xs opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+            dateTime={item.created_at}
+            title={new Intl.DateTimeFormat(locale, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(item.created_at))}
+          >
+            {new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(
+              new Date(item.created_at),
+            )}
+            {item.edited_at ? ` · ${t("edited")}` : ""}
+          </time>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="bg-panel-2 text-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase">
+              {item.author?.email.slice(0, 2) ?? "?"}
+            </span>
+            <div className="min-w-0">
+              <p className="text-text truncate text-sm font-medium">
+                {item.author?.email ?? t("deletedUser")}
+              </p>
+              <time className="text-muted block text-xs" dateTime={item.created_at}>
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(item.created_at))}
+                {item.edited_at ? ` · ${t("edited")}` : ""}
+              </time>
+            </div>
           </div>
-        </div>
+        )}
         {canEdit && !editing ? (
           <IconButton
             label={t("edit")}
@@ -331,6 +365,7 @@ export function IncidentActivity({
   const t = useTranslations("Incidents");
   const { data = [], error, isLoading } = useIncidentActivity(incidentId);
   const { data: availableReactions = [] } = useAvailableReactions();
+  const grouping = React.useMemo(() => resolveGrouping(data), [data]);
 
   return (
     <section
@@ -367,13 +402,15 @@ export function IncidentActivity({
           </div>
         ) : (
           <ol className="before:bg-border relative space-y-0 before:absolute before:top-3 before:bottom-3 before:left-3.5 before:w-px">
-            {data.map((item) =>
+            {data.map((item, index) =>
               item.type === "system_event" ? (
                 <SystemEventItem key={item.id} item={item} />
               ) : (
                 <HumanNoteItem
                   key={item.entry_id}
                   availableReactions={availableReactions}
+                  continuesAbove={grouping[index].continuesAbove}
+                  continuesBelow={grouping[index].continuesBelow}
                   incidentId={incidentId}
                   item={item}
                 />
