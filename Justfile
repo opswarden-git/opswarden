@@ -325,9 +325,19 @@ ci-e2e: (_require "npm" "curl")
     echo "lance 'just up' (qui amorce aussi la config alertmanager)" >&2
     exit 1
 
-# Lent : réservé à `just ci-full`.
+# Lent, et il lui faut le shell WebKit/GTK : `nix develop .#tauri`, pas le shell
+# par défaut. La bibliothèque manquante n'est pas une commande, donc `_require`
+# ne la verrait pas : on la sonde explicitement, sinon l'échec surgit au fond de
+# pkg-config une fois le build lancé.
 # job "Desktop (Linux) · Package"
-ci-desktop: (_require "npm" "cargo")
+ci-desktop: (_require "npm" "cargo" "pkg-config")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkg-config --exists webkit2gtk-4.1 || {
+      echo "webkit2gtk-4.1 introuvable" >&2
+      echo "entre dans le shell desktop : nix develop .#tauri" >&2
+      exit 1
+    }
     ./tooling/verify_desktop_asset_pins.sh
     npm run build --workspace client-desktop -- --bundles deb
 
@@ -336,5 +346,7 @@ ci-desktop: (_require "npm" "cargo")
 # Le gate, en local. À lancer avant chaque push.
 ci: ci-workflow ci-backend-quality ci-backend-test ci-web ci-web-build ci-e2e
 
+# `ci-desktop` exige `nix develop .#tauri` ; depuis le shell par défaut, lance
+# `just ci ci-backend-coverage` puis le paquet à part.
 # Le gate au complet, couverture et paquet desktop inclus.
 ci-full: ci ci-backend-coverage ci-desktop
