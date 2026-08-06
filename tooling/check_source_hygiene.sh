@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A missing tool must fail loudly. This check exists because it did not: these
+# gates called `rg`, the runner image has no ripgrep, and every call site sat
+# inside an `if` or a process substitution — so "command not found" read as
+# "nothing matched" and the policy reported success without ever running.
+for tool in git grep xargs awk; do
+  command -v "$tool" >/dev/null || {
+    echo "source hygiene: required tool '$tool' is not installed" >&2
+    exit 1
+  }
+done
+
 readonly MAX_SOURCE_LINES=500
 
 base_ref=${1:-origin/main}
@@ -40,8 +51,17 @@ while IFS= read -r file; do
   fi
 done < <(git diff --name-only --diff-filter=AM "$merge_base" --)
 
-if rg --line-number --glob '*.{ts,tsx,js,jsx,mjs,cjs}' \
-  '\bas any\b|@ts-ignore|@ts-nocheck' client-web client-desktop; then
+# Enumerated through `git ls-files` rather than scanned recursively: a bare
+# `grep -r` would walk node_modules and .next, where these patterns are
+# everywhere and none of them are ours.
+bypasses=$(
+  git ls-files -- 'client-web' 'client-desktop' |
+    grep --extended-regexp '\.(ts|tsx|js|jsx|mjs|cjs)$' |
+    xargs --no-run-if-empty grep --line-number --extended-regexp \
+      '\bas any\b|@ts-ignore|@ts-nocheck' || true
+)
+if [[ -n "$bypasses" ]]; then
+  echo "$bypasses" >&2
   echo "source hygiene: unsafe TypeScript bypass detected" >&2
   failures=1
 fi
@@ -51,10 +71,13 @@ fi
 # a feature legitimately takes its tests with it; dropping the tests while the
 # handlers stay behind is what this must keep catching.
 deleted=$(git diff -M --diff-filter=D --name-only "$merge_base" --)
-deleted_tests=$(rg '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" || true)
+deleted_tests=$(grep --extended-regexp '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" || true)
 if [[ -n "$deleted_tests" ]]; then
-  deleted_sources=$(rg --invert-match '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" \
-    | rg '\.(rs|ts|tsx|js|jsx|mjs|cjs)$' || true)
+  deleted_sources=$(
+    grep --invert-match --extended-regexp \
+      '(^server/tests/|\.test\.(ts|tsx|js|jsx)$|^tooling/e2e/)' <<<"$deleted" |
+      grep --extended-regexp '\.(rs|ts|tsx|js|jsx|mjs|cjs)$' || true
+  )
   if [[ -z "$deleted_sources" ]]; then
     echo "source hygiene: deleting a test requires a dedicated replacement/refactor PR" >&2
     failures=1
