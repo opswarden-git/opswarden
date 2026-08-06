@@ -83,6 +83,13 @@ const config = {
           esc: "var(--st-esc)",
           res: "var(--st-res)",
         },
+        rel: {
+          created: "var(--rel-created)",
+          progress: "var(--rel-progress)",
+          blocked: "var(--rel-blocked)",
+          completed: "var(--rel-completed)",
+          cancelled: "var(--rel-cancelled)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

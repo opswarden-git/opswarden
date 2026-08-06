@@ -13,35 +13,35 @@ export function ReleaseStateChip({ state }: { state: ReleaseState }) {
   switch (state) {
     case "created":
       return (
-        <span className={`${base} border-border text-muted bg-white/[0.03]`}>
+        <span className={`${base} border-border text-rel-created bg-white/[0.03]`}>
           <CircleDashed className="h-3 w-3" />
           {t("stateCreated")}
         </span>
       );
     case "in_progress":
       return (
-        <span className={`${base} border-st-ack/20 bg-st-ack/10 text-st-ack`}>
+        <span className={`${base} border-rel-progress/20 bg-rel-progress/10 text-rel-progress`}>
           <Loader className="h-3 w-3" />
           {t("stateInProgress")}
         </span>
       );
     case "blocked":
       return (
-        <span className={`${base} border-sev-critical/20 bg-sev-critical/10 text-sev-critical`}>
+        <span className={`${base} border-rel-blocked/20 bg-rel-blocked/10 text-rel-blocked`}>
           <Ban className="h-3 w-3" />
           {t("stateBlocked")}
         </span>
       );
     case "completed":
       return (
-        <span className={`${base} border-st-res/20 bg-st-res/10 text-st-res`}>
+        <span className={`${base} border-rel-completed/20 bg-rel-completed/10 text-rel-completed`}>
           <CheckCircle2 className="h-3 w-3" />
           {t("stateCompleted")}
         </span>
       );
     case "cancelled":
       return (
-        <span className={`${base} border-border text-muted-2 bg-white/[0.03]`}>
+        <span className={`${base} border-border text-rel-cancelled bg-white/[0.03]`}>
           <XCircle className="h-3 w-3" />
           {t("stateCancelled")}
         </span>

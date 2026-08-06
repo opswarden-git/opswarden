@@ -6,6 +6,10 @@ const stylesheet = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8
 const buttonSource = readFileSync(resolve(process.cwd(), "components/ui/Button.tsx"), "utf8");
 const alertSource = readFileSync(resolve(process.cwd(), "components/ui/Alert.tsx"), "utf8");
 const designSystem = readFileSync(resolve(process.cwd(), "../DESIGN_SYSTEM.md"), "utf8");
+const releaseChipSource = readFileSync(
+  resolve(process.cwd(), "components/releases/ReleaseStateChip.tsx"),
+  "utf8",
+);
 
 const p4RegressionPairs = [
   { legacyForeground: "--ow-muted-2", foreground: "--ow-muted-2", background: "--bg" },
@@ -116,6 +120,16 @@ describe("semantic visual contract", () => {
     expect(alertSource).toContain("text-feedback-danger");
   });
 
+  it.each([
+    "--rel-created",
+    "--rel-progress",
+    "--rel-blocked",
+    "--rel-completed",
+    "--rel-cancelled",
+  ])("defines %s", (token) => {
+    expect(() => cssToken(token)).not.toThrow();
+  });
+
   it("documents exactly five principal palette colors and their roles", () => {
     expect(designSystem).toContain("## Primary palette — 5 colors");
     expect(designSystem.match(/^\| `#[0-9A-F]{6}` \|/gm)).toHaveLength(5);
@@ -124,6 +138,30 @@ describe("semantic visual contract", () => {
     expect(designSystem).toContain("Success");
     expect(designSystem).toContain("Warning");
     expect(designSystem).toContain("Danger");
+  });
+});
+
+describe("release lifecycle contract", () => {
+  it("keeps --rel-progress readable on panels and over its 10% surface", () => {
+    const text = cssToken("--rel-progress");
+    expect(contrast(text, cssToken("--panel-2"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(text, composite(text, cssToken("--panel"), 0.1))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("separates a release in progress from an acknowledged incident", () => {
+    // The overview shows both queues side by side. If these two resolved to the
+    // same value, one colour would mean two things depending on which column
+    // the operator happened to be reading.
+    expect(cssToken("--rel-progress")).not.toBe(cssToken("--st-ack"));
+  });
+
+  it("dresses release states only from the release family", () => {
+    // A release state must never borrow the incident vocabulary. Roles shared
+    // across the whole product (--feedback-*) are reached through --rel-*
+    // aliases, so the chip itself only ever names its own family.
+    const borrowed = releaseChipSource.match(/\b(?:text|bg|border)-(?:st|sev)-[a-z]+/g) ?? [];
+    expect(borrowed).toEqual([]);
+    expect(releaseChipSource).toContain("text-rel-progress");
   });
 });
 
