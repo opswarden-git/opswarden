@@ -1,4 +1,4 @@
-import { Rocket, Settings, ShieldAlert, Users } from "lucide-react";
+import { Activity, Rocket, Settings, ShieldAlert, Users } from "lucide-react";
 import { parseTeamPath, teamPath, type TeamSection } from "@/lib/team-routing";
 
 type NavigationItem = {
@@ -21,7 +21,12 @@ export function isNavigationItemActive(pathname: string, item: NavigationItem) {
   return activePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-export function primaryNavigationItems(teamId?: string) {
+/**
+ * `canViewActivity` gates the Activity entry on the same capability the server
+ * enforces: listing automation runs is Manager-only (`require_manager`), so the
+ * other roles are never led to a wall.
+ */
+export function primaryNavigationItems(teamId?: string, canViewActivity = false) {
   const teamItems = teamId
     ? [
         {
@@ -36,6 +41,16 @@ export function primaryNavigationItems(teamId?: string) {
           labelKey: "releases" as const,
           activeSections: ["releases"] satisfies readonly TeamSection[],
         },
+        ...(canViewActivity
+          ? [
+              {
+                href: teamPath(teamId, "activity"),
+                icon: Activity,
+                labelKey: "activity" as const,
+                activeSections: ["activity"] satisfies readonly TeamSection[],
+              },
+            ]
+          : []),
       ]
     : [];
 

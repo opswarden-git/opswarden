@@ -45,7 +45,8 @@
     "primaryNavigation": "Primary navigation",
     "mobileNavigation": "Mobile navigation",
     "logoIconAlt": "OpsWarden icon",
-    "logoWordmarkAlt": "OpsWarden"
+    "logoWordmarkAlt": "OpsWarden",
+    "activity": "Activity"
   },
   "TeamSwitcher": {
     "label": "Current team",
@@ -671,5 +672,13 @@
     "progressCount": "{completed}/{total}",
     "noNextStep": "No next step",
     "openRelease": "Open"
+  },
+  "Activity": {
+    "title": "Activity",
+    "description": "What automation did to this Team: what fired, what it created and what failed.",
+    "loading": "Loading activity",
+    "unavailable": "Team activity could not be loaded.",
+    "managerOnlyTitle": "Manager access required",
+    "managerOnlyDescription": "Only the Team Manager can review automation runs for this Team."
   }
 }

@@ -45,7 +45,8 @@
     "primaryNavigation": "Navigation principale",
     "mobileNavigation": "Navigation mobile",
     "logoIconAlt": "Icône OpsWarden",
-    "logoWordmarkAlt": "OpsWarden"
+    "logoWordmarkAlt": "OpsWarden",
+    "activity": "Activité"
   },
   "TeamSwitcher": {
     "label": "Équipe active",
@@ -671,5 +672,13 @@
     "progressCount": "{completed}/{total}",
     "noNextStep": "Aucune prochaine étape",
     "openRelease": "Ouvrir"
+  },
+  "Activity": {
+    "title": "Activité",
+    "description": "Ce que l’automatisation a fait sur cette équipe : ce qui s’est déclenché, ce qui a été créé et ce qui a échoué.",
+    "loading": "Chargement de l’activité",
+    "unavailable": "Impossible de charger l’activité de l’équipe.",
+    "managerOnlyTitle": "Accès Manager requis",
+    "managerOnlyDescription": "Seul le Manager de l’équipe peut consulter les exécutions d’automatisation."
   }
 }

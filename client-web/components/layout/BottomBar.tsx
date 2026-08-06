@@ -10,12 +10,19 @@ import {
   settingsNavigationItem,
 } from "./navigation";
 import { useTeamScope } from "@/components/teams/TeamScope";
+import { deriveCapabilities } from "@/lib/capabilities";
 
 export function BottomBar({ className }: { className?: string }) {
   const pathname = usePathname();
   const t = useTranslations("Sidebar");
   const { activeTeam } = useTeamScope();
-  const links = [...primaryNavigationItems(activeTeam?.team_id), settingsNavigationItem];
+  const canViewActivity = activeTeam
+    ? deriveCapabilities(activeTeam.role).canManageAutomations
+    : false;
+  const links = [
+    ...primaryNavigationItems(activeTeam?.team_id, canViewActivity),
+    settingsNavigationItem,
+  ];
 
   return (
     <nav

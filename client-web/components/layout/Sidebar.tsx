@@ -14,13 +14,17 @@ import {
 } from "./navigation";
 import { IconButton } from "@/components/ui/Button";
 import { useTeamScope } from "@/components/teams/TeamScope";
+import { deriveCapabilities } from "@/lib/capabilities";
 
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const t = useTranslations("Sidebar");
   const user = useAuthStore((state) => state.user);
   const { activeTeam, hrefFor } = useTeamScope();
-  const navigationItems = primaryNavigationItems(activeTeam?.team_id);
+  const canViewActivity = activeTeam
+    ? deriveCapabilities(activeTeam.role).canManageAutomations
+    : false;
+  const navigationItems = primaryNavigationItems(activeTeam?.team_id, canViewActivity);
   const isSettingsActive = isNavigationItemActive(pathname, settingsNavigationItem);
 
   return (
