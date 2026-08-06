@@ -84,16 +84,33 @@ test.describe("Incident detail", () => {
       const activity = await page
         .locator('section[aria-labelledby="activity-title"]')
         .boundingBox();
-      const context = await page.locator('aside[aria-labelledby="context-title"]').boundingBox();
       expect(activity).not.toBeNull();
-      expect(context).not.toBeNull();
+
+      // Below lg the context is an on-demand sheet rather than a stacked panel.
+      // The room keeps a fixed frame (D9), so a panel placed under a scrolling
+      // transcript would sit behind the entire conversation.
+      const contextTrigger = page.getByRole("button", { name: "Incident details" });
+      const contextPanel = page.locator('aside[aria-labelledby="context-title"]');
 
       if (width < 1024) {
-        expect(context!.y).toBeGreaterThan(activity!.y);
+        await expect(contextTrigger).toBeVisible();
+        await expect(contextPanel).toBeHidden();
       } else {
+        await expect(contextTrigger).toBeHidden();
+        const context = await contextPanel.boundingBox();
+        expect(context).not.toBeNull();
         expect(context!.x).toBeGreaterThan(activity!.x);
       }
     }
+  });
+
+  test("context opens as a sheet on narrow viewports", async ({ page }) => {
+    await login(page, "manager@opswarden.local");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(incidentUrl(LINKED_INCIDENT_ID));
+
+    await page.getByRole("button", { name: "Incident details" }).click();
+    await expect(page.getByRole("dialog", { name: "Incident details" })).toBeVisible();
   });
 });
 

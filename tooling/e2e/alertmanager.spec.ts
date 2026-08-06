@@ -123,8 +123,14 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     expect(reload.ok()).toBeTruthy();
 
     const startsAt = new Date().toISOString();
+    // Unique per run, for two reasons. Alertmanager groups by alertname and
+    // honours repeat_interval, so a fixed name lets a long-lived local instance
+    // suppress this run's notification as a duplicate of the previous one. And
+    // it keeps the polls below honest: incidents from an earlier run can no
+    // longer satisfy them, which is how a missing delivery once passed silently.
+    const alertname = `RealAlertmanagerE2E-${Date.now()}`;
     const labels = {
-      alertname: "RealAlertmanagerE2E",
+      alertname,
       severity: "critical",
       instance: "e2e-api",
     };
@@ -142,7 +148,7 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     expect(firing.ok()).toBeTruthy();
     await expect
       .poll(async () => incidentTitles(page.request, headers), { timeout: 20_000 })
-      .toContain("E2E alert_firing RealAlertmanagerE2E");
+      .toContain(`E2E alert_firing ${alertname}`);
 
     const resolved = await page.request.post("http://127.0.0.1:9093/api/v2/alerts", {
       data: [
@@ -158,7 +164,7 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     expect(resolved.ok()).toBeTruthy();
     await expect
       .poll(async () => incidentTitles(page.request, headers), { timeout: 20_000 })
-      .toContain("E2E alert_resolved RealAlertmanagerE2E");
+      .toContain(`E2E alert_resolved ${alertname}`);
 
     const runs = await page.request.get(`/api/teams/${TEAM_ID}/automation-runs`, { headers });
     expect(runs.ok()).toBeTruthy();

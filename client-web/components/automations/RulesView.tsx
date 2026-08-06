@@ -131,7 +131,10 @@ export function RulesView({
                   {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
                 </OperationalTableCell>
                 <OperationalTableCell>
-                  <span className={rule.enabled ? "text-st-res" : "text-muted"}>
+                  <span
+                    data-rule-state={rule.enabled ? "enabled" : "disabled"}
+                    className={rule.enabled ? "text-st-res" : "text-muted"}
+                  >
                     {rule.enabled ? t("enabled") : t("disabled")}
                   </span>
                 </OperationalTableCell>
@@ -187,7 +190,10 @@ export function RulesView({
                 <div className="min-w-0 flex-1">
                   <h3 className="text-text font-medium">{rule.name}</h3>
                   <div className="mt-1 flex flex-wrap gap-2 text-sm">
-                    <span className={rule.enabled ? "text-st-res" : "text-muted"}>
+                    <span
+                      data-rule-state={rule.enabled ? "enabled" : "disabled"}
+                      className={rule.enabled ? "text-st-res" : "text-muted"}
+                    >
                       {rule.enabled ? t("enabled") : t("disabled")}
                     </span>
                     <span className="text-muted">•</span>
