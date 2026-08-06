@@ -93,7 +93,7 @@ jobs:
           npm run build --workspace client-web
 
   release-e2e:
-    name: Release · E2E critical path
+    name: Release · E2E browser suite
     needs: release-gate
     runs-on: ubuntu-latest
     env:
@@ -132,8 +132,8 @@ jobs:
           docker compose ps
           docker compose logs --no-color server client_web alertmanager
           exit 1
-      - name: Run critical browser flow
-        run: npm run test:e2e -- tooling/e2e/create-incident-dialog.spec.ts tooling/e2e/alertmanager.spec.ts
+      - name: Run browser suite
+        run: npm run test:e2e
       - name: Upload Playwright diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

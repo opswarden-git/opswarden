@@ -56,6 +56,9 @@ where team_id = '39aa8884-22cc-4764-a9e7-7df7c7619ba6'
   and (
     title in ('CI failed on GitHub', 'CI failed on opswarden/demo')
     or title like 'E2E dialog contract %'
+    -- Incidents raised by the Alertmanager suite. Their names carry a per-run
+    -- suffix, so without this they pile up in the demo dataset run after run.
+    or title like 'E2E alert%'
   );
 
 insert into incidents (id, team_id, title, status, severity, assignee_id, created_at) values

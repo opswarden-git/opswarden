@@ -56,8 +56,15 @@ test.describe("Release queue", () => {
       await expect(page).toHaveURL(/releases\?view=blocked$/);
       await page.goForward();
       await expect(page).toHaveURL(new RegExp(`/releases/${BLOCKED_RELEASE_ID}\\?view=blocked$`));
-      await page.getByRole("link", { name: "Releases", exact: true }).first().click();
-      await expect(page).toHaveURL(/view=blocked$/);
+      // Two affordances, two meanings. The breadcrumb walks back up to the queue
+      // the operator came from, so it carries the view filter. (A sidebar entry
+      // leads to the section root instead; scope the locator to the breadcrumb,
+      // otherwise the match depends on whether the sidebar is rendered.)
+      await page
+        .getByRole("navigation", { name: "Breadcrumb" })
+        .getByRole("link", { name: "Releases", exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/releases\?view=blocked$/);
     });
   }
 

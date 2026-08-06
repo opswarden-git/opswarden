@@ -60,8 +60,14 @@ test.describe("Team automations", () => {
         const github = page
           .getByRole("heading", { name: "GitHub" })
           .locator("xpath=ancestor::section[1]");
-        await expect(page.getByRole("heading", { name: "HTTP" })).toBeVisible();
-        await expect(page.getByRole("button", { name: "Connect" })).toHaveCount(2);
+        const http = page
+          .getByRole("heading", { name: "HTTP" })
+          .locator("xpath=ancestor::section[1]");
+        // The connector catalogue grows as services ship, so assert that the two
+        // this test drives each offer a connection rather than pinning the total.
+        await expect(http).toBeVisible();
+        await expect(github.getByRole("button", { name: "Connect" })).toBeVisible();
+        await expect(http.getByRole("button", { name: "Connect" })).toBeVisible();
 
         await github.getByRole("button", { name: "Connect" }).click();
         await page.getByLabel("Signing secret").fill("e2e-automation-secret");
@@ -77,10 +83,15 @@ test.describe("Team automations", () => {
 
         const ruleContainer = width < 1024 ? page.locator("li") : page.locator("tr");
         const rule = ruleContainer.filter({ hasText: /E2E failed CI to incident/ });
-        await expect(rule.getByText("Disabled")).toBeVisible();
+        // Anchor on the state cell: a disabled rule also reads "Disabled" in the
+        // next-run column, so matching on text alone hits two cells at once.
+        const ruleState = rule.locator("[data-rule-state]");
+        await expect(ruleState).toHaveAttribute("data-rule-state", "disabled");
+        await expect(ruleState).toHaveText("Disabled");
         await rule.getByRole("button", { name: "Rule actions" }).click();
         await page.getByRole("menuitem", { name: "Enable" }).click();
-        await expect(rule.getByText("Enabled")).toBeVisible();
+        await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
+        await expect(ruleState).toHaveText("Enabled");
 
         await page.getByRole("link", { name: /Runs/ }).click();
         await expect(page).toHaveURL(`${automationsUrl}?view=runs`);

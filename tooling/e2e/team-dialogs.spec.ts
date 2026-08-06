@@ -89,7 +89,9 @@ test("Join Team announces errors and clears them on a new open", async ({ page }
 
   await dialog.getByLabel("Invitation Code").fill("OPS-NOPE00");
   await dialog.getByRole("button", { name: "Join", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toHaveText("Failed to join team. Check your code.");
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "The invitation code is invalid or the team could not be joined.",
+  );
 
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(trigger).toBeFocused();

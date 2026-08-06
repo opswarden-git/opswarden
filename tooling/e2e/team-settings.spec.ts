@@ -17,21 +17,25 @@ test.describe("Progressive Team Settings (L13)", () => {
     await page.goto(settingsUrl);
 
     await expect(page.getByRole("heading", { name: "Team Identity", level: 2 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Invitation Code", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Invitation", level: 2 })).toBeVisible();
 
-    // Ownership Transfer section is collapsible and closed by default
-    const ownershipBtn = page.getByRole("button", { name: /Manager Ownership/ });
+    // Ownership Transfer section is collapsible and closed by default.
+    // The section title and its description both sit inside the toggle, so the
+    // accessible name is the concatenation of the two; match on the title only.
+    const ownershipBtn = page.getByRole("button", { name: /Ownership/ });
     await expect(ownershipBtn).toBeVisible();
     await expect(ownershipBtn).toHaveAttribute("aria-expanded", "false");
-    await expect(page.getByText("Select team member")).toBeHidden();
+    // The member picker is the only select on the page, so it stands in for the
+    // disclosure body without depending on label copy.
+    await expect(page.getByRole("combobox")).toBeHidden();
 
     // Toggle Ownership Transfer open
     await ownershipBtn.click();
     await expect(ownershipBtn).toHaveAttribute("aria-expanded", "true");
-    await expect(page.getByText("Select team member")).toBeVisible();
+    await expect(page.getByRole("combobox")).toBeVisible();
 
     // Banned Members section is collapsible and closed by default
-    const bansBtn = page.getByRole("button", { name: /Banned Members/ });
+    const bansBtn = page.getByRole("button", { name: /Banned members/ });
     await expect(bansBtn).toBeVisible();
     await expect(bansBtn).toHaveAttribute("aria-expanded", "false");
 
@@ -49,8 +53,8 @@ test.describe("Progressive Team Settings (L13)", () => {
     await page.goto(settingsUrl);
 
     await expect(page.getByRole("heading", { name: "Team Identity", level: 2 })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Manager Ownership/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Banned Members/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Ownership/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Banned members/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Leave team" })).toBeVisible();
   });
 });
