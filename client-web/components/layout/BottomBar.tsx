@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { CircleUser } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -34,6 +35,12 @@ export function BottomBar({ className }: { className?: string }) {
     >
       {links.map((link) => {
         const isActive = isNavigationItemActive(pathname, link);
+        // The account is not a section of the product. The sidebar already says
+        // so by putting it in the footer under the operator's name instead of
+        // among the navigation entries; here it earns the identity icon and a
+        // rule to its left, so it stops reading as a peer of Incidents.
+        const isAccount = link.labelKey === settingsNavigationItem.labelKey;
+        const Icon = isAccount ? CircleUser : link.icon;
 
         return (
           <Link
@@ -43,10 +50,11 @@ export function BottomBar({ className }: { className?: string }) {
             data-app-navigation-item="true"
             className={cn(
               "flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
+              isAccount && "border-border border-l",
               isActive ? "text-gold" : "text-muted hover:text-gold",
             )}
           >
-            <link.icon className="h-5 w-5" aria-hidden="true" />
+            <Icon className="h-5 w-5" aria-hidden="true" />
             <span className="w-full truncate px-0.5 text-center text-[10px] font-medium">
               {t(link.labelKey)}
             </span>
