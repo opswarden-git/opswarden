@@ -301,16 +301,28 @@ ci-web-build: (_require "npm")
 ci-e2e: (_require "npm" "curl")
     #!/usr/bin/env bash
     set -euo pipefail
+    probes=(
+      "server|http://localhost:8080/health"
+      "client_web|http://localhost:8081/en"
+      "alertmanager|http://localhost:9093/-/ready"
+    )
+    down=()
     for _ in $(seq 1 60); do
-      if curl --fail --silent --output /dev/null http://localhost:8080/health \
-        && curl --fail --silent --output /dev/null http://localhost:8081/en \
-        && curl --fail --silent --output /dev/null http://localhost:9093/-/ready; then
+      down=()
+      for probe in "${probes[@]}"; do
+        curl --fail --silent --output /dev/null "${probe#*|}" || down+=("${probe%%|*}")
+      done
+      if [ ${#down[@]} -eq 0 ]; then
         npm run test:e2e
         exit 0
       fi
       sleep 2
     done
-    echo "la pile ne répond pas -- lance 'just up' d'abord" >&2
+    # Name the service rather than the stack. `docker compose up -d client_web`
+    # does not pull alertmanager along, so it is the one that quietly drops out
+    # and the failure would otherwise surface minutes later as "stack down".
+    echo "service(s) injoignable(s) : ${down[*]}" >&2
+    echo "lance 'just up' (qui amorce aussi la config alertmanager)" >&2
     exit 1
 
 # Lent : réservé à `just ci-full`.
