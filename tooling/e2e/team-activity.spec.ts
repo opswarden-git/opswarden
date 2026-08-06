@@ -17,7 +17,10 @@ test.describe("Team activity (D1)", () => {
 
     await page.getByRole("link", { name: "Activity", exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`/teams/${TEAM_ID}/activity$`));
-    await expect(page.getByRole("heading", { name: "Activity", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
+    // Activity is an operational surface, so it must not wear the Team
+    // configuration tab strip -- which would show with no tab selected.
+    await expect(page.getByRole("tab", { name: "Settings" })).toHaveCount(0);
   });
 
   test("Responder is not led to a surface the server would refuse", async ({ page }) => {
