@@ -51,6 +51,22 @@
     --st-ack: #5798f5;
     --st-esc: #c084fc;
     --st-res: var(--feedback-success);
+
+    /*
+     * Release lifecycle. Its own family so a release state is never read as an
+     * incident state: the overview shows both queues side by side, and until
+     * now `in_progress` borrowed --st-ack, the *incident acknowledged* token.
+     *
+     * Where a release state expresses a universal concern level it consumes the
+     * shared --feedback-* role rather than an incident-specific token. That is
+     * the distinction Primer draws: lifecycle roles may map onto concern
+     * colors, but they never borrow another object's vocabulary.
+     */
+    --rel-created: var(--ow-muted);
+    --rel-progress: #2dd4bf;
+    --rel-blocked: var(--feedback-danger);
+    --rel-completed: var(--feedback-success);
+    --rel-cancelled: var(--ow-muted-2);
   }
 }
 
