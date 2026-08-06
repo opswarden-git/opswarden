@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A missing tool must fail loudly. This check exists because it did not: these
+# gates called `rg`, the runner image has no ripgrep, and every call site sat
+# inside an `if` or a process substitution — so "command not found" read as
+# "nothing matched" and the policy reported success without ever running.
+for tool in git grep sed; do
+  command -v "$tool" >/dev/null || {
+    echo "migration policy: required tool '$tool' is not installed" >&2
+    exit 1
+  }
+done
+
 base_ref=${1:-origin/main}
 if ! git rev-parse --verify --quiet "${base_ref}^{commit}" >/dev/null; then
   echo "migration policy: base commit '$base_ref' is unavailable" >&2
@@ -27,7 +38,7 @@ while IFS= read -r file; do
     continue
   fi
 
-  if [[ "$phase" != contract ]] && rg --ignore-case --quiet "$destructive_pattern" "$file"; then
+  if [[ "$phase" != contract ]] && grep --quiet --ignore-case --extended-regexp "$destructive_pattern" "$file"; then
     echo "migration policy: destructive SQL is forbidden in '$phase' migration '$file'" >&2
     failures=1
   fi
