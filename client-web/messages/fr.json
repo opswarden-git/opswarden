@@ -36,7 +36,7 @@
   "Sidebar": {
     "dashboard": "Tableau de bord",
     "incidents": "Incidents",
-    "teams": "Équipes",
+    "teams": "Espace",
     "settings": "Paramètres",
     "logout": "Déconnexion",
     "operator": "Opérateur",
@@ -45,7 +45,14 @@
     "primaryNavigation": "Navigation principale",
     "mobileNavigation": "Navigation mobile",
     "logoIconAlt": "Icône OpsWarden",
-    "logoWordmarkAlt": "OpsWarden"
+    "logoWordmarkAlt": "OpsWarden",
+    "operations": "Opérations",
+    "overview": "Vue d’ensemble",
+    "members": "Membres",
+    "automations": "Automatisations",
+    "teamSettings": "Réglages",
+    "manage": "Administration",
+    "activity": "Activité"
   },
   "TeamSwitcher": {
     "label": "Équipe active",
@@ -332,7 +339,9 @@
       "assigned": "Assignés à moi",
       "escalated": "Escalades",
       "blocked": "Releases bloquées"
-    }
+    },
+    "membersDescription": "Qui compose cette équipe et ce que chacun peut faire.",
+    "settingsDescription": "Identité, invitation, propriété et accès."
   },
   "Automations": {
     "title": "Automatisations",
@@ -561,7 +570,8 @@
     "failedToLoadLinkedReleases": "Impossible de charger les releases liées.",
     "watchersTitle": "En observation maintenant",
     "noWatchers": "Personne d’autre n’observe cet incident.",
-    "deleteConfirmationInput": "Saisissez DELETE pour confirmer"
+    "deleteConfirmationInput": "Saisissez DELETE pour confirmer",
+    "addReaction": "Ajouter une réaction"
   },
   "DirectMessages": {
     "title": "Message privé",
@@ -663,5 +673,13 @@
     "progressCount": "{completed}/{total}",
     "noNextStep": "Aucune prochaine étape",
     "openRelease": "Ouvrir"
+  },
+  "Activity": {
+    "title": "Activité",
+    "description": "Exécutions d’automatisation : déclenchements, résultats et échecs.",
+    "loading": "Chargement de l’activité",
+    "unavailable": "Impossible de charger l’activité de l’équipe.",
+    "managerOnlyTitle": "Accès Manager requis",
+    "managerOnlyDescription": "Seuls les Managers peuvent consulter les exécutions."
   }
 }

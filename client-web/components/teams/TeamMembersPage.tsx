@@ -3,11 +3,11 @@
 import { Shield } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
 import { useTeams } from "@/lib/queries/teams";
 import { TeamRoster } from "./TeamRoster";
-import { TeamHeader } from "./TeamHeader";
 
 export function TeamMembersPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
@@ -17,7 +17,7 @@ export function TeamMembersPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      {team ? <TeamHeader team={team} showTeamSwitcher /> : null}
+      <PageHeader title={t("members")} description={t("membersDescription")} />
       <PageContent
         state={contentState}
         loadingFallback={

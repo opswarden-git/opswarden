@@ -17,7 +17,6 @@ import { useReleases } from "@/lib/queries/releases";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { useAuthStore } from "@/store/auth";
-import { TeamHeader } from "./TeamHeader";
 import {
   deriveTeamOverview,
   matchesFacet,
@@ -138,7 +137,6 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      {team ? <TeamHeader team={team} /> : null}
       <PageContent
         state={state}
         loadingFallback={
@@ -152,7 +150,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
         {projection ? (
           <section className="space-y-4" aria-labelledby="attention-title">
             <div>
-              <h2 id="attention-title" className="text-text font-semibold">
+              <h2 id="attention-title" className="text-text text-2xl font-bold tracking-tight">
                 {t("needsAttention")}
               </h2>
               <p className="text-muted mt-1 text-sm">{t("needsAttentionDescription")}</p>

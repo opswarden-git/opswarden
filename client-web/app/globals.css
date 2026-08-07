@@ -5,14 +5,15 @@
 @layer base {
   :root {
     --bg: #15161a;
-    --bg-2: #15161a;
-    --panel: #1b1c20;
-    --panel-2: #212228;
+    --bg-2: #121317;
+    --panel: #1c1d22;
+    --panel-2: #25262d;
     --ow-border: rgb(255 255 255 / 8%);
     --ow-border-2: rgb(255 255 255 / 12%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
-    --ow-muted-2: #878b93;
+    /* Lifted with --panel-2: at #878b93 the pair fell to 4.41:1. */
+    --ow-muted-2: #8f939b;
     --gold: #fbc02d;
     --gold-hover: #f9a825;
     --gold-dim: #fbc02d;
@@ -75,14 +76,13 @@
     @apply text-text font-sans antialiased;
 
     min-height: 100vh;
+
+    /*
+     * Flat. No gradient, no brand glow. Operators read this screen for hours
+     * during an incident, and every decorative luminance change competes with
+     * the only luminance that carries meaning: severity and state.
+     */
     background-color: var(--bg);
-    background-image:
-      radial-gradient(1100px 700px at 50% -15%, rgb(255 255 255 / 3.5%), transparent 60%),
-      radial-gradient(rgb(255 255 255 / 3.2%) 1px, transparent 1px);
-    background-size:
-      auto,
-      30px 30px;
-    background-attachment: fixed;
   }
 }
 
@@ -93,13 +93,18 @@
     overflow: hidden;
     background-color: var(--panel);
     border: 1px solid var(--ow-border);
-    box-shadow: inset 0 1px 1px rgb(255 255 255 / 5.5%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
   }
 
+  /*
+   * Elevation is zero on purpose. Panels are separated by a border and by the
+   * plane they sit on, never by a drop shadow: a dense operational surface with
+   * floating cards reads as a marketing page.
+   */
   .surface {
     background-color: var(--panel);
     border: 1px solid var(--ow-border);
-    box-shadow: inset 0 1px 1px rgb(255 255 255 / 5.5%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
   }
 
   .surface-subtle {
@@ -109,7 +114,7 @@
   .ow-input {
     background-color: var(--panel);
     color: var(--text);
-    border: 1px solid var(--ow-border);
+    border: 1px solid var(--ow-border-2);
   }
 
   select.ow-input {
@@ -155,6 +160,18 @@
       min-height: 44px;
       min-width: 44px;
     }
+  }
+}
+
+@layer base {
+  * {
+    scrollbar-color: var(--ow-border-2) transparent;
+  }
+
+  /* Neutral, not gold: incident IDs and log lines get selected all day. */
+  ::selection {
+    color: var(--text);
+    background: var(--panel-2);
   }
 }
 

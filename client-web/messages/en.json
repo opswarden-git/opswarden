@@ -36,7 +36,7 @@
   "Sidebar": {
     "dashboard": "Dashboard",
     "incidents": "Incidents",
-    "teams": "Teams",
+    "teams": "Workspace",
     "settings": "Settings",
     "logout": "Log out",
     "operator": "Operator",
@@ -45,7 +45,14 @@
     "primaryNavigation": "Primary navigation",
     "mobileNavigation": "Mobile navigation",
     "logoIconAlt": "OpsWarden icon",
-    "logoWordmarkAlt": "OpsWarden"
+    "logoWordmarkAlt": "OpsWarden",
+    "operations": "Operations",
+    "overview": "Overview",
+    "members": "Members",
+    "automations": "Automations",
+    "teamSettings": "Settings",
+    "manage": "Manage",
+    "activity": "Activity"
   },
   "TeamSwitcher": {
     "label": "Current team",
@@ -332,7 +339,9 @@
       "assigned": "Assigned to me",
       "escalated": "Escalated",
       "blocked": "Blocked releases"
-    }
+    },
+    "membersDescription": "Who belongs to this team and what they may do.",
+    "settingsDescription": "Identity, invitation, ownership and access."
   },
   "Automations": {
     "title": "Automations",
@@ -561,7 +570,8 @@
     "failedToLoadLinkedReleases": "Linked releases could not be loaded.",
     "watchersTitle": "Watching now",
     "noWatchers": "No one else is watching this incident.",
-    "deleteConfirmationInput": "Type DELETE to confirm"
+    "deleteConfirmationInput": "Type DELETE to confirm",
+    "addReaction": "Add reaction"
   },
   "DirectMessages": {
     "title": "Direct message",
@@ -663,5 +673,13 @@
     "progressCount": "{completed}/{total}",
     "noNextStep": "No next step",
     "openRelease": "Open"
+  },
+  "Activity": {
+    "title": "Activity",
+    "description": "Automation runs: triggers, outcomes and failures.",
+    "loading": "Loading activity",
+    "unavailable": "Team activity could not be loaded.",
+    "managerOnlyTitle": "Manager access required",
+    "managerOnlyDescription": "Only Managers can review automation runs."
   }
 }

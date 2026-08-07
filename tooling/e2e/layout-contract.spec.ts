@@ -125,8 +125,8 @@ test("desktop and mobile navigation expose one current product area", async ({ p
   const navigationCases = [
     { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
     { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
-    { path: `/en/teams/${TEAM_ID}/members`, current: "Teams" },
-    { path: "/en/teams", current: "Teams" },
+    { path: `/en/teams/${TEAM_ID}/members`, current: "Workspace" },
+    { path: "/en/teams", current: "Workspace" },
     { path: "/en/settings", current: "Settings" },
   ];
 
@@ -183,7 +183,7 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
 
         const expectedPadding = viewportWidth < 640 ? 16 : viewportWidth < 768 ? 24 : 32;
         const expectedHeadingY =
-          (viewportWidth < 768 ? 24 : 32) +
+          (viewportWidth < 768 ? 88 : 32) +
           (route.kind === "detail" ? 44 : 0) +
           (route.hasContext ? 24 : 0);
         expect(

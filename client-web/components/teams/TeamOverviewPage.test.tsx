@@ -105,7 +105,9 @@ describe("TeamOverviewPage", () => {
     useAuthStore.getState().setUser({ id: "user-1", email: "operator@example.com", locale: "en" });
     render(<TeamOverviewPage teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "Operations" })).toBeInTheDocument();
+    // The page names the page. The Team is named once, by the sidebar, so this
+    // header no longer repeats it above every screen.
+    expect(screen.queryByRole("heading", { name: "Operations" })).toBeNull();
     expect(screen.getByText("needsAttention")).toBeInTheDocument();
     expect(screen.getAllByText("Database outage").length).toBeGreaterThan(0);
 

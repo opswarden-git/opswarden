@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { CircleUser } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -10,23 +11,32 @@ import {
   settingsNavigationItem,
 } from "./navigation";
 import { useTeamScope } from "@/components/teams/TeamScope";
+import { deriveCapabilities } from "@/lib/capabilities";
 
 export function BottomBar({ className }: { className?: string }) {
   const pathname = usePathname();
   const t = useTranslations("Sidebar");
   const { activeTeam } = useTeamScope();
-  const links = [...primaryNavigationItems(activeTeam?.team_id), settingsNavigationItem];
+  const canViewActivity = activeTeam
+    ? deriveCapabilities(activeTeam.role).canManageAutomations
+    : false;
+  const links = [
+    ...primaryNavigationItems(activeTeam?.team_id, canViewActivity),
+    settingsNavigationItem,
+  ];
 
   return (
     <nav
       aria-label={t("mobileNavigation")}
       className={cn(
-        "glass fixed right-0 bottom-0 left-0 z-50 flex h-16 items-center justify-around px-2",
+        "border-border bg-bg/95 fixed right-0 bottom-0 left-0 z-50 flex h-16 items-center justify-around border-t px-2 shadow-[0_-8px_24px_rgb(0_0_0/0.18)] backdrop-blur-md",
         className,
       )}
     >
       {links.map((link) => {
         const isActive = isNavigationItemActive(pathname, link);
+        const isAccount = link.labelKey === settingsNavigationItem.labelKey;
+        const Icon = isAccount ? CircleUser : link.icon;
 
         return (
           <Link
@@ -35,11 +45,14 @@ export function BottomBar({ className }: { className?: string }) {
             aria-current={isActive ? "page" : undefined}
             data-app-navigation-item="true"
             className={cn(
-              "flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
-              isActive ? "text-gold" : "text-muted hover:text-gold",
+              "relative flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 transition-colors",
+              isAccount && "border-border border-l",
+              isActive
+                ? "text-gold after:bg-gold after:absolute after:top-0 after:h-0.5 after:w-8 after:rounded-full"
+                : "text-muted hover:text-text",
             )}
           >
-            <link.icon className="h-5 w-5" aria-hidden="true" />
+            <Icon className="h-5 w-5" aria-hidden="true" />
             <span className="w-full truncate px-0.5 text-center text-[10px] font-medium">
               {t(link.labelKey)}
             </span>

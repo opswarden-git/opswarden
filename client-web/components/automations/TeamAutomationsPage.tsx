@@ -7,9 +7,9 @@ import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageTabs } from "@/components/layout/PageTabs";
-import { TeamHeader } from "@/components/teams/TeamHeader";
 import { automationView } from "@/lib/automation-routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import {
@@ -69,7 +69,7 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      {team ? <TeamHeader team={team} /> : null}
+      <PageHeader title={t("title")} description={t("description")} />
       <PageContent
         state={state}
         loadingFallback={<AutomationLoading />}
