@@ -18,10 +18,9 @@ export function ProfilePanel() {
   const searchParams = useSearchParams();
   const [stationName, setStationName] = useState("");
   const user = useAuthStore((state) => state.user);
-  const { data: teams, isLoading: teamsLoading } = useTeams();
+  const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
   const needsStationSetup = searchParams.get("setup") === "station" || teams?.length === 0;
-  const primaryTeam = teams?.[0];
 
   const handleCreateStation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,22 +93,8 @@ export function ProfilePanel() {
             <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
               {t("userId")}
             </span>
-            <span className="text-text font-mono text-xs">{user?.id ?? t("unknown")}</span>
-          </div>
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("role")}
-            </span>
-            <span className="text-text font-medium capitalize">
-              {teamsLoading ? t("loading") : (primaryTeam?.role ?? t("noStationYet"))}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("organization")}
-            </span>
-            <span className="text-text font-medium">
-              {teamsLoading ? t("loading") : (primaryTeam?.name ?? t("notConfigured"))}
+            <span className="text-text font-mono text-xs break-all">
+              {user?.id ?? t("unknown")}
             </span>
           </div>
         </div>

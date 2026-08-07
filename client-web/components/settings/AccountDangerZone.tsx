@@ -58,7 +58,7 @@ export function AccountDangerZone() {
       <div className="mt-4 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h3 className="text-sm font-medium text-red-400">{t("logOutSession")}</h3>
+            <h3 className="text-text text-sm font-medium">{t("logOutSession")}</h3>
           </div>
           <Button variant="secondary" size="lg" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
