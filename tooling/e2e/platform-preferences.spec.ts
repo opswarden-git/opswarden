@@ -68,6 +68,7 @@ async function renderedContrast(locator: Locator, pseudoElement?: "::placeholder
 test("reduced motion keeps progress but neutralizes decorative motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/en/login");
+  await page.getByLabel("Email").waitFor();
 
   const result = await page.evaluate(() => {
     const decorative = document.createElement("span");

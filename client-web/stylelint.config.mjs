@@ -1,6 +1,7 @@
 /** Tailwind-aware Stylelint config (CSS lands in Phase 1). */
 const config = {
   extends: ["stylelint-config-standard"],
+  ignoreFiles: ["**/coverage/**"],
   rules: {
     // Allow Tailwind's at-rules.
     "at-rule-no-unknown": [
