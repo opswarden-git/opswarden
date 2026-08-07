@@ -70,21 +70,77 @@ always paired with text, an icon or position when it communicates state.
 
 ## Operational semantics
 
-Brand colors identify OpsWarden; operational colors encode live meaning.
+Brand colors identify OpsWarden; operational colors encode live meaning. There
+are three families, and one never borrows another's vocabulary.
 
-| Concept           | Token            | Value     | Required text |
-| ----------------- | ---------------- | --------- | ------------- |
-| Low severity      | `--sev-low`      | `#5798F5` | Low           |
-| Medium severity   | `--sev-medium`   | `#F59E0B` | Medium        |
-| High severity     | `--sev-high`     | `#FB7D3C` | High          |
-| Critical severity | `--sev-critical` | `#FF5555` | Critical      |
-| Open              | `--st-open`      | `#FF5555` | Open          |
-| Acknowledged      | `--st-ack`       | `#5798F5` | Acknowledged  |
-| Escalated         | `--st-esc`       | `#C084FC` | Escalated     |
-| Resolved          | `--st-res`       | `#22C55E` | Resolved      |
+**Severity** — how bad it is.
+
+| Concept  | Token            | Value     | Required text |
+| -------- | ---------------- | --------- | ------------- |
+| Low      | `--sev-low`      | `#5798F5` | Low           |
+| Medium   | `--sev-medium`   | `#F59E0B` | Medium        |
+| High     | `--sev-high`     | `#FB7D3C` | High          |
+| Critical | `--sev-critical` | `#FF5555` | Critical      |
+
+**Incident state** — where it is in its life.
+
+| Concept      | Token       | Value     | Required text |
+| ------------ | ----------- | --------- | ------------- |
+| Open         | `--st-open` | `#FF5555` | Open          |
+| Acknowledged | `--st-ack`  | `#5798F5` | Acknowledged  |
+| Escalated    | `--st-esc`  | `#C084FC` | Escalated     |
+| Resolved     | `--st-res`  | `#22C55E` | Resolved      |
+
+**Release state** — its own family, for its own object.
+
+| Concept     | Token             | Value     | Required text |
+| ----------- | ----------------- | --------- | ------------- |
+| Created     | `--rel-created`   | `#989BA1` | Created       |
+| In progress | `--rel-progress`  | `#2DD4BF` | In progress   |
+| Blocked     | `--rel-blocked`   | `#FF5555` | Blocked       |
+| Completed   | `--rel-completed` | `#22C55E` | Completed     |
+| Cancelled   | `--rel-cancelled` | `#878B93` | Cancelled     |
+
+The release family exists because the overview shows incidents and releases side
+by side. A release in progress used to wear `--st-ack`, the _incident
+acknowledged_ token, so a single blue meant two different things depending on
+which column was being read.
+
+Where a release state expresses a concern the whole product shares, its token
+aliases the `--feedback-*` role rather than an incident token: `--rel-blocked`
+resolves to `--feedback-danger`, `--rel-completed` to `--feedback-success`.
+Lifecycle roles may map onto concern colors; they never adopt another object's
+vocabulary.
+
+Severity and incident state do share two values — `#FF5555` and `#5798F5` — and
+both chips can appear on the same row. They stay unambiguous because the rule
+below is absolute, never because the hue is unique.
+
+**Color is never the only signal.** Every state is carried by color **and** icon
+**and** text. An icon is unique within its family, so two states of the same
+object can never render the same glyph.
 
 The server owns allowed lifecycle transitions. A colored chip renders state; it
 does not authorize a transition or invent a new one.
+
+## Spacing and cadence
+
+One shared cadence, Primer's base scale, in pixels:
+
+`2 · 4 · 6 · 8 · 12 · 16 · 20 · 24 · 28 · 32 · 36 · 40 · 44 · 48 · 64 · 80 · 96 · 112 · 128`
+
+10 and 14 are skipped on purpose. The damage they did was not that either value
+looked wrong on its own: the button ramp read 6 · 12 · 14 · 16, so `md` and `lg`
+sat two pixels apart while `sm` and `md` sat twelve. A shared cadence is what
+makes two screens performing similar actions look alike.
+
+`56px` is the single allowed exception — a page-level value whose neighbours are
+far enough away that the step is not perceptible.
+
+Scope is spacing: padding, margin and gap. Sizing is excluded, because
+`h-3.5 w-3.5` is the 14px inline icon size used across the product and that is a
+deliberate choice, not a spacing decision. Arbitrary values such as `p-[13px]`
+are rejected outright.
 
 ## Components
 
@@ -124,6 +180,27 @@ the label stable when possible and expose busy state to assistive technology.
   into nested dialogs.
 - Dense data may scroll horizontally only when a meaningful mobile equivalent
   cannot preserve it.
+
+### A room has a fixed frame
+
+An incident is a place, not a record, and its screen is built accordingly.
+
+- The heading stays put, the composer stays pinned, and **only the transcript
+  scrolls**. You can read back through an incident without losing the way to
+  answer it.
+- The composer sits **below** the transcript. At the top it reads "post an
+  update"; at the bottom, after what has already been said, it reads as
+  answering — the difference between a feed and a room.
+- Consecutive notes from one author collapse into a single block — one avatar,
+  one name, one timestamp — within a **two-minute** window. Mattermost uses five;
+  during a response messages arrive in bursts, and five minutes would swallow
+  distinct turns of a conversation.
+- **System events never join a block.** A status change, an assignment or an
+  escalation is precisely what someone re-reading an incident is looking for, and
+  it must never be absorbed into a series of notes.
+- Below `lg` the context becomes an on-demand sheet rather than a stacked panel:
+  with a fixed frame, a panel under a scrolling transcript would sit behind the
+  entire conversation.
 
 ## Accessibility contract
 
@@ -174,6 +251,24 @@ the user chooses it.
 3. Step validation remains a deliberate action and follows server-owned order.
 4. Cancel is destructive and separated from the normal validation path.
 
+## What a machine checks
+
+Most of this document is a contract, not advice. These rules fail the build
+rather than a review:
+
+| Rule                                                | Contract                                 |
+| --------------------------------------------------- | ---------------------------------------- |
+| Token families exist and clear 4.5:1 contrast       | `app/design-tokens.test.ts`              |
+| A release state never wears an incident token       | `app/design-tokens.test.ts`              |
+| Every state renders color **and** icon **and** text | `components/state-encoding.test.ts`      |
+| Spacing stays on the shared cadence                 | `components/spacing-scale.test.ts`       |
+| Interface prose stays within its per-locale budget  | `i18n/text-budget.test.ts`               |
+| Destructive flows name resource and consequence     | `components/destructive-actions.test.ts` |
+
+They read the source rather than a rendered screen, so they hold whatever a
+component looks like. A visual review supplements them; it does not replace
+them.
+
 ## Review checklist
 
 Before merging an interface change, verify:
@@ -182,7 +277,8 @@ Before merging an interface change, verify:
 - [ ] Loading, error, empty and ready states are present.
 - [ ] Desktop and narrow viewport flows preserve information and actions.
 - [ ] Keyboard focus, names and live errors work without a mouse.
-- [ ] EN and FR copy is complete and natural.
+- [ ] EN and FR copy is complete and natural, and fits the text budget — or the
+      ceiling is raised deliberately, with the reason recorded.
 - [ ] Destructive consequences are named; reversible actions stay lightweight.
 - [ ] Component, integration or E2E coverage protects the new behavior.
 
