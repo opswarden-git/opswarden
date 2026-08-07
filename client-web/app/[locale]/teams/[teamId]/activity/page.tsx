@@ -1,6 +1,10 @@
-import { TeamActivityPage } from "@/components/teams/TeamActivityPage";
+import { redirect } from "next/navigation";
 
-export default async function ActivityRoute({ params }: { params: Promise<{ teamId: string }> }) {
-  const { teamId } = await params;
-  return <TeamActivityPage teamId={teamId} />;
+export default async function ActivityRoute({
+  params,
+}: {
+  params: Promise<{ locale: string; teamId: string }>;
+}) {
+  const { locale, teamId } = await params;
+  redirect(`/${locale}/teams/${teamId}/automations?view=runs`);
 }

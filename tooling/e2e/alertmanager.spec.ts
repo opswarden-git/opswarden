@@ -90,6 +90,7 @@ async function incidentTitles(request: APIRequestContext, headers: Record<string
 }
 
 test("real Alertmanager delivers firing and resolved lifecycle transitions", async ({ page }) => {
+  test.setTimeout(60_000);
   const token = await login(page);
   const headers = { Authorization: `Bearer ${token}` };
   await clearAutomations(page.request, headers);
@@ -170,6 +171,8 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     expect(runs.ok()).toBeTruthy();
     expect(await runs.json()).toHaveLength(2);
   } finally {
-    await clearAutomations(page.request, headers);
+    // The suite-level reset is the final safety net. Keep this best-effort so
+    // cleanup cannot hide the delivery assertion that exhausted the deadline.
+    await clearAutomations(page.request, headers).catch(() => undefined);
   }
 });

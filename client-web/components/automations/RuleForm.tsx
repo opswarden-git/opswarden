@@ -2,12 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import React, { useRef, useState } from "react";
-import {
-  capabilityByName,
-  catalogFieldsAreValid,
-  catalogPayload,
-  catalogValues,
-} from "@/lib/automation-catalog";
+import { catalogFieldsAreValid, catalogPayload, catalogValues } from "@/lib/automation-catalog";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import {
@@ -21,6 +16,35 @@ import {
 import { AutomationDialog } from "./AutomationDialog";
 
 export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
+
+function capabilityOptionValue(
+  capabilities: CapabilityWithService[],
+  capability: CapabilityWithService,
+) {
+  const duplicated = capabilities.some(
+    (candidate) => candidate !== capability && candidate.name === capability.name,
+  );
+  return duplicated ? `${capability.service}:${capability.name}` : capability.name;
+}
+
+function initialCapabilityValue(
+  capabilities: CapabilityWithService[],
+  name: string | undefined,
+  connectionId: string | null | undefined,
+  connections: TeamConnection[],
+) {
+  const connectionService = connections.find(
+    (connection) => connection.id === connectionId,
+  )?.service;
+  const capability =
+    capabilities.find(
+      (candidate) => candidate.name === name && candidate.service === connectionService,
+    ) ??
+    capabilities.find((candidate) => candidate.name === name) ??
+    capabilities[0];
+  return capability ? capabilityOptionValue(capabilities, capability) : "";
+}
+
 export function RuleForm({
   actions,
   connections,
@@ -39,16 +63,26 @@ export function RuleForm({
   const t = useTranslations("Automations");
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(rule?.name ?? "");
-  const [actionName, setActionName] = useState(rule?.trigger_kind ?? actions[0]?.name ?? "");
+  const [actionValue, setActionValue] = useState(() =>
+    initialCapabilityValue(actions, rule?.trigger_kind, rule?.trigger_connection_id, connections),
+  );
   const [triggerConnectionId, setTriggerConnectionId] = useState(rule?.trigger_connection_id ?? "");
-  const [reactionName, setReactionName] = useState(rule?.reaction_kind ?? reactions[0]?.name ?? "");
+  const [reactionValue, setReactionValue] = useState(() =>
+    initialCapabilityValue(
+      reactions,
+      rule?.reaction_kind,
+      rule?.reaction_connection_id,
+      connections,
+    ),
+  );
   const [reactionConnectionId, setReactionConnectionId] = useState(
     rule?.reaction_connection_id ?? "",
   );
-  const initialAction = capabilityByName(actions, rule?.trigger_kind ?? actions[0]?.name ?? "");
-  const initialReaction = capabilityByName(
-    reactions,
-    rule?.reaction_kind ?? reactions[0]?.name ?? "",
+  const initialAction = actions.find(
+    (action) => capabilityOptionValue(actions, action) === actionValue,
+  );
+  const initialReaction = reactions.find(
+    (reaction) => capabilityOptionValue(reactions, reaction) === reactionValue,
   );
   const [triggerConfig, setTriggerConfig] = useState<Record<string, string>>(() =>
     catalogValues(initialAction?.fields ?? [], rule?.trigger_config),
@@ -60,8 +94,12 @@ export function RuleForm({
   const updateRule = useUpdateAutomationRule(teamId);
   const mutation = rule ? updateRule : createRule;
 
-  const selectedAction = actions.find((action) => action.name === actionName);
-  const selectedReaction = reactions.find((reaction) => reaction.name === reactionName);
+  const selectedAction = actions.find(
+    (action) => capabilityOptionValue(actions, action) === actionValue,
+  );
+  const selectedReaction = reactions.find(
+    (reaction) => capabilityOptionValue(reactions, reaction) === reactionValue,
+  );
   const isAlertmanagerLifecycleEvent =
     selectedAction?.name === "alert_firing" || selectedAction?.name === "alert_resolved";
   const triggerConnections = connections.filter(
@@ -84,9 +122,9 @@ export function RuleForm({
     catalogFieldsAreValid(selectedReaction.fields, reactionConfig) &&
     (!needsReactionConnection || !!reactionConnectionId);
 
-  const selectAction = (nextName: string) => {
-    setActionName(nextName);
-    const next = actions.find((action) => action.name === nextName);
+  const selectAction = (nextValue: string) => {
+    setActionValue(nextValue);
+    const next = actions.find((action) => capabilityOptionValue(actions, action) === nextValue);
     if (
       connections.find((item) => item.id === triggerConnectionId)?.service !==
       next?.connection_service
@@ -96,9 +134,11 @@ export function RuleForm({
     setTriggerConfig(catalogValues(next?.fields ?? []));
   };
 
-  const selectReaction = (nextName: string) => {
-    setReactionName(nextName);
-    const next = reactions.find((reaction) => reaction.name === nextName);
+  const selectReaction = (nextValue: string) => {
+    setReactionValue(nextValue);
+    const next = reactions.find(
+      (reaction) => capabilityOptionValue(reactions, reaction) === nextValue,
+    );
     if (!next?.connection_service) setReactionConnectionId("");
     else if (
       connections.find((item) => item.id === reactionConnectionId)?.service !==
@@ -112,9 +152,9 @@ export function RuleForm({
   const definition = (): AutomationRuleDefinition => ({
     name: name.trim(),
     trigger_connection_id: effectiveTriggerConnectionId,
-    trigger_kind: actionName,
+    trigger_kind: selectedAction?.name ?? "",
     trigger_config: catalogPayload(selectedAction?.fields ?? [], triggerConfig),
-    reaction_kind: reactionName,
+    reaction_kind: selectedReaction?.name ?? "",
     reaction_connection_id: needsReactionConnection ? reactionConnectionId : null,
     reaction_config: catalogPayload(selectedReaction?.fields ?? [], reactionConfig),
   });
@@ -175,12 +215,15 @@ export function RuleForm({
           <label className="text-text block text-sm font-medium">
             <span>{t("event")}</span>
             <select
-              value={actionName}
+              value={actionValue}
               onChange={(event) => selectAction(event.target.value)}
               className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
             >
               {actions.map((action) => (
-                <option key={action.name} value={action.name}>
+                <option
+                  key={`${action.service}:${action.name}`}
+                  value={capabilityOptionValue(actions, action)}
+                >
                   {action.label}
                 </option>
               ))}
@@ -276,12 +319,15 @@ export function RuleForm({
           <label className="text-text block text-sm font-medium">
             <span>{t("outcome")}</span>
             <select
-              value={reactionName}
+              value={reactionValue}
               onChange={(event) => selectReaction(event.target.value)}
               className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
             >
               {reactions.map((reaction) => (
-                <option key={reaction.name} value={reaction.name}>
+                <option
+                  key={`${reaction.service}:${reaction.name}`}
+                  value={capabilityOptionValue(reactions, reaction)}
+                >
                   {reaction.label}
                 </option>
               ))}

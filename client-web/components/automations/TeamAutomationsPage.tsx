@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, History, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassNames } from "@/components/ui/Button";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageTabs } from "@/components/layout/PageTabs";
+import { Link, useRouter } from "@/i18n/routing";
 import { automationView } from "@/lib/automation-routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import {
@@ -45,8 +45,10 @@ function AutomationLoading() {
 export function TeamAutomationsPage({ teamId }: { teamId: string }) {
   const [isCreatingRule, setIsCreatingRule] = useState(false);
   const t = useTranslations("Automations");
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const view = automationView(searchParams.get("view"));
+  const requestedView = searchParams.get("view");
+  const view = automationView(requestedView);
   const teams = useTeams();
   const team = teams.data?.find((candidate) => candidate.team_id === teamId);
   const canManage = team ? deriveCapabilities(team.role).canManageAutomations : false;
@@ -56,27 +58,46 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
   const runs = useAutomationRuns(teamId, canManage && view === "runs");
 
   const basePath = teamPath(teamId, "automations");
+
+  useEffect(() => {
+    if (requestedView && requestedView !== view) router.replace(basePath);
+  }, [basePath, requestedView, router, view]);
   const isLoading =
     teams.isLoading ||
-    (canManage && (catalog.isLoading || connections.isLoading || rules.isLoading)) ||
-    (canManage && view === "runs" && runs.isLoading);
+    (canManage &&
+      (catalog.isLoading ||
+        connections.isLoading ||
+        rules.isLoading ||
+        (view === "runs" && runs.isLoading)));
   const hasError =
     !!teams.error ||
     !team ||
-    (canManage && !!(catalog.error || connections.error || rules.error)) ||
-    (canManage && view === "runs" && !!runs.error);
+    (canManage &&
+      !!(catalog.error || connections.error || rules.error || (view === "runs" && runs.error)));
   const state: PageContentState = isLoading ? "loading" : hasError ? "error" : "ready";
 
   return (
     <PageLayout>
       <PageHeader
-        title={t("title")}
-        description={t("description")}
         actions={
-          view === "rules" && canManage ? (
-            <Button variant="primary" onClick={() => setIsCreatingRule(true)}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
-            </Button>
+          canManage ? (
+            view === "rules" ? (
+              <>
+                <Link
+                  href={`${basePath}?view=runs`}
+                  className={buttonClassNames({ variant: "secondary" })}
+                >
+                  <History className="h-4 w-4" aria-hidden="true" /> {t("runHistory")}
+                </Link>
+                <Button variant="primary" onClick={() => setIsCreatingRule(true)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
+                </Button>
+              </>
+            ) : view === "runs" ? (
+              <Link href={basePath} className={buttonClassNames({ variant: "secondary" })}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("backToRules")}
+              </Link>
+            ) : undefined
           ) : undefined
         }
       />
@@ -90,31 +111,7 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
             {t("managerOnlyDescription")}
           </Alert>
         ) : team && canManage ? (
-          <div className="space-y-6">
-            <PageTabs
-              ariaLabel={t("viewsLabel")}
-              tabs={[
-                {
-                  href: `${basePath}?view=rules`,
-                  label: t("rules"),
-                  count: rules.data?.length ?? 0,
-                  active: view === "rules",
-                },
-                {
-                  href: `${basePath}?view=connections`,
-                  label: t("connections"),
-                  count: connections.data?.length ?? 0,
-                  active: view === "connections",
-                },
-                {
-                  href: `${basePath}?view=runs`,
-                  label: t("runs"),
-                  count: runs.data?.length,
-                  active: view === "runs",
-                },
-              ]}
-            />
-
+          <div>
             {view === "rules" ? (
               <RulesView
                 teamId={teamId}

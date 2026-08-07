@@ -1,7 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-
 async function login(page: Page) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill("manager@opswarden.local");
@@ -10,25 +8,17 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/en\/teams\//);
 }
 
-test("account settings keeps a Team-scoped connector entry point", async ({ page }) => {
+test("account settings stays account-scoped and retires the duplicate connector view", async ({
+  page,
+}) => {
   await login(page);
-  await page.goto("/en/settings");
+  await page.goto("/en/settings?view=connectors");
 
-  await expect(page.getByRole("link", { name: "General", exact: true })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  await page.getByRole("link", { name: "Connectors", exact: true }).click();
-
-  await expect(page).toHaveURL(/\/en\/settings\?view=connectors$/);
-  await expect(page.getByRole("heading", { name: "Connectors", exact: true })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Team", exact: true })).toHaveValue(TEAM_ID);
-  await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "HTTP", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open automations" })).toHaveAttribute(
-    "href",
-    `/en/teams/${TEAM_ID}/automations?view=connections`,
-  );
+  await expect(page).toHaveURL(/\/en\/settings$/);
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "User", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Connectors", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toHaveCount(0);
 
   for (const width of [320, 768, 1280, 1920]) {
     await page.setViewportSize({ width, height: 900 });
