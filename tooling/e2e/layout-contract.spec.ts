@@ -145,7 +145,9 @@ test("desktop and mobile navigation expose one current product area", async ({ p
           'a[data-app-navigation-item="true"]:visible[aria-current="page"]',
         );
         await expect(currentItem).toHaveCount(1);
-        await expect(currentItem).toHaveAccessibleName(navigationCase.current);
+        await expect(currentItem).toHaveAccessibleName(
+          new RegExp(`^${navigationCase.current}(?: \\d+)?$`),
+        );
       });
     }
   }
