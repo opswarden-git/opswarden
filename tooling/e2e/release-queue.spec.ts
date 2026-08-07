@@ -94,7 +94,7 @@ test.describe("Release queue", () => {
       blocker.getByRole("link", { name: "Payment API returning 502 in Europe" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Validate next step" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "More release actions" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
   });
 
   test("Responder validates only the next ordered step", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("Release queue", () => {
     await page.getByRole("button", { name: "Validate next step" }).click();
     await expect(page.getByText("1/3", { exact: true })).toBeVisible();
     await expect(page.getByText("Enable tracing sampler", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "More release actions" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
   });
 
   test("Manager creates a release from keyboard-reordered steps", async ({ page }) => {
@@ -132,8 +132,7 @@ test.describe("Release queue", () => {
     await expect(items.nth(0)).toContainText("Verify production");
     await expect(items.nth(1)).toContainText("Build artifacts");
 
-    await page.getByRole("button", { name: "More release actions" }).click();
-    await page.getByRole("menuitem", { name: "Cancel release" }).click();
+    await page.getByRole("button", { name: "Cancel release" }).click();
     await expect(page.getByRole("dialog", { name: "Cancel release" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Keep" })).toBeFocused();
     await page.keyboard.press("Escape");

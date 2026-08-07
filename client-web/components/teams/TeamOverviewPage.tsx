@@ -6,7 +6,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageTabs } from "@/components/layout/PageTabs";
 import { ReleaseStateChip } from "@/components/releases/ReleaseStateChip";
@@ -138,11 +137,6 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      <PageHeader
-        context={team?.name}
-        title={t("overview")}
-        description={t("workspaceDescription")}
-      />
       <PageContent
         state={state}
         loadingFallback={

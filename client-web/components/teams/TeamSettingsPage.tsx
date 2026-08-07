@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { RoleChip } from "./RoleChip";
 import { SettingsSection } from "./SettingsSection";
@@ -316,7 +315,6 @@ export function TeamSettingsPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      <PageHeader title={t("settings")} description={t("settingsDescription")} />
       <PageContent
         state={state}
         loadingFallback={

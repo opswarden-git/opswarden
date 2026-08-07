@@ -3,7 +3,6 @@
 import { Shield } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
 import { useTeams } from "@/lib/queries/teams";
@@ -17,7 +16,6 @@ export function TeamMembersPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      <PageHeader title={t("members")} description={t("membersDescription")} />
       <PageContent
         state={contentState}
         loadingFallback={

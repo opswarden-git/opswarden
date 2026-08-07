@@ -30,15 +30,6 @@ vi.mock("@/i18n/routing", () => ({
     </a>
   ),
 }));
-vi.mock("@/components/ui/ActionMenu", () => ({
-  ActionMenu: ({
-    label,
-    items,
-  }: {
-    label: string;
-    items: Array<{ label: string; onSelect: () => void }>;
-  }) => <button onClick={items[0].onSelect}>{label}</button>,
-}));
 vi.mock("./ReleaseDetail", () => ({
   ReleaseDetail: ({ release }: { release: Release }) => <div>detail:{release.title}</div>,
 }));
@@ -111,12 +102,7 @@ describe("ReleaseDetailPage", () => {
     expect(screen.getByRole("heading", { name: "Production deployment" })).toBeInTheDocument();
     expect(screen.getByText("progressCount:1:2")).toBeInTheDocument();
     expect(screen.getByText("detail:Production deployment")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "title" })).toHaveAttribute(
-      "href",
-      "/teams/team-1/releases?view=blocked",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "moreActions" }));
+    fireEvent.click(screen.getByRole("button", { name: "cancelRelease" }));
     expect(cancelRelease.reset).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "cancelRelease" }));
     expect(cancelRelease.mutate).toHaveBeenCalledWith(
@@ -130,7 +116,7 @@ describe("ReleaseDetailPage", () => {
     render(<ReleaseDetailPage teamId="team-1" releaseId="release-1" />);
 
     expect(replace).toHaveBeenCalledWith("/teams/team-2/releases/release-1?view=blocked");
-    expect(screen.queryByRole("button", { name: "moreActions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "cancelRelease" })).not.toBeInTheDocument();
   });
 
   it("renders loading and error boundaries", () => {

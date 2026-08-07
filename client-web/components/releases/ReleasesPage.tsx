@@ -30,7 +30,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: teams, isLoading: isLoadingTeams } = useTeams();
+  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
   const { data: releases, isLoading, error } = useReleases(teamId);
   const selectedReleaseId = searchParams.get("release") ?? "";
   const view = normalizeReleaseView(searchParams.get("view"));
@@ -69,7 +69,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const contentState: PageContentState =
     isLoadingTeams || isLoading
       ? "loading"
-      : error
+      : teamsError || error
         ? "error"
         : hasNoTeams || visibleReleases.length === 0
           ? "empty"
@@ -78,20 +78,6 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   return (
     <PageLayout>
       <PageHeader
-        context={
-          isLoadingTeams ? (
-            <span className="bg-muted/20 inline-block h-4 w-24 animate-pulse rounded" />
-          ) : activeTeam ? (
-            <Link
-              href={teamPath(teamId, "overview")}
-              className="hover:text-text transition-colors hover:underline"
-            >
-              {activeTeam.name}
-            </Link>
-          ) : null
-        }
-        title={t("title")}
-        description={t("queueDescription")}
         actions={capabilities.canCreateRelease ? <CreateReleaseDialog teamId={teamId} /> : null}
       />
 

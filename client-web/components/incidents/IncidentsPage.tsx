@@ -73,7 +73,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams } = useTeams();
+  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
   const { data: members } = useTeamMembers(teamId);
   const activeTeam = teams?.find((team) => team.team_id === teamId);
   const capabilities = deriveCapabilities(activeTeam?.role ?? "observer");
@@ -135,7 +135,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const contentState: PageContentState =
     isLoadingTeams || isLoadingIncidents
       ? "loading"
-      : error
+      : teamsError || error
         ? "error"
         : hasNoTeams || incidents.length === 0
           ? "empty"
@@ -157,20 +157,6 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   return (
     <PageLayout>
       <PageHeader
-        context={
-          isLoadingTeams ? (
-            <span className="bg-muted/20 inline-block h-4 w-24 animate-pulse rounded" />
-          ) : activeTeam ? (
-            <Link
-              href={teamPath(teamId, "overview")}
-              className="hover:text-text transition-colors hover:underline"
-            >
-              {activeTeam.name}
-            </Link>
-          ) : null
-        }
-        title={t("title")}
-        description={t("queueDescription")}
         actions={capabilities.canCreateIncident ? <CreateIncidentDialog teamId={teamId} /> : null}
       />
 

@@ -89,7 +89,7 @@ describe("ReleasesPage", () => {
   it("renders the active release in desktop and mobile projections", () => {
     render(<ReleasesPage teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "title" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "title" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "createRelease" })).toBeInTheDocument();
     expect(screen.getAllByText("Production deployment")).toHaveLength(2);
     expect(screen.queryByText("Emergency rollout")).not.toBeInTheDocument();

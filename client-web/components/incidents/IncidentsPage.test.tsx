@@ -90,7 +90,7 @@ afterEach(() => {
 describe("IncidentsPage", () => {
   it("renders queue filters and updates URL-backed state", () => {
     render(<IncidentsPage teamId="team-1" />);
-    expect(screen.getByRole("heading", { name: "title" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "title" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Database outage")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "createIncident" })).toBeInTheDocument();
 

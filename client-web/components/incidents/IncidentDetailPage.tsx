@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, Clock, Info, ShieldAlert, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
 import { useDeleteIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
 import { useTeamMembers, useTeams } from "@/lib/queries/teams";
@@ -24,50 +24,6 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
 
 import { formatRelativeAge } from "@/lib/utils";
-
-function IncidentBreadcrumb({
-  currentHref,
-  incidentsHref,
-  shortId,
-  teamHref,
-  teamName,
-}: {
-  currentHref: string;
-  incidentsHref: string;
-  shortId: string;
-  teamHref: string;
-  teamName: string;
-}) {
-  const t = useTranslations("Incidents");
-
-  return (
-    <nav aria-label={t("breadcrumbLabel")} className="min-w-0 text-sm">
-      <ol className="text-muted flex min-w-0 items-center gap-2">
-        <li className="min-w-0 truncate">
-          <Link href={teamHref} className="hover:text-text transition-colors">
-            {teamName}
-          </Link>
-        </li>
-        <li aria-hidden="true">/</li>
-        <li>
-          <Link href={incidentsHref} className="hover:text-text transition-colors">
-            {t("title")}
-          </Link>
-        </li>
-        <li aria-hidden="true">/</li>
-        <li className="min-w-0 truncate">
-          <Link
-            href={currentHref}
-            aria-current="page"
-            className="text-text font-medium transition-colors"
-          >
-            {t("incidentBreadcrumb", { id: shortId })}
-          </Link>
-        </li>
-      </ol>
-    </nav>
-  );
-}
 
 export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string; teamId: string }) {
   const t = useTranslations("Incidents");
@@ -99,7 +55,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
 
   if (isLoading) {
     return (
-      <PageLayout width="workspace">
+      <PageLayout>
         <PageHeader title={t("title")} />
         <PageContent
           state="loading"
@@ -116,7 +72,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
 
   if (error || !incident) {
     return (
-      <PageLayout width="workspace">
+      <PageLayout>
         <PageHeader title={t("title")} />
         <PageContent
           state="error"
@@ -134,8 +90,6 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const people = Object.fromEntries(
     (members ?? []).map((member) => [member.user_id, member.email]),
   );
-  const teamName = currentTeam?.name ?? t("teamMember");
-  const currentHref = teamPath(incident.team_id, "incidents", incident.id);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
 
   const transitionLabel = (transition: IncidentTransition) =>
@@ -173,15 +127,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     });
 
   return (
-    <PageLayout fill width="workspace">
-      <IncidentBreadcrumb
-        currentHref={currentHref}
-        incidentsHref={incidentsHref}
-        shortId={incident.id.slice(0, 8)}
-        teamHref={teamPath(incident.team_id, "overview")}
-        teamName={teamName}
-      />
-
+    <PageLayout fill>
       <PageHeader
         title={incident.title}
         metadata={
