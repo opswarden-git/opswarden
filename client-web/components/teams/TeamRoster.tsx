@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { MessageSquare, Search, Users } from "lucide-react";
+import { MessageSquare, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type BanKindInput,
@@ -110,11 +110,6 @@ export function TeamRoster({ team }: { team: Team }) {
       </PageToolbar>
 
       <div className="surface overflow-hidden rounded-md">
-        <div className="border-border flex items-center gap-3 border-b px-5 py-4">
-          <Users className="text-muted h-5 w-5" aria-hidden="true" />
-          <h2 className="text-text font-semibold">{t("members")}</h2>
-        </div>
-
         {setRole.error ? (
           <Alert tone="danger" className="m-4">
             {errorText(setRole.error.message)}

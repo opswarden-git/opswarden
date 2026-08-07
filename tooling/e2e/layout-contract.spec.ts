@@ -48,6 +48,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/overview`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "team members",
@@ -125,7 +126,7 @@ test("desktop and mobile navigation expose one current product area", async ({ p
   const navigationCases = [
     { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
     { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
-    { path: `/en/teams/${TEAM_ID}/members`, current: "Workspace" },
+    { path: `/en/teams/${TEAM_ID}/members`, current: "Members" },
     { path: "/en/teams", current: "Workspace" },
     { path: "/en/settings", current: "Settings" },
   ];
@@ -175,6 +176,9 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
         const heading = layout.getByRole("heading", { level: 1 });
         await expect(layout).toHaveAttribute("data-page-width", route.width);
         await expect(heading).toBeVisible();
+        if (route.hasContext) {
+          await expect(layout.getByText("OpsWarden Demo", { exact: true }).first()).toBeVisible();
+        }
 
         const layoutBox = await layout.boundingBox();
         const headingBox = await heading.boundingBox();

@@ -22,9 +22,9 @@ test.describe("Team operational overview", () => {
     await login(page, "manager@opswarden.local");
     await page.goto(overviewUrl);
 
-    await expect(page.getByRole("heading", { name: "OpsWarden Demo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
-    await expect(page.getByLabel("Current team")).toHaveCount(0);
+    await expect(page.locator('select[aria-label="Current team"]:visible')).toHaveCount(1);
 
     // A blocked Release and the Incident blocking it both belong in one queue:
     // that is what makes this screen an inbox rather than a list of Incidents.
