@@ -170,9 +170,9 @@ Finally, if you're looking for our public-facing presentation, you can find the 
 
 Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
 
-Repository and source-quality requirements are documented in [Engineering guardrails](docs/engineering-guardrails.md).
-The delivered recovery work and remaining engineering priorities are tracked in
-the [Recovery and Alertmanager roadmap](docs/roadmap.md).
+See [HOWTOCONTRIBUTE.md](HOWTOCONTRIBUTE.md) for the contribution workflow. The
+executable source-hygiene, migration and container-pin policies are enforced by
+the required CI gate.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden/ci-success.png" alt="CI Success" width="100%" />
