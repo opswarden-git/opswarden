@@ -38,17 +38,41 @@ export type AttentionItem =
       status?: undefined;
     };
 
+/**
+ * Views onto the one inbox, not separate lists. A facet narrows what is already
+ * ranked; it never opens a second queue, because the cross-resource inbox is
+ * what says this product is about Incidents *and* Releases.
+ *
+ * They overlap on purpose: an unacknowledged Incident assigned to you answers
+ * both `unacknowledged` and `assigned`.
+ */
+export type AttentionFacet = "all" | "unacknowledged" | "assigned" | "escalated" | "blocked";
+
+export function matchesFacet(item: AttentionItem, facet: AttentionFacet): boolean {
+  switch (facet) {
+    case "all":
+      return true;
+    case "unacknowledged":
+      return item.resource === "incident" && item.status === "open";
+    case "assigned":
+      return item.reason.startsWith("assigned");
+    case "escalated":
+      return item.resource === "incident" && item.status === "escalated";
+    case "blocked":
+      return item.reason === "releaseBlocked";
+  }
+}
+
 export interface TeamOverviewProjection {
+  /** The `all` facet: ranked, capped, with the Release guard applied. */
   attention: AttentionItem[];
-  assignedIncidents: IncidentListItem[];
-  blockedReleases: ReleaseListItem[];
-  counts: {
-    active: number;
-    unacknowledged: number;
-    assignedToMe: number;
-    escalated: number;
-    blockedReleases: number;
-  };
+  /** Ranked and uncapped, so a facet narrows the same material. */
+  candidates: AttentionItem[];
+  /**
+   * Counted over `candidates`, never over the raw lists. A facet that announced
+   * more than clicking it shows would be a silent lie.
+   */
+  facetCounts: Record<AttentionFacet, number>;
 }
 
 const severityPriority: Record<IncidentSeverity, number> = {
@@ -59,8 +83,6 @@ const severityPriority: Record<IncidentSeverity, number> = {
 };
 
 const activeIncident = (incident: IncidentListItem) => incident.status !== "resolved";
-const byFreshness = <T extends { updated_at: string }>(left: T, right: T) =>
-  new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
 const byAttentionPriority = (left: AttentionItem, right: AttentionItem) =>
   right.priority - left.priority ||
   new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime();
@@ -185,31 +207,23 @@ export function deriveTeamOverview({
   userId: string | null;
 }): TeamOverviewProjection {
   const active = incidents.filter(activeIncident);
-  const assignedIncidents = active
-    .filter((incident) => incident.assignee?.user_id === userId)
-    .toSorted(byFreshness);
-  const blockedReleases = releases
-    .filter((release) => release.state === "blocked")
-    .toSorted(
-      (left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime(),
-    );
   const incidentById = new Map(incidents.map((incident) => [incident.id, incident]));
-  const attentionCandidates = [
+  const candidates = [
     ...active.map((incident) => incidentAttention(incident, userId, role)),
     ...releases.map((release) => releaseAttention(release, canProgressRelease, incidentById)),
-  ].filter((item): item is AttentionItem => item !== null);
-  const attention = selectAttention(attentionCandidates, 7);
+  ]
+    .filter((item): item is AttentionItem => item !== null)
+    .toSorted(byAttentionPriority);
 
   return {
-    attention,
-    assignedIncidents,
-    blockedReleases,
-    counts: {
-      active: active.length,
-      unacknowledged: active.filter((incident) => incident.status === "open").length,
-      assignedToMe: assignedIncidents.length,
-      escalated: active.filter((incident) => incident.status === "escalated").length,
-      blockedReleases: blockedReleases.length,
+    attention: selectAttention(candidates, 7),
+    candidates,
+    facetCounts: {
+      all: candidates.length,
+      unacknowledged: candidates.filter((item) => matchesFacet(item, "unacknowledged")).length,
+      assigned: candidates.filter((item) => matchesFacet(item, "assigned")).length,
+      escalated: candidates.filter((item) => matchesFacet(item, "escalated")).length,
+      blocked: candidates.filter((item) => matchesFacet(item, "blocked")).length,
     },
   };
 }

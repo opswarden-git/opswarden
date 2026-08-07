@@ -46,7 +46,7 @@ function messages(locale: string): Record<string, unknown> {
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 486,
+    Teams: 436,
     Incidents: 341,
     errors: 331,
     Automations: 324,
@@ -63,7 +63,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Index: 3,
   },
   fr: {
-    Teams: 617,
+    Teams: 549,
     Incidents: 443,
     errors: 411,
     Automations: 442,

@@ -11,57 +11,75 @@ async function login(page: Page, email: string) {
   await expect(page).toHaveURL(/\/en\/teams\//);
 }
 
+const inbox = (page: Page) => page.locator('section[aria-labelledby="attention-title"]');
+const facets = (page: Page) => page.getByRole("navigation", { name: "Attention filters" });
+// The facet bar lives inside the section, so anchor on the list itself when the
+// assertion is about the queued work rather than the filters above it.
+const queue = (page: Page) => page.locator("[data-attention-queue]");
+
 test.describe("Team operational overview", () => {
-  test("Manager gets one cross-resource attention queue with exact drill-downs", async ({
-    page,
-  }) => {
+  test("Manager gets one cross-resource inbox, each item listed once", async ({ page }) => {
     await login(page, "manager@opswarden.local");
     await page.goto(overviewUrl);
 
     await expect(page.getByRole("heading", { name: "OpsWarden Demo" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Operational summary" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
     await expect(page.getByLabel("Current team")).toHaveCount(0);
-    const attention = page.locator('section[aria-labelledby="attention-title"]');
-    await expect(attention.getByText("v2.8.0 — Payment resilience", { exact: true })).toBeVisible();
+
+    // A blocked Release and the Incident blocking it both belong in one queue:
+    // that is what makes this screen an inbox rather than a list of Incidents.
     await expect(
-      attention.getByText("Payment API returning 502 in Europe", { exact: true }),
+      inbox(page).getByText("v2.8.0 — Payment resilience", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your work" })).toBeVisible();
+    await expect(
+      inbox(page).getByText("Payment API returning 502 in Europe", { exact: true }),
+    ).toBeVisible();
 
-    await page.getByRole("link", { name: /Unacknowledged/ }).click();
-    await expect(page).toHaveURL(`/en/teams/${TEAM_ID}/incidents`);
-
-    await page.goto(overviewUrl);
-    await page
-      .getByRole("link", { name: /Blocked releases/ })
-      .first()
-      .click();
-    await expect(page).toHaveURL(`/en/teams/${TEAM_ID}/releases?view=blocked`);
+    // It used to appear twice -- once here, once in a side panel repeating it.
+    await expect(page.getByText("v2.8.0 — Payment resilience", { exact: true })).toHaveCount(1);
   });
 
-  test("Responder sees owned incidents and executable Release work", async ({ page }) => {
+  test("a facet narrows the queue in place instead of leaving the screen", async ({ page }) => {
+    await login(page, "manager@opswarden.local");
+    await page.goto(overviewUrl);
+
+    const blocked = facets(page).getByRole("link", { name: /Blocked releases/ });
+    await expect(blocked).toBeVisible();
+    await blocked.click();
+
+    // Still on the overview: a facet is a view onto the inbox, not a drill-down.
+    await expect(page).toHaveURL(`${overviewUrl}?view=blocked`);
+    await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
+    await expect(
+      inbox(page).getByText("v2.8.0 — Payment resilience", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      inbox(page).getByText("Payment API returning 502 in Europe", { exact: true }),
+    ).toHaveCount(0);
+
+    await facets(page).getByRole("link", { name: /All/ }).click();
+    await expect(page).toHaveURL(overviewUrl);
+  });
+
+  test("Responder gets an assigned facet and executable Release work", async ({ page }) => {
     await login(page, "responder@opswarden.local");
     await page.goto(overviewUrl);
 
-    await expect(page.getByRole("heading", { name: "Your work" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Assigned to me/ })).toBeVisible();
-    const ownedWork = page.locator('section[aria-labelledby="your-work-title"]');
-    await expect(ownedWork.getByRole("link").first()).toHaveAttribute(
+    await expect(facets(page).getByRole("link", { name: /Assigned to me/ })).toBeVisible();
+    await expect(inbox(page).getByText(/Next step ready:/)).toBeVisible();
+    await expect(queue(page).getByRole("link").first()).toHaveAttribute(
       "href",
-      new RegExp(`/en/teams/${TEAM_ID}/incidents/[0-9a-f-]+$`),
+      new RegExp(`/en/teams/${TEAM_ID}/(incidents|releases)/[0-9a-f-]+$`),
     );
-    const attention = page.locator('section[aria-labelledby="attention-title"]');
-    await expect(attention.getByText(/Next step ready:/)).toBeVisible();
   });
 
-  test("Observer gets a read-only operational scope without executable prompts", async ({
-    page,
-  }) => {
+  test("Observer gets a read-only scope without an assignment facet", async ({ page }) => {
     await login(page, "observer@opswarden.local");
     await page.goto(overviewUrl);
 
-    await expect(page.getByRole("heading", { name: "Operational scope" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Active incidents/ })).toBeVisible();
+    // Observers hold no assignments, so the facet would always read zero.
+    await expect(facets(page).getByRole("link", { name: /Assigned to me/ })).toHaveCount(0);
+    await expect(facets(page).getByRole("link", { name: /Unacknowledged/ })).toBeVisible();
     await expect(page.getByText(/Next step ready:/)).toHaveCount(0);
   });
 
@@ -78,17 +96,12 @@ test.describe("Team operational overview", () => {
       );
       expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
 
-      const attention = await page
-        .locator('section[aria-labelledby="attention-title"]')
-        .boundingBox();
-      const context = await page.getByLabel("Operational context").boundingBox();
-      expect(attention).not.toBeNull();
-      expect(context).not.toBeNull();
-      if (width < 1024) {
-        expect(context!.y).toBeGreaterThan(attention!.y);
-      } else {
-        expect(context!.x).toBeGreaterThan(attention!.x);
-      }
+      // The facets lead the queue they filter, at every width.
+      const facetBar = await facets(page).boundingBox();
+      const queue = await inbox(page).boundingBox();
+      expect(facetBar).not.toBeNull();
+      expect(queue).not.toBeNull();
+      expect(facetBar!.y).toBeGreaterThanOrEqual(queue!.y);
     }
   });
 });
