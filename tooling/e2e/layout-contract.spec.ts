@@ -4,71 +4,62 @@ const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
 const INCIDENT_ID = "10000000-0000-4000-8000-000000000001";
 const RELEASE_ID = "30000000-0000-4000-8000-000000000001";
 
-type LayoutWidth = "standard" | "workspace";
 type PageKind = "collection" | "detail";
 
 interface RouteContract {
   name: string;
   path: string;
-  width: LayoutWidth;
   kind: PageKind;
-  hasContext?: boolean;
 }
 
 const routes: RouteContract[] = [
-  { name: "teams directory", path: "/en/teams", width: "standard", kind: "collection" },
+  { name: "teams directory", path: "/en/teams", kind: "collection" },
   {
     name: "incidents queue",
     path: `/en/teams/${TEAM_ID}/incidents`,
-    width: "standard",
     kind: "collection",
-    hasContext: true,
   },
   {
     name: "incident detail",
     path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`,
-    width: "workspace",
     kind: "detail",
   },
   {
     name: "releases queue",
     path: `/en/teams/${TEAM_ID}/releases`,
-    width: "standard",
     kind: "collection",
-    hasContext: true,
   },
   {
     name: "release detail",
     path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`,
-    width: "workspace",
     kind: "detail",
   },
   {
     name: "team overview",
     path: `/en/teams/${TEAM_ID}/overview`,
-    width: "standard",
     kind: "collection",
-    hasContext: true,
   },
   {
     name: "team members",
     path: `/en/teams/${TEAM_ID}/members`,
-    width: "standard",
     kind: "collection",
   },
   {
-    name: "team automations",
+    name: "team rules",
     path: `/en/teams/${TEAM_ID}/automations`,
-    width: "standard",
+    kind: "collection",
+  },
+  {
+    name: "team integrations",
+    path: `/en/teams/${TEAM_ID}/automations?view=connections`,
     kind: "collection",
   },
   {
     name: "team settings",
     path: `/en/teams/${TEAM_ID}/settings`,
-    width: "standard",
     kind: "collection",
   },
-  { name: "account settings", path: "/en/settings", width: "standard", kind: "collection" },
+  { name: "account settings", path: "/en/settings", kind: "collection" },
 ];
 
 async function login(page: Page) {
@@ -124,11 +115,19 @@ test("desktop and mobile navigation expose one current product area", async ({ p
   await login(page);
 
   const navigationCases = [
-    { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
-    { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
-    { path: `/en/teams/${TEAM_ID}/members`, current: "Members" },
-    { path: "/en/teams", current: "Team directory" },
-    { path: "/en/settings", current: "Settings" },
+    {
+      path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`,
+      current: "Incidents",
+      mobile: "Incidents",
+    },
+    {
+      path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`,
+      current: "Releases",
+      mobile: "Releases",
+    },
+    { path: `/en/teams/${TEAM_ID}/members`, current: "Members", mobile: "More" },
+    { path: "/en/teams", current: "Team directory", mobile: "Team directory" },
+    { path: "/en/settings", current: "Settings", mobile: "More" },
   ];
 
   for (const viewportWidth of [320, 1280]) {
@@ -142,12 +141,24 @@ test("desktop and mobile navigation expose one current product area", async ({ p
         const navigation = page.getByRole("navigation", { name: navigationName });
         await expect(navigation).toBeVisible();
         const currentItem = page.locator(
-          'a[data-app-navigation-item="true"]:visible[aria-current="page"]',
+          '[data-app-navigation-item="true"]:visible[aria-current="page"]',
         );
         await expect(currentItem).toHaveCount(1);
         await expect(currentItem).toHaveAccessibleName(
-          new RegExp(`^${navigationCase.current}(?: \\d+)?$`),
+          new RegExp(
+            `^${viewportWidth < 768 ? navigationCase.mobile : navigationCase.current}(?: \\d+)?$`,
+          ),
         );
+
+        if (viewportWidth < 768 && navigationCase.mobile === "More") {
+          await currentItem.click();
+          const sheet = page.getByRole("dialog", { name: "More" });
+          await expect(sheet).toBeVisible();
+          await expect(
+            sheet.getByRole("link", { name: navigationCase.current, exact: true }),
+          ).toHaveAttribute("aria-current", "page");
+          await page.keyboard.press("Escape");
+        }
       });
     }
   }
@@ -175,31 +186,30 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
         await page.goto(route.path);
 
         const layout = page.locator('[data-page-layout="true"]');
-        const heading = layout.getByRole("heading", { level: 1 });
-        await expect(layout).toHaveAttribute("data-page-width", route.width);
+        const heading = page.getByRole("heading", { level: 1 });
+        const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
+        await expect(layout).toHaveAttribute("data-page-width", "workspace");
+        await expect(heading).toHaveCount(1);
         await expect(heading).toBeVisible();
-        if (route.hasContext) {
-          await expect(layout.getByText("OpsWarden Demo", { exact: true }).first()).toBeVisible();
-        }
+        await expect(breadcrumb).toBeVisible();
 
         const layoutBox = await layout.boundingBox();
         const headingBox = await heading.boundingBox();
+        const firstCrumbBox = await breadcrumb.getByRole("link").first().boundingBox();
         expect(layoutBox).not.toBeNull();
         expect(headingBox).not.toBeNull();
+        expect(firstCrumbBox).not.toBeNull();
 
         const expectedPadding = viewportWidth < 640 ? 16 : viewportWidth < 768 ? 24 : 32;
-        const expectedHeadingY =
-          (viewportWidth < 768 ? 88 : 32) +
-          (route.kind === "detail" ? 44 : 0) +
-          (route.hasContext ? 24 : 0);
         expect(
-          Math.round(headingBox!.x - layoutBox!.x),
-          `${route.name} horizontal heading offset at ${viewportWidth}px`,
+          Math.round(firstCrumbBox!.x - layoutBox!.x),
+          `${route.name} breadcrumb alignment at ${viewportWidth}px`,
         ).toBe(expectedPadding);
-        expect(
-          Math.round(headingBox!.y),
-          `${route.name} vertical heading position at ${viewportWidth}px`,
-        ).toBe(expectedHeadingY);
+        if (route.kind === "detail") {
+          expect(firstCrumbBox!.y).toBeLessThan(headingBox!.y);
+        } else {
+          await expect(breadcrumb.getByRole("heading", { level: 1 })).toBeVisible();
+        }
 
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - window.innerWidth,
@@ -211,6 +221,20 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
       });
     }
   }
+});
+
+test("detail breadcrumbs expose hierarchy and preserve list context", async ({ page }) => {
+  await login(page);
+
+  await page.goto(`/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}?view=escalated`);
+  const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(breadcrumb).toHaveCount(1);
+  await expect(breadcrumb.getByRole("link")).toHaveCount(3);
+  await expect(breadcrumb.getByRole("link", { name: "Incidents" })).toHaveAttribute(
+    "href",
+    `/en/teams/${TEAM_ID}/incidents?view=escalated`,
+  );
+  await expect(breadcrumb.getByRole("link").last()).toHaveAttribute("aria-current", "page");
 });
 
 test("incident records switch morphology without losing operational context", async ({ page }) => {

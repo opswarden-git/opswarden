@@ -11,49 +11,56 @@ describe("navigationTree", () => {
     expect(navigationTree().map((node) => node.labelKey)).toEqual(["teams"]);
   });
 
-  it("keeps shift work flat and folds configuration into one branch", () => {
-    // The shape both IRIS and TheHive settled on: what you do during a shift is
-    // never nested, what you configure between shifts always is.
+  it("groups every Team destination without hiding any of them", () => {
     expect(navigationTree("team-1").map((node) => [node.kind, node.labelKey])).toEqual([
-      ["leaf", "overview"],
-      ["leaf", "incidents"],
-      ["leaf", "releases"],
+      ["branch", "operations"],
       ["branch", "manage"],
     ]);
   });
 
-  it("only exposes Manager-only activity when its capability is known", () => {
-    expect(navigationTree("team-1").map((node) => node.labelKey)).not.toContain("activity");
-    expect(navigationTree("team-1", true).map((node) => node.labelKey)).toContain("activity");
+  it("only exposes Manager-only automation configuration when its capability is known", () => {
+    expect(primaryNavigationItems("team-1").map((item) => item.labelKey)).not.toContain("rules");
+    expect(primaryNavigationItems("team-1", true).map((item) => item.labelKey)).toEqual(
+      expect.arrayContaining(["rules", "integrations"]),
+    );
   });
 
-  it("puts the landing page above the branch, never inside it", () => {
-    const branch = navigationTree("team-1").find((node) => node.kind === "branch");
-    expect(branch?.kind === "branch" && branch.children.map((child) => child.labelKey)).toEqual([
-      "members",
-      "automations",
-      "teamSettings",
+  it("keeps operations and administration as explicit groups", () => {
+    const groups = navigationTree("team-1", true).filter((node) => node.kind === "branch");
+    expect(groups.map((group) => group.children.map((child) => child.labelKey))).toEqual([
+      ["overview", "incidents", "releases", "rules", "integrations"],
+      ["members", "teamSettings"],
     ]);
   });
 
   it("reaches every destination exactly once when flattened", () => {
-    const items = primaryNavigationItems("team-1");
+    const items = primaryNavigationItems("team-1", true);
 
     expect(items.map((item) => [item.labelKey, item.href])).toEqual([
       ["overview", "/teams/team-1/overview"],
       ["incidents", "/teams/team-1/incidents"],
       ["releases", "/teams/team-1/releases"],
+      ["rules", "/teams/team-1/automations"],
+      ["integrations", "/teams/team-1/automations?view=connections"],
       ["members", "/teams/team-1/members"],
-      ["automations", "/teams/team-1/automations"],
       ["teamSettings", "/teams/team-1/settings"],
     ]);
     expect(new Set(items.map((item) => item.labelKey)).size).toBe(items.length);
   });
 
-  it("includes activity in the flat mobile view for Managers", () => {
-    expect(primaryNavigationItems("team-1", true).map((item) => item.labelKey)).toContain(
-      "activity",
-    );
+  it("keeps run history contextual instead of exposing Activity", () => {
+    const labels = primaryNavigationItems("team-1", true).map((item) => item.labelKey);
+    expect(labels).not.toContain("activity");
+    expect(labels).toEqual(expect.arrayContaining(["rules", "integrations"]));
+  });
+
+  it("does not lead non-Managers to Manager-only administration", () => {
+    expect(primaryNavigationItems("team-1").map((item) => item.labelKey)).toEqual([
+      "overview",
+      "incidents",
+      "releases",
+      "members",
+    ]);
   });
 });
 
@@ -73,6 +80,33 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/teams/team-1/members", overview)).toBe(false);
     expect(isNavigationItemActive("/teams/team-1/members", members)).toBe(true);
     expect(isNavigationItemActive("/teams/team-1/incidents", overview)).toBe(false);
+  });
+
+  it("distinguishes direct Rules and Integrations destinations on the shared route", () => {
+    const items = primaryNavigationItems("team-1", true);
+    const rules = items.find((item) => item.labelKey === "rules")!;
+    const integrations = items.find((item) => item.labelKey === "integrations")!;
+
+    expect(isNavigationItemActive("/teams/team-1/automations", rules, new URLSearchParams())).toBe(
+      true,
+    );
+    expect(
+      isNavigationItemActive(
+        "/teams/team-1/automations",
+        integrations,
+        new URLSearchParams("view=connections"),
+      ),
+    ).toBe(true);
+    expect(
+      isNavigationItemActive(
+        "/teams/team-1/automations",
+        rules,
+        new URLSearchParams("view=connections"),
+      ),
+    ).toBe(false);
+    expect(
+      isNavigationItemActive("/teams/team-1/automations", rules, new URLSearchParams("view=runs")),
+    ).toBe(true);
   });
 
   it("keeps account settings distinct from Team settings", () => {

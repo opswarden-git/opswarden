@@ -8,18 +8,11 @@ import { Button } from "@/components/ui/Button";
 afterEach(cleanup);
 
 describe("PageLayout", () => {
-  it("owns the standard page width, padding and region rhythm", () => {
+  it("owns the single workspace width, padding and region rhythm", () => {
     const { container } = render(<PageLayout>Content</PageLayout>);
 
-    expect(container.firstChild).toHaveClass("max-w-6xl", "px-4", "md:px-8", "gap-6");
+    expect(container.firstChild).toHaveClass("max-w-[90rem]", "px-4", "md:px-8", "gap-6");
     expect(container.firstChild).toHaveAttribute("data-page-layout", "true");
-    expect(container.firstChild).toHaveAttribute("data-page-width", "standard");
-  });
-
-  it("supports an explicit workspace width without changing its spacing contract", () => {
-    const { container } = render(<PageLayout width="workspace">Content</PageLayout>);
-
-    expect(container.firstChild).toHaveClass("max-w-[90rem]", "px-4", "gap-6");
     expect(container.firstChild).toHaveAttribute("data-page-width", "workspace");
   });
 });
@@ -38,6 +31,13 @@ describe("PageHeader", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Incidents" })).toBeInTheDocument();
     expect(screen.getByText("Operational incidents")).toBeInTheDocument();
     expect(screen.getByText("Updated now")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create incident" })).toBeInTheDocument();
+  });
+
+  it("supports an action row without repeating the shell title", () => {
+    render(<PageHeader actions={<Button>Create incident</Button>} />);
+
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create incident" })).toBeInTheDocument();
   });
 });
