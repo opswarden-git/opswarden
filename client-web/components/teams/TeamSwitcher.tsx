@@ -2,7 +2,7 @@
 
 import { ListTree } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
+import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { buttonClassNames } from "@/components/ui/Button";
 import { useTeamScope } from "./TeamScope";
@@ -15,7 +15,9 @@ export function TeamSwitcher({
   compact?: boolean;
 }) {
   const t = useTranslations("TeamSwitcher");
+  const pathname = usePathname();
   const { teams, activeTeam, isLoading, switchTeam } = useTeamScope();
+  const isDirectory = pathname === "/teams";
 
   return (
     <div className={cn("flex min-w-0 items-end gap-2", className)}>
@@ -43,6 +45,8 @@ export function TeamSwitcher({
       </label>
       <Link
         href="/teams"
+        aria-current={isDirectory ? "page" : undefined}
+        data-app-navigation-item="true"
         className={buttonClassNames({
           size: compact ? "lg" : "md",
           className: compact ? "w-10 px-0" : "w-9 px-0",

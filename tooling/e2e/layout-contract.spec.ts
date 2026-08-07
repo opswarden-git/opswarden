@@ -127,7 +127,7 @@ test("desktop and mobile navigation expose one current product area", async ({ p
     { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
     { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
     { path: `/en/teams/${TEAM_ID}/members`, current: "Members" },
-    { path: "/en/teams", current: "Workspace" },
+    { path: "/en/teams", current: "Team directory" },
     { path: "/en/settings", current: "Settings" },
   ];
 
