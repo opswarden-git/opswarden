@@ -22,15 +22,19 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+        "flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
       {...props}
     >
-      <div className="min-w-0 space-y-1.5">
-        {context ? <div className="text-muted mb-1 text-sm font-medium">{context}</div> : null}
-        <h1 className="text-text text-2xl font-bold tracking-tight">{title}</h1>
-        {description ? <p className="text-muted max-w-3xl text-sm">{description}</p> : null}
+      <div className="min-w-0 space-y-2">
+        {context ? (
+          <div className="text-gold text-xs font-semibold tracking-wide uppercase">{context}</div>
+        ) : null}
+        <h1 className="text-text text-3xl font-semibold tracking-[-0.025em]">{title}</h1>
+        {description ? (
+          <p className="text-muted max-w-3xl text-sm leading-6">{description}</p>
+        ) : null}
         {metadata ? <div className="text-muted text-sm">{metadata}</div> : null}
       </div>
 

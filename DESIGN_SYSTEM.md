@@ -31,9 +31,30 @@ always paired with text or an icon.
 
 `Button` has exactly four variants: `primary`, `secondary`, `danger` and
 `ghost`. `Alert` has `info`, `success`, `warning` and `danger`. An action must
-never use a message color, and a message must never look like a button. Incident
-states, Release states and severities use their `--st-*` and `--sev-*` tokens
-alongside text and an icon.
+never use a message color, and a message must never look like a button.
+
+## Domain state families
+
+Every domain state is conveyed by color **and** icon **and** text — color is
+never the only signal. Each family owns its own tokens, and one family never
+borrows another's:
+
+| Family         | Tokens    | Covers                                                 |
+| -------------- | --------- | ------------------------------------------------------ |
+| Severity       | `--sev-*` | `low` `medium` `high` `critical`                       |
+| Incident state | `--st-*`  | `open` `ack` `esc` `res`                               |
+| Release state  | `--rel-*` | `created` `progress` `blocked` `completed` `cancelled` |
+
+The release family exists because the overview shows incidents and releases
+side by side. A release in progress once wore `--st-ack`, the _incident
+acknowledged_ token, so a single blue meant two different things depending on
+which column was being read.
+
+Where a release state expresses a concern the whole product shares, its token
+aliases the `--feedback-*` role rather than an incident token: `--rel-blocked`
+resolves to `--feedback-danger`, `--rel-completed` to `--feedback-success`.
+Lifecycle roles may map onto concern colors; they never adopt another object's
+vocabulary.
 
 ## Hierarchy and surfaces
 

@@ -35,6 +35,15 @@ const nextConfig = {
         source: "/about.json",
         destination: `${apiOrigin}/about.json`,
       },
+      {
+        // The server publishes this one outside /api, so nothing proxied it and
+        // the browser asked the Next origin for it. The reaction palette 404ed
+        // in every environment, which is why timeline entries never offered a
+        // single emoji: `useAvailableReactions` returned nothing and the toggle
+        // row rendered an empty list.
+        source: "/reactions/available",
+        destination: `${apiOrigin}/reactions/available`,
+      },
     ];
   },
 };

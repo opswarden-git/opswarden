@@ -36,7 +36,7 @@
   "Sidebar": {
     "dashboard": "Tableau de bord",
     "incidents": "Incidents",
-    "teams": "Équipes",
+    "teams": "Espace",
     "settings": "Paramètres",
     "logout": "Déconnexion",
     "operator": "Opérateur",
@@ -45,7 +45,14 @@
     "primaryNavigation": "Navigation principale",
     "mobileNavigation": "Navigation mobile",
     "logoIconAlt": "Icône OpsWarden",
-    "logoWordmarkAlt": "OpsWarden"
+    "logoWordmarkAlt": "OpsWarden",
+    "operations": "Opérations",
+    "overview": "Vue d’ensemble",
+    "members": "Membres",
+    "automations": "Automatisations",
+    "teamSettings": "Réglages",
+    "manage": "Administration",
+    "activity": "Activité"
   },
   "TeamSwitcher": {
     "label": "Équipe active",
@@ -224,32 +231,16 @@
     "workspaceDescription": "Espace de l’équipe, accès et responsabilités opérationnelles.",
     "teamNavigation": "Navigation de l’équipe",
     "createdOn": "Créée le {date}",
-    "activeIncidents": "Incidents actifs",
     "activeReleases": "Releases actives",
     "blockedReleases": "Releases bloquées",
     "loadingOverview": "Chargement de la vue opérationnelle",
     "overviewUnavailable": "La vue opérationnelle n’a pas pu être chargée.",
     "operationalSummary": "Synthèse opérationnelle",
-    "operationalSummaryDescription": "Travail en cours sur les incidents et les releases.",
     "unacknowledged": "Non acquittés",
-    "unacknowledgedDescription": "Incidents ouverts en attente d’acquittement",
-    "activeIncidentsDescription": "Tous les incidents encore en cours",
-    "assignedToMe": "Assignés à moi",
-    "assignedToMeDescription": "Incidents actifs dont vous êtes responsable",
-    "activeEscalations": "Escalades actives",
-    "activeEscalationsDescription": "Incidents escaladés à coordonner",
-    "blockedReleasesDescription": "Releases bloquées par des incidents non résolus",
     "needsAttention": "Nécessite votre attention",
     "needsAttentionDescription": "Les travaux actionnables les plus importants de l’équipe.",
     "nothingNeedsAttention": "Rien ne nécessite votre attention",
     "nothingNeedsAttentionDescription": "Aucun incident ni aucune release active ne requiert d’action.",
-    "overviewContext": "Contexte opérationnel",
-    "yourWork": "Votre travail",
-    "yourWorkDescription": "{count, plural, =0 {Aucun incident actif ne vous est assigné.} one {# incident actif vous est assigné.} other {# incidents actifs vous sont assignés.}}",
-    "operationalScope": "Périmètre opérationnel",
-    "operationalScopeDescription": "Vous disposez d’un accès en lecture seule aux travaux actifs de cette équipe.",
-    "blockedBy": "Bloquée par {title}",
-    "noBlockedReleases": "Aucune release n’est actuellement bloquée.",
     "attentionReasons": {
       "criticalUnacknowledged": "Incident critique en attente d’acquittement",
       "assignedUnacknowledged": "Vous est assigné et attend un acquittement",
@@ -340,7 +331,17 @@
     "create": "Créer",
     "close": "Fermer la boîte de dialogue",
     "openWorkspace": "Ouvrir les membres et les paramètres de l’équipe",
-    "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre."
+    "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre.",
+    "attentionFacetsLabel": "Filtres d’attention",
+    "facets": {
+      "all": "Tout",
+      "unacknowledged": "Non acquittés",
+      "assigned": "Assignés à moi",
+      "escalated": "Escalades",
+      "blocked": "Releases bloquées"
+    },
+    "membersDescription": "Qui compose cette équipe et ce que chacun peut faire.",
+    "settingsDescription": "Identité, invitation, propriété et accès."
   },
   "Automations": {
     "title": "Automatisations",
@@ -569,7 +570,8 @@
     "failedToLoadLinkedReleases": "Impossible de charger les releases liées.",
     "watchersTitle": "En observation maintenant",
     "noWatchers": "Personne d’autre n’observe cet incident.",
-    "deleteConfirmationInput": "Saisissez DELETE pour confirmer"
+    "deleteConfirmationInput": "Saisissez DELETE pour confirmer",
+    "addReaction": "Ajouter une réaction"
   },
   "DirectMessages": {
     "title": "Message privé",
@@ -671,5 +673,13 @@
     "progressCount": "{completed}/{total}",
     "noNextStep": "Aucune prochaine étape",
     "openRelease": "Ouvrir"
+  },
+  "Activity": {
+    "title": "Activité",
+    "description": "Exécutions d’automatisation : déclenchements, résultats et échecs.",
+    "loading": "Chargement de l’activité",
+    "unavailable": "Impossible de charger l’activité de l’équipe.",
+    "managerOnlyTitle": "Accès Manager requis",
+    "managerOnlyDescription": "Seuls les Managers peuvent consulter les exécutions."
   }
 }

@@ -61,7 +61,7 @@ function IncidentSearch({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
-        className="border-border bg-panel text-text placeholder:text-muted-2 focus:border-gold h-9 w-full rounded-md border pr-3 pl-9 text-sm outline-none"
+        className="ow-input placeholder:text-muted-2 h-9 w-full rounded-md pr-3 pl-9 text-sm outline-none"
       />
     </label>
   );
@@ -202,7 +202,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
               <select
                 value={severity ?? ""}
                 onChange={(event) => setParam("severity", event.target.value || undefined)}
-                className="border-border bg-panel text-text focus:border-gold h-9 w-full rounded-md border px-3 text-sm outline-none lg:w-36"
+                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-36"
               >
                 <option value="">{t("allSeverities")}</option>
                 {SEVERITIES.map((value) => (
@@ -218,7 +218,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
               <select
                 value={assignee ?? ""}
                 onChange={(event) => setParam("assignee", event.target.value || undefined)}
-                className="border-border bg-panel text-text focus:border-gold h-9 w-full rounded-md border px-3 text-sm outline-none lg:w-52"
+                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-52"
               >
                 <option value="">{t("allAssignees")}</option>
                 <option value="unassigned">{t("unassigned")}</option>
@@ -235,7 +235,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
               <select
                 value={sort}
                 onChange={(event) => setParam("sort", event.target.value)}
-                className="border-border bg-panel text-text focus:border-gold h-9 w-full rounded-md border px-3 text-sm outline-none lg:w-40"
+                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-40"
               >
                 <option value="newest">{t("sortNewest")}</option>
                 <option value="oldest">{t("sortOldest")}</option>

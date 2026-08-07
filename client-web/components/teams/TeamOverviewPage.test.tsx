@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/store/auth";
 import { TeamOverviewPage } from "./TeamOverviewPage";
@@ -7,6 +7,9 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(":")}` : key,
+}));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/i18n/routing", () => ({
   usePathname: () => "/teams/team-1/overview",
@@ -98,15 +101,25 @@ afterEach(() => {
 });
 
 describe("TeamOverviewPage", () => {
-  it("projects operational counts and ranked cross-resource attention", () => {
+  it("shows one cross-resource inbox, each item once, with counted facets", () => {
     useAuthStore.getState().setUser({ id: "user-1", email: "operator@example.com", locale: "en" });
     render(<TeamOverviewPage teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "Operations" })).toBeInTheDocument();
-    expect(screen.getByText("operationalSummary")).toBeInTheDocument();
+    // The page names the page. The Team is named once, by the sidebar, so this
+    // header no longer repeats it above every screen.
+    expect(screen.queryByRole("heading", { name: "Operations" })).toBeNull();
+    expect(screen.getByText("needsAttention")).toBeInTheDocument();
     expect(screen.getAllByText("Database outage").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Production deploy")).toHaveLength(2);
-    expect(screen.getAllByText("blockedReleases")).toHaveLength(2);
+
+    // The defect this replaced: a blocked Release appeared twice on the same
+    // screen -- once in the inbox, once in a side panel that repeated it. The
+    // previous version of this test asserted the duplication as expected.
+    expect(screen.getAllByText("Production deploy")).toHaveLength(1);
+
+    // Facets are URL-backed views onto that one queue, not links elsewhere.
+    const facets = screen.getByRole("navigation", { name: "attentionFacetsLabel" });
+    expect(within(facets).getByRole("link", { name: /facets\.all/ })).toBeInTheDocument();
+    expect(within(facets).getByRole("link", { name: /facets\.blocked/ })).toBeInTheDocument();
   });
 
   it("renders explicit loading and error boundaries", () => {

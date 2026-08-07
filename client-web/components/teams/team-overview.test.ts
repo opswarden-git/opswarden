@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { IncidentListItem } from "@/lib/queries/incidents";
 import type { ReleaseListItem } from "@/lib/queries/releases";
-import { deriveTeamOverview } from "./team-overview";
+import { deriveTeamOverview, matchesFacet } from "./team-overview";
 
 const incident = (
   overrides: Partial<IncidentListItem> & Pick<IncidentListItem, "id" | "title">,
@@ -69,13 +69,56 @@ describe("deriveTeamOverview", () => {
     ]);
     expect(result.attention.some((item) => item.id === "done")).toBe(false);
     expect(result.attention.some((item) => item.id === "complete")).toBe(false);
-    expect(result.counts).toEqual({
-      active: 3,
+    expect(result.facetCounts).toEqual({
+      all: 5,
       unacknowledged: 2,
-      assignedToMe: 1,
+      assigned: 1,
       escalated: 1,
-      blockedReleases: 1,
+      blocked: 1,
     });
+  });
+
+  it("counts each facet on exactly what selecting it would show", () => {
+    const result = deriveTeamOverview({
+      incidents,
+      releases,
+      role: "responder",
+      userId: "me",
+      canProgressRelease: true,
+    });
+
+    // The whole point of counting over `candidates` rather than the raw lists:
+    // a facet must never promise more than the click delivers.
+    for (const facet of ["all", "unacknowledged", "assigned", "escalated", "blocked"] as const) {
+      expect(
+        result.candidates.filter((item) => matchesFacet(item, facet)).length,
+        `facet ${facet}`,
+      ).toBe(result.facetCounts[facet]);
+    }
+  });
+
+  it("caps the inbox without inventing or reordering work", () => {
+    const result = deriveTeamOverview({
+      incidents,
+      releases,
+      role: "responder",
+      userId: "me",
+      canProgressRelease: true,
+    });
+
+    // `attention` is the `all` facet after the cap and the Release guard. It may
+    // drop items, never add one that was not a candidate, and never resurrect
+    // the ranking order.
+    for (const item of result.attention) {
+      expect(result.candidates).toContainEqual(item);
+    }
+    const rank = (item: (typeof result.attention)[number]) =>
+      result.candidates.findIndex(
+        (candidate) => candidate.id === item.id && candidate.resource === item.resource,
+      );
+    expect(result.attention.map(rank)).toEqual(
+      [...result.attention.map(rank)].toSorted((a, b) => a - b),
+    );
   });
 
   it("gives Managers an explicit unassigned reason", () => {

@@ -95,7 +95,7 @@ export function ReleaseDetail({
                 <div className="text-muted text-xs font-medium uppercase">{t("nextStep")}</div>
                 <div className="text-text mt-1 truncate font-medium">{nextStep.name}</div>
                 {release.state === "blocked" ? (
-                  <div className="text-sev-critical mt-1 flex items-center gap-1.5 text-xs">
+                  <div className="text-rel-blocked mt-1 flex items-center gap-1.5 text-xs">
                     <Ban className="h-3.5 w-3.5" aria-hidden="true" />
                     {t("resolveBlockersFirst")}
                   </div>
@@ -138,7 +138,7 @@ export function ReleaseDetail({
                     <span
                       className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold ${
                         step.validated
-                          ? "border-st-res/40 bg-st-res/15 text-st-res"
+                          ? "border-rel-completed/40 bg-rel-completed/15 text-rel-completed"
                           : isNext
                             ? "border-gold bg-gold/10 text-gold"
                             : "border-border bg-panel text-muted"

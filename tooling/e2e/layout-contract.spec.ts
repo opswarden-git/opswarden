@@ -48,6 +48,7 @@ const routes: RouteContract[] = [
     path: `/en/teams/${TEAM_ID}/overview`,
     width: "standard",
     kind: "collection",
+    hasContext: true,
   },
   {
     name: "team members",
@@ -125,8 +126,8 @@ test("desktop and mobile navigation expose one current product area", async ({ p
   const navigationCases = [
     { path: `/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`, current: "Incidents" },
     { path: `/en/teams/${TEAM_ID}/releases/${RELEASE_ID}`, current: "Releases" },
-    { path: `/en/teams/${TEAM_ID}/members`, current: "Teams" },
-    { path: "/en/teams", current: "Teams" },
+    { path: `/en/teams/${TEAM_ID}/members`, current: "Members" },
+    { path: "/en/teams", current: "Team directory" },
     { path: "/en/settings", current: "Settings" },
   ];
 
@@ -144,7 +145,9 @@ test("desktop and mobile navigation expose one current product area", async ({ p
           'a[data-app-navigation-item="true"]:visible[aria-current="page"]',
         );
         await expect(currentItem).toHaveCount(1);
-        await expect(currentItem).toHaveAccessibleName(navigationCase.current);
+        await expect(currentItem).toHaveAccessibleName(
+          new RegExp(`^${navigationCase.current}(?: \\d+)?$`),
+        );
       });
     }
   }
@@ -175,6 +178,9 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
         const heading = layout.getByRole("heading", { level: 1 });
         await expect(layout).toHaveAttribute("data-page-width", route.width);
         await expect(heading).toBeVisible();
+        if (route.hasContext) {
+          await expect(layout.getByText("OpsWarden Demo", { exact: true }).first()).toBeVisible();
+        }
 
         const layoutBox = await layout.boundingBox();
         const headingBox = await heading.boundingBox();
@@ -183,7 +189,7 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
 
         const expectedPadding = viewportWidth < 640 ? 16 : viewportWidth < 768 ? 24 : 32;
         const expectedHeadingY =
-          (viewportWidth < 768 ? 24 : 32) +
+          (viewportWidth < 768 ? 88 : 32) +
           (route.kind === "detail" ? 44 : 0) +
           (route.hasContext ? 24 : 0);
         expect(

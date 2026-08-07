@@ -6,7 +6,7 @@ export function PageToolbar({ className, ...props }: HTMLAttributes<HTMLDivEleme
   return (
     <div
       className={cn(
-        "surface-subtle border-border flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center",
+        "surface border-border flex flex-col gap-3 rounded-lg p-3 shadow-sm lg:flex-row lg:items-center",
         className,
       )}
       {...props}

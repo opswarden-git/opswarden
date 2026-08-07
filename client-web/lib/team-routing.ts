@@ -1,4 +1,5 @@
 export const TEAM_SECTIONS = [
+  "activity",
   "automations",
   "incidents",
   "members",

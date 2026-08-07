@@ -103,7 +103,9 @@ describe("TeamSettingsPage", () => {
   it("renders manager-only ownership, bans, invitation and danger controls", () => {
     render(<TeamSettingsPage teamId="team-1" />);
 
-    expect(screen.getAllByText("Operations")).toHaveLength(2);
+    // Once, in the Team identity field. It used to appear twice: the page
+    // header repeated what the sidebar already says.
+    expect(screen.getAllByText("Operations")).toHaveLength(1);
     expect(screen.getByText("invite-secret")).toBeInTheDocument();
     expect(screen.getByText("deleteTeam")).toBeInTheDocument();
 

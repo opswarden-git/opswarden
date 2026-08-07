@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Activity, Bot, Check, CircleDot, Pencil, Send, UserRound } from "lucide-react";
+import { Activity, Bot, Check, CircleDot, Pencil, Send, SmilePlus, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type IncidentActivityItem,
@@ -19,7 +19,9 @@ import { Alert } from "@/components/ui/Alert";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ReactionToggle } from "@/components/ui/ReactionToggle";
 import { ToggleButton } from "@/components/ui/ToggleButton";
+import { cn } from "@/lib/utils";
 import { GifSearchPanel } from "./GifSearchPanel";
+import { resolveGrouping } from "./activity-grouping";
 
 function valueAsString(data: Record<string, unknown>, key: string) {
   const value = data[key];
@@ -88,41 +90,66 @@ function NoteReactions({
   available,
   incidentId,
   entryId,
+  picking,
+  onPicked,
   reactions,
 }: {
   available: string[];
   incidentId: string;
   entryId: string;
+  picking: boolean;
+  onPicked: () => void;
   reactions: TimelineReaction[];
 }) {
   const toggle = useToggleTimelineReaction();
 
+  // Persist only counted reactions; the hover menu owns the complete palette.
+  const present = reactions.filter((reaction) => reaction.count > 0);
+  const missing = available.filter((emoji) => !present.some((r) => r.emoji === emoji));
+
+  if (present.length === 0 && !picking) return null;
+
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1">
-      {available.map((emoji) => {
-        const reaction = reactions.find((candidate) => candidate.emoji === emoji);
-        return (
-          <ReactionToggle
-            key={emoji}
-            emoji={emoji}
-            count={reaction?.count ?? 0}
-            label={`${emoji} (${reaction?.count ?? 0})`}
-            pressed={reaction?.reacted ?? false}
-            loading={toggle.isPending}
-            onClick={() => toggle.mutate({ incidentId, entryId, emoji })}
-          />
-        );
-      })}
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {present.map((reaction) => (
+        <ReactionToggle
+          key={reaction.emoji}
+          emoji={reaction.emoji}
+          count={reaction.count}
+          label={`${reaction.emoji} (${reaction.count})`}
+          pressed={reaction.reacted}
+          loading={toggle.isPending}
+          onClick={() => toggle.mutate({ incidentId, entryId, emoji: reaction.emoji })}
+        />
+      ))}
+      {picking
+        ? missing.map((emoji) => (
+            <ReactionToggle
+              key={emoji}
+              emoji={emoji}
+              count={0}
+              label={`${emoji} (0)`}
+              pressed={false}
+              loading={toggle.isPending}
+              onClick={() => {
+                toggle.mutate({ incidentId, entryId, emoji });
+                onPicked();
+              }}
+            />
+          ))
+        : null}
     </div>
   );
 }
 
 function HumanNoteItem({
   availableReactions,
+  continuesAbove,
   incidentId,
   item,
 }: {
   availableReactions: string[];
+  continuesAbove: boolean;
   incidentId: string;
   item: Extract<IncidentActivityItem, { type: "human_note" }>;
 }) {
@@ -132,6 +159,7 @@ function HumanNoteItem({
   const currentUserId = useAuthStore((state) => state.user?.id);
   const edit = useEditTimelineEntry();
   const [editing, setEditing] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState(item.content);
   const gifUrl = giphyEntryUrl(item.content);
   const canEdit = item.author?.user_id === currentUserId && !gifUrl;
@@ -147,91 +175,130 @@ function HumanNoteItem({
   };
 
   return (
-    <li className="surface border-border relative z-10 mb-5 rounded-md border p-4 last:mb-0 sm:p-5">
-      <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="bg-panel-2 text-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase">
+    <li
+      data-note-continues-above={continuesAbove ? "true" : undefined}
+      className={cn(
+        "group hover:bg-panel/40 relative flex gap-3 px-3 transition-colors",
+        continuesAbove ? "py-0.5" : "mt-4 pt-2 pb-0.5 first:mt-0",
+      )}
+    >
+      <div className="w-8 shrink-0">
+        {continuesAbove ? (
+          <time
+            className="text-muted-2 mt-1 block text-right text-xs opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+            dateTime={item.created_at}
+            title={new Intl.DateTimeFormat(locale, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(item.created_at))}
+          >
+            {new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(
+              new Date(item.created_at),
+            )}
+          </time>
+        ) : (
+          <span className="bg-panel-2 text-muted flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase">
             {item.author?.email.slice(0, 2) ?? "?"}
           </span>
-          <div className="min-w-0">
-            <p className="text-text truncate text-sm font-medium">
-              {item.author?.email ?? t("deletedUser")}
-            </p>
-            <time className="text-muted block text-xs" dateTime={item.created_at}>
-              {new Intl.DateTimeFormat(locale, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }).format(new Date(item.created_at))}
-              {item.edited_at ? ` · ${t("edited")}` : ""}
-            </time>
-          </div>
-        </div>
-        {canEdit && !editing ? (
-          <IconButton
-            label={t("edit")}
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              edit.reset();
-              setDraft(item.content);
-              setEditing(true);
-            }}
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-          </IconButton>
-        ) : null}
+        )}
       </div>
 
-      {editing ? (
-        <div className="space-y-3">
-          <label>
-            <span className="sr-only">{t("editNote")}</span>
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              rows={3}
-              className="ow-input w-full rounded-md px-3 py-2 text-sm"
-            />
-          </label>
-          {edit.error ? (
-            <p className="text-sev-critical text-xs" role="alert">
-              {errorText(edit.error.message)}
-            </p>
-          ) : null}
-          <div className="flex justify-end gap-2">
-            <Button size="sm" onClick={() => setEditing(false)}>
-              {t("cancel")}
-            </Button>
-            <Button
+      {/* Floating keeps the post menu from breaking consecutive-message spacing. */}
+      {editing ? null : (
+        <div className="bg-panel border-border absolute top-0 right-2 flex items-center gap-0.5 rounded-md border p-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <IconButton
+            label={t("addReaction")}
+            size="sm"
+            variant="ghost"
+            onClick={() => setPicking((current) => !current)}
+          >
+            <SmilePlus className="h-3.5 w-3.5" aria-hidden="true" />
+          </IconButton>
+          {canEdit ? (
+            <IconButton
+              label={t("edit")}
               size="sm"
-              variant="primary"
-              disabled={!draft.trim()}
-              loading={edit.isPending}
-              onClick={save}
+              variant="ghost"
+              onClick={() => {
+                edit.reset();
+                setDraft(item.content);
+                setEditing(true);
+              }}
             >
-              <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              {t("save")}
-            </Button>
-          </div>
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            </IconButton>
+          ) : null}
         </div>
-      ) : gifUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={gifUrl}
-          alt={t("gifAlt")}
-          loading="lazy"
-          className="max-h-72 max-w-full rounded-md"
-        />
-      ) : (
-        <p className="text-text text-sm leading-6 whitespace-pre-wrap">{item.content}</p>
       )}
 
-      <NoteReactions
-        available={availableReactions}
-        incidentId={incidentId}
-        entryId={item.entry_id}
-        reactions={item.reactions ?? []}
-      />
+      <div className="min-w-0 flex-1">
+        {continuesAbove ? null : (
+          <p className="mb-0.5 min-w-0 truncate">
+            <span className="text-text text-sm font-semibold">
+              {item.author?.email ?? t("deletedUser")}
+            </span>
+            <time className="text-muted-2 ml-2 text-xs" dateTime={item.created_at}>
+              {new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(
+                new Date(item.created_at),
+              )}
+              {item.edited_at ? ` · ${t("edited")}` : ""}
+            </time>
+          </p>
+        )}
+
+        {editing ? (
+          <div className="space-y-3">
+            <label>
+              <span className="sr-only">{t("editNote")}</span>
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={3}
+                className="ow-input w-full rounded-md px-3 py-2 text-sm"
+              />
+            </label>
+            {edit.error ? (
+              <p className="text-sev-critical text-xs" role="alert">
+                {errorText(edit.error.message)}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button size="sm" onClick={() => setEditing(false)}>
+                {t("cancel")}
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!draft.trim()}
+                loading={edit.isPending}
+                onClick={save}
+              >
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                {t("save")}
+              </Button>
+            </div>
+          </div>
+        ) : gifUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={gifUrl}
+            alt={t("gifAlt")}
+            loading="lazy"
+            className="max-h-72 max-w-full rounded-md"
+          />
+        ) : (
+          <p className="text-text text-sm leading-6 whitespace-pre-wrap">{item.content}</p>
+        )}
+
+        <NoteReactions
+          available={availableReactions}
+          incidentId={incidentId}
+          entryId={item.entry_id}
+          picking={picking}
+          onPicked={() => setPicking(false)}
+          reactions={item.reactions ?? []}
+        />
+      </div>
     </li>
   );
 }
@@ -331,6 +398,25 @@ export function IncidentActivity({
   const t = useTranslations("Incidents");
   const { data = [], error, isLoading } = useIncidentActivity(incidentId);
   const { data: availableReactions = [] } = useAvailableReactions();
+  const transcriptRef = React.useRef<HTMLDivElement>(null);
+
+  // The API is newest-first; a conversation reads oldest-first toward its composer.
+  const items = React.useMemo(
+    () =>
+      [...data].sort(
+        (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
+      ),
+    [data],
+  );
+  const grouping = React.useMemo(() => resolveGrouping(items), [items]);
+
+  // A room opens on what was just said, not on what was said first.
+  const last = items.at(-1);
+  const lastId = last ? (last.type === "human_note" ? last.entry_id : last.id) : null;
+  React.useEffect(() => {
+    const node = transcriptRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [lastId]);
 
   return (
     <section
@@ -345,12 +431,12 @@ export function IncidentActivity({
         </h2>
       </div>
 
-      {/*
-       * Only the transcript scrolls. The heading above and the composer below
-       * stay put, which is what separates a room from a record: you can read
-       * back through an incident without losing the way to answer it.
-       */}
-      <div data-incident-transcript="true" className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+      {/* Keep the heading and composer fixed while the transcript scrolls. */}
+      <div
+        ref={transcriptRef}
+        data-incident-transcript="true"
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto"
+      >
         {isLoading ? (
           <div className="space-y-3" aria-label={t("loadingActivity")}>
             {[0, 1, 2].map((item) => (
@@ -366,14 +452,15 @@ export function IncidentActivity({
             <p className="text-muted mt-1 text-xs">{t("noActivityDescription")}</p>
           </div>
         ) : (
-          <ol className="before:bg-border relative space-y-0 before:absolute before:top-3 before:bottom-3 before:left-3.5 before:w-px">
-            {data.map((item) =>
+          <ol className="relative">
+            {items.map((item, index) =>
               item.type === "system_event" ? (
                 <SystemEventItem key={item.id} item={item} />
               ) : (
                 <HumanNoteItem
                   key={item.entry_id}
                   availableReactions={availableReactions}
+                  continuesAbove={grouping[index].continuesAbove}
                   incidentId={incidentId}
                   item={item}
                 />
@@ -383,12 +470,7 @@ export function IncidentActivity({
         )}
       </div>
 
-      {/*
-       * Anchored below the transcript rather than above it. A composer at the
-       * top reads as "post an update"; at the bottom, after what has already
-       * been said, it reads as answering — the difference between a feed and a
-       * room.
-       */}
+      {/* A bottom-anchored composer makes the timeline read as a conversation. */}
       {canCompose ? (
         <div data-incident-composer="true" className="shrink-0">
           <ActivityComposer incidentId={incidentId} people={people} />

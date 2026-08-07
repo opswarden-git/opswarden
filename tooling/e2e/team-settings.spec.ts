@@ -25,14 +25,13 @@ test.describe("Progressive Team Settings (L13)", () => {
     const ownershipBtn = page.getByRole("button", { name: /Ownership/ });
     await expect(ownershipBtn).toBeVisible();
     await expect(ownershipBtn).toHaveAttribute("aria-expanded", "false");
-    // The member picker is the only select on the page, so it stands in for the
-    // disclosure body without depending on label copy.
-    await expect(page.getByRole("combobox")).toBeHidden();
+    const memberPicker = page.getByLabel("Select a member…");
+    await expect(memberPicker).toBeHidden();
 
     // Toggle Ownership Transfer open
     await ownershipBtn.click();
     await expect(ownershipBtn).toHaveAttribute("aria-expanded", "true");
-    await expect(page.getByRole("combobox")).toBeVisible();
+    await expect(memberPicker).toBeVisible();
 
     // Banned Members section is collapsible and closed by default
     const bansBtn = page.getByRole("button", { name: /Banned members/ });

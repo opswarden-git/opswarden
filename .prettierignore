@@ -6,3 +6,6 @@ Cargo.lock
 package-lock.json
 flake.lock
 .sqlx
+
+# Vendored reference implementations are read for patterns, never reformatted.
+references

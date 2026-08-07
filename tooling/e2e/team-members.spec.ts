@@ -20,7 +20,7 @@ test.describe("Team roster and members", () => {
       await page.goto(membersUrl);
 
       // Wait for members list to load
-      await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
 
       // Ensure the search box exists
       await expect(page.getByPlaceholder("Search members by email or role")).toBeVisible();
@@ -46,7 +46,7 @@ test.describe("Team roster and members", () => {
     await login(page, "responder@opswarden.local");
     await page.goto(membersUrl);
 
-    await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
 
     const managerRow = page.locator("li").filter({ hasText: "manager@opswarden.local" });
     await expect(managerRow).toBeVisible();
@@ -64,7 +64,7 @@ test.describe("Team roster and members", () => {
     await login(page, "observer@opswarden.local");
     await page.goto(membersUrl);
 
-    await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
 
     const responderRow = page.locator("li").filter({ hasText: "responder@opswarden.local" });
     await expect(responderRow).toBeVisible();

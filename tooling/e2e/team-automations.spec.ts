@@ -49,7 +49,7 @@ test.describe("Team automations", () => {
       try {
         await page.goto(automationsUrl);
 
-        await expect(page.getByRole("heading", { name: "Automations" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Automations", level: 1 })).toBeVisible();
         await expect(page.getByRole("heading", { name: "No automation rules" })).toBeVisible();
 
         await page

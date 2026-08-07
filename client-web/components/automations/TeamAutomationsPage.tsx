@@ -7,9 +7,9 @@ import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { PageTabs } from "@/components/layout/PageTabs";
-import { TeamHeader } from "@/components/teams/TeamHeader";
 import { automationView } from "@/lib/automation-routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import {
@@ -69,7 +69,17 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
 
   return (
     <PageLayout>
-      {team ? <TeamHeader team={team} /> : null}
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        actions={
+          view === "rules" && canManage ? (
+            <Button variant="primary" onClick={() => setIsCreatingRule(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
+            </Button>
+          ) : undefined
+        }
+      />
       <PageContent
         state={state}
         loadingFallback={<AutomationLoading />}
@@ -81,17 +91,6 @@ export function TeamAutomationsPage({ teamId }: { teamId: string }) {
           </Alert>
         ) : team && canManage ? (
           <div className="space-y-6">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-text text-xl font-semibold">{t("title")}</h2>
-                <p className="text-muted mt-1 max-w-3xl text-sm">{t("description")}</p>
-              </div>
-              {view === "rules" && canManage ? (
-                <Button variant="primary" onClick={() => setIsCreatingRule(true)}>
-                  <Plus className="h-4 w-4" aria-hidden="true" /> {t("newRule")}
-                </Button>
-              ) : null}
-            </header>
             <PageTabs
               ariaLabel={t("viewsLabel")}
               tabs={[

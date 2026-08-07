@@ -1,4 +1,12 @@
-import { Rocket, Settings, ShieldAlert, Users } from "lucide-react";
+import {
+  Activity,
+  LayoutDashboard,
+  Rocket,
+  Settings,
+  ShieldAlert,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
 import { parseTeamPath, teamPath, type TeamSection } from "@/lib/team-routing";
 
 type NavigationItem = {
@@ -21,39 +29,114 @@ export function isNavigationItemActive(pathname: string, item: NavigationItem) {
   return activePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-export function primaryNavigationItems(teamId?: string) {
-  const teamItems = teamId
-    ? [
-        {
-          href: teamPath(teamId, "incidents"),
-          icon: ShieldAlert,
-          labelKey: "incidents" as const,
-          activeSections: ["incidents"] satisfies readonly TeamSection[],
-        },
-        {
-          href: teamPath(teamId, "releases"),
-          icon: Rocket,
-          labelKey: "releases" as const,
-          activeSections: ["releases"] satisfies readonly TeamSection[],
-        },
-      ]
-    : [];
+export type NavigationLeaf = NavigationItem & {
+  icon: typeof ShieldAlert;
+  labelKey: string;
+  /** Which Team counter to show beside the label, when it is non-zero. */
+  countKey?: "active_incident_count" | "active_release_count" | "member_count";
+};
+
+export type NavigationNode =
+  | ({ kind: "leaf" } & NavigationLeaf)
+  | {
+      kind: "branch";
+      labelKey: string;
+      icon: typeof ShieldAlert;
+      children: NavigationLeaf[];
+    };
+
+/**
+ * One tree, shaped the way the incident-response tools shape theirs.
+ *
+ * IRIS puts `Dashboard` and `Overview` flat and above every section, then
+ * groups administration under `Manage`. TheHive keeps `My tasks`, `Alerts`,
+ * `Dashboards` and `Search` flat, and folds Organisations, Profiles, Custom
+ * fields and Taxonomies under `Admin`. Both draw the same line: what you do
+ * during a shift is never nested, what you configure between shifts always is.
+ *
+ * So the landing page sits above the branch rather than inside it, and the
+ * branch is named after the action it covers rather than after a container.
+ * The Team sections used to be folded behind one entry and re-exposed as a tab
+ * strip inside the page, which meant the sidebar said where you were and the
+ * tabs said something else. A branch that opens in place says both at once.
+ */
+/** Activity is Manager-only because the API that lists automation runs is too. */
+export function navigationTree(teamId?: string, canViewActivity = false): NavigationNode[] {
+  if (!teamId) {
+    return [
+      { kind: "leaf", href: "/teams", icon: Users, labelKey: "teams", activePaths: ["/teams"] },
+    ];
+  }
 
   return [
-    ...teamItems,
     {
-      href: teamId ? teamPath(teamId, "overview") : "/teams",
-      icon: Users,
-      labelKey: "teams" as const,
-      activeSections: [
-        "overview",
-        "members",
-        "automations",
-        "settings",
-      ] satisfies readonly TeamSection[],
-      activePaths: ["/teams"],
+      kind: "leaf",
+      href: teamPath(teamId, "overview"),
+      icon: LayoutDashboard,
+      labelKey: "overview",
+      activeSections: ["overview"] satisfies readonly TeamSection[],
+    },
+    {
+      kind: "leaf",
+      href: teamPath(teamId, "incidents"),
+      icon: ShieldAlert,
+      labelKey: "incidents",
+      countKey: "active_incident_count",
+      activeSections: ["incidents"] satisfies readonly TeamSection[],
+    },
+    {
+      kind: "leaf",
+      href: teamPath(teamId, "releases"),
+      icon: Rocket,
+      labelKey: "releases",
+      countKey: "active_release_count",
+      activeSections: ["releases"] satisfies readonly TeamSection[],
+    },
+    ...(canViewActivity
+      ? [
+          {
+            kind: "leaf" as const,
+            href: teamPath(teamId, "activity"),
+            icon: Activity,
+            labelKey: "activity",
+            activeSections: ["activity"] satisfies readonly TeamSection[],
+          },
+        ]
+      : []),
+    {
+      kind: "branch",
+      labelKey: "manage",
+      icon: SlidersHorizontal,
+      children: [
+        {
+          href: teamPath(teamId, "members"),
+          icon: Users,
+          labelKey: "members",
+          countKey: "member_count",
+          activeSections: ["members"] satisfies readonly TeamSection[],
+        },
+        {
+          href: teamPath(teamId, "automations"),
+          icon: SlidersHorizontal,
+          labelKey: "automations",
+          activeSections: ["automations"] satisfies readonly TeamSection[],
+        },
+        {
+          href: teamPath(teamId, "settings"),
+          icon: Settings,
+          labelKey: "teamSettings",
+          activeSections: ["settings"] satisfies readonly TeamSection[],
+        },
+      ],
     },
   ];
+}
+
+/** Flat view of the same destinations, for surfaces that cannot nest. */
+export function primaryNavigationItems(teamId?: string, canViewActivity = false): NavigationLeaf[] {
+  return navigationTree(teamId, canViewActivity).flatMap((node) =>
+    node.kind === "branch" ? node.children : [node],
+  );
 }
 
 export const settingsNavigationItem = {

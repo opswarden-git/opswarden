@@ -63,7 +63,7 @@ test("Manager creates a Team through the shared footer", async ({ page }) => {
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link").filter({ hasText: name })).toBeVisible();
 });
 
 test("Responder joins a Team with a real invitation code", async ({ page, request }) => {
@@ -78,7 +78,9 @@ test("Responder joins a Team with a real invitation code", async ({ page, reques
   await dialog.getByRole("button", { name: "Join", exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(team.name, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByRole("link").filter({ hasText: team.name }),
+  ).toBeVisible();
 });
 
 test("Join Team announces errors and clears them on a new open", async ({ page }) => {
