@@ -103,14 +103,7 @@ function NoteReactions({
 }) {
   const toggle = useToggleTimelineReaction();
 
-  /*
-   * Only reactions somebody actually left. The palette used to be permanent:
-   * six buttons under every message, so eight entries carried forty-eight
-   * controls that said nothing about the incident. Mattermost keeps a single
-   * "Add Reaction" in the hover menu (`post_reaction.tsx`) and lets the counted
-   * pills be the only thing that persists, because they are the only thing
-   * that carries information.
-   */
+  // Persist only counted reactions; the hover menu owns the complete palette.
   const present = reactions.filter((reaction) => reaction.count > 0);
   const missing = available.filter((emoji) => !present.some((r) => r.emoji === emoji));
 
@@ -182,13 +175,6 @@ function HumanNoteItem({
   };
 
   return (
-    /*
-     * A flat row with a hanging avatar, not a bordered card. Three stacked
-     * boxes with their own padding read as a form; a conversation is a column
-     * of speech against one gutter. It is also what makes the consecutive
-     * grouping visible at all — a run of messages can only look like one turn
-     * if nothing draws a box around each of them.
-     */
     <li
       data-note-continues-above={continuesAbove ? "true" : undefined}
       className={cn(
@@ -217,12 +203,7 @@ function HumanNoteItem({
         )}
       </div>
 
-      {/*
-       * Out of the flow, like Mattermost's post menu. Inside the header row it
-       * reserved a line on every continuation message, so a run of three notes
-       * came apart into three blocks separated by empty space — the opposite of
-       * what the grouping is for.
-       */}
+      {/* Floating keeps the post menu from breaking consecutive-message spacing. */}
       {editing ? null : (
         <div className="bg-panel border-border absolute top-0 right-2 flex items-center gap-0.5 rounded-md border p-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <IconButton
@@ -419,13 +400,7 @@ export function IncidentActivity({
   const { data: availableReactions = [] } = useAvailableReactions();
   const transcriptRef = React.useRef<HTMLDivElement>(null);
 
-  /*
-   * Oldest first, newest at the bottom, next to the composer.
-   *
-   * The API answers newest-first, which is a feed convention: you wrote at the
-   * bottom and your message appeared at the top. Reversing it here is a
-   * presentation decision and leaves the contract alone.
-   */
+  // The API is newest-first; a conversation reads oldest-first toward its composer.
   const items = React.useMemo(
     () =>
       [...data].sort(
@@ -456,11 +431,7 @@ export function IncidentActivity({
         </h2>
       </div>
 
-      {/*
-       * Only the transcript scrolls. The heading above and the composer below
-       * stay put, which is what separates a room from a record: you can read
-       * back through an incident without losing the way to answer it.
-       */}
+      {/* Keep the heading and composer fixed while the transcript scrolls. */}
       <div
         ref={transcriptRef}
         data-incident-transcript="true"
@@ -499,12 +470,7 @@ export function IncidentActivity({
         )}
       </div>
 
-      {/*
-       * Anchored below the transcript rather than above it. A composer at the
-       * top reads as "post an update"; at the bottom, after what has already
-       * been said, it reads as answering — the difference between a feed and a
-       * room.
-       */}
+      {/* A bottom-anchored composer makes the timeline read as a conversation. */}
       {canCompose ? (
         <div data-incident-composer="true" className="shrink-0">
           <ActivityComposer incidentId={incidentId} people={people} />
