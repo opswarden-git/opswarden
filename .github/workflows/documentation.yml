@@ -1,6 +1,6 @@
 ---
-name: Pages
-run-name: "Pages · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }} · ${{ github.sha }}"
+name: Check documentation
+run-name: "Check documentation for ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
 
 "on":
   push:
@@ -11,7 +11,7 @@ run-name: "Pages · ${{ github.event.pull_request.number && format('PR #{0}', gi
       - UI_GUIDELINES.md
       - HOWTOCONTRIBUTE.md
       - WEBSOCKET_SPEC.md
-      - .github/workflows/pages.yml
+      - .github/workflows/documentation.yml
   pull_request:
     branches: [main]
     paths:
@@ -20,7 +20,7 @@ run-name: "Pages · ${{ github.event.pull_request.number && format('PR #{0}', gi
       - UI_GUIDELINES.md
       - HOWTOCONTRIBUTE.md
       - WEBSOCKET_SPEC.md
-      - .github/workflows/pages.yml
+      - .github/workflows/documentation.yml
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   health:
-    name: Pages · Live health
+    name: Check documentation links and live site
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
