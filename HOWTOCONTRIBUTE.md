@@ -231,16 +231,32 @@ After any of these extensions, run the focused tests while you work, then run:
 
 ```bash
 just ci
-npm run test:coverage --workspace client-web
 ```
 
 ## Checks Before a PR
 
-Run the full local CI mirror when the change touches backend or shared tooling:
+`just ci` mirrors the GitHub gate: one recipe per job, named after it. Run it
+whatever the change touches.
 
 ```bash
 just ci
 ```
+
+It needs the stack up (`just up`) for the backend and browser jobs, and the
+tooling from `nix develop` — a recipe whose tool is missing **fails** rather
+than skipping, so a green run always means every check actually ran.
+
+| Recipe                    | GitHub job                   |
+| ------------------------- | ---------------------------- |
+| `just ci-workflow`        | Workflow · Validate          |
+| `just ci-backend-quality` | Backend · Quality & security |
+| `just ci-backend-test`    | Backend · Build & test       |
+| `just ci-web`             | Web · Quality & test         |
+| `just ci-web-build`       | Web · Build                  |
+| `just ci-e2e`             | E2E · Browser suite          |
+
+`just ci-full` adds the two slow jobs, `Backend · Coverage` and
+`Desktop (Linux) · Package`.
 
 Useful focused checks:
 

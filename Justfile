@@ -224,23 +224,129 @@ health:
     @echo "Report written to tooling/health_report.md"
 
 # ----- CI locale (miroir de .github/workflows/ci.yml) -----
+#
+# Une recette par job du gate, portant son nom, pour que la correspondance se
+# lise sans ouvrir le workflow. Aucune ne masque un échec : pas de `|| true`.
+#
+# Un outil absent fait ÉCHOUER la recette au lieu de la sauter. Trois gates ont
+# déjà rapporté un succès sans rien exécuter parce que `rg` manquait sur le
+# runner ; un contrôle qui ne tourne pas ne doit jamais passer pour vert.
+# `nix develop` fournit l'ensemble de la boîte à outils.
 
-# job "checks" : fmt + clippy (--all-features) + supply-chain, STRICT comme la CI
-# (pas de `|| true` : un échec ici = un échec en CI).
-ci-checks:
+# Vérifie la présence des outils, sinon échoue en disant lesquels.
+_require +tools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    missing=()
+    for tool in {{ tools }}; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+    if [ ${#missing[@]} -gt 0 ]; then
+      echo "outils manquants : ${missing[*]}" >&2
+      echo "entre dans le shell de dev : nix develop" >&2
+      exit 1
+    fi
+
+# Base de comparaison des gates incrémentaux, comme BASE_SHA en CI.
+_base:
+    @git merge-base HEAD origin/main 2>/dev/null || git rev-parse HEAD~1
+
+# job "Workflow · Validate"
+ci-workflow: (_require "actionlint" "zizmor" "shellcheck" "git" "docker")
+    actionlint -color
+    zizmor .github/workflows
+    find tooling -type f -name '*.sh' -print0 | xargs -0 shellcheck
+    ./tooling/check_source_hygiene.sh "$(just _base)"
+    ./tooling/check_migration_policy.sh "$(just _base)"
+    ./tooling/check_dockerfile_pins.sh
+    docker compose config --quiet
+    ./tooling/verify_release_version.sh
+
+# job "Backend · Quality & security"
+ci-backend-quality: (_require "cargo")
     cargo fmt --all --check
     cargo clippy --workspace --all-targets --all-features -- -D warnings
     cargo audit
+    cargo audit --file client-desktop/src-tauri/Cargo.lock
     cargo deny check --config tooling/deny.toml
 
-# job "build-test" : build offline (valide que le cache .sqlx colle au code) puis
-# migrations + tests sur la vraie DB. Prérequis : la DB compose tourne (`just up`).
-# Le build offline reproduit la CI (SQLX_OFFLINE) et attrape un cache .sqlx périmé
-# AVANT le push -- sinon `cargo sqlx prepare` a été oublié et la CI casse.
-ci-build-test:
+# Le build offline reproduit la CI (SQLX_OFFLINE) et attrape un cache .sqlx
+# périmé AVANT le push -- sinon `cargo sqlx prepare` a été oublié et la CI casse.
+# Prérequis : la DB compose tourne (`just up`).
+# job "Backend · Build & test"
+ci-backend-test: (_require "cargo" "sqlx")
     SQLX_OFFLINE=true cargo build --workspace
     cd server && sqlx migrate run
     cargo test --workspace
 
-# pipeline complète : ce que GitHub exécutera sur la PR. À lancer avant chaque push.
-ci: ci-checks ci-build-test
+# Lent : hors de `just ci`, présent dans `just ci-full`.
+# job "Backend · Coverage"
+ci-backend-coverage: (_require "cargo")
+    cargo tarpaulin --config tooling/tarpaulin.toml
+    ./tooling/summarize_source_coverage.sh
+
+# job "Web · Quality & test"
+ci-web: (_require "npm")
+    npm run lint --workspace client-web
+    npm run format:check --workspace client-web
+    npm run typecheck --workspace client-web
+    npm run test:coverage --workspace client-web
+    ./tooling/audit_npm.sh
+
+# job "Web · Build"
+ci-web-build: (_require "npm")
+    npm run build --workspace client-web
+
+# Tous les fichiers de specs, comme la CI depuis #159. Prérequis : la pile
+# tourne (`just up`) ; la recette attend qu'elle réponde avant de lancer.
+# job "E2E · Browser suite"
+ci-e2e: (_require "npm" "curl")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    probes=(
+      "server|http://localhost:8080/health"
+      "client_web|http://localhost:8081/en"
+      "alertmanager|http://localhost:9093/-/ready"
+    )
+    down=()
+    for _ in $(seq 1 60); do
+      down=()
+      for probe in "${probes[@]}"; do
+        curl --fail --silent --output /dev/null "${probe#*|}" || down+=("${probe%%|*}")
+      done
+      if [ ${#down[@]} -eq 0 ]; then
+        npm run test:e2e
+        exit 0
+      fi
+      sleep 2
+    done
+    # Name the service rather than the stack. `docker compose up -d client_web`
+    # does not pull alertmanager along, so it is the one that quietly drops out
+    # and the failure would otherwise surface minutes later as "stack down".
+    echo "service(s) injoignable(s) : ${down[*]}" >&2
+    echo "lance 'just up' (qui amorce aussi la config alertmanager)" >&2
+    exit 1
+
+# Lent, et il lui faut le shell WebKit/GTK : `nix develop .#tauri`, pas le shell
+# par défaut. La bibliothèque manquante n'est pas une commande, donc `_require`
+# ne la verrait pas : on la sonde explicitement, sinon l'échec surgit au fond de
+# pkg-config une fois le build lancé.
+# job "Desktop (Linux) · Package"
+ci-desktop: (_require "npm" "cargo" "pkg-config")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkg-config --exists webkit2gtk-4.1 || {
+      echo "webkit2gtk-4.1 introuvable" >&2
+      echo "entre dans le shell desktop : nix develop .#tauri" >&2
+      exit 1
+    }
+    ./tooling/verify_desktop_asset_pins.sh
+    npm run build --workspace client-desktop -- --bundles deb
+
+# Ce que GitHub exécutera sur la PR, à la couverture et au paquet desktop près
+# -- ces deux-là sont dans `ci-full`.
+# Le gate, en local. À lancer avant chaque push.
+ci: ci-workflow ci-backend-quality ci-backend-test ci-web ci-web-build ci-e2e
+
+# `ci-desktop` exige `nix develop .#tauri` ; depuis le shell par défaut, lance
+# `just ci ci-backend-coverage` puis le paquet à part.
+# Le gate au complet, couverture et paquet desktop inclus.
+ci-full: ci ci-backend-coverage ci-desktop

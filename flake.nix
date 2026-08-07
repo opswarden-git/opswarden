@@ -62,6 +62,12 @@
             tokei
             eza
             just
+
+            # Workflow & shell linting, so `just ci` can reproduce the
+            # "Workflow · Validate" job without reaching for GitHub.
+            actionlint
+            zizmor
+            shellcheck
           ];
 
           shellHook = ''
