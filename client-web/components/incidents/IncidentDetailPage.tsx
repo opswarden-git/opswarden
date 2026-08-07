@@ -24,6 +24,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
 
 import { formatRelativeAge } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
+import { useIncidentContextStore } from "@/store/incident-context";
 
 function IncidentBreadcrumb({
   currentHref,
@@ -84,6 +86,9 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const watch = useWsStore((state) => state.watch);
   const unwatch = useWsStore((state) => state.unwatch);
   const watchers = useWatchers(incidentId);
+  const userId = useAuthStore((state) => state.user?.id);
+  const activateIncident = useIncidentContextStore((state) => state.activate);
+  const clearIfActive = useIncidentContextStore((state) => state.clearIfActive);
 
   React.useEffect(() => {
     watch(incidentId);
@@ -94,6 +99,11 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     if (!incident || teamId === incident.team_id) return;
     router.replace(teamPath(incident.team_id, "incidents", incident.id));
   }, [incident, router, teamId]);
+
+  React.useEffect(() => {
+    if (!incident || !userId) return;
+    activateIncident({ incidentId: incident.id, teamId: incident.team_id, ownerId: userId });
+  }, [activateIncident, incident, userId]);
 
   const incidentsHref = teamPath(incident?.team_id ?? teamId, "incidents");
 
@@ -169,7 +179,10 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
 
   const deleteCurrentIncident = () =>
     deleteIncident.mutate(incident.id, {
-      onSuccess: () => router.push(teamPath(incident.team_id, "incidents")),
+      onSuccess: () => {
+        clearIfActive(incident.id);
+        router.push(teamPath(incident.team_id, "incidents"));
+      },
     });
 
   return (

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AppLocale } from "@/i18n/locales";
+import { useIncidentContextStore } from "@/store/incident-context";
 
 export interface User {
   id: string;
@@ -30,9 +31,12 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setHasHydrated: (state) => set({ hasHydrated: state }),
 
-      // Robust logout: simply reset the local state.
+      // Robust logout: reset authentication and operator-scoped navigation context.
       // The actual network call to invalidate the token is handled elsewhere.
-      logout: () => set({ token: null, user: null }),
+      logout: () => {
+        useIncidentContextStore.getState().clear();
+        set({ token: null, user: null });
+      },
     }),
     {
       name: "opswarden-auth-storage",

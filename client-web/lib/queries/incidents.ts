@@ -166,15 +166,17 @@ export function useIncidents(teamId?: string) {
   });
 }
 
-export function useIncident(id: string) {
+export function useIncident(id: string | undefined) {
   return useQuery<Incident>({
     queryKey: ["incident", id],
     queryFn: async () => {
+      if (!id) throw new Error("incident_id_missing");
       const res = await apiFetch(`/api/incidents/${id}`);
       if (!res.ok) throw new Error("incident_load_failed");
       const incident = (await res.json()) as IncidentViewResponse;
       return normalizeIncident(incident);
     },
+    enabled: !!id,
   });
 }
 

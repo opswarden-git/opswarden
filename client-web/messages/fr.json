@@ -509,7 +509,7 @@
     "shortId": "ID : {id}",
     "typingOne": "{user} est en train d'écrire…",
     "typingMany": "{count} opérateurs sont en train d'écrire…",
-    "failedToLoadIncident": "Échec du chargement de l'incident.",
+    "failedToLoadIncident": "Incident indisponible.",
     "unassigned": "Non assigné",
     "commandActions": "Actions",
     "assignResponder": "Assigner un intervenant…",
@@ -571,7 +571,9 @@
     "watchersTitle": "En observation maintenant",
     "noWatchers": "Personne d’autre n’observe cet incident.",
     "deleteConfirmationInput": "Saisissez DELETE pour confirmer",
-    "addReaction": "Ajouter une réaction"
+    "addReaction": "Ajouter une réaction",
+    "activeIncidentContext": "Incident actif",
+    "exitIncidentContext": "Quitter"
   },
   "DirectMessages": {
     "title": "Message privé",

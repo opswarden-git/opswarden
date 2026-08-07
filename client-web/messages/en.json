@@ -509,7 +509,7 @@
     "shortId": "ID: {id}",
     "typingOne": "{user} is typing…",
     "typingMany": "{count} operators are typing…",
-    "failedToLoadIncident": "Failed to load incident details.",
+    "failedToLoadIncident": "Incident unavailable.",
     "unassigned": "Unassigned",
     "commandActions": "Command Actions",
     "assignResponder": "Assign responder…",
@@ -571,7 +571,9 @@
     "watchersTitle": "Watching now",
     "noWatchers": "No one else is watching this incident.",
     "deleteConfirmationInput": "Type DELETE to confirm",
-    "addReaction": "Add reaction"
+    "addReaction": "Add reaction",
+    "activeIncidentContext": "Active incident",
+    "exitIncidentContext": "Exit"
   },
   "DirectMessages": {
     "title": "Direct message",

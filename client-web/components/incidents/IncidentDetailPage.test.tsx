@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWsStore } from "@/lib/ws";
+import { useAuthStore } from "@/store/auth";
+import { useIncidentContextStore } from "@/store/incident-context";
 import { IncidentDetailPage } from "./IncidentDetailPage";
 
 const push = vi.fn();
@@ -107,6 +109,15 @@ vi.mock("@/lib/queries/releases", () => ({
   }),
 }));
 
+beforeEach(() => {
+  useAuthStore.setState({
+    token: "token",
+    user: { id: "manager-1", email: "manager@example.com", locale: "en" },
+    hasHydrated: true,
+  });
+  useIncidentContextStore.setState({ activeIncident: null, hasHydrated: true });
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -116,6 +127,7 @@ afterEach(() => {
     activeWatches: [],
     sendJson: () => {},
   });
+  useIncidentContextStore.getState().clear();
 });
 
 describe("IncidentDetailPage", () => {
@@ -123,6 +135,11 @@ describe("IncidentDetailPage", () => {
     render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
 
     expect(screen.getByRole("heading", { name: "Database outage" })).toBeInTheDocument();
+    expect(useIncidentContextStore.getState().activeIncident).toEqual({
+      incidentId: incident.id,
+      teamId: incident.team_id,
+      ownerId: "manager-1",
+    });
     expect(screen.getAllByText("responder@example.com").length).toBeGreaterThan(1);
     expect(screen.getByText("Production deploy")).toBeInTheDocument();
     expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);

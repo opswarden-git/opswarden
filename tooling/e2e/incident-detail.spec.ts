@@ -17,6 +17,30 @@ async function login(page: Page, email: string) {
 }
 
 test.describe("Incident detail", () => {
+  test("active incident context survives navigation and exits explicitly", async ({ page }) => {
+    await login(page, "manager@opswarden.local");
+    await page.goto(incidentUrl(LINKED_INCIDENT_ID));
+
+    const context = page.getByRole("region", { name: "Active incident" });
+    await expect(context).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: /^Releases(?: \d+)?$/ })
+      .click();
+
+    await expect(page).toHaveURL(new RegExp(`/teams/${TEAM_ID}/releases$`));
+    await expect(context).toBeVisible();
+    await expect(context.getByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      new RegExp(`/teams/${TEAM_ID}/incidents/${LINKED_INCIDENT_ID}$`),
+    );
+
+    await page.reload();
+    await expect(context).toBeVisible();
+    await context.getByRole("button", { name: "Exit" }).click();
+    await expect(context).toHaveCount(0);
+  });
+
   test("Responder can acknowledge and write an operational note", async ({ page }) => {
     await login(page, "responder@opswarden.local");
     await page.goto(incidentUrl(OPEN_INCIDENT_ID));

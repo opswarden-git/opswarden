@@ -172,12 +172,19 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
 
     for (const route of routes) {
       await test.step(`${route.name} at ${viewportWidth}px`, async () => {
+        await page.evaluate(() => localStorage.removeItem("opswarden-incident-context"));
         await page.goto(route.path);
 
         const layout = page.locator('[data-page-layout="true"]');
         const heading = layout.getByRole("heading", { level: 1 });
+        const activeIncidentContext = page.locator('[data-active-incident-context="true"]');
         await expect(layout).toHaveAttribute("data-page-width", route.width);
         await expect(heading).toBeVisible();
+        let activeIncidentContextHeight = 0;
+        if (route.name === "incident detail") {
+          await expect(activeIncidentContext).toBeVisible();
+          activeIncidentContextHeight = (await activeIncidentContext.boundingBox())?.height ?? 0;
+        }
         if (route.hasContext) {
           await expect(layout.getByText("OpsWarden Demo", { exact: true }).first()).toBeVisible();
         }
@@ -191,7 +198,8 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
         const expectedHeadingY =
           (viewportWidth < 768 ? 88 : 32) +
           (route.kind === "detail" ? 44 : 0) +
-          (route.hasContext ? 24 : 0);
+          (route.hasContext ? 24 : 0) +
+          activeIncidentContextHeight;
         expect(
           Math.round(headingBox!.x - layoutBox!.x),
           `${route.name} horizontal heading offset at ${viewportWidth}px`,
