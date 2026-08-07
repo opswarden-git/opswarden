@@ -1,6 +1,6 @@
 ---
-name: Release
-run-name: "Release · ${{ github.ref_name }}"
+name: Publish release
+run-name: "Publish ${{ github.ref_name }}"
 
 "on":
   push:
@@ -19,7 +19,7 @@ env:
 
 jobs:
   release-gate:
-    name: Release · Quality gate
+    name: Validate release
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -93,7 +93,7 @@ jobs:
           npm run build --workspace client-web
 
   release-e2e:
-    name: Release · E2E browser suite
+    name: Run release browser tests
     needs: release-gate
     runs-on: ubuntu-latest
     env:
@@ -150,7 +150,7 @@ jobs:
         run: docker compose down --volumes
 
   desktop-packages:
-    name: Desktop (${{ matrix.platform }}) · Package
+    name: Package desktop app for ${{ matrix.platform }}
     needs: release-gate
     strategy:
       fail-fast: false
@@ -208,7 +208,7 @@ jobs:
           if-no-files-found: error
 
   docker-image:
-    name: Server image · Build, push & attest
+    name: Build and attest server image
     needs: release-gate
     runs-on: ubuntu-latest
     permissions:
@@ -265,7 +265,7 @@ jobs:
   web-image:
     # Optional self-hosted artifact. The nominal public client is deployed from
     # client-web on Vercel; this image remains available for local/Kubernetes use.
-    name: Self-hosted web image · Build, push & attest
+    name: Build and attest self-hosted web image
     needs: release-gate
     runs-on: ubuntu-latest
     permissions:
@@ -320,7 +320,7 @@ jobs:
           push-to-registry: true
 
   publish:
-    name: Release · Publish artifacts
+    name: Publish release artifacts
     needs: [release-gate, release-e2e, desktop-packages, docker-image, web-image]
     runs-on: ubuntu-latest
     permissions:

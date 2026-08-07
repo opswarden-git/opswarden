@@ -1,6 +1,6 @@
 ---
-name: CI
-run-name: "CI · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }} · ${{ github.sha }}"
+name: Validate application
+run-name: "Check application for ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
 
 "on":
   push:
@@ -22,7 +22,7 @@ env:
 
 jobs:
   workflow-quality:
-    name: Workflow · Validate
+    name: Validate workflows and policies
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -71,7 +71,7 @@ jobs:
         run: ./tooling/verify_release_version.sh
 
   changes:
-    name: Changes · Detect
+    name: Detect affected components
     runs-on: ubuntu-latest
     outputs:
       server: ${{ steps.filter.outputs.server }}
@@ -129,7 +129,7 @@ jobs:
               - '.github/workflows/**'
 
   backend-quality:
-    name: Backend · Quality & security
+    name: Check backend quality and security
     needs: [workflow-quality, changes]
     if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -167,7 +167,7 @@ jobs:
         run: cargo deny check --config tooling/deny.toml
 
   backend-test:
-    name: Backend · Build & test
+    name: Build and test backend
     needs: [workflow-quality, changes, backend-quality]
     if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -212,7 +212,7 @@ jobs:
         run: ./tooling/summarize_rust_tests.sh
 
   backend-coverage:
-    name: Backend · Coverage
+    name: Measure backend coverage
     needs: [changes, backend-test]
     if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -255,7 +255,7 @@ jobs:
         run: |
           summary=target/tarpaulin/source-only-summary.json
           {
-            echo '## Backend · Coverage'
+            echo '## Backend coverage'
             echo
             echo '| Metric | Result |'
             echo '| --- | ---: |'
@@ -271,7 +271,7 @@ jobs:
           if-no-files-found: error
 
   web-quality:
-    name: Web · Quality & test
+    name: Check web client quality
     needs: [workflow-quality, changes]
     if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -309,7 +309,7 @@ jobs:
           if-no-files-found: error
 
   web-build:
-    name: Web · Build
+    name: Build web client
     needs: [workflow-quality, changes, web-quality]
     if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -329,7 +329,7 @@ jobs:
         run: npm run build --workspace client-web
 
   desktop-linux-package:
-    name: Desktop (Linux) · Package
+    name: Package desktop app for Linux
     needs: [workflow-quality, changes]
     if: needs.changes.outputs.desktop == 'true' || github.event_name == 'push'
     runs-on: ubuntu-22.04
@@ -370,7 +370,7 @@ jobs:
           if-no-files-found: error
 
   e2e-critical-path:
-    name: E2E · Browser suite
+    name: Run browser acceptance tests
     needs: [workflow-quality, changes, backend-test, web-build]
     if: >-
       always()
@@ -436,7 +436,7 @@ jobs:
         run: docker compose down --volumes
 
   required:
-    name: CI · Required gate
+    name: Application validation
     needs:
       - workflow-quality
       - changes

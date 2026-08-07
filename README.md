@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden-ops/heroicon.png" alt="OpsWarden" width="120" />
   <h1>OpsWarden</h1>
   <p>
-    <a href="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/opswarden-git/opswarden/actions/workflows/validate.yml"><img src="https://github.com/opswarden-git/opswarden/actions/workflows/validate.yml/badge.svg?label=CI" alt="CI" /></a>
     <img src="https://img.shields.io/github/v/release/opswarden-git/opswarden?style=flat" alt="Release" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=flat" alt="License: Apache 2.0" /></a>
     <img src="https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white" alt="Rust" />
