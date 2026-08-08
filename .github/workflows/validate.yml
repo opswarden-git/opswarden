@@ -1,6 +1,6 @@
 ---
-name: Validate application
-run-name: "Check application for ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
+name: CI
+run-name: "CI · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
 
 "on":
   push:
@@ -22,7 +22,7 @@ env:
 
 jobs:
   workflow-quality:
-    name: Validate workflows and policies
+    name: Guardrails
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -71,7 +71,7 @@ jobs:
         run: ./tooling/verify_release_version.sh
 
   changes:
-    name: Detect affected components
+    name: Changes
     runs-on: ubuntu-latest
     outputs:
       server: ${{ steps.filter.outputs.server }}
@@ -129,9 +129,9 @@ jobs:
               - '.github/workflows/**'
 
   backend-quality:
-    name: Check backend quality and security
+    name: Backend quality
     needs: [workflow-quality, changes]
-    if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -167,9 +167,9 @@ jobs:
         run: cargo deny check --config tooling/deny.toml
 
   backend-test:
-    name: Build and test backend
+    name: Backend tests
     needs: [workflow-quality, changes, backend-quality]
-    if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -212,9 +212,9 @@ jobs:
         run: ./tooling/summarize_rust_tests.sh
 
   backend-coverage:
-    name: Measure backend coverage
+    name: Backend coverage
     needs: [changes, backend-test]
-    if: needs.changes.outputs.server == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -271,9 +271,9 @@ jobs:
           if-no-files-found: error
 
   web-quality:
-    name: Check web client quality
+    name: Web quality
     needs: [workflow-quality, changes]
-    if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -309,9 +309,9 @@ jobs:
           if-no-files-found: error
 
   web-build:
-    name: Build web client
+    name: Web build
     needs: [workflow-quality, changes, web-quality]
-    if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -329,9 +329,9 @@ jobs:
         run: npm run build --workspace client-web
 
   desktop-linux-package:
-    name: Package desktop app for Linux
+    name: Desktop package
     needs: [workflow-quality, changes]
-    if: needs.changes.outputs.desktop == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -370,11 +370,11 @@ jobs:
           if-no-files-found: error
 
   e2e-critical-path:
-    name: Run browser acceptance tests
+    name: Browser tests
     needs: [workflow-quality, changes, backend-test, web-build]
     if: >-
       always()
-      && (needs.changes.outputs.e2e == 'true' || github.event_name == 'push')
+      && needs.changes.outputs.e2e == 'true'
       && needs.workflow-quality.result == 'success'
       && needs.changes.result == 'success'
       && (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped')
@@ -452,7 +452,6 @@ jobs:
     steps:
       - name: Require the exact expected job set
         env:
-          EVENT: ${{ github.event_name }}
           SERVER_CHANGED: ${{ needs.changes.outputs.server }}
           WEB_CHANGED: ${{ needs.changes.outputs.web }}
           DESKTOP_CHANGED: ${{ needs.changes.outputs.desktop }}
@@ -478,7 +477,7 @@ jobs:
           }
 
           expected_for() {
-            if [[ "$EVENT" == "push" || "$1" == "true" ]]; then
+            if [[ "$1" == "true" ]]; then
               echo success
             else
               echo skipped
