@@ -35,12 +35,35 @@ test.describe("Incident detail", () => {
     await login(page, "observer@opswarden.local");
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
-    await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Incident details" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Incident details" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Activity" })).toHaveCount(0);
     await expect(page.getByLabel("Add a note")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Acknowledge", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "More incident actions" })).toHaveCount(0);
     await expect(page.getByText("Change assignee", { exact: true })).toHaveCount(0);
+  });
+
+  test("War room navigation connects direct messages and incidents without workflow shortcuts", async ({
+    page,
+  }) => {
+    await login(page, "manager@opswarden.local");
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(incidentUrl(LINKED_INCIDENT_ID));
+
+    const rooms = page.getByRole("complementary", { name: "War room navigation" });
+    await expect(rooms.getByRole("heading", { name: "Direct messages" })).toBeVisible();
+    await expect(rooms.getByRole("link", { name: "Incidents 12" })).toBeVisible();
+    await expect(rooms.getByRole("link", { name: /Releases/ })).toHaveCount(0);
+    const sectionLabels = await rooms
+      .locator("section")
+      .evaluateAll((sections) =>
+        sections.map((section) => section.querySelector("h2, a")?.textContent?.trim()),
+      );
+    expect(sectionLabels).toEqual(["Direct messages", "Incidents12"]);
+    await rooms.getByRole("link", { name: "responder@opswarden.local" }).click();
+    await expect(page).toHaveURL(new RegExp(`/messages/[0-9a-f-]+$`));
+    await expect(page.getByRole("region", { name: "responder@opswarden.local" })).toBeVisible();
   });
 
   test("Manager can assign, inspect delete safely, and follow the linked Release", async ({
@@ -63,7 +86,10 @@ test.describe("Incident detail", () => {
     await expect(page.getByRole("dialog", { name: "Delete Incident" })).toHaveCount(0);
 
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
-    await page.getByRole("link", { name: /v2\.8\.0 — Payment resilience/ }).click();
+    await page
+      .locator('aside[data-war-room-context="true"]')
+      .getByRole("link", { name: /v2\.8\.0 — Payment resilience/ })
+      .click();
     await expect(page).toHaveURL(new RegExp(`/releases/${LINKED_RELEASE_ID}$`));
     await expect(page.getByRole("heading", { name: "v2.8.0 — Payment resilience" })).toBeVisible();
   });
@@ -74,23 +100,21 @@ test.describe("Incident detail", () => {
     for (const width of [320, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(incidentUrl(LINKED_INCIDENT_ID));
-      await expect(page.getByRole("heading", { name: "Activity" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
 
-      const activity = await page
-        .locator('section[aria-labelledby="activity-title"]')
-        .boundingBox();
+      const activity = await page.locator('[data-incident-room="true"]').boundingBox();
       expect(activity).not.toBeNull();
 
       // Below lg the context is an on-demand sheet rather than a stacked panel.
       // The room keeps a fixed frame (D9), so a panel placed under a scrolling
       // transcript would sit behind the entire conversation.
-      const contextTrigger = page.getByRole("button", { name: "Incident details" });
-      const contextPanel = page.locator('aside[aria-labelledby="context-title"]');
+      const contextTrigger = page.getByRole("button", { name: "Details" });
+      const contextPanel = page.locator('aside[data-war-room-context="true"]');
 
       if (width < 1024) {
         await expect(contextTrigger).toBeVisible();
@@ -109,7 +133,11 @@ test.describe("Incident detail", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
-    await page.getByRole("button", { name: "Incident details" }).click();
+    await page.getByRole("button", { name: "Rooms" }).click();
+    await expect(page.getByRole("dialog", { name: "War room" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Details" }).click();
     await expect(page.getByRole("dialog", { name: "Incident details" })).toBeVisible();
   });
 });
@@ -119,12 +147,12 @@ test("two clients see identified incident watchers", async ({ browser }) => {
   await manager.goto(incidentUrl(LINKED_INCIDENT_ID));
   await responder.goto(incidentUrl(LINKED_INCIDENT_ID));
 
-  const managerContext = manager.locator('aside[aria-labelledby="context-title"]');
-  const responderContext = responder.locator('aside[aria-labelledby="context-title"]');
+  const managerContext = manager.locator('aside[data-war-room-context="true"]');
+  const responderContext = responder.locator('aside[data-war-room-context="true"]');
   for (const context of [managerContext, responderContext]) {
     const watchers = context.getByRole("list", { name: "Watching now" });
-    await expect(watchers.getByText("manager@opswarden.local", { exact: true })).toBeVisible();
-    await expect(watchers.getByText("responder@opswarden.local", { exact: true })).toBeVisible();
+    await expect(watchers.getByTitle("manager@opswarden.local")).toBeVisible();
+    await expect(watchers.getByTitle("responder@opswarden.local")).toBeVisible();
   }
 
   await manager.context().close();

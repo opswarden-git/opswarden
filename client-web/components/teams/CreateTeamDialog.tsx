@@ -36,12 +36,7 @@ export function CreateTeamDialog() {
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      trigger={
-        <Button variant="primary">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t("createTeam")}
-        </Button>
-      }
+      trigger={<Button variant="primary">{t("createTeam")}</Button>}
       title={t("createTitle")}
       description={t("createDesc")}
       closeLabel={t("close")}

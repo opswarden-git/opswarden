@@ -432,6 +432,20 @@ describe("RulesView", () => {
 
     expect(screen.getAllByText("Failed CI")).toHaveLength(2);
     const table = screen.getByRole("table", { name: "rulesList" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .slice(0, 6)
+        .map(
+          (header) =>
+            header.querySelector("select")?.getAttribute("aria-label") ?? header.textContent,
+        ),
+    ).toEqual(["colRule", "colStatus", "colTrigger", "colResponse", "colNextRun", "colUpdated"]);
+    const headers = within(table).getAllByRole("columnheader");
+    expect(headers[4]).toHaveClass("whitespace-nowrap");
+    expect(table.parentElement).toHaveClass("overflow-x-auto");
+    expect(table.parentElement?.parentElement).not.toHaveClass("pt-6");
+    expect(screen.getByRole("list", { name: "rulesList" }).parentElement).not.toHaveClass("pt-6");
     expect(within(table).getByText("CI failed")).toBeInTheDocument();
     fireEvent.pointerDown(screen.getAllByRole("button", { name: "actionsMenu" })[0], {
       button: 0,

@@ -94,13 +94,13 @@ describe("IncidentsPage", () => {
     expect(screen.getAllByText("Database outage")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "createIncident" })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "severityFilter" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "colSeverity" }), {
       target: { value: "high" },
     });
     expect(push).toHaveBeenCalledWith(
       "/teams/team-1/incidents?view=all&severity=high&sort=severity",
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "assigneeFilter" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "colAssignee" }), {
       target: { value: "responder-1" },
     });
     expect(push).toHaveBeenCalledWith(expect.stringContaining("assignee=responder-1"));

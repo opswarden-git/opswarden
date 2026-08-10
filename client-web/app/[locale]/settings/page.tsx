@@ -19,7 +19,7 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <PageContent className="space-y-6">
+      <PageContent className="w-full max-w-4xl space-y-8">
         <ProfilePanel />
         <LanguagePanel />
         <AccountDangerZone />

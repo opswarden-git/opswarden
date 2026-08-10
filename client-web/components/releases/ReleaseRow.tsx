@@ -101,13 +101,13 @@ export function ReleaseRow({
       <OperationalTableCell className="text-text max-w-56">
         {release.next_step?.name ?? <span className="text-muted">{t("noNextStep")}</span>}
       </OperationalTableCell>
+      <OperationalTableCell className="max-w-72">
+        <ReleaseBlockers release={release} />
+      </OperationalTableCell>
       <OperationalTableCell className="text-muted whitespace-nowrap">
         <time dateTime={release.created_at} title={createdAt.toLocaleString(locale)}>
           {formatAge(release.created_at, locale)}
         </time>
-      </OperationalTableCell>
-      <OperationalTableCell className="max-w-72">
-        <ReleaseBlockers release={release} />
       </OperationalTableCell>
     </OperationalTableRow>
   );
@@ -129,8 +129,24 @@ export function ReleaseMobileRecord({
       <div data-release-field="identity">
         <ReleaseIdentity release={release} hrefFor={hrefFor} />
       </div>
-      <div data-release-field="state" className="mt-3 flex flex-wrap items-center gap-2">
+      <div data-release-field="status" className="mt-3 flex flex-wrap items-center gap-2">
         <ReleaseStateChip state={release.state} />
+      </div>
+      <div
+        data-release-field="progress"
+        className="mt-3 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2"
+      >
+        <span className="text-muted text-xs">{t("colProgress")}</span>
+        <ReleaseProgress release={release} />
+      </div>
+      <div
+        data-release-field="next-step"
+        className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2"
+      >
+        <span className="text-muted text-xs">{t("colNextStep")}</span>
+        <span className="text-text truncate text-sm">
+          {release.next_step?.name ?? <span className="text-muted">{t("noNextStep")}</span>}
+        </span>
       </div>
       {release.blockers.length > 0 && (
         <div data-release-field="blockers" className="mt-3">
@@ -138,22 +154,6 @@ export function ReleaseMobileRecord({
           <ReleaseBlockers release={release} />
         </div>
       )}
-      <div
-        data-release-field="next-step"
-        className="mt-3 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2"
-      >
-        <span className="text-muted text-xs">{t("colNextStep")}</span>
-        <span className="text-text truncate text-sm">
-          {release.next_step?.name ?? <span className="text-muted">{t("noNextStep")}</span>}
-        </span>
-      </div>
-      <div
-        data-release-field="progress"
-        className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2"
-      >
-        <span className="text-muted text-xs">{t("colProgress")}</span>
-        <ReleaseProgress release={release} />
-      </div>
       <div
         data-release-field="age"
         className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2"

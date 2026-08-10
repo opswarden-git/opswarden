@@ -59,6 +59,56 @@ function lineOf(tree: ts.SourceFile, node: ts.Node): number {
   return tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1;
 }
 
+const labelledButtonMarks = new Set(["FcGoogle", "RefreshCw", "SlidersHorizontal"]);
+
+function textButtonIconViolations(file: string): string[] {
+  const tree = ts.createSourceFile(
+    file,
+    fs.readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const violations: string[] = [];
+
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxElement(node)) {
+      const tag = node.openingElement.tagName.getText();
+      const className = attributeText(node.openingElement, "className") ?? "";
+      const isButton = tag === "Button";
+      const isButtonLink = tag === "Link" && className.includes("buttonClassNames");
+
+      if (isButton || isButtonLink) {
+        let hasText = false;
+        const marks = new Set<string>();
+        const inspect = (child: ts.Node) => {
+          if (ts.isJsxText(child) && child.getText().trim()) hasText = true;
+          if (ts.isJsxExpression(child) && child.expression && !ts.isJsxElement(child.expression)) {
+            hasText = true;
+          }
+          if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
+            const childTag = (
+              ts.isJsxElement(child) ? child.openingElement.tagName : child.tagName
+            ).getText();
+            if (/^[A-Z]/.test(childTag) && !labelledButtonMarks.has(childTag)) marks.add(childTag);
+          }
+          ts.forEachChild(child, inspect);
+        };
+        node.children.forEach(inspect);
+
+        if (hasText && marks.size > 0) {
+          violations.push(
+            `${path.relative(process.cwd(), file)}:${lineOf(tree, node)}: labelled ${tag} mixes text with ${[...marks].join(", ")}`,
+          );
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return violations;
+}
+
 function accessibilityViolations(file: string): string[] {
   const tree = ts.createSourceFile(
     file,
@@ -134,6 +184,11 @@ function accessibilityViolations(file: string): string[] {
 describe("product accessibility contract", () => {
   it("gives every native form control an explicit accessible name", () => {
     const violations = productFiles.flatMap(accessibilityViolations);
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("keeps labelled actions text-only except for explicit standard marks", () => {
+    const violations = productFiles.flatMap(textButtonIconViolations);
     expect(violations, violations.join("\n")).toEqual([]);
   });
 });

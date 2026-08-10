@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TeamSettingsPage } from "./TeamSettingsPage";
 
 const replace = vi.fn();
 vi.mock("@/i18n/routing", () => ({
   useRouter: () => ({ replace }),
-  usePathname: () => "/teams/team-1/settings",
+  usePathname: () => "/teams/team-1/team",
   Link: ({ children, href, ...props }: React.ComponentProps<"a">) => (
     <a href={String(href)} {...props}>
       {children}
@@ -35,6 +35,7 @@ const transfer = mutation();
 const leave = mutation();
 const remove = mutation();
 const unban = mutation();
+const invitationCode = vi.fn();
 
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({
@@ -55,15 +56,28 @@ vi.mock("@/lib/queries/teams", () => ({
   }),
   useTeamMembers: () => ({
     data: [
-      { user_id: "manager-1", email: "manager@example.com", role: "manager" },
-      { user_id: "responder-1", email: "responder@example.com", role: "responder" },
+      {
+        user_id: "manager-1",
+        email: "manager@example.com",
+        role: "manager",
+        joined_at: "2026-07-25T10:00:00Z",
+      },
+      {
+        user_id: "responder-1",
+        email: "responder@example.com",
+        role: "responder",
+        joined_at: "2026-07-25T10:00:00Z",
+      },
     ],
   }),
-  useInvitationCode: () => ({
-    data: { invitation_code: "invite-secret" },
-    isLoading: false,
-    error: null,
-  }),
+  useInvitationCode: (teamId: string, enabled: boolean) => {
+    invitationCode(teamId, enabled);
+    return {
+      data: { invitation_code: "invite-secret" },
+      isLoading: false,
+      error: null,
+    };
+  },
   useTeamBans: () => ({
     data: [
       {
@@ -89,6 +103,9 @@ vi.mock("@/lib/queries/teams", () => ({
     error: null,
   }),
   useTransferManager: () => transfer,
+  useSetMemberRole: () => mutation(),
+  useKickMember: () => mutation(),
+  useBanMember: () => mutation(),
   useLeaveTeam: () => leave,
   useDeleteTeam: () => remove,
   useUnbanMember: () => unban,
@@ -100,40 +117,27 @@ afterEach(() => {
 });
 
 describe("TeamSettingsPage", () => {
-  it("renders manager-only ownership, bans, invitation and danger controls", () => {
+  it("renders the Team identity, Members and Danger as one flat page", () => {
     render(<TeamSettingsPage teamId="team-1" />);
 
-    // Once, in the Team identity field. It used to appear twice: the page
-    // header repeated what the sidebar already says.
-    expect(screen.getAllByText("Operations")).toHaveLength(1);
-    expect(screen.getByText("invite-secret")).toBeInTheDocument();
-    expect(screen.getByText("deleteTeam")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /ownership/ }));
-    fireEvent.change(screen.getByRole("combobox", { name: "transferPickMember" }), {
-      target: { value: "responder-1" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "transferManager" }));
-    expect(transfer.reset).toHaveBeenCalledOnce();
-    expect(screen.getByRole("dialog", { name: "transferManager" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "transfer" }));
-    expect(transfer.mutate).toHaveBeenCalledWith(
-      "responder-1",
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    const identity = screen.getByRole("banner");
+    expect(within(identity).getByRole("heading", { name: "Operations" })).toBeInTheDocument();
+    expect(within(identity).getByText("roleManager")).toBeInTheDocument();
+    expect(within(identity).getByText(/createdOn:/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "membersWithCount:2" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "danger" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByText("invite-secret")).not.toBeInTheDocument();
   });
 
-  it("switches ban history and unbans an active member", () => {
+  it("keeps active and banned accounts in two distinct rosters", () => {
     render(<TeamSettingsPage teamId="team-1" />);
-    fireEvent.click(screen.getByRole("button", { name: /bannedMembers/ }));
 
+    expect(screen.getByRole("heading", { name: "activeMembers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "bannedMembers" })).toBeInTheDocument();
     expect(screen.getByText("banned@example.com")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "unban" }));
     expect(unban.mutate).toHaveBeenCalledWith("banned-1");
-
-    fireEvent.click(screen.getByRole("tab", { name: "expiredBans" }));
-    expect(screen.getByText("expired@example.com")).toBeInTheDocument();
-    expect(screen.queryByText("banned@example.com")).not.toBeInTheDocument();
   });
 
   it("requires typed confirmation before deleting the team", () => {
@@ -151,5 +155,17 @@ describe("TeamSettingsPage", () => {
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
     expect(dialog).toBeInTheDocument();
+  });
+
+  it("keeps the join code behind the role-gated Members action", () => {
+    render(<TeamSettingsPage teamId="team-1" />);
+
+    expect(screen.queryByText("invite-secret")).not.toBeInTheDocument();
+    expect(invitationCode).toHaveBeenCalledWith("team-1", false);
+
+    fireEvent.click(screen.getByRole("button", { name: "shareJoinCode" }));
+    expect(screen.getByRole("dialog", { name: "shareJoinCode" })).toBeInTheDocument();
+    expect(screen.getByText("invite-secret")).toBeInTheDocument();
+    expect(invitationCode).toHaveBeenCalledWith("team-1", true);
   });
 });

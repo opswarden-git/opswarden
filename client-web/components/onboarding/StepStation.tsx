@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button } from "@/components/ui/Button";
@@ -44,7 +44,6 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
 
       <div className="mt-2 flex items-center justify-between pt-4">
         <Button variant="ghost" size="lg" onClick={back}>
-          <ChevronLeft className="size-4" />
           {t("back")}
         </Button>
         <Button type="submit" variant="primary" size="lg">

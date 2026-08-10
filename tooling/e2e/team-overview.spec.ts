@@ -18,69 +18,47 @@ const facets = (page: Page) => page.getByRole("navigation", { name: "Attention f
 const queue = (page: Page) => page.locator("[data-attention-queue]");
 
 test.describe("Team operational overview", () => {
-  test("Manager gets one cross-resource inbox, each item listed once", async ({ page }) => {
+  test("Manager gets cross-resource overview, separated by entity", async ({ page }) => {
     await login(page, "manager@opswarden.local");
     await page.goto(overviewUrl);
 
     await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
     await expect(page.locator('select[aria-label="Current team"]:visible')).toHaveCount(1);
 
-    // A blocked Release and the Incident blocking it both belong in one queue:
-    // that is what makes this screen an inbox rather than a list of Incidents.
-    await expect(
-      inbox(page).getByText("v2.8.0 — Payment resilience", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      inbox(page).getByText("Payment API returning 502 in Europe", { exact: true }),
-    ).toBeVisible();
+    // Incidents section
+    const incidentsSection = page.getByRole("region", { name: "Incidents" });
+    await expect(incidentsSection).toBeVisible();
+    await expect(incidentsSection.getByText("Payment API returning 502 in Europe", { exact: true })).toBeVisible();
 
-    // It used to appear twice -- once here, once in a side panel repeating it.
-    await expect(page.getByText("v2.8.0 — Payment resilience", { exact: true })).toHaveCount(1);
+    // Releases section
+    const releasesSection = page.getByRole("region", { name: "Releases" });
+    await expect(releasesSection).toBeVisible();
+    await expect(releasesSection.getByText("v2.8.0 — Payment resilience", { exact: true })).toBeVisible();
+
+    // Runs section
+    const runsSection = page.getByRole("region", { name: "Runs" });
+    await expect(runsSection).toBeVisible();
   });
 
-  test("a facet narrows the queue in place instead of leaving the screen", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
-    await page.goto(overviewUrl);
-
-    const blocked = facets(page).getByRole("link", { name: /Blocked releases/ });
-    await expect(blocked).toBeVisible();
-    await blocked.click();
-
-    // Still on the overview: a facet is a view onto the inbox, not a drill-down.
-    await expect(page).toHaveURL(`${overviewUrl}?view=blocked`);
-    await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
-    await expect(
-      inbox(page).getByText("v2.8.0 — Payment resilience", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      inbox(page).getByText("Payment API returning 502 in Europe", { exact: true }),
-    ).toHaveCount(0);
-
-    await facets(page).getByRole("link", { name: /All/ }).click();
-    await expect(page).toHaveURL(overviewUrl);
-  });
-
-  test("Responder gets an assigned facet and executable Release work", async ({ page }) => {
+  test("Responder can access executable Release work", async ({ page }) => {
     await login(page, "responder@opswarden.local");
     await page.goto(overviewUrl);
 
-    await expect(facets(page).getByRole("link", { name: /Assigned to me/ })).toBeVisible();
-    await expect(inbox(page).getByText(/Next step ready:/)).toBeVisible();
-    await expect(queue(page).getByRole("link").first()).toHaveAttribute(
+    const releasesSection = page.getByRole("region", { name: "Releases" });
+    await expect(releasesSection.getByRole("link").first()).toHaveAttribute(
       "href",
-      new RegExp(`/en/teams/${TEAM_ID}/(incidents|releases)/[0-9a-f-]+$`),
+      new RegExp(`/en/teams/${TEAM_ID}/releases/[0-9a-f-]+$`),
     );
   });
 
-  test("Observer gets a read-only scope without an assignment facet", async ({ page }) => {
+  test("Observer gets a read-only scope without Runs visibility", async ({ page }) => {
     await login(page, "observer@opswarden.local");
     await page.goto(overviewUrl);
 
-    // Observers hold no assignments, so the facet would always read zero.
-    await expect(facets(page).getByRole("link", { name: /Assigned to me/ })).toHaveCount(0);
-    await expect(facets(page).getByRole("link", { name: /Unacknowledged/ })).toBeVisible();
-    await expect(page.getByText(/Next step ready:/)).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Incidents" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Releases" })).toBeVisible();
+    // Observers cannot manage automations, so they don't see Runs
+    await expect(page.getByRole("region", { name: "Runs" })).toHaveCount(0);
   });
 
   test("overview keeps its reading order without horizontal overflow", async ({ page }) => {
@@ -89,19 +67,12 @@ test.describe("Team operational overview", () => {
     for (const width of [320, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(overviewUrl);
-      await expect(page.getByRole("heading", { name: "Needs your attention" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Incidents" })).toBeVisible();
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
-
-      // The facets lead the queue they filter, at every width.
-      const facetBar = await facets(page).boundingBox();
-      const queue = await inbox(page).boundingBox();
-      expect(facetBar).not.toBeNull();
-      expect(queue).not.toBeNull();
-      expect(facetBar!.y).toBeGreaterThanOrEqual(queue!.y);
     }
   });
 });

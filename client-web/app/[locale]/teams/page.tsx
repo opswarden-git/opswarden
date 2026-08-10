@@ -9,7 +9,6 @@ import { RoleChip } from "@/components/teams/RoleChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Alert } from "@/components/ui/Alert";
 import { Link } from "@/i18n/routing";
 import { useTeams } from "@/lib/queries/teams";
@@ -37,27 +36,25 @@ export default function TeamsPage() {
       <PageHeader
         actions={
           <>
+            <label className="relative min-w-52 flex-1 max-w-72">
+              <span className="sr-only">{t("searchTeams")}</span>
+              <Search
+                className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("searchTeams")}
+                className="ow-input h-9 w-full rounded-md pr-3 pl-9 text-sm"
+              />
+            </label>
             <JoinTeamDialog />
             <CreateTeamDialog />
           </>
         }
       />
-
-      <PageToolbar>
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("searchTeams")}</span>
-          <Search className="text-muted absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchTeams")}
-            className="ow-input h-10 w-full rounded-md pr-3 pl-10 text-sm"
-          />
-        </label>
-        <span className="text-muted px-1 text-sm">
-          {t("teamCount", { count: teams?.length ?? 0 })}
-        </span>
-      </PageToolbar>
 
       <PageContent
         state={contentState}

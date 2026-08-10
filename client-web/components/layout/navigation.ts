@@ -1,10 +1,12 @@
 import {
+  History,
   LayoutDashboard,
-  PlugZap,
   Rocket,
   Settings,
   ShieldAlert,
   Users,
+  UsersRound,
+  Wrench,
   Workflow,
 } from "lucide-react";
 import { parseTeamPath, teamPath, type TeamSection } from "@/lib/team-routing";
@@ -31,10 +33,9 @@ export function isNavigationItemActive(
   const teamRoute = parseTeamPath(pathname);
   if (teamRoute) {
     if (!(item.activeSections?.includes(teamRoute.section) ?? false)) return false;
-    if (!item.automationView) return true;
+    if (!item.automationView || teamRoute.section !== "automations") return true;
 
     const currentView = searchParams?.get("view") ?? "rules";
-    if (currentView === "runs") return item.automationView === "rules";
     return currentView === item.automationView;
   }
 
@@ -45,6 +46,8 @@ export function isNavigationItemActive(
 export type NavigationLeaf = NavigationItem & {
   icon: typeof ShieldAlert;
   labelKey: string;
+  /** Desktop-only compact label when the group already supplies context. */
+  desktopLabelKey?: string;
   /** Which Team counter to show beside the label, when it is non-zero. */
   countKey?: "active_incident_count" | "active_release_count" | "member_count";
 };
@@ -58,11 +61,6 @@ export type NavigationNode =
       children: NavigationLeaf[];
     };
 
-/**
- * Rules and Integrations are direct destinations even while they share the
- * stable /automations implementation route. Automation runs are contextual to
- * Rules and therefore never become a third primary destination.
- */
 /** Operational history and Team configuration are Manager-only. */
 export function navigationTree(teamId?: string, canManageTeam = false): NavigationNode[] {
   if (!teamId) {
@@ -100,18 +98,11 @@ export function navigationTree(teamId?: string, canManageTeam = false): Navigati
         ...(canManageTeam
           ? [
               {
-                href: teamPath(teamId, "automations"),
-                icon: Workflow,
-                labelKey: "rules",
-                activeSections: ["automations"] satisfies readonly TeamSection[],
-                automationView: "rules" as const,
-              },
-              {
-                href: `${teamPath(teamId, "automations")}?view=connections`,
-                icon: PlugZap,
-                labelKey: "integrations",
-                activeSections: ["automations"] satisfies readonly TeamSection[],
-                automationView: "connections" as const,
+                href: teamPath(teamId, "runs"),
+                icon: History,
+                labelKey: "runs",
+                activeSections: ["runs", "automations"] satisfies readonly TeamSection[],
+                automationView: "runs" as const,
               },
             ]
           : []),
@@ -119,23 +110,31 @@ export function navigationTree(teamId?: string, canManageTeam = false): Navigati
     },
     {
       kind: "branch",
-      labelKey: "manage",
+      labelKey: "settings",
       icon: Settings,
       children: [
         {
-          href: teamPath(teamId, "members"),
-          icon: Users,
-          labelKey: "members",
-          countKey: "member_count",
-          activeSections: ["members"] satisfies readonly TeamSection[],
+          href: teamPath(teamId, "team"),
+          icon: UsersRound,
+          labelKey: "teamSettings",
+          desktopLabelKey: "team",
+          activeSections: ["team", "settings", "members"] satisfies readonly TeamSection[],
         },
         ...(canManageTeam
           ? [
               {
-                href: teamPath(teamId, "settings"),
-                icon: Settings,
-                labelKey: "teamSettings",
-                activeSections: ["settings"] satisfies readonly TeamSection[],
+                href: teamPath(teamId, "rules"),
+                icon: Wrench,
+                labelKey: "rules",
+                activeSections: ["rules", "automations"] satisfies readonly TeamSection[],
+                automationView: "rules" as const,
+              },
+              {
+                href: teamPath(teamId, "integrations"),
+                icon: Workflow,
+                labelKey: "integrations",
+                activeSections: ["integrations", "automations"] satisfies readonly TeamSection[],
+                automationView: "connections" as const,
               },
             ]
           : []),

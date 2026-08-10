@@ -104,7 +104,7 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     const connection = await configured.json();
 
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto(`/en/teams/${TEAM_ID}/automations`);
+    await page.goto(`/en/teams/${TEAM_ID}/integrations`);
     await page.getByRole("button", { name: "New rule" }).click();
     await page.getByLabel("Incoming event").selectOption("alert_firing");
     await page.getByLabel("Source connection").selectOption(connection.id);

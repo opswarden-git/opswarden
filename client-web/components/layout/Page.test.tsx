@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PageContent } from "./PageContent";
 import { PageHeader } from "./PageHeader";
 import { PageLayout } from "./PageLayout";
+import { PageActionsHostContext } from "./PageActionsRail";
 import { Button } from "@/components/ui/Button";
 
 afterEach(cleanup);
@@ -39,6 +40,20 @@ describe("PageHeader", () => {
 
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create incident" })).toBeInTheDocument();
+  });
+
+  it("moves Team page actions into the shared breadcrumb rail", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const { container } = render(
+      <PageActionsHostContext.Provider value={host}>
+        <PageHeader actions={<Button>Create incident</Button>} />
+      </PageActionsHostContext.Provider>,
+    );
+
+    expect(host).toContainElement(screen.getByRole("button", { name: "Create incident" }));
+    expect(container.querySelector("header")).not.toBeInTheDocument();
+    host.remove();
   });
 });
 

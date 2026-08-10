@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, Clock, Info, ShieldAlert, Trash2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { PanelLeftOpen, PanelRightOpen, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
 import { useDeleteIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
@@ -11,24 +11,22 @@ import { teamPath } from "@/lib/team-routing";
 import { useWatchers, useWsStore } from "@/lib/ws";
 import { IncidentActivity } from "@/components/incidents/IncidentActivity";
 import { IncidentContextPanel } from "@/components/incidents/IncidentContextPanel";
+import { WarRoomNavigation } from "@/components/incidents/WarRoomNavigation";
 import { deriveIncidentHeaderActions } from "@/components/incidents/incident-detail";
-import { SeverityChip } from "@/components/incidents/SeverityChip";
-import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { RailToggle } from "@/components/layout/RailToggle";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
-
-import { formatRelativeAge } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string; teamId: string }) {
   const t = useTranslations("Incidents");
   const tErr = useTranslations("errors");
-  const locale = useLocale();
   const router = useRouter();
   const { data: incident, isLoading, error } = useIncident(incidentId);
   const { data: teams } = useTeams();
@@ -37,6 +35,9 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const deleteIncident = useDeleteIncident();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isContextOpen, setIsContextOpen] = useState(false);
+  const [isRoomsOpen, setIsRoomsOpen] = useState(false);
+  const [isRoomsRailOpen, setIsRoomsRailOpen] = useState(true);
+  const [isContextRailOpen, setIsContextRailOpen] = useState(true);
   const watch = useWsStore((state) => state.watch);
   const unwatch = useWsStore((state) => state.unwatch);
   const watchers = useWatchers(incidentId);
@@ -50,8 +51,6 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     if (!incident || teamId === incident.team_id) return;
     router.replace(teamPath(incident.team_id, "incidents", incident.id));
   }, [incident, router, teamId]);
-
-  const incidentsHref = teamPath(incident?.team_id ?? teamId, "incidents");
 
   if (isLoading) {
     return (
@@ -85,8 +84,6 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const currentTeam = teams?.find((team) => team.team_id === incident.team_id);
   const actions = deriveIncidentActions(currentTeam?.role ?? "observer", incident.status);
   const headerActions = deriveIncidentHeaderActions(actions.transitions);
-  const memberById = new Map((members ?? []).map((member) => [member.user_id, member]));
-  const assignee = incident.assignee ? memberById.get(incident.assignee) : undefined;
   const people = Object.fromEntries(
     (members ?? []).map((member) => [member.user_id, member.email]),
   );
@@ -99,24 +96,14 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         ? t("escalate")
         : t("resolve");
 
-  const transitionIcon = (transition: IncidentTransition) =>
-    transition === "acknowledged" ? (
-      <Clock className="h-4 w-4" aria-hidden="true" />
-    ) : transition === "escalated" ? (
-      <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-    ) : (
-      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-    );
-
   const transitionButton = (transition: IncidentTransition, primary: boolean) => (
     <Button
       key={transition}
       variant={primary ? "primary" : "secondary"}
-      size="lg"
+      size="sm"
       loading={updateStatus.isPending}
       onClick={() => updateStatus.mutate({ incidentId: incident.id, status: transition })}
     >
-      {transitionIcon(transition)}
       {transitionLabel(transition)}
     </Button>
   );
@@ -126,72 +113,127 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
       onSuccess: () => router.push(teamPath(incident.team_id, "incidents")),
     });
 
+  const commands = (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
+        {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
+        {actions.canDelete ? (
+          <ActionMenu
+            label={t("moreActions")}
+            items={[
+              {
+                id: "delete",
+                label: t("deleteIncident"),
+                icon: Trash2,
+                tone: "danger",
+                onSelect: () => {
+                  deleteIncident.reset();
+                  setDeleteOpen(true);
+                },
+              },
+            ]}
+          />
+        ) : null}
+      </div>
+      {updateStatus.error ? (
+        <p className="text-sev-critical text-xs" role="alert">
+          {errorText(updateStatus.error.message)}
+        </p>
+      ) : null}
+    </div>
+  );
+
   return (
-    <PageLayout fill>
-      <PageHeader
-        title={incident.title}
-        metadata={
-          <div className="flex flex-wrap items-center gap-2">
-            <StateChip status={incident.status} />
-            <SeverityChip severity={incident.severity} />
-            <span className="text-muted">·</span>
-            <span>{assignee?.email ?? t("unassigned")}</span>
-            <span className="text-muted">·</span>
-            <time dateTime={incident.created_at}>
-              {formatRelativeAge(incident.created_at, locale)}
-            </time>
+    <PageLayout fill className="max-w-none gap-0 px-0 pt-0 pb-0 sm:px-0 md:px-0 md:pt-0 md:pb-0">
+      <PageContent className="flex min-h-0 flex-1 flex-col">
+        <div
+          className={cn(
+            "border-border grid min-h-0 flex-1 grid-cols-1 overflow-hidden border-y",
+            isContextRailOpen && "lg:grid-cols-[minmax(0,1fr)_19rem]",
+            isRoomsRailOpen && !isContextRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)]",
+            isRoomsRailOpen && isContextRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)_19rem]",
+          )}
+        >
+          <div
+            className={cn("relative hidden min-h-0", isRoomsRailOpen && "xl:block")}
+            data-rooms-rail-open={isRoomsRailOpen ? "true" : "false"}
+          >
+            <WarRoomNavigation
+              activeIncidentId={incident.id}
+              members={members ?? []}
+              teamId={incident.team_id}
+            />
+            <RailToggle
+              className="top-1/2 right-0 translate-x-1/2 -translate-y-1/2"
+              direction="left"
+              label={t("collapseRooms")}
+              onClick={() => setIsRoomsRailOpen(false)}
+            />
           </div>
-        }
-        actions={
-          <>
-            {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
-            {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
-            <div className="lg:hidden">
-              <Button variant="secondary" size="lg" onClick={() => setIsContextOpen(true)}>
-                <Info className="h-4 w-4" aria-hidden="true" />
-                {t("incidentContext")}
-              </Button>
-            </div>
-            {actions.canDelete ? (
-              <ActionMenu
-                label={t("moreActions")}
-                items={[
-                  {
-                    id: "delete",
-                    label: t("deleteIncident"),
-                    icon: Trash2,
-                    tone: "danger",
-                    onSelect: () => {
-                      deleteIncident.reset();
-                      setDeleteOpen(true);
-                    },
-                  },
-                ]}
+
+          <main className="relative flex min-h-0 min-w-0 flex-col">
+            <h1 className="sr-only">{incident.title}</h1>
+            {!isRoomsRailOpen ? (
+              <RailToggle
+                className="top-1/2 left-0 -translate-y-1/2"
+                direction="right"
+                label={t("expandRooms")}
+                onClick={() => setIsRoomsRailOpen(true)}
               />
             ) : null}
-          </>
-        }
-      />
+            {!isContextRailOpen ? (
+              <RailToggle
+                className="top-1/2 right-0 -translate-y-1/2"
+                direction="left"
+                label={t("expandContext")}
+                onClick={() => setIsContextRailOpen(true)}
+              />
+            ) : null}
+            <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+              <IconButton
+                className="xl:hidden"
+                label={t("rooms")}
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsRoomsOpen(true)}
+              >
+                <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                className="lg:hidden"
+                label={t("details")}
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsContextOpen(true)}
+              >
+                <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </div>
 
-      {updateStatus.error ? (
-        <Alert tone="danger">{errorText(updateStatus.error.message)}</Alert>
-      ) : null}
+            <IncidentActivity
+              incidentId={incident.id}
+              canCompose={actions.canWriteTimeline}
+              people={people}
+            />
+          </main>
 
-      <PageContent className="flex min-h-0 flex-1 flex-col">
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <IncidentActivity
-            incidentId={incident.id}
-            canCompose={actions.canWriteTimeline}
-            people={people}
-          />
-
-          <div className="hidden min-h-0 overflow-y-auto lg:block">
+          <div
+            className={cn("relative hidden min-h-0", isContextRailOpen && "lg:block")}
+            data-context-rail-open={isContextRailOpen ? "true" : "false"}
+          >
+            <RailToggle
+              className="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2"
+              direction="right"
+              label={t("collapseContext")}
+              onClick={() => setIsContextRailOpen(false)}
+            />
             <IncidentContextPanel
               incident={incident}
-              team={currentTeam}
               members={members ?? []}
               watcherIds={watchers}
               canAssign={actions.canAssign}
+              commands={commands}
             />
           </div>
         </div>
@@ -214,6 +256,21 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
       />
 
       <Dialog
+        open={isRoomsOpen}
+        onOpenChange={setIsRoomsOpen}
+        variant="sheet"
+        title={t("warRoom")}
+        description={incident.title}
+      >
+        <WarRoomNavigation
+          inDialog
+          activeIncidentId={incident.id}
+          members={members ?? []}
+          teamId={incident.team_id}
+        />
+      </Dialog>
+
+      <Dialog
         open={isContextOpen}
         onOpenChange={setIsContextOpen}
         variant="sheet"
@@ -223,10 +280,10 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         <IncidentContextPanel
           inDialog
           incident={incident}
-          team={currentTeam}
           members={members ?? []}
           watcherIds={watchers}
           canAssign={actions.canAssign}
+          commands={commands}
         />
       </Dialog>
     </PageLayout>

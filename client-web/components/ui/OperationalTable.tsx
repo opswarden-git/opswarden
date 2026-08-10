@@ -25,16 +25,18 @@ const cellDensityClasses: Record<OperationalTableDensity, string> = {
 export function OperationalTable({
   children,
   className,
+  containerClassName,
   density = "normal",
   label,
   ...props
 }: TableHTMLAttributes<HTMLTableElement> & {
+  containerClassName?: string;
   density?: OperationalTableDensity;
   label: ReactNode;
 }) {
   return (
     <DensityContext.Provider value={density}>
-      <div className="surface overflow-hidden rounded-md">
+      <div className={cn("surface overflow-hidden rounded-md", containerClassName)}>
         <table className={cn("w-full text-left text-sm", className)} {...props}>
           <caption className="sr-only">{label}</caption>
           {children}
@@ -90,7 +92,11 @@ export function OperationalTableHeaderCell({
 }: ThHTMLAttributes<HTMLTableCellElement>) {
   const density = useContext(DensityContext);
   return (
-    <th className={cn("text-muted font-medium", cellDensityClasses[density], className)} {...props}>
+    <th
+      scope="col"
+      className={cn("text-muted font-medium", cellDensityClasses[density], className)}
+      {...props}
+    >
       {children}
     </th>
   );

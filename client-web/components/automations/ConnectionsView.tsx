@@ -1,8 +1,10 @@
 "use client";
 
-import { CheckCircle2, Globe2, Pencil, Plug, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, Globe2, Webhook } from "lucide-react";
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import React, { useRef, useState, useSyncExternalStore } from "react";
+import React, { useState, useSyncExternalStore } from "react";
+import { MdAlternateEmail, MdHttp } from "react-icons/md";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -24,12 +26,29 @@ import {
   useStartServiceOAuth,
   useTestTeamConnection,
 } from "@/lib/queries/automations";
-import { AutomationDialog } from "./AutomationDialog";
 import { FormField } from "@/components/ui/FormField";
 
-function ConnectionStatus({ connection }: { connection?: TeamConnection }) {
+const providerMarks: Record<string, string> = {
+  alertmanager: "/assets/alertmanager.svg",
+  github: "/assets/github-patched.webp",
+  gitlab: "/assets/gitlab.webp",
+};
+
+function ServiceMark({ service }: { service: AutomationService }) {
+  const asset = providerMarks[service.name];
+  if (asset) {
+    return <Image src={asset} alt="" width={28} height={28} className="h-7 w-7 object-contain" />;
+  }
+  if (service.name === "email") {
+    return <MdAlternateEmail className="h-7 w-7" aria-hidden="true" />;
+  }
+  if (service.name === "http") return <MdHttp className="h-8 w-8" aria-hidden="true" />;
+  if (service.name === "generic") return <Webhook className="h-7 w-7" aria-hidden="true" />;
+  return <Globe2 className="h-7 w-7" aria-hidden="true" />;
+}
+
+function ConnectionStatus({ connection }: { connection: TeamConnection }) {
   const t = useTranslations("Automations");
-  if (!connection) return <span className="text-muted text-xs">{t("notConfigured")}</span>;
   if (connection.last_error_code) {
     return (
       <span className="text-sev-critical inline-flex items-center gap-1.5 text-xs font-medium">
@@ -56,18 +75,19 @@ function ConnectionStatus({ connection }: { connection?: TeamConnection }) {
 
 function ConnectionForm({
   connection,
+  id,
   onClose,
   service,
   teamId,
 }: {
   connection?: TeamConnection;
+  id: string;
   onClose: () => void;
   service: AutomationService;
   teamId: string;
 }) {
   const t = useTranslations("Automations");
   const locale = useLocale();
-  const inputRef = useRef<HTMLInputElement>(null);
   const fields = service.connection?.fields ?? [];
   const [values, setValues] = useState(() => catalogValues(fields));
   const configure = useConfigureTeamConnection(teamId);
@@ -75,31 +95,27 @@ function ConnectionForm({
   const valid = catalogFieldsAreValid(fields, values, !!connection);
 
   return (
-    <AutomationDialog
-      open
-      onClose={onClose}
-      initialFocus={inputRef}
-      title={
+    <form
+      id={id}
+      aria-label={
         connection
           ? t("reconfigureService", { service: service.label })
           : t("connectService", { service: service.label })
       }
-      description={service.connection?.description ?? service.label}
+      className="border-border bg-panel-2/20 border-t px-4 py-5 md:px-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!valid) return;
+        configure.mutate(
+          {
+            service: service.name,
+            payload: catalogPayload(fields, values),
+          },
+          { onSuccess: onClose },
+        );
+      }}
     >
-      <form
-        className="min-h-0 space-y-5 overflow-y-auto p-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!valid) return;
-          configure.mutate(
-            {
-              service: service.name,
-              payload: catalogPayload(fields, values),
-            },
-            { onSuccess: onClose },
-          );
-        }}
-      >
+      <div className="max-w-2xl space-y-5">
         {service.connection?.oauth ? (
           <div className="surface-subtle border-border space-y-3 rounded-md border p-4">
             <div>
@@ -120,7 +136,6 @@ function ConnectionForm({
                 )
               }
             >
-              <Plug className="h-3.5 w-3.5" aria-hidden="true" />
               {service.connection.oauth.label}
             </Button>
             {startOAuth.error ? (
@@ -133,7 +148,7 @@ function ConnectionForm({
             <p className="text-muted text-xs">{t("manualConnectionAlternative")}</p>
           </div>
         ) : null}
-        {fields.map((field, index) => (
+        {fields.map((field) => (
           <FormField
             key={field.name}
             label={field.label}
@@ -160,7 +175,6 @@ function ConnectionForm({
               </select>
             ) : (
               <input
-                ref={index === 0 ? inputRef : undefined}
                 type={field.input_type}
                 value={values[field.name] ?? ""}
                 onChange={(event) =>
@@ -175,7 +189,7 @@ function ConnectionForm({
         {configure.error ? (
           <Alert tone="danger">{t("requestFailed", { code: configure.error.message })}</Alert>
         ) : null}
-        <div className="border-border flex justify-end gap-2 border-t pt-5">
+        <div className="flex justify-end gap-2 pt-1">
           <Button size="lg" onClick={onClose}>
             {t("cancel")}
           </Button>
@@ -189,8 +203,8 @@ function ConnectionForm({
             {t("saveConnection")}
           </Button>
         </div>
-      </form>
-    </AutomationDialog>
+      </div>
+    </form>
   );
 }
 
@@ -213,6 +227,10 @@ export function ConnectionsView({
   const refreshOAuth = useRefreshServiceOAuth(teamId);
   const deleteConnection = useDeleteTeamConnection(teamId);
   const services = connectableServices(catalog);
+  const integrations = services.map((service) => ({
+    service,
+    connection: connections.find((item) => item.service === service.name),
+  }));
   const browserOrigin = useSyncExternalStore(
     () => () => undefined,
     () => window.location.origin,
@@ -228,156 +246,184 @@ export function ConnectionsView({
 
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {services.map((service) => {
-          const connection = connections.find((item) => item.service === service.name);
-          const usedBy = connection
-            ? rules.filter(
-                (rule) =>
-                  rule.trigger_connection_id === connection.id ||
-                  rule.reaction_connection_id === connection.id,
-              ).length
-            : 0;
-          return (
-            <section key={service.name} className="surface flex min-h-64 flex-col rounded-md">
-              <div className="border-border flex items-start gap-4 border-b p-5">
-                <div className="surface-subtle text-text flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
-                  <Globe2 className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-text font-semibold">{service.label}</h3>
-                    <ConnectionStatus connection={connection} />
-                  </div>
-                  <p className="text-muted mt-1 text-sm">{service.connection?.description}</p>
-                </div>
-              </div>
+      <div className="space-y-8">
+        {[
+          {
+            id: "active-integrations",
+            label: t("activeIntegrations"),
+            emptyLabel: t("noActiveIntegrations"),
+            items: integrations.filter(({ connection }) => connection),
+          },
+          {
+            id: "inactive-integrations",
+            label: t("inactiveIntegrations"),
+            emptyLabel: t("noInactiveIntegrations"),
+            items: integrations.filter(({ connection }) => !connection),
+          },
+        ].map((group) => (
+          <section key={group.id} aria-labelledby={group.id}>
+            <div className="mb-2 flex items-baseline gap-2 px-1">
+              <h2 id={group.id} className="text-text text-sm font-semibold">
+                {group.label}
+              </h2>
+              <span className="text-muted text-xs tabular-nums">{group.items.length}</span>
+            </div>
+            <div className="border-border divide-border divide-y border-y">
+              {group.items.length === 0 ? (
+                <p className="text-muted px-4 py-4 text-sm">{group.emptyLabel}</p>
+              ) : (
+                group.items.map(({ connection, service }) => {
+                  const panelId = `integration-panel-${service.name}`;
+                  const isExpanded = editing === service.name;
+                  const usedBy = connection
+                    ? rules.filter(
+                        (rule) =>
+                          rule.trigger_connection_id === connection.id ||
+                          rule.reaction_connection_id === connection.id,
+                      ).length
+                    : 0;
 
-              <div className="min-h-0 flex-1 space-y-3 p-5">
-                {connection?.webhook_path ? (
-                  <div>
-                    <div className="text-muted mb-1.5 text-xs font-medium uppercase">
-                      {t("webhookUrl")}
-                    </div>
-                    <div className="surface-subtle border-border flex items-center gap-2 rounded-md border p-2">
-                      <code className="text-text min-w-0 flex-1 truncate text-xs">
-                        {webhookUrls[connection.id] ?? connection.webhook_path}
-                      </code>
-                      <CopyButton
-                        value={webhookUrls[connection.id] ?? connection.webhook_path}
-                        label={t("copyWebhookUrl")}
-                        copiedLabel={t("copied")}
-                        size="sm"
-                        variant="ghost"
-                      />
-                    </div>
-                  </div>
-                ) : null}
-                {connection ? (
-                  <dl className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <dt className="text-muted">{t("lastActivity")}</dt>
-                      <dd className="text-text mt-1">
-                        {connection.last_delivery_at || connection.verified_at
-                          ? new Intl.DateTimeFormat(locale, {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            }).format(
-                              new Date(connection.last_delivery_at ?? connection.verified_at!),
-                            )
-                          : t("never")}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted">{t("usedByRules")}</dt>
-                      <dd className="text-text mt-1 tabular-nums">{usedBy}</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="text-muted text-sm">{t("connectionEmpty")}</p>
-                )}
-                {connection?.last_error_code ? (
-                  <Alert tone="danger">
-                    {t("lastError", { code: connection.last_error_code })}
-                  </Alert>
-                ) : null}
-                {testConnection.error && testConnection.variables === connection?.id ? (
-                  <Alert tone="danger">
-                    {t("requestFailed", { code: testConnection.error.message })}
-                  </Alert>
-                ) : null}
-                {testConnection.isSuccess && testConnection.variables === connection?.id ? (
-                  <Alert tone="success">{t("testSucceeded")}</Alert>
-                ) : null}
-                {refreshOAuth.error && refreshOAuth.variables === connection?.id ? (
-                  <Alert tone="danger">
-                    {t("requestFailed", { code: refreshOAuth.error.message })}
-                  </Alert>
-                ) : null}
-              </div>
+                  return (
+                    <div key={service.name}>
+                      <div className="flex min-h-16 items-center gap-4 px-4 py-3">
+                        <div className="text-text flex h-8 w-8 shrink-0 items-center justify-center">
+                          <ServiceMark service={service} />
+                        </div>
+                        <h3 className="text-text min-w-0 flex-1 truncate text-sm font-medium">
+                          {service.label}
+                        </h3>
+                        {connection ? <ConnectionStatus connection={connection} /> : null}
+                        <Button
+                          size="sm"
+                          variant={connection ? "secondary" : "primary"}
+                          aria-expanded={isExpanded}
+                          aria-controls={panelId}
+                          onClick={() => setEditing(isExpanded ? null : service.name)}
+                        >
+                          {connection ? t("configure") : t("connect")}
+                        </Button>
+                      </div>
 
-              <div className="border-border flex flex-wrap justify-end gap-2 border-t p-4">
-                {connection && service.connection?.testable ? (
-                  <Button
-                    size="sm"
-                    onClick={() => testConnection.mutate(connection.id)}
-                    loading={testConnection.isPending && testConnection.variables === connection.id}
-                  >
-                    <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("test")}
-                  </Button>
-                ) : null}
-                {connection?.oauth_refresh_configured && service.connection?.oauth ? (
-                  <Button
-                    size="sm"
-                    onClick={() => refreshOAuth.mutate(connection.id)}
-                    loading={refreshOAuth.isPending && refreshOAuth.variables === connection.id}
-                  >
-                    {t("refreshOAuthToken")}
-                  </Button>
-                ) : null}
-                {connection ? (
-                  <Button
-                    size="sm"
-                    onClick={() => setDeleting(connection)}
-                    disabled={usedBy > 0}
-                    title={usedBy > 0 ? t("connectionInUse", { count: usedBy }) : undefined}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("disconnect")}
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant={connection ? "secondary" : "primary"}
-                  onClick={() => setEditing(service.name)}
-                >
-                  {connection ? (
-                    <Pencil className="h-3.5 w-3.5" />
-                  ) : (
-                    <Plug className="h-3.5 w-3.5" />
-                  )}
-                  {connection ? t("configure") : t("connect")}
-                </Button>
-              </div>
-            </section>
-          );
-        })}
+                      {isExpanded ? (
+                        <div id={panelId}>
+                          {connection ? (
+                            <div className="border-border space-y-4 border-t px-4 py-4 md:px-5">
+                              {connection.webhook_path ? (
+                                <div className="flex items-center gap-2">
+                                  <code className="text-muted min-w-0 flex-1 truncate text-xs">
+                                    {webhookUrls[connection.id] ?? connection.webhook_path}
+                                  </code>
+                                  <CopyButton
+                                    value={webhookUrls[connection.id] ?? connection.webhook_path}
+                                    label={t("copyWebhookUrl")}
+                                    copiedLabel={t("copied")}
+                                    size="sm"
+                                    variant="ghost"
+                                  />
+                                </div>
+                              ) : null}
+                              <div className="flex flex-wrap items-end justify-between gap-4">
+                                <dl className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
+                                  <div>
+                                    <dt className="text-muted">{t("lastActivity")}</dt>
+                                    <dd className="text-text mt-1">
+                                      {connection.last_delivery_at || connection.verified_at
+                                        ? new Intl.DateTimeFormat(locale, {
+                                            dateStyle: "medium",
+                                            timeStyle: "short",
+                                          }).format(
+                                            new Date(
+                                              connection.last_delivery_at ??
+                                                connection.verified_at!,
+                                            ),
+                                          )
+                                        : t("never")}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-muted">{t("usedByRules")}</dt>
+                                    <dd className="text-text mt-1 tabular-nums">{usedBy}</dd>
+                                  </div>
+                                </dl>
+                                <div className="flex flex-wrap gap-2">
+                                  {service.connection?.testable ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => testConnection.mutate(connection.id)}
+                                      loading={
+                                        testConnection.isPending &&
+                                        testConnection.variables === connection.id
+                                      }
+                                    >
+                                      {t("test")}
+                                    </Button>
+                                  ) : null}
+                                  {connection.oauth_refresh_configured &&
+                                  service.connection?.oauth ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => refreshOAuth.mutate(connection.id)}
+                                      loading={
+                                        refreshOAuth.isPending &&
+                                        refreshOAuth.variables === connection.id
+                                      }
+                                    >
+                                      {t("refreshOAuthToken")}
+                                    </Button>
+                                  ) : null}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setDeleting(connection)}
+                                    disabled={usedBy > 0}
+                                    title={
+                                      usedBy > 0
+                                        ? t("connectionInUse", { count: usedBy })
+                                        : undefined
+                                    }
+                                  >
+                                    {t("disconnect")}
+                                  </Button>
+                                </div>
+                              </div>
+                              {connection.last_error_code ? (
+                                <Alert tone="danger">
+                                  {t("lastError", { code: connection.last_error_code })}
+                                </Alert>
+                              ) : null}
+                              {testConnection.error &&
+                              testConnection.variables === connection.id ? (
+                                <Alert tone="danger">
+                                  {t("requestFailed", { code: testConnection.error.message })}
+                                </Alert>
+                              ) : null}
+                              {testConnection.isSuccess &&
+                              testConnection.variables === connection.id ? (
+                                <Alert tone="success">{t("testSucceeded")}</Alert>
+                              ) : null}
+                              {refreshOAuth.error && refreshOAuth.variables === connection.id ? (
+                                <Alert tone="danger">
+                                  {t("requestFailed", { code: refreshOAuth.error.message })}
+                                </Alert>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <ConnectionForm
+                            id={`${panelId}-form`}
+                            teamId={teamId}
+                            service={service}
+                            connection={connection}
+                            onClose={() => setEditing(null)}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        ))}
       </div>
-
-      {editing
-        ? services
-            .filter((service) => service.name === editing)
-            .map((service) => (
-              <ConnectionForm
-                key={service.name}
-                teamId={teamId}
-                service={service}
-                connection={connections.find((item) => item.service === service.name)}
-                onClose={() => setEditing(null)}
-              />
-            ))
-        : null}
       <ConfirmDialog
         open={!!deleting}
         title={t("disconnectTitle", { service: deleting?.service ?? "" })}

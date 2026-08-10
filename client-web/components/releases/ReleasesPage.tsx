@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageTabs } from "@/components/layout/PageTabs";
 import { CreateReleaseDialog } from "@/components/releases/CreateReleaseDialog";
 import { ReleaseTable, ReleaseTableSkeleton } from "@/components/releases/ReleaseTable";
 import {
@@ -19,6 +18,11 @@ import {
 } from "@/components/releases/release-views";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
+import {
+  MobileCollectionFilters,
+  TableFilterControl,
+  TableSortControl,
+} from "@/components/ui/CollectionControls";
 import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { useReleases } from "@/lib/queries/releases";
@@ -34,13 +38,19 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const { data: releases, isLoading, error } = useReleases(teamId);
   const selectedReleaseId = searchParams.get("release") ?? "";
   const view = normalizeReleaseView(searchParams.get("view"));
+  const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";
 
   const activeTeam = teams?.find((team) => team.team_id === teamId);
   const role = activeTeam?.role ?? "observer";
   const capabilities = deriveCapabilities(role);
   const hasNoTeams = teams?.length === 0;
   const counts = releaseViewCounts(releases ?? []);
-  const visibleReleases = (releases ?? []).filter((release) => releaseBelongsToView(release, view));
+  const visibleReleases = (releases ?? [])
+    .filter((release) => releaseBelongsToView(release, view))
+    .toSorted((left, right) => {
+      const delta = new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+      return sort === "newest" ? delta : -delta;
+    });
   const hasReleases = (releases?.length ?? 0) > 0;
 
   const paramsWith = (changes: Record<string, string | undefined>) => {
@@ -53,8 +63,6 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
     return suffix ? `${pathname}?${suffix}` : pathname;
   };
 
-  const tabHref = (nextView: ReleaseView) =>
-    paramsWith({ view: nextView === "active" ? undefined : nextView, release: undefined });
   const releaseHref = (releaseId: string) => {
     const detailPath = teamPath(teamId, "releases", releaseId);
     return view === "active" ? detailPath : `${detailPath}?view=${view}`;
@@ -65,6 +73,31 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
     if (!legacyDetailHref) return;
     router.replace(legacyDetailHref);
   }, [legacyDetailHref, router]);
+  const setParam = (name: string, value?: string) => router.push(paramsWith({ [name]: value }));
+  const viewLabel = (value: ReleaseView) => t(`view${value[0].toUpperCase()}${value.slice(1)}`);
+  const activeFilterCount = (view === "all" ? 0 : 1) + (sort === "newest" ? 0 : 1);
+  const clearFilters = () => router.push(paramsWith({ view: "all", sort: undefined }));
+  const headers = {
+    colStatus: (
+      <TableFilterControl
+        label={t("colStatus")}
+        value={view}
+        activeLabel={viewLabel(view)}
+        onChange={(value) => setParam("view", value)}
+        options={RELEASE_VIEWS.map((value) => ({
+          value,
+          label: `${viewLabel(value)} (${counts[value]})`,
+        }))}
+      />
+    ),
+    colAge: (
+      <TableSortControl
+        label={t("colAge")}
+        direction={sort === "newest" ? "ascending" : "descending"}
+        onToggle={() => setParam("sort", sort === "newest" ? "oldest" : undefined)}
+      />
+    ),
+  };
 
   const contentState: PageContentState =
     isLoadingTeams || isLoading
@@ -78,20 +111,50 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   return (
     <PageLayout>
       <PageHeader
-        actions={capabilities.canCreateRelease ? <CreateReleaseDialog teamId={teamId} /> : null}
+        actions={
+          !hasNoTeams ? (
+            <>
+              <MobileCollectionFilters
+                activeCount={activeFilterCount}
+                label={t("filtersLabel")}
+                title={t("filtersLabel")}
+                description={t("filtersDescription")}
+                clearLabel={t("clearFilters")}
+                closeLabel={t("close")}
+                doneLabel={t("done")}
+                onClear={clearFilters}
+              >
+                <label className="space-y-2">
+                  <span className="text-muted block text-sm uppercase">{t("colStatus")}</span>
+                  <select
+                    value={view}
+                    onChange={(event) => setParam("view", event.target.value)}
+                    className="ow-input h-10 w-full rounded-md px-3 text-sm"
+                  >
+                    {RELEASE_VIEWS.map((value) => (
+                      <option key={value} value={value}>
+                        {viewLabel(value)} ({counts[value]})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2">
+                  <span className="text-muted block text-sm uppercase">{t("sortLabel")}</span>
+                  <select
+                    value={sort}
+                    onChange={(event) => setParam("sort", event.target.value)}
+                    className="ow-input h-10 w-full rounded-md px-3 text-sm"
+                  >
+                    <option value="newest">{t("sortNewest")}</option>
+                    <option value="oldest">{t("sortOldest")}</option>
+                  </select>
+                </label>
+              </MobileCollectionFilters>
+              {capabilities.canCreateRelease ? <CreateReleaseDialog teamId={teamId} /> : null}
+            </>
+          ) : null
+        }
       />
-
-      {!hasNoTeams ? (
-        <PageTabs
-          ariaLabel={t("viewsLabel")}
-          tabs={RELEASE_VIEWS.map((tab) => ({
-            href: tabHref(tab),
-            label: t(`view${tab[0].toUpperCase()}${tab.slice(1)}`),
-            count: counts[tab],
-            active: view === tab,
-          }))}
-        />
-      ) : null}
 
       <PageContent
         state={contentState}
@@ -117,7 +180,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
                 {hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
               </p>
               {hasReleases ? (
-                <Button className="mt-6" onClick={() => router.push(pathname)}>
+                <Button className="mt-6" onClick={clearFilters}>
                   {t("clearFilters")}
                 </Button>
               ) : null}
@@ -125,7 +188,12 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
           )
         }
       >
-        <ReleaseTable releases={visibleReleases} hrefFor={releaseHref} />
+        <ReleaseTable
+          releases={visibleReleases}
+          hrefFor={releaseHref}
+          headers={headers}
+          ageSortDirection={sort === "newest" ? "ascending" : "descending"}
+        />
       </PageContent>
     </PageLayout>
   );

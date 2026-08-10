@@ -6,5 +6,5 @@ export default async function ActivityRoute({
   params: Promise<{ locale: string; teamId: string }>;
 }) {
   const { locale, teamId } = await params;
-  redirect(`/${locale}/teams/${teamId}/automations?view=runs`);
+  redirect(`/${locale}/teams/${teamId}/runs`);
 }

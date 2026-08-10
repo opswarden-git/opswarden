@@ -67,7 +67,7 @@ export function BottomBar({ className }: { className?: string }) {
             data-app-navigation-item="true"
             className={itemClassName(isActive)}
           >
-            <link.icon className="h-5 w-5" aria-hidden="true" />
+            <link.icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             <span className="w-full truncate px-0.5 text-center text-[10px] font-medium">
               {t(link.labelKey)}
             </span>
@@ -90,7 +90,7 @@ export function BottomBar({ className }: { className?: string }) {
             data-app-navigation-item="true"
             className={itemClassName(isMoreActive)}
           >
-            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+            <MoreHorizontal className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             <span className="w-full truncate px-0.5 text-center text-[10px] font-medium">
               {t("more")}
             </span>
@@ -115,7 +115,7 @@ export function BottomBar({ className }: { className?: string }) {
                       : "text-muted hover:bg-panel/60 hover:text-text",
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
                   <span>{t(link.labelKey)}</span>
                 </Link>
               </DialogClose>

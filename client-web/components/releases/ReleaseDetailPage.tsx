@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Ban, Rocket } from "lucide-react";
+import { Rocket } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
@@ -78,7 +78,6 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
                 setConfirmCancel(true);
               }}
             >
-              <Ban className="h-4 w-4" aria-hidden="true" />
               {t("cancelRelease")}
             </Button>
           ) : null

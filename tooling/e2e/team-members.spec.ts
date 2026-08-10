@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-const membersUrl = `/en/teams/${TEAM_ID}/members`;
+const membersUrl = `/en/teams/${TEAM_ID}/team#members`;
 
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
@@ -20,7 +20,7 @@ test.describe("Team roster and members", () => {
       await page.goto(membersUrl);
 
       // Wait for members list to load
-      await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /Members/, level: 2 })).toBeVisible();
 
       // Ensure the search box exists
       await expect(page.getByPlaceholder("Search members by email or role")).toBeVisible();
@@ -29,15 +29,15 @@ test.describe("Team roster and members", () => {
       const observerRow = page.locator("li").filter({ hasText: "observer@opswarden.local" });
       await expect(observerRow).toBeVisible();
 
-      // Manager should see the "Message" and "Actions" buttons for other users
+      // Manager should see the "Chat with" link and "Team Actions" buttons for other users
       // Note: Because we duplicated the DOM for responsiveness (md:hidden / md:block),
       // we just check that at least one visible instance exists.
-      const messageBtn = observerRow.getByRole("button", { name: "Message" });
+      const messageLink = observerRow.getByRole("link", { name: "Chat with observer@opswarden.local" });
       const actionsBtn = observerRow.getByRole("button", { name: "Team Actions" });
 
       // Playwright's toBeVisible() will check if *any* matching element is visible if multiple exist
       // But we can filter by visible if there are multiple.
-      await expect(messageBtn.locator("visible=true")).toHaveCount(1);
+      await expect(messageLink).toHaveCount(1);
       await expect(actionsBtn.locator("visible=true")).toHaveCount(1);
     }
   });
@@ -46,14 +46,14 @@ test.describe("Team roster and members", () => {
     await login(page, "responder@opswarden.local");
     await page.goto(membersUrl);
 
-    await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Members/, level: 2 })).toBeVisible();
 
     const managerRow = page.locator("li").filter({ hasText: "manager@opswarden.local" });
     await expect(managerRow).toBeVisible();
 
     // Responder can message the manager
-    const messageBtn = managerRow.getByRole("button", { name: "Message" }).locator("visible=true");
-    await expect(messageBtn).toHaveCount(1);
+    const messageLink = managerRow.getByRole("link", { name: "Chat with manager@opswarden.local" });
+    await expect(messageLink).toHaveCount(1);
 
     // Responder CANNOT see management actions
     const actionsBtn = managerRow.getByRole("button", { name: "Team Actions" });
@@ -64,16 +64,14 @@ test.describe("Team roster and members", () => {
     await login(page, "observer@opswarden.local");
     await page.goto(membersUrl);
 
-    await expect(page.getByRole("heading", { name: "Members", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Members/, level: 2 })).toBeVisible();
 
     const responderRow = page.locator("li").filter({ hasText: "responder@opswarden.local" });
     await expect(responderRow).toBeVisible();
 
     // Observer can message the responder
-    const messageBtn = responderRow
-      .getByRole("button", { name: "Message" })
-      .locator("visible=true");
-    await expect(messageBtn).toHaveCount(1);
+    const messageLink = responderRow.getByRole("link", { name: "Chat with responder@opswarden.local" });
+    await expect(messageLink).toHaveCount(1);
 
     // Observer CANNOT see management actions
     const actionsBtn = responderRow.getByRole("button", { name: "Team Actions" });

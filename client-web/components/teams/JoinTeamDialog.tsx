@@ -36,12 +36,7 @@ export function JoinTeamDialog() {
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      trigger={
-        <Button>
-          <Users className="h-4 w-4" aria-hidden="true" />
-          {t("joinTeam")}
-        </Button>
-      }
+      trigger={<Button>{t("joinTeam")}</Button>}
       title={t("joinTitle")}
       description={t("joinDesc")}
       closeLabel={t("close")}

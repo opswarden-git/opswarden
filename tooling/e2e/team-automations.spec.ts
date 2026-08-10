@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-const automationsUrl = `/en/teams/${TEAM_ID}/automations`;
+const rulesUrl = `/en/teams/${TEAM_ID}/rules`;
+const integrationsUrl = `/en/teams/${TEAM_ID}/integrations`;
 
 async function openDirectDestination(page: Page, name: "Integrations" | "Rules", width: number) {
   if (width < 768) {
@@ -60,22 +61,22 @@ test.describe("Team automations", () => {
       await clearAutomations(page, token);
 
       try {
-        await page.goto(automationsUrl);
+        await page.goto(rulesUrl);
 
         await expect(page.getByRole("heading", { name: "Rules", level: 1 })).toBeVisible();
         await expect(page.getByRole("heading", { name: "No automation rules" })).toBeVisible();
 
         await openDirectDestination(page, "Integrations", width);
-        await expect(page).toHaveURL(`${automationsUrl}?view=connections`);
+        await expect(page).toHaveURL(integrationsUrl);
         await expect(page.getByRole("heading", { name: "Integrations", level: 1 })).toBeVisible();
         const github = page
-          .getByRole("heading", { name: "GitHub" })
-          .locator("xpath=ancestor::section[1]");
+          .getByRole("heading", { name: "GitHub", exact: true })
+          .locator("xpath=../..");
         const http = page
-          .getByRole("heading", { name: "HTTP" })
-          .locator("xpath=ancestor::section[1]");
+          .getByRole("heading", { name: "HTTP", exact: true })
+          .locator("xpath=../..");
         // The connector catalogue grows as services ship, so assert that the two
-        // this test drives each offer a connection rather than pinning the total.
+        // this test drives each expose a compact row rather than pinning the total.
         await expect(http).toBeVisible();
         await expect(github.getByRole("button", { name: "Connect" })).toBeVisible();
         await expect(http.getByRole("button", { name: "Connect" })).toBeVisible();
@@ -83,9 +84,16 @@ test.describe("Team automations", () => {
         await github.getByRole("button", { name: "Connect" }).click();
         await page.getByLabel("Signing secret").fill("e2e-automation-secret");
         await page.getByRole("button", { name: "Save connection" }).click();
-        await expect(github.getByRole("button", { name: "Copy webhook URL" })).toBeVisible();
+        await expect(github.getByRole("button", { name: "Configure" })).toBeVisible();
+        await expect(
+          page
+            .getByRole("heading", { name: "Active integrations" })
+            .locator("xpath=ancestor::section[1]")
+            .getByRole("heading", { name: "GitHub", exact: true }),
+        ).toBeAttached();
 
         await openDirectDestination(page, "Rules", width);
+        await expect(page).toHaveURL(rulesUrl);
         await page.getByRole("button", { name: "New rule" }).click();
         await page.getByLabel("Rule name").fill("E2E failed CI to incident");
         await page.getByLabel("Source connection").selectOption({ index: 1 });
@@ -104,7 +112,7 @@ test.describe("Team automations", () => {
         await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
         await expect(ruleState).toHaveText("Enabled");
 
-        await expect(page.getByRole("link", { name: "Run history", exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Runs", exact: true })).toBeVisible();
         await expect(page.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
       } finally {
         await clearAutomations(page, token);
@@ -118,7 +126,7 @@ test.describe("Team automations", () => {
     await expect(page.getByRole("link", { name: "Rules", exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Integrations", exact: true })).toHaveCount(0);
 
-    await page.goto(automationsUrl);
+    await page.goto(rulesUrl);
     await expect(page.getByText("Manager access required")).toBeVisible();
     await expect(page.getByRole("button", { name: /Connect|New rule/ })).toHaveCount(0);
   });

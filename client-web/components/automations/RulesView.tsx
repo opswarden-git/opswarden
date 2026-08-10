@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Button } from "@/components/ui/Button";
+import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   type AutomationRule,
@@ -21,6 +22,7 @@ import {
   OperationalTableHead,
   OperationalTableHeaderCell,
   OperationalTableRow,
+  OperationalTableRowHeader,
 } from "@/components/ui/OperationalTable";
 import { RuleForm, type CapabilityWithService } from "./RuleForm";
 
@@ -57,6 +59,10 @@ export function RulesView({
   teamId,
   isCreatingRule,
   setIsCreatingRule,
+  sort = "updated_desc",
+  statusFilter = "all",
+  onSortChange = () => undefined,
+  onStatusFilterChange = () => undefined,
 }: {
   catalog: AutomationService[];
   connections: TeamConnection[];
@@ -64,6 +70,10 @@ export function RulesView({
   teamId: string;
   isCreatingRule: boolean;
   setIsCreatingRule: (creating: boolean) => void;
+  sort?: "next_asc" | "next_desc" | "updated_asc" | "updated_desc";
+  statusFilter?: "all" | "enabled" | "disabled";
+  onSortChange?: (sort: "next_asc" | "next_desc" | "updated_asc" | "updated_desc") => void;
+  onStatusFilterChange?: (status: "all" | "enabled" | "disabled") => void;
 }) {
   const t = useTranslations("Automations");
   const locale = useLocale();
@@ -73,11 +83,26 @@ export function RulesView({
   const deleteRule = useDeleteAutomationRule(teamId);
   const actions = useMemo(() => capabilities(catalog, "actions"), [catalog]);
   const reactions = useMemo(() => capabilities(catalog, "reactions"), [catalog]);
+  const visibleRules = useMemo(() => {
+    const filtered = rules.filter(
+      (rule) =>
+        statusFilter === "all" || (statusFilter === "enabled" ? rule.enabled : !rule.enabled),
+    );
+    return filtered.toSorted((left, right) => {
+      if (sort.startsWith("next")) {
+        const leftTime = left.next_run_at ? new Date(left.next_run_at).getTime() : Infinity;
+        const rightTime = right.next_run_at ? new Date(right.next_run_at).getTime() : Infinity;
+        return sort === "next_asc" ? leftTime - rightTime : rightTime - leftTime;
+      }
+      const delta = new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+      return sort === "updated_desc" ? delta : -delta;
+    });
+  }, [rules, sort, statusFilter]);
 
   if (rules.length === 0) {
     return (
       <>
-        <section className="surface rounded-md px-6 py-14 text-center">
+        <section className="surface rounded-md p-12 text-center">
           <Power className="text-muted mx-auto h-8 w-8" aria-hidden="true" />
           <h3 className="text-text mt-4 font-semibold">{t("noRules")}</h3>
           <p className="text-muted mx-auto mt-1 max-w-lg text-sm">{t("noRulesDescription")}</p>
@@ -104,32 +129,84 @@ export function RulesView({
       ) : null}
 
       {/* Desktop view */}
-      <div className="hidden pt-6 lg:block">
-        <OperationalTable label={t("rulesList")}>
+      <div className="hidden lg:block">
+        <OperationalTable label={t("rulesList")} containerClassName="overflow-x-auto">
           <OperationalTableHead>
             <tr>
-              {["colRule", "colAction", "colReaction", "colStatus", "colNextRun", "colUpdated"].map(
-                (column) => (
-                  <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
-                ),
-              )}
+              <OperationalTableHeaderCell>{t("colRule")}</OperationalTableHeaderCell>
+              <OperationalTableHeaderCell>
+                <TableFilterControl
+                  label={t("colStatus")}
+                  value={statusFilter}
+                  activeLabel={statusFilter === "all" ? undefined : t(statusFilter)}
+                  onChange={(value) =>
+                    onStatusFilterChange(value as "all" | "enabled" | "disabled")
+                  }
+                  options={[
+                    { value: "all", label: t("allStatuses") },
+                    { value: "enabled", label: t("enabled") },
+                    { value: "disabled", label: t("disabled") },
+                  ]}
+                />
+              </OperationalTableHeaderCell>
+              <OperationalTableHeaderCell>{t("colTrigger")}</OperationalTableHeaderCell>
+              <OperationalTableHeaderCell>{t("colResponse")}</OperationalTableHeaderCell>
+              <OperationalTableHeaderCell
+                className="whitespace-nowrap"
+                aria-sort={
+                  sort.startsWith("next")
+                    ? sort === "next_asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <TableSortControl
+                  label={t("colNextRun")}
+                  direction={
+                    sort.startsWith("next")
+                      ? sort === "next_asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                  onToggle={() => onSortChange(sort === "next_asc" ? "next_desc" : "next_asc")}
+                />
+              </OperationalTableHeaderCell>
+              <OperationalTableHeaderCell
+                aria-sort={
+                  sort.startsWith("updated")
+                    ? sort === "updated_asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                <TableSortControl
+                  label={t("colUpdated")}
+                  direction={
+                    sort.startsWith("updated")
+                      ? sort === "updated_asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                  onToggle={() =>
+                    onSortChange(sort === "updated_desc" ? "updated_asc" : "updated_desc")
+                  }
+                />
+              </OperationalTableHeaderCell>
               <th className="px-5 py-3">
                 <span className="sr-only">{t("actionsMenu")}</span>
               </th>
             </tr>
           </OperationalTableHead>
           <OperationalTableBody>
-            {rules.map((rule) => (
+            {visibleRules.map((rule) => (
               <OperationalTableRow key={rule.id}>
-                <OperationalTableCell className="text-text font-medium">
+                <OperationalTableRowHeader className="text-text font-medium">
                   {rule.name}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted">
-                  {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted">
-                  {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
-                </OperationalTableCell>
+                </OperationalTableRowHeader>
                 <OperationalTableCell>
                   <span
                     data-rule-state={rule.enabled ? "enabled" : "disabled"}
@@ -137,6 +214,12 @@ export function RulesView({
                   >
                     {rule.enabled ? t("enabled") : t("disabled")}
                   </span>
+                </OperationalTableCell>
+                <OperationalTableCell className="text-muted">
+                  {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                </OperationalTableCell>
+                <OperationalTableCell className="text-muted">
+                  {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted whitespace-nowrap">
                   {nextRunLabel(rule, locale, t("disabled"))}
@@ -182,25 +265,19 @@ export function RulesView({
       </div>
 
       {/* Mobile view */}
-      <div className="surface overflow-hidden rounded-md pt-6 lg:hidden">
+      <div className="surface overflow-hidden rounded-md lg:hidden">
         <ul aria-label={t("rulesList")} className="divide-border divide-y">
-          {rules.map((rule) => (
+          {visibleRules.map((rule) => (
             <li key={rule.id} className="flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-text font-medium">{rule.name}</h3>
-                  <div className="mt-1 flex flex-wrap gap-2 text-sm">
+                  <div className="mt-1 flex flex-wrap text-sm">
                     <span
                       data-rule-state={rule.enabled ? "enabled" : "disabled"}
                       className={rule.enabled ? "text-st-res" : "text-muted"}
                     >
                       {rule.enabled ? t("enabled") : t("disabled")}
-                    </span>
-                    <span className="text-muted">•</span>
-                    <span className="text-muted">
-                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                        new Date(rule.updated_at),
-                      )}
                     </span>
                   </div>
                 </div>
@@ -237,9 +314,17 @@ export function RulesView({
               <div className="surface-subtle border-border rounded border px-3 py-2 text-sm">
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">{t("colAction")}</span>
+                    <span className="text-muted shrink-0 text-xs uppercase">{t("colTrigger")}</span>
                     <span className="text-text truncate text-right">
                       {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted shrink-0 text-xs uppercase">
+                      {t("colResponse")}
+                    </span>
+                    <span className="text-text truncate text-right">
+                      {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
@@ -249,11 +334,11 @@ export function RulesView({
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">
-                      {t("colReaction")}
-                    </span>
-                    <span className="text-text truncate text-right">
-                      {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
+                    <span className="text-muted shrink-0 text-xs uppercase">{t("colUpdated")}</span>
+                    <span className="text-text text-right">
+                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+                        new Date(rule.updated_at),
+                      )}
                     </span>
                   </div>
                 </div>
