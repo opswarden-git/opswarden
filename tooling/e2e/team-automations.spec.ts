@@ -1,7 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-const automationsUrl = `/en/teams/${TEAM_ID}/automations`;
+const rulesUrl = `/en/teams/${TEAM_ID}/rules`;
+const integrationsUrl = `/en/teams/${TEAM_ID}/integrations`;
+
+async function openDirectDestination(page: Page, name: "Integrations" | "Rules", width: number) {
+  if (width < 768) {
+    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: "More" })
+      .getByRole("link", { name, exact: true })
+      .click();
+    return;
+  }
+
+  await page.getByRole("link", { name, exact: true }).first().click();
+}
 
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
@@ -40,31 +54,29 @@ async function clearAutomations(page: Page, token: string) {
 
 test.describe("Team automations", () => {
   for (const width of [320, 768, 1280, 1920]) {
-    test(`Manager can navigate Rules, Connections and Runs at ${width}px`, async ({ page }) => {
+    test(`Manager can navigate Rules and Connections at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await login(page, "manager@opswarden.local");
       const token = await managerToken(page);
       await clearAutomations(page, token);
 
       try {
-        await page.goto(automationsUrl);
+        await page.goto(rulesUrl);
 
-        await expect(page.getByRole("heading", { name: "Automations", level: 1 })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Rules", level: 1 })).toBeVisible();
         await expect(page.getByRole("heading", { name: "No automation rules" })).toBeVisible();
 
-        await page
-          .getByRole("link", { name: /Connections/ })
-          .last()
-          .click();
-        await expect(page).toHaveURL(`${automationsUrl}?view=connections`);
+        await openDirectDestination(page, "Integrations", width);
+        await expect(page).toHaveURL(integrationsUrl);
+        await expect(page.getByRole("heading", { name: "Integrations", level: 1 })).toBeVisible();
         const github = page
-          .getByRole("heading", { name: "GitHub" })
-          .locator("xpath=ancestor::section[1]");
+          .getByRole("heading", { name: "GitHub", exact: true })
+          .locator("xpath=../..");
         const http = page
-          .getByRole("heading", { name: "HTTP" })
-          .locator("xpath=ancestor::section[1]");
+          .getByRole("heading", { name: "HTTP", exact: true })
+          .locator("xpath=../..");
         // The connector catalogue grows as services ship, so assert that the two
-        // this test drives each offer a connection rather than pinning the total.
+        // this test drives each expose a compact row rather than pinning the total.
         await expect(http).toBeVisible();
         await expect(github.getByRole("button", { name: "Connect" })).toBeVisible();
         await expect(http.getByRole("button", { name: "Connect" })).toBeVisible();
@@ -72,9 +84,16 @@ test.describe("Team automations", () => {
         await github.getByRole("button", { name: "Connect" }).click();
         await page.getByLabel("Signing secret").fill("e2e-automation-secret");
         await page.getByRole("button", { name: "Save connection" }).click();
-        await expect(github.getByRole("button", { name: "Copy webhook URL" })).toBeVisible();
+        await expect(github.getByRole("button", { name: "Configure" })).toBeVisible();
+        await expect(
+          page
+            .getByRole("heading", { name: "Active integrations" })
+            .locator("xpath=ancestor::section[1]")
+            .getByRole("heading", { name: "GitHub", exact: true }),
+        ).toBeAttached();
 
-        await page.getByRole("link", { name: /Rules/ }).last().click();
+        await openDirectDestination(page, "Rules", width);
+        await expect(page).toHaveURL(rulesUrl);
         await page.getByRole("button", { name: "New rule" }).click();
         await page.getByLabel("Rule name").fill("E2E failed CI to incident");
         await page.getByLabel("Source connection").selectOption({ index: 1 });
@@ -93,9 +112,7 @@ test.describe("Team automations", () => {
         await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
         await expect(ruleState).toHaveText("Enabled");
 
-        await page.getByRole("link", { name: /Runs/ }).click();
-        await expect(page).toHaveURL(`${automationsUrl}?view=runs`);
-        await expect(page.getByRole("heading", { name: "No automation runs" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
       } finally {
         await clearAutomations(page, token);
       }
@@ -105,9 +122,10 @@ test.describe("Team automations", () => {
   test("non-Managers do not receive configuration controls", async ({ page }) => {
     await login(page, "responder@opswarden.local");
     await page.goto(`/en/teams/${TEAM_ID}/overview`);
-    await expect(page.getByRole("link", { name: "Automations", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Rules", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Integrations", exact: true })).toHaveCount(0);
 
-    await page.goto(automationsUrl);
+    await page.goto(rulesUrl);
     await expect(page.getByText("Manager access required")).toBeVisible();
     await expect(page.getByRole("button", { name: /Connect|New rule/ })).toHaveCount(0);
   });

@@ -268,6 +268,56 @@ describe("RulesView", () => {
     );
   });
 
+  it("keeps same-named provider events distinct", () => {
+    const github = {
+      ...catalog[0],
+      actions: [{ ...catalog[0].actions[0], name: "ci_failed", label: "GitHub CI failed" }],
+    };
+    const gitlab: AutomationService = {
+      ...github,
+      name: "gitlab",
+      label: "GitLab",
+      actions: [
+        {
+          ...github.actions[0],
+          label: "GitLab pipeline failed",
+          connection_service: "gitlab",
+        },
+      ],
+    };
+    const gitlabConnection = {
+      ...connection,
+      id: "connection-gitlab",
+      service: "gitlab",
+    };
+
+    render(
+      <RulesView
+        catalog={[github, gitlab, catalog[2]]}
+        connections={[connection, gitlabConnection]}
+        rules={[]}
+        teamId="team-1"
+        isCreatingRule
+        setIsCreatingRule={vi.fn()}
+      />,
+    );
+
+    const eventSelect = screen.getByLabelText("event");
+    expect(within(eventSelect).getByRole("option", { name: "GitHub CI failed" })).toHaveValue(
+      "github:ci_failed",
+    );
+    expect(within(eventSelect).getByRole("option", { name: "GitLab pipeline failed" })).toHaveValue(
+      "gitlab:ci_failed",
+    );
+
+    fireEvent.change(eventSelect, { target: { value: "gitlab:ci_failed" } });
+    expect(
+      within(screen.getByLabelText("sourceConnection")).getByRole("option", {
+        name: "gitlab · connecti",
+      }),
+    ).toHaveValue(gitlabConnection.id);
+  });
+
   it("creates a rule from a native OpsWarden event without exposing a connection", () => {
     render(
       <RulesView
@@ -382,6 +432,20 @@ describe("RulesView", () => {
 
     expect(screen.getAllByText("Failed CI")).toHaveLength(2);
     const table = screen.getByRole("table", { name: "rulesList" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .slice(0, 6)
+        .map(
+          (header) =>
+            header.querySelector("select")?.getAttribute("aria-label") ?? header.textContent,
+        ),
+    ).toEqual(["colRule", "colStatus", "colTrigger", "colResponse", "colNextRun", "colUpdated"]);
+    const headers = within(table).getAllByRole("columnheader");
+    expect(headers[4]).toHaveClass("whitespace-nowrap");
+    expect(table.parentElement).toHaveClass("overflow-x-auto");
+    expect(table.parentElement?.parentElement).not.toHaveClass("pt-6");
+    expect(screen.getByRole("list", { name: "rulesList" }).parentElement).not.toHaveClass("pt-6");
     expect(within(table).getByText("CI failed")).toBeInTheDocument();
     fireEvent.pointerDown(screen.getAllByRole("button", { name: "actionsMenu" })[0], {
       button: 0,

@@ -5,11 +5,7 @@ import { useGifSearch } from "@/lib/queries/gifs";
 import { IconButton } from "@/components/ui/Button";
 import { MediaButton } from "@/components/ui/MediaButton";
 
-/**
- * Dense GIPHY search grid shown above the timeline composer. Debounces the
- * query, renders preview stills, and calls `onSelect` with the full-size GIF
- * URL when one is picked. Attribution ("Powered by GIPHY") is always visible.
- */
+/** Shared GIPHY picker for every conversation composer. */
 export function GifSearchPanel({
   onSelect,
   onClose,
@@ -41,13 +37,13 @@ export function GifSearchPanel({
             type="text"
             autoFocus
             value={term}
-            onChange={(e) => setTerm(e.target.value)}
+            onChange={(event) => setTerm(event.target.value)}
             placeholder={t("gifSearchPlaceholder")}
             className="ow-input flex h-9 w-full rounded-md px-3 py-2 text-sm transition-colors"
           />
         </label>
         <IconButton label={t("gifClose")} size="sm" variant="ghost" onClick={onClose}>
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" aria-hidden="true" />
         </IconButton>
       </div>
 

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReleaseListItem } from "@/lib/queries/releases";
 import { ReleasesPage } from "./ReleasesPage";
@@ -89,15 +89,24 @@ describe("ReleasesPage", () => {
   it("renders the active release in desktop and mobile projections", () => {
     render(<ReleasesPage teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "title" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "title" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "createRelease" })).toBeInTheDocument();
     expect(screen.getAllByText("Production deployment")).toHaveLength(2);
     expect(screen.queryByText("Emergency rollout")).not.toBeInTheDocument();
     expect(screen.getAllByRole("progressbar")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: /viewBlocked/ })).toHaveAttribute(
-      "href",
-      "/teams/team-1/releases?view=blocked",
-    );
+    const table = screen.getByRole("table", { name: "tableLabel" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map(
+          (header) =>
+            header.querySelector("select")?.getAttribute("aria-label") ?? header.textContent,
+        ),
+    ).toEqual(["colRelease", "colStatus", "colProgress", "colNextStep", "colBlockers", "colAge"]);
+    fireEvent.change(screen.getByRole("combobox", { name: "colStatus" }), {
+      target: { value: "blocked" },
+    });
+    expect(push).toHaveBeenCalledWith("/teams/team-1/releases?view=blocked");
   });
 
   it("preserves the selected view and redirects legacy detail URLs", () => {
@@ -114,7 +123,7 @@ describe("ReleasesPage", () => {
     const filtered = render(<ReleasesPage teamId="team-1" />);
     expect(screen.getByText("noMatchingReleases")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "clearFilters" }));
-    expect(push).toHaveBeenCalledWith("/teams/team-1/releases");
+    expect(push).toHaveBeenCalledWith("/teams/team-1/releases?view=all");
     filtered.unmount();
 
     teamsData = [];

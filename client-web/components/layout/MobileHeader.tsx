@@ -18,7 +18,14 @@ export function MobileHeader() {
         className="shrink-0"
         aria-label={t("logoWordmarkAlt")}
       >
-        <Image src="/assets/logo-icon.png" alt="" width={30} height={25} priority />
+        <Image
+          src="/assets/logo-icon.png"
+          alt=""
+          width={30}
+          height={25}
+          className="h-auto w-auto"
+          priority
+        />
       </Link>
       <TeamSwitcher compact className="ml-auto min-w-0 flex-1 justify-end" />
     </header>

@@ -1,0 +1,137 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/store/auth";
+import { DirectMessageRoomPage } from "./DirectMessageRoomPage";
+
+vi.mock("next-intl", () => ({
+  useLocale: () => "en",
+  useTranslations: () => {
+    const translate = (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${Object.values(values).join(":")}` : key;
+    translate.has = () => true;
+    return translate;
+  },
+}));
+
+vi.mock("@/components/incidents/WarRoomNavigation", () => ({
+  WarRoomNavigation: ({ activePeerId }: { activePeerId?: string }) => (
+    <aside aria-label="roomNavigation">peer:{activePeerId}</aside>
+  ),
+}));
+
+const peer = {
+  user_id: "peer-1",
+  email: "peer@example.com",
+  role: "responder" as const,
+  joined_at: "2026-08-01T10:00:00Z",
+};
+let membersQuery: { data: (typeof peer)[]; isLoading: boolean; error: Error | null } = {
+  data: [peer],
+  isLoading: false,
+  error: null,
+};
+let messagesQuery: {
+  data: Array<{
+    id: string;
+    sender_id: string;
+    recipient_id: string;
+    content: string;
+    created_at: string;
+  }>;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: Error | null;
+} = {
+  data: [
+    {
+      id: "mine",
+      sender_id: "me-1",
+      recipient_id: "peer-1",
+      content: "My update",
+      created_at: "2026-08-10T10:01:00Z",
+    },
+    {
+      id: "theirs",
+      sender_id: "peer-1",
+      recipient_id: "me-1",
+      content: "Their update",
+      created_at: "2026-08-10T10:00:00Z",
+    },
+    {
+      id: "gif",
+      sender_id: "peer-1",
+      recipient_id: "me-1",
+      content: "giphy:https://media.giphy.com/media/abc/giphy.gif",
+      created_at: "2026-08-10T09:59:00Z",
+    },
+  ],
+  isLoading: false,
+  isFetching: false,
+  error: null,
+};
+const send = { error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() };
+
+vi.mock("@/lib/queries/teams", () => ({
+  useTeamMembers: () => membersQuery,
+}));
+
+vi.mock("@/lib/queries/privateMessages", () => ({
+  usePrivateMessages: () => messagesQuery,
+  useSendPrivateMessage: () => send,
+}));
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  useAuthStore.getState().logout();
+  membersQuery = { data: [peer], isLoading: false, error: null };
+  messagesQuery = { ...messagesQuery, isLoading: false, isFetching: false, error: null };
+});
+
+describe("DirectMessageRoomPage", () => {
+  it("renders a routed, full conversation with left and right speakers", () => {
+    useAuthStore.getState().setUser({ id: "me-1", email: "me@example.com", locale: "en" });
+    render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
+
+    expect(screen.getByRole("heading", { name: "peer@example.com" })).toHaveClass("sr-only");
+    expect(screen.getByRole("region", { name: "peer@example.com" })).toBeVisible();
+    expect(screen.getByText("My update").closest("article")).toHaveClass("justify-end");
+    expect(screen.getByText("My update")).toHaveClass("bg-gold");
+    expect(screen.getByText("Their update").closest("article")).toHaveClass("justify-start");
+    expect(screen.getByRole("img", { name: "gifAlt" })).toHaveAttribute(
+      "src",
+      "https://media.giphy.com/media/abc/giphy.gif",
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("sends trimmed content to the routed peer", () => {
+    useAuthStore.getState().setUser({ id: "me-1", locale: "en" });
+    render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
+
+    fireEvent.change(screen.getByPlaceholderText("placeholder"), {
+      target: { value: "  Status checked  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    expect(send.mutate).toHaveBeenCalledWith(
+      { recipientId: "peer-1", content: "Status checked" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("can fully retract and restore room navigation", () => {
+    useAuthStore.getState().setUser({ id: "me-1", locale: "en" });
+    render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "collapseRooms" }));
+    expect(document.querySelector('[data-rooms-rail-open="false"]')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "expandRooms" }));
+    expect(document.querySelector('[data-rooms-rail-open="true"]')).toBeInTheDocument();
+  });
+
+  it("rejects a peer outside the current Team", () => {
+    render(<DirectMessageRoomPage teamId="team-1" peerId="unknown" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("loadFailed");
+  });
+});

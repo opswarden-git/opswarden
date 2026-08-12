@@ -16,6 +16,10 @@ const isVercel = !!process.env.VERCEL;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The default bottom-left badge sits directly over the first mobile
+  // navigation item. The overlay is useful while debugging, but obscuring a
+  // real control makes local UX review misleading.
+  devIndicators: false,
   output: isVercel ? undefined : "standalone",
   outputFileTracingRoot: isVercel ? undefined : workspaceRoot,
   turbopack: {

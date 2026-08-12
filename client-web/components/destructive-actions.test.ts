@@ -55,7 +55,9 @@ describe("destructive-action disclosure contract", () => {
   );
 
   it("makes every confirmation explicit, named and cancellable", () => {
-    expect(productConfirmations).toHaveLength(11);
+    // Ownership now has one canonical row-level transfer flow instead of a
+    // duplicate Team-settings confirmation.
+    expect(productConfirmations).toHaveLength(10);
     for (const confirmation of productConfirmations) {
       for (const required of [
         "title",
@@ -75,7 +77,7 @@ describe("destructive-action disclosure contract", () => {
 
   it("declares the risk of every flow instead of inferring it from wording or color", () => {
     expect(productConfirmations.filter(({ intent }) => intent === "destructive")).toHaveLength(9);
-    expect(productConfirmations.filter(({ intent }) => intent === "standard")).toHaveLength(2);
+    expect(productConfirmations.filter(({ intent }) => intent === "standard")).toHaveLength(1);
     expect(productConfirmations.some(({ intent }) => intent === undefined)).toBe(false);
   });
 

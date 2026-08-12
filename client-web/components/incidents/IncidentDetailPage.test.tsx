@@ -57,6 +57,7 @@ const toggleReaction = { error: null, isPending: false, mutate: vi.fn() };
 
 vi.mock("@/lib/queries/incidents", () => ({
   useIncident: () => incidentQuery,
+  useIncidents: () => ({ data: [incident] }),
   useUpdateIncidentStatus: () => updateStatus,
   useDeleteIncident: () => deleteIncident,
   useAssignIncident: () => assignIncident,
@@ -126,6 +127,9 @@ describe("IncidentDetailPage", () => {
     expect(screen.getAllByText("responder@example.com").length).toBeGreaterThan(1);
     expect(screen.getByText("Production deploy")).toBeInTheDocument();
     expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);
+    expect(screen.queryByText("teamLabel")).not.toBeInTheDocument();
+    expect(screen.queryByText("createdAt")).not.toBeInTheDocument();
+    expect(screen.queryByText("updatedAt")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /acknowledge/ }));
     expect(updateStatus.mutate).toHaveBeenCalledWith({
       incidentId: incident.id,
@@ -143,8 +147,22 @@ describe("IncidentDetailPage", () => {
       assigneeId: "manager-1",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "incidentContext" }));
+    fireEvent.click(screen.getByRole("button", { name: "details" }));
     expect(screen.getByRole("dialog", { name: "incidentContext" })).toBeInTheDocument();
+  });
+
+  it("can fully retract and restore both desktop war-room rails", () => {
+    render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "collapseRooms" }));
+    fireEvent.click(screen.getByRole("button", { name: "collapseContext" }));
+    expect(document.querySelector('[data-rooms-rail-open="false"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-context-rail-open="false"]')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "expandRooms" }));
+    fireEvent.click(screen.getByRole("button", { name: "expandContext" }));
+    expect(document.querySelector('[data-rooms-rail-open="true"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-context-rail-open="true"]')).toBeInTheDocument();
   });
 
   it("renders deterministic loading and error states", () => {

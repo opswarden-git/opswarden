@@ -12,7 +12,7 @@ interface StepProps {
   next: () => void;
 }
 
-type CredentialErrors = Partial<Record<"operatorName" | "email" | "password", string>>;
+type CredentialErrors = Partial<Record<"email" | "password", string>>;
 
 export function StepCredentials({ data, updateData, next }: StepProps) {
   const t = useTranslations("Onboarding");
@@ -25,7 +25,6 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
     const newErrors: CredentialErrors = {};
     if (!data.email) newErrors.email = t("required");
     if (!data.password || data.password.length < 6) newErrors.password = t("passwordMin");
-    if (!data.operatorName) newErrors.operatorName = t("required");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -37,16 +36,6 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-6">
       <div className="flex flex-col gap-4">
-        <FormField label={t("operatorName")} error={errors.operatorName} required>
-          <input
-            type="text"
-            placeholder={t("operatorNamePlaceholder")}
-            value={data.operatorName || ""}
-            onChange={(e) => updateData({ operatorName: e.target.value })}
-            className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
-          />
-        </FormField>
-
         <FormField label={tAuth("email")} error={errors.email} required>
           <input
             type="email"
@@ -57,13 +46,23 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
           />
         </FormField>
 
-        <FormField label={tAuth("password")} error={errors.password} required>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="signup-password" className="text-text text-sm font-medium">
+            {tAuth("password")}
+            <span className="text-sev-critical ml-0.5" aria-hidden="true">
+              *
+            </span>
+          </label>
           <div className="relative">
             <input
+              id="signup-password"
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={data.password || ""}
               onChange={(e) => updateData({ password: e.target.value })}
+              aria-required="true"
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={errors.password ? "signup-password-error" : undefined}
               className={`ow-input ${showPassword ? "text-text" : "text-muted-2"} caret-gold placeholder:text-muted-2 flex h-10 w-full rounded-md px-3 py-2 pr-10 text-sm transition-colors`}
             />
             <IconButton
@@ -76,7 +75,12 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </IconButton>
           </div>
-        </FormField>
+          {errors.password ? (
+            <p id="signup-password-error" className="text-sev-critical text-xs" role="alert">
+              {errors.password}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-2 flex flex-col gap-4">
