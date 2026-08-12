@@ -13,6 +13,17 @@ async function login(page: Page, email: string) {
   await expect(page).toHaveURL(/\/en\/teams\//);
 }
 
+async function selectReleaseView(page: Page, width: number, value: string) {
+  if (width < 1024) {
+    await page.getByRole("button", { name: /Release filters/ }).click();
+    const filters = page.getByRole("dialog", { name: "Release filters" });
+    await filters.getByRole("combobox", { name: "Status" }).selectOption(value);
+    await filters.getByRole("button", { name: "Done" }).click();
+    return;
+  }
+  await page.getByRole("combobox", { name: "Status" }).selectOption(value);
+}
+
 test.describe("Release queue", () => {
   for (const width of [320, 768, 1280, 1920]) {
     test(`Manager understands a blocked release from the list at ${width}px`, async ({ page }) => {
@@ -21,16 +32,15 @@ test.describe("Release queue", () => {
       await page.goto(releasesUrl);
 
       await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
-      await expect(page.getByRole("link", { name: /Active\s+1/ })).toHaveAttribute(
-        "aria-current",
-        "page",
-      );
+      if (width >= 1024) {
+        await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("active");
+      }
       const rowContainer = width < 1024 ? page.locator("li") : page.locator("tr");
       await expect(
         rowContainer.getByText("v2.9.0 — Observability foundations", { exact: true }),
       ).toBeVisible();
 
-      await page.getByRole("link", { name: /Blocked\s+1/ }).click();
+      await selectReleaseView(page, width, "blocked");
       await expect(page).toHaveURL(/view=blocked/);
 
       const container = (width < 1024 ? page.locator("li") : page.locator("tr"))
@@ -73,10 +83,16 @@ test.describe("Release queue", () => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`${releasesUrl}?view=all`);
 
-    await expect(page.getByRole("link", { name: /All\s+4/ })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await page.getByRole("button", { name: "Release filters" }).click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Release filters" })
+        .getByRole("combobox", { name: "Status" }),
+    ).toHaveValue("all");
+    await page
+      .getByRole("dialog", { name: "Release filters" })
+      .getByRole("button", { name: "Done" })
+      .click();
     await expect(page.getByRole("button", { name: "New release" })).toHaveCount(0);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -94,7 +110,7 @@ test.describe("Release queue", () => {
       blocker.getByRole("link", { name: "Payment API returning 502 in Europe" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Validate next step" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "More release actions" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
   });
 
   test("Responder validates only the next ordered step", async ({ page }) => {
@@ -106,7 +122,7 @@ test.describe("Release queue", () => {
     await page.getByRole("button", { name: "Validate next step" }).click();
     await expect(page.getByText("1/3", { exact: true })).toBeVisible();
     await expect(page.getByText("Enable tracing sampler", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "More release actions" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
   });
 
   test("Manager creates a release from keyboard-reordered steps", async ({ page }) => {
@@ -132,8 +148,7 @@ test.describe("Release queue", () => {
     await expect(items.nth(0)).toContainText("Verify production");
     await expect(items.nth(1)).toContainText("Build artifacts");
 
-    await page.getByRole("button", { name: "More release actions" }).click();
-    await page.getByRole("menuitem", { name: "Cancel release" }).click();
+    await page.getByRole("button", { name: "Cancel release" }).click();
     await expect(page.getByRole("dialog", { name: "Cancel release" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Keep" })).toBeFocused();
     await page.keyboard.press("Escape");

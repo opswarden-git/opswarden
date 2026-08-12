@@ -68,6 +68,7 @@ async function renderedContrast(locator: Locator, pseudoElement?: "::placeholder
 test("reduced motion keeps progress but neutralizes decorative motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/en/login");
+  await page.getByLabel("Email").waitFor();
 
   const result = await page.evaluate(() => {
     const decorative = document.createElement("span");
@@ -114,7 +115,7 @@ test("forced colors preserve focus, selection and action-menu geometry", async (
     await currentNavigationItem.evaluate((element) => getComputedStyle(element).outlineWidth),
   ).toBe("2px");
 
-  await page.goto(`/en/teams/${TEAM_ID}/members`);
+  await page.goto(`/en/teams/${TEAM_ID}/team#members`);
   await page.getByRole("button", { name: "Team Actions" }).first().click();
   const menuItem = page.getByRole("menuitem").first();
   await menuItem.hover();

@@ -15,10 +15,17 @@ describe("team routing", () => {
 
   it("preserves the product area when switching Team", () => {
     expect(pathForTeamSwitch("/teams/team-1/releases", "team-2")).toBe("/teams/team-2/releases");
-    expect(pathForTeamSwitch("/teams/team-1/members", "team-2")).toBe("/teams/team-2/members");
-    expect(pathForTeamSwitch("/teams/team-1/automations", "team-2")).toBe(
-      "/teams/team-2/automations",
+    expect(pathForTeamSwitch("/teams/team-1/team", "team-2")).toBe("/teams/team-2/team");
+    expect(pathForTeamSwitch("/teams/team-1/integrations", "team-2")).toBe(
+      "/teams/team-2/integrations",
     );
+    expect(pathForTeamSwitch("/teams/team-1/runs", "team-2")).toBe("/teams/team-2/runs");
+  });
+
+  it("canonicalizes legacy sections when switching Team", () => {
+    expect(pathForTeamSwitch("/teams/team-1/members", "team-2")).toBe("/teams/team-2/team");
+    expect(pathForTeamSwitch("/teams/team-1/settings", "team-2")).toBe("/teams/team-2/team");
+    expect(pathForTeamSwitch("/teams/team-1/automations", "team-2")).toBe("/teams/team-2/rules");
   });
 
   it("drops a resource that cannot belong to the next Team", () => {
@@ -35,6 +42,18 @@ describe("team routing", () => {
     });
     expect(pathForTeamSwitch("/teams/team-1/releases/release-7", "team-2")).toBe(
       "/teams/team-2/releases",
+    );
+  });
+
+  it("routes a direct conversation but drops its peer when switching Team", () => {
+    expect(teamPath("team-1", "messages", "peer-7")).toBe("/teams/team-1/messages/peer-7");
+    expect(parseTeamPath("/teams/team-1/messages/peer-7")).toEqual({
+      teamId: "team-1",
+      section: "messages",
+      resourceId: "peer-7",
+    });
+    expect(pathForTeamSwitch("/teams/team-1/messages/peer-7", "team-2")).toBe(
+      "/teams/team-2/incidents",
     );
   });
 

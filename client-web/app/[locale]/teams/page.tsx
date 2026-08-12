@@ -9,7 +9,6 @@ import { RoleChip } from "@/components/teams/RoleChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Alert } from "@/components/ui/Alert";
 import { Link } from "@/i18n/routing";
 import { useTeams } from "@/lib/queries/teams";
@@ -35,31 +34,27 @@ export default function TeamsPage() {
   return (
     <PageLayout>
       <PageHeader
-        title={t("title")}
-        description={t("directoryDescription")}
         actions={
           <>
+            <label className="relative max-w-72 min-w-52 flex-1">
+              <span className="sr-only">{t("searchTeams")}</span>
+              <Search
+                className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("searchTeams")}
+                className="ow-input h-9 w-full rounded-md pr-3 pl-9 text-sm"
+              />
+            </label>
             <JoinTeamDialog />
             <CreateTeamDialog />
           </>
         }
       />
-
-      <PageToolbar>
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("searchTeams")}</span>
-          <Search className="text-muted absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchTeams")}
-            className="ow-input h-10 w-full rounded-md pr-3 pl-10 text-sm"
-          />
-        </label>
-        <span className="text-muted px-1 text-sm">
-          {t("teamCount", { count: teams?.length ?? 0 })}
-        </span>
-      </PageToolbar>
 
       <PageContent
         state={contentState}
@@ -85,27 +80,28 @@ export default function TeamsPage() {
               <Link
                 key={team.team_id}
                 href={teamPath(team.team_id, "overview")}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.04]"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition-colors hover:bg-white/[0.04] sm:gap-4 sm:px-5"
               >
+                <span className="surface-subtle border-border flex h-9 w-9 shrink-0 items-center justify-center rounded-md border">
+                  <Users className="text-muted h-4 w-4" aria-hidden="true" />
+                </span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="surface-subtle border-border flex h-9 w-9 shrink-0 items-center justify-center rounded-md border">
-                      <Users className="text-muted h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-text truncate font-medium">{team.name}</p>
-                      <p className="text-muted mt-0.5 text-xs">
-                        {t("directorySummary", {
-                          members: team.member_count,
-                          incidents: team.active_incident_count,
-                          releases: team.active_release_count,
-                        })}
-                      </p>
-                    </div>
+                  <p className="text-text truncate font-medium">{team.name}</p>
+                  <p className="text-muted mt-0.5 text-xs">
+                    {t("directorySummary", {
+                      members: team.member_count,
+                      incidents: team.active_incident_count,
+                      releases: team.active_release_count,
+                    })}
+                  </p>
+                  <div className="mt-2 sm:hidden">
+                    <RoleChip role={team.role} />
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <RoleChip role={team.role} />
+                  <span className="hidden sm:inline-flex">
+                    <RoleChip role={team.role} />
+                  </span>
                   <ChevronRight className="text-muted h-4 w-4" aria-hidden="true" />
                 </div>
               </Link>

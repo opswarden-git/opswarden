@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowDown, ArrowUp, Plus, Rocket, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Rocket, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
@@ -96,7 +96,6 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       }
       trigger={
         <Button disabled={!teamId} variant="primary">
-          <Rocket className="h-4 w-4" aria-hidden="true" />
           {t("newRelease")}
         </Button>
       }
@@ -205,7 +204,6 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           </ol>
 
           <Button className="mt-3" size="sm" onClick={addStep}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
             {t("addStep")}
           </Button>
         </fieldset>
