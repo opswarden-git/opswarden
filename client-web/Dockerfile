@@ -20,6 +20,7 @@ COPY client-desktop/package.json ./client-desktop/package.json
 RUN npm ci
 # App source + build. Both the client `NEXT_PUBLIC_*` env and the `/api/*` rewrite
 # destination are baked into the build, so they are set here as build args.
+COPY contracts ./contracts
 COPY client-web ./client-web
 ARG NEXT_PUBLIC_WS_URL=""
 ARG OPSWARDEN_API_ORIGIN=http://localhost:8080
