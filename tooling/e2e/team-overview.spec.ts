@@ -23,17 +23,21 @@ test.describe("Team operational overview", () => {
     await page.goto(overviewUrl);
 
     await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
-    await expect(page.locator('select[aria-label="Current team"]:visible')).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /^Current team:/ })).toBeVisible();
 
     // Incidents section
     const incidentsSection = page.getByRole("region", { name: "Incidents" });
     await expect(incidentsSection).toBeVisible();
-    await expect(incidentsSection.getByText("Payment API returning 502 in Europe", { exact: true })).toBeVisible();
+    await expect(
+      incidentsSection.getByText("Payment API returning 502 in Europe", { exact: true }),
+    ).toBeVisible();
 
     // Releases section
     const releasesSection = page.getByRole("region", { name: "Releases" });
     await expect(releasesSection).toBeVisible();
-    await expect(releasesSection.getByText("v2.8.0 — Payment resilience", { exact: true })).toBeVisible();
+    await expect(
+      releasesSection.getByText("v2.8.0 — Payment resilience", { exact: true }),
+    ).toBeVisible();
 
     // Runs section
     const runsSection = page.getByRole("region", { name: "Runs" });
@@ -45,7 +49,7 @@ test.describe("Team operational overview", () => {
     await page.goto(overviewUrl);
 
     const releasesSection = page.getByRole("region", { name: "Releases" });
-    await expect(releasesSection.getByRole("link").first()).toHaveAttribute(
+    await expect(releasesSection.getByRole("listitem").first().getByRole("link")).toHaveAttribute(
       "href",
       new RegExp(`/en/teams/${TEAM_ID}/releases/[0-9a-f-]+$`),
     );

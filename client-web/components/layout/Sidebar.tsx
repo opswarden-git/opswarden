@@ -131,7 +131,7 @@ export function Sidebar({
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
       <RailToggle
-        className="top-1/2 right-0 translate-x-1/2 -translate-y-1/2"
+        className="top-1/2 right-0 -translate-y-1/2"
         direction={collapsed ? "right" : "left"}
         label={t(collapsed ? "expandNavigation" : "collapseNavigation")}
         onClick={() => onCollapsedChange(!collapsed)}

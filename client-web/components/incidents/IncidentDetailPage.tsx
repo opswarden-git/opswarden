@@ -150,46 +150,39 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         <div
           className={cn(
             "border-border grid min-h-0 flex-1 grid-cols-1 overflow-hidden border-y",
-            isContextRailOpen && "lg:grid-cols-[minmax(0,1fr)_19rem]",
-            isRoomsRailOpen && !isContextRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)]",
+            isContextRailOpen
+              ? "lg:grid-cols-[minmax(0,1fr)_19rem]"
+              : "lg:grid-cols-[minmax(0,1fr)_1rem]",
+            isRoomsRailOpen && !isContextRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)_1rem]",
+            !isRoomsRailOpen && isContextRailOpen && "xl:grid-cols-[1rem_minmax(0,1fr)_19rem]",
+            !isRoomsRailOpen && !isContextRailOpen && "xl:grid-cols-[1rem_minmax(0,1fr)_1rem]",
             isRoomsRailOpen && isContextRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)_19rem]",
           )}
         >
           <div
-            className={cn("relative hidden min-h-0", isRoomsRailOpen && "xl:block")}
+            className={cn(
+              "relative hidden min-h-0 xl:block",
+              !isRoomsRailOpen && "border-border border-r",
+            )}
             data-rooms-rail-open={isRoomsRailOpen ? "true" : "false"}
           >
-            <WarRoomNavigation
-              activeIncidentId={incident.id}
-              members={members ?? []}
-              teamId={incident.team_id}
-            />
+            {isRoomsRailOpen ? (
+              <WarRoomNavigation
+                activeIncidentId={incident.id}
+                members={members ?? []}
+                teamId={incident.team_id}
+              />
+            ) : null}
             <RailToggle
-              className="top-1/2 right-0 translate-x-1/2 -translate-y-1/2"
-              direction="left"
-              label={t("collapseRooms")}
-              onClick={() => setIsRoomsRailOpen(false)}
+              className="top-1/2 right-0 -translate-y-1/2"
+              direction={isRoomsRailOpen ? "left" : "right"}
+              label={t(isRoomsRailOpen ? "collapseRooms" : "expandRooms")}
+              onClick={() => setIsRoomsRailOpen((open) => !open)}
             />
           </div>
 
           <main className="relative flex min-h-0 min-w-0 flex-col">
             <h1 className="sr-only">{incident.title}</h1>
-            {!isRoomsRailOpen ? (
-              <RailToggle
-                className="top-1/2 left-0 -translate-y-1/2"
-                direction="right"
-                label={t("expandRooms")}
-                onClick={() => setIsRoomsRailOpen(true)}
-              />
-            ) : null}
-            {!isContextRailOpen ? (
-              <RailToggle
-                className="top-1/2 right-0 -translate-y-1/2"
-                direction="left"
-                label={t("expandContext")}
-                onClick={() => setIsContextRailOpen(true)}
-              />
-            ) : null}
             <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
               <IconButton
                 className="xl:hidden"
@@ -219,22 +212,27 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
           </main>
 
           <div
-            className={cn("relative hidden min-h-0", isContextRailOpen && "lg:block")}
+            className={cn(
+              "relative hidden min-h-0 lg:block",
+              !isContextRailOpen && "border-border border-l",
+            )}
             data-context-rail-open={isContextRailOpen ? "true" : "false"}
           >
             <RailToggle
-              className="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2"
-              direction="right"
-              label={t("collapseContext")}
-              onClick={() => setIsContextRailOpen(false)}
+              className="top-1/2 left-0 -translate-y-1/2"
+              direction={isContextRailOpen ? "right" : "left"}
+              label={t(isContextRailOpen ? "collapseContext" : "expandContext")}
+              onClick={() => setIsContextRailOpen((open) => !open)}
             />
-            <IncidentContextPanel
-              incident={incident}
-              members={members ?? []}
-              watcherIds={watchers}
-              canAssign={actions.canAssign}
-              commands={commands}
-            />
+            {isContextRailOpen ? (
+              <IncidentContextPanel
+                incident={incident}
+                members={members ?? []}
+                watcherIds={watchers}
+                canAssign={actions.canAssign}
+                commands={commands}
+              />
+            ) : null}
           </div>
         </div>
       </PageContent>

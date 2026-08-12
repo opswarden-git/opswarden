@@ -438,4 +438,3 @@ test("canonical pages keep one horizontal and vertical layout contract", async (
     }
   }
 });
-

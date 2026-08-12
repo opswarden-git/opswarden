@@ -122,7 +122,7 @@ test("Rules and Runs reuse the collection header contract", async ({ page }) => 
 
   await page.goto(`/en/teams/${TEAM_ID}/rules`);
   const rules = page.getByRole("table", { name: "Automation rules" });
-  await expect(rules.getByRole("combobox", { name: "Status" })).toBeAttached();
+  await expect(page.getByRole("combobox", { name: "Status" })).toBeAttached();
   await expect(rules.getByRole("button", { name: "Next run" })).toBeVisible();
   await expect(rules.getByRole("button", { name: "Updated" })).toBeVisible();
 

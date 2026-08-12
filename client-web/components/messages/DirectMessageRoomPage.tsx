@@ -98,33 +98,29 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
         <div
           className={cn(
             "border-border grid min-h-0 flex-1 grid-cols-1 overflow-hidden border-y",
-            isRoomsRailOpen && "xl:grid-cols-[14rem_minmax(0,1fr)]",
+            isRoomsRailOpen
+              ? "xl:grid-cols-[14rem_minmax(0,1fr)]"
+              : "xl:grid-cols-[1rem_minmax(0,1fr)]",
           )}
         >
           <div
-            className={cn("relative hidden min-h-0", isRoomsRailOpen && "xl:block")}
+            className={cn(
+              "relative hidden min-h-0 xl:block",
+              !isRoomsRailOpen && "border-border border-r",
+            )}
             data-rooms-rail-open={isRoomsRailOpen ? "true" : "false"}
           >
-            {roomNavigation}
+            {isRoomsRailOpen ? roomNavigation : null}
             <RailToggle
-              className="top-1/2 right-0 translate-x-1/2 -translate-y-1/2"
-              direction="left"
-              label={tIncidents("collapseRooms")}
-              onClick={() => setIsRoomsRailOpen(false)}
+              className="top-1/2 right-0 -translate-y-1/2"
+              direction={isRoomsRailOpen ? "left" : "right"}
+              label={tIncidents(isRoomsRailOpen ? "collapseRooms" : "expandRooms")}
+              onClick={() => setIsRoomsRailOpen((open) => !open)}
             />
           </div>
 
           <main className="relative flex min-h-0 min-w-0 flex-col">
             <h1 className="sr-only">{peer.email}</h1>
-
-            {!isRoomsRailOpen ? (
-              <RailToggle
-                className="top-1/2 left-0 -translate-y-1/2"
-                direction="right"
-                label={tIncidents("expandRooms")}
-                onClick={() => setIsRoomsRailOpen(true)}
-              />
-            ) : null}
 
             <IconButton
               className="absolute top-2 right-2 z-20 xl:hidden"

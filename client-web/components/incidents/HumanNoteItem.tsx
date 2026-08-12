@@ -193,6 +193,8 @@ export function HumanNoteItem({
                 </div>
               </div>
             ) : gifUrl ? (
+              // External GIPHY media is user-selected and not constrained to a build-time host.
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={gifUrl}
                 alt={t("gifAlt")}

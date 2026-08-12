@@ -16,7 +16,7 @@ test("account settings stays account-scoped and retires the duplicate connector 
 
   await expect(page).toHaveURL(/\/en\/settings$/);
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "User", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Manager", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Connectors", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toHaveCount(0);
 

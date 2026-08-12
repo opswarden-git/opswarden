@@ -32,7 +32,9 @@ test.describe("Team roster and members", () => {
       // Manager should see the "Chat with" link and "Team Actions" buttons for other users
       // Note: Because we duplicated the DOM for responsiveness (md:hidden / md:block),
       // we just check that at least one visible instance exists.
-      const messageLink = observerRow.getByRole("link", { name: "Chat with observer@opswarden.local" });
+      const messageLink = observerRow.getByRole("link", {
+        name: "Chat with observer@opswarden.local",
+      });
       const actionsBtn = observerRow.getByRole("button", { name: "Team Actions" });
 
       // Playwright's toBeVisible() will check if *any* matching element is visible if multiple exist
@@ -70,7 +72,9 @@ test.describe("Team roster and members", () => {
     await expect(responderRow).toBeVisible();
 
     // Observer can message the responder
-    const messageLink = responderRow.getByRole("link", { name: "Chat with responder@opswarden.local" });
+    const messageLink = responderRow.getByRole("link", {
+      name: "Chat with responder@opswarden.local",
+    });
     await expect(messageLink).toHaveCount(1);
 
     // Observer CANNOT see management actions

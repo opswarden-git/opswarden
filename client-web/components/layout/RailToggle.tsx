@@ -23,7 +23,7 @@ export function RailToggle({
       title={label}
       onClick={onClick}
       className={cn(
-        "border-border bg-panel text-muted hover:bg-panel-2 hover:text-text focus-visible:ring-gold/50 absolute z-30 flex h-8 w-4 items-center justify-center rounded-full border opacity-55 shadow-sm transition-[color,background-color,opacity] hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none",
+        "text-muted hover:text-text focus-visible:ring-gold/50 absolute z-30 flex h-10 w-4 items-center justify-center opacity-40 transition-[color,opacity] hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
     >

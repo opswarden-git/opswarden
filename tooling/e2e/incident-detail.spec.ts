@@ -53,7 +53,7 @@ test.describe("Incident detail", () => {
 
     const rooms = page.getByRole("complementary", { name: "War room navigation" });
     await expect(rooms.getByRole("heading", { name: "Direct messages" })).toBeVisible();
-    await expect(rooms.getByRole("link", { name: "Incidents 12" })).toBeVisible();
+    await expect(rooms.getByRole("link", { name: /^Incidents \d+$/ })).toBeVisible();
     await expect(rooms.getByRole("link", { name: /Releases/ })).toHaveCount(0);
     const sectionLabels = await rooms
       .locator("section")

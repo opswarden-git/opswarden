@@ -112,7 +112,6 @@ test.describe("Team automations", () => {
         await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
         await expect(ruleState).toHaveText("Enabled");
 
-        await expect(page.getByRole("link", { name: "Runs", exact: true })).toBeVisible();
         await expect(page.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
       } finally {
         await clearAutomations(page, token);

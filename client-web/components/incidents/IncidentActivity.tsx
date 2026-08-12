@@ -110,7 +110,6 @@ function systemEventSignature(item: Extract<IncidentActivityItem, { type: "syste
   ]);
 }
 
-
 function ActivityComposer({
   incidentId,
   people,

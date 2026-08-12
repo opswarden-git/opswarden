@@ -17,11 +17,11 @@ async function selectReleaseView(page: Page, width: number, value: string) {
   if (width < 1024) {
     await page.getByRole("button", { name: /Release filters/ }).click();
     const filters = page.getByRole("dialog", { name: "Release filters" });
-    await filters.getByRole("combobox", { name: "State" }).selectOption(value);
+    await filters.getByRole("combobox", { name: "Status" }).selectOption(value);
     await filters.getByRole("button", { name: "Done" }).click();
     return;
   }
-  await page.getByRole("combobox", { name: "State" }).selectOption(value);
+  await page.getByRole("combobox", { name: "Status" }).selectOption(value);
 }
 
 test.describe("Release queue", () => {
@@ -33,7 +33,7 @@ test.describe("Release queue", () => {
 
       await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
       if (width >= 1024) {
-        await expect(page.getByRole("combobox", { name: "State" })).toHaveValue("active");
+        await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("active");
       }
       const rowContainer = width < 1024 ? page.locator("li") : page.locator("tr");
       await expect(
@@ -87,7 +87,7 @@ test.describe("Release queue", () => {
     await expect(
       page
         .getByRole("dialog", { name: "Release filters" })
-        .getByRole("combobox", { name: "State" }),
+        .getByRole("combobox", { name: "Status" }),
     ).toHaveValue("all");
     await page
       .getByRole("dialog", { name: "Release filters" })

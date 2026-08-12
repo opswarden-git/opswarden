@@ -53,7 +53,7 @@ function IncidentSearch({
   }, [initialValue, onCommit, value]);
 
   return (
-    <label className="relative min-w-52 flex-1 max-w-72">
+    <label className="relative max-w-72 min-w-52 flex-1">
       <span className="sr-only">{label}</span>
       <Search
         className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
