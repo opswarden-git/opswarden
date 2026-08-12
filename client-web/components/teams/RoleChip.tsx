@@ -7,16 +7,17 @@ import type { TeamRole } from "@/lib/capabilities";
  * Small, reusable RBAC role badge: icon + translated label. Shared by the
  * team list (the user's own role) and the roster (each member's role).
  */
-export function RoleChip({ role }: { role: TeamRole }) {
+export function RoleChip({ role, iconOnly = false }: { role: TeamRole; iconOnly?: boolean }) {
   const t = useTranslations("Teams");
+  const iconSize = iconOnly ? "h-4 w-4" : "h-3 w-3";
 
   const icon =
     role === "manager" ? (
-      <ShieldAlert className="text-gold h-3.5 w-3.5" />
+      <ShieldAlert className={`text-gold ${iconSize}`} aria-hidden="true" />
     ) : role === "responder" ? (
-      <ShieldCheck className="text-st-ack h-3.5 w-3.5" />
+      <ShieldCheck className={`text-st-ack ${iconSize}`} aria-hidden="true" />
     ) : (
-      <Shield className="text-muted h-3.5 w-3.5" />
+      <Shield className={`text-muted ${iconSize}`} aria-hidden="true" />
     );
 
   const label =
@@ -27,9 +28,12 @@ export function RoleChip({ role }: { role: TeamRole }) {
         : t("roleObserver");
 
   return (
-    <span className="surface-subtle text-text border-border inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium">
+    <span
+      className="text-muted inline-flex shrink-0 items-center gap-1 text-xs leading-4 font-medium"
+      aria-label={iconOnly ? label : undefined}
+    >
       {icon}
-      {label}
+      {iconOnly ? null : label}
     </span>
   );
 }

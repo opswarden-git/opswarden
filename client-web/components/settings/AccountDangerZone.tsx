@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { LogOut, PencilLine, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import { SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
 /** Logout + delete-account (typed-confirm). */
 export function AccountDangerZone() {
@@ -50,39 +50,33 @@ export function AccountDangerZone() {
   };
 
   return (
-    <div className="surface rounded-md p-6">
-      <h2 className="text-text border-border flex items-center gap-2 border-b pb-4 text-lg font-semibold tracking-tight">
-        <PencilLine className="text-muted h-5 w-5" />
-        {t("accountActions")}
-      </h2>
-      <div className="mt-4 space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium text-red-400">{t("logOutSession")}</h3>
-          </div>
-          <Button variant="secondary" size="lg" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
+    <SettingsSection title={t("accountActions")}>
+      <SettingsRow
+        label={t("logOutSession")}
+        action={
+          <Button variant="secondary" onClick={handleLogout}>
             {t("logOut")}
           </Button>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium text-red-400">{t("deleteAccountTitle")}</h3>
-          </div>
+        }
+      >
+        <span className="text-muted">{user?.email ?? t("unknown")}</span>
+      </SettingsRow>
+      <SettingsRow
+        label={<span className="text-red-400">{t("deleteAccountTitle")}</span>}
+        action={
           <Button
             variant="danger"
-            size="lg"
             onClick={() => {
               setDeleteError(null);
               setDeleteOpen(true);
             }}
           >
-            <Trash2 className="h-4 w-4" />
             {t("deleteAccount")}
           </Button>
-        </div>
-      </div>
+        }
+      >
+        <span className="text-muted">{t("deleteAccountSummary")}</span>
+      </SettingsRow>
 
       <ConfirmDialog
         open={deleteOpen}
@@ -101,6 +95,6 @@ export function AccountDangerZone() {
           setDeleteError(null);
         }}
       />
-    </div>
+    </SettingsSection>
   );
 }

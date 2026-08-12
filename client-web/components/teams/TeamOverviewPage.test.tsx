@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/store/auth";
 import { TeamOverviewPage } from "./TeamOverviewPage";
@@ -7,9 +7,6 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(":")}` : key,
-}));
-vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/i18n/routing", () => ({
   usePathname: () => "/teams/team-1/overview",
@@ -23,10 +20,10 @@ vi.mock("@/i18n/routing", () => ({
 const team = {
   team_id: "team-1",
   name: "Operations",
-  role: "responder" as const,
+  role: "manager" as const,
   created_at: "2026-07-25T09:00:00Z",
   member_count: 3,
-  active_incident_count: 2,
+  active_incident_count: 1,
   active_release_count: 1,
   blocked_release_count: 1,
 };
@@ -69,11 +66,31 @@ const releases = [
   },
 ];
 
+const rules = [
+  {
+    id: "rule-1",
+    name: "Open production incident",
+  },
+];
+const runs = [
+  {
+    id: "run-1",
+    delivery_id: "delivery-1",
+    rule_id: "rule-1",
+    status: "succeeded",
+    incident_id: "incident-1",
+    error_code: null,
+    started_at: "2026-07-25T10:04:00Z",
+    finished_at: "2026-07-25T10:04:01Z",
+  },
+];
+
 let loading = false;
 let failing = false;
+let teamRole: "manager" | "responder" | "observer" = "manager";
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({
-    data: [team],
+    data: [{ ...team, role: teamRole }],
     isLoading: loading,
     error: failing ? new Error("failed") : null,
   }),
@@ -92,34 +109,62 @@ vi.mock("@/lib/queries/releases", () => ({
     error: failing ? new Error("failed") : null,
   }),
 }));
+vi.mock("@/lib/queries/automations", () => ({
+  useAutomationRules: () => ({
+    data: rules,
+    isLoading: loading,
+    error: failing ? new Error("failed") : null,
+  }),
+  useAutomationRuns: () => ({
+    data: runs,
+    isLoading: loading,
+    isFetching: false,
+    error: failing ? new Error("failed") : null,
+    refetch: vi.fn(),
+  }),
+}));
 
 afterEach(() => {
   cleanup();
   loading = false;
   failing = false;
+  teamRole = "manager";
   useAuthStore.getState().logout();
 });
 
 describe("TeamOverviewPage", () => {
-  it("shows one cross-resource inbox, each item once, with counted facets", () => {
+  it("shows Incidents, Releases and Runs together", () => {
     useAuthStore.getState().setUser({ id: "user-1", email: "operator@example.com", locale: "en" });
     render(<TeamOverviewPage teamId="team-1" />);
 
     // The page names the page. The Team is named once, by the sidebar, so this
     // header no longer repeats it above every screen.
     expect(screen.queryByRole("heading", { name: "Operations" })).toBeNull();
-    expect(screen.getByText("needsAttention")).toBeInTheDocument();
-    expect(screen.getAllByText("Database outage").length).toBeGreaterThan(0);
+    expect(screen.queryByText("needsAttention")).toBeNull();
+    expect(screen.getByText("Database outage")).toBeInTheDocument();
+    expect(screen.getByText("Production deploy")).toBeInTheDocument();
+    expect(screen.getByText("Open production incident")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "overviewViewsLabel" })).toBeNull();
+    expect(screen.getByRole("link", { name: /overviewViews\.incidents\s+1/ })).toHaveAttribute(
+      "href",
+      "/teams/team-1/incidents",
+    );
+    expect(screen.getByRole("link", { name: /overviewViews\.releases\s+1/ })).toHaveAttribute(
+      "href",
+      "/teams/team-1/releases",
+    );
+    expect(screen.getByRole("link", { name: /overviewViews\.runs\s+1/ })).toHaveAttribute(
+      "href",
+      "/teams/team-1/runs",
+    );
+  });
 
-    // The defect this replaced: a blocked Release appeared twice on the same
-    // screen -- once in the inbox, once in a side panel that repeated it. The
-    // previous version of this test asserted the duplication as expected.
-    expect(screen.getAllByText("Production deploy")).toHaveLength(1);
-
-    // Facets are URL-backed views onto that one queue, not links elsewhere.
-    const facets = screen.getByRole("navigation", { name: "attentionFacetsLabel" });
-    expect(within(facets).getByRole("link", { name: /facets\.all/ })).toBeInTheDocument();
-    expect(within(facets).getByRole("link", { name: /facets\.blocked/ })).toBeInTheDocument();
+  it("keeps automation runs out of roles that cannot manage them", () => {
+    teamRole = "responder";
+    render(<TeamOverviewPage teamId="team-1" />);
+    expect(screen.getByText("Database outage")).toBeInTheDocument();
+    expect(screen.getByText("Production deploy")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "overviewViews.runs" })).toBeNull();
   });
 
   it("renders explicit loading and error boundaries", () => {

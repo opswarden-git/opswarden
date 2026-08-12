@@ -56,6 +56,15 @@ const activity = [
     created_at: "2026-07-25T10:03:00Z",
   },
   {
+    type: "system_event" as const,
+    id: "event-status-repeat",
+    kind: "status_changed" as const,
+    actor: { user_id: "user-1", email: "responder@example.com" },
+    subject: null,
+    data: { from: "open", to: "acknowledged" },
+    created_at: "2026-07-25T10:03:30Z",
+  },
+  {
     type: "human_note" as const,
     entry_id: "entry-1",
     author: { user_id: "user-1", email: "responder@example.com" },
@@ -98,8 +107,24 @@ describe("IncidentActivity", () => {
     expect(screen.getByText(/activityCreated/)).toBeInTheDocument();
     expect(screen.getByText(/activityAssigned/)).toBeInTheDocument();
     expect(screen.getByText(/activitySeverityChanged/)).toBeInTheDocument();
-    expect(screen.getByText(/activityStatusChanged/)).toBeInTheDocument();
+    expect(screen.getAllByText(/activityStatusChanged/)).toHaveLength(1);
+    expect(screen.getByText("activityEventCount:2")).toBeInTheDocument();
+    const eventTitle = screen
+      .getByText(/activityStatusChanged/)
+      .parentElement?.getAttribute("title");
+    expect(eventTitle?.split("\n")).toHaveLength(2);
+    expect(eventTitle).toContain("2026");
     expect(screen.getByText("Investigating the primary database")).toBeInTheDocument();
+    expect(
+      screen.getByText("Investigating the primary database").closest("[data-note-owner]"),
+    ).toHaveAttribute("data-note-owner", "current");
+    expect(screen.getByText("Investigating the primary database").parentElement).toHaveClass(
+      "bg-gold",
+    );
+    expect(
+      screen.getByRole("img", { name: "gifAlt" }).closest("[data-note-owner]"),
+    ).toHaveAttribute("data-note-owner", "peer");
+    expect(screen.queryByRole("heading", { name: "activity" })).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "gifAlt" })).toHaveAttribute(
       "src",
       "https://media.giphy.com/media/abc/giphy.gif",
@@ -145,6 +170,7 @@ describe("IncidentActivity", () => {
     );
 
     const composer = screen.getByRole("textbox", { name: "addNote" });
+    expect(composer.closest("[data-conversation-composer]")).not.toHaveClass("border-t");
     fireEvent.change(composer, { target: { value: "  Mitigation deployed  " } });
     fireEvent.click(screen.getByRole("button", { name: "send" }));
 

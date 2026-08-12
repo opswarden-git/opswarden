@@ -90,6 +90,7 @@ async function incidentTitles(request: APIRequestContext, headers: Record<string
 }
 
 test("real Alertmanager delivers firing and resolved lifecycle transitions", async ({ page }) => {
+  test.setTimeout(60_000);
   const token = await login(page);
   const headers = { Authorization: `Bearer ${token}` };
   await clearAutomations(page.request, headers);
@@ -103,15 +104,15 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     const connection = await configured.json();
 
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto(`/en/teams/${TEAM_ID}/automations`);
+    await page.goto(`/en/teams/${TEAM_ID}/rules`);
     await page.getByRole("button", { name: "New rule" }).click();
     await page.getByLabel("Incoming event").selectOption("alert_firing");
     await page.getByLabel("Source connection").selectOption(connection.id);
-    await expect(page.getByRole("status").filter({ hasText: "independent events" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Resolved Alertmanager events" })).toBeVisible();
     await page.getByLabel("Incoming event").selectOption("alert_resolved");
     await expect(page.getByRole("option", { name: "Alert resolved" })).toBeAttached();
     await expect(
-      page.getByRole("status").filter({ hasText: "does not automatically close" }),
+      page.getByRole("status").filter({ hasText: "do not close" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
 
@@ -170,6 +171,8 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     expect(runs.ok()).toBeTruthy();
     expect(await runs.json()).toHaveLength(2);
   } finally {
-    await clearAutomations(page.request, headers);
+    // The suite-level reset is the final safety net. Keep this best-effort so
+    // cleanup cannot hide the delivery assertion that exhausted the deadline.
+    await clearAutomations(page.request, headers).catch(() => undefined);
   }
 });

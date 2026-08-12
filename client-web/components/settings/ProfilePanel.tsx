@@ -2,11 +2,14 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ShieldAlert, UserRound } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { useCreateTeam, useTeams } from "@/lib/queries/teams";
 import { useAuthStore } from "@/store/auth";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { memberDisplayName, memberInitials } from "@/components/teams/MemberAvatar";
+import { IdentityHeader, SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
 /** Station setup (when the user has no team yet) + read-only user identity card. */
 export function ProfilePanel() {
@@ -18,10 +21,10 @@ export function ProfilePanel() {
   const searchParams = useSearchParams();
   const [stationName, setStationName] = useState("");
   const user = useAuthStore((state) => state.user);
-  const { data: teams, isLoading: teamsLoading } = useTeams();
+  const email = user?.email ?? t("unknown");
+  const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
   const needsStationSetup = searchParams.get("setup") === "station" || teams?.length === 0;
-  const primaryTeam = teams?.[0];
 
   const handleCreateStation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,42 +81,31 @@ export function ProfilePanel() {
         </div>
       )}
 
-      <div className="surface rounded-md p-6">
-        <h2 className="text-text border-border flex items-center gap-2 border-b pb-4 text-lg font-semibold tracking-tight">
-          <UserRound className="text-muted h-5 w-5" />
-          {t("user")}
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-6 text-sm sm:grid-cols-2">
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("emailLabel")}
-            </span>
-            <span className="text-text font-medium">{user?.email ?? t("unknown")}</span>
-          </div>
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("userId")}
-            </span>
-            <span className="text-text font-mono text-xs">{user?.id ?? t("unknown")}</span>
-          </div>
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("role")}
-            </span>
-            <span className="text-text font-medium capitalize">
-              {teamsLoading ? t("loading") : (primaryTeam?.role ?? t("noStationYet"))}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-2 mb-1 block text-xs font-medium tracking-wider uppercase">
-              {t("organization")}
-            </span>
-            <span className="text-text font-medium">
-              {teamsLoading ? t("loading") : (primaryTeam?.name ?? t("notConfigured"))}
-            </span>
-          </div>
-        </div>
-      </div>
+      <IdentityHeader
+        mark={memberInitials(email)}
+        title={user?.email ? memberDisplayName(user.email) : t("user")}
+      />
+
+      <SettingsSection title={t("profile")}>
+        <SettingsRow label={t("emailLabel")}>
+          <span className="font-medium break-all">{email}</span>
+        </SettingsRow>
+        <SettingsRow
+          label={t("userId")}
+          action={
+            user?.id ? (
+              <CopyButton
+                value={user.id}
+                label={t("copyUserId")}
+                copiedLabel={t("userIdCopied")}
+                size="sm"
+              />
+            ) : null
+          }
+        >
+          <span className="text-muted font-mono text-xs break-all">{user?.id ?? t("unknown")}</span>
+        </SettingsRow>
+      </SettingsSection>
     </>
   );
 }
