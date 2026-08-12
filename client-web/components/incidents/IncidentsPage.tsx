@@ -9,10 +9,13 @@ import { IncidentTable, IncidentTableSkeleton } from "@/components/incidents/Inc
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageTabs } from "@/components/layout/PageTabs";
-import { PageToolbar } from "@/components/layout/PageToolbar";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
+import {
+  MobileCollectionFilters,
+  TableFilterControl,
+  TableSortControl,
+} from "@/components/ui/CollectionControls";
 import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import {
@@ -50,7 +53,7 @@ function IncidentSearch({
   }, [initialValue, onCommit, value]);
 
   return (
-    <label className="relative min-w-0 flex-1">
+    <label className="relative max-w-72 min-w-52 flex-1">
       <span className="sr-only">{label}</span>
       <Search
         className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -73,7 +76,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams } = useTeams();
+  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
   const { data: members } = useTeamMembers(teamId);
   const activeTeam = teams?.find((team) => team.team_id === teamId);
   const capabilities = deriveCapabilities(activeTeam?.role ?? "observer");
@@ -135,116 +138,170 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const contentState: PageContentState =
     isLoadingTeams || isLoadingIncidents
       ? "loading"
-      : error
+      : teamsError || error
         ? "error"
         : hasNoTeams || incidents.length === 0
           ? "empty"
           : "ready";
 
-  const tabHref = (nextView: IncidentView) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (nextView === "open") params.delete("view");
-    else params.set("view", nextView);
-    const suffix = params.toString();
-    return suffix ? `${pathname}?${suffix}` : pathname;
-  };
-
   const clearFilters = () => router.push(`${pathname}?view=all`);
   const assignableMembers = (members ?? []).filter(
     (member) => member.role === "manager" || member.role === "responder",
   );
+  const viewLabel = (value: IncidentView) => t(`view${value[0].toUpperCase()}${value.slice(1)}`);
+  const severityLabel = (value: IncidentSeverity) =>
+    t(`severity${value[0].toUpperCase()}${value.slice(1)}`);
+  const activeFilterCount =
+    (view === "all" ? 0 : 1) +
+    (severity ? 1 : 0) +
+    (assignee ? 1 : 0) +
+    (sort === "newest" ? 0 : 1);
+  const filterFieldClass = "space-y-2";
+  const filterSelectClass = "ow-input h-10 w-full rounded-md px-3 text-sm";
+  const filterFields = (
+    <>
+      <label className={filterFieldClass}>
+        <span className="text-muted block text-sm uppercase">{t("colStatus")}</span>
+        <select
+          value={view}
+          onChange={(event) => setParam("view", event.target.value)}
+          className={filterSelectClass}
+        >
+          {VIEWS.map((value) => (
+            <option key={value} value={value}>
+              {viewLabel(value)} ({counts[value]})
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={filterFieldClass}>
+        <span className="text-muted block text-sm uppercase">{t("colSeverity")}</span>
+        <select
+          value={severity ?? ""}
+          onChange={(event) => setParam("severity", event.target.value || undefined)}
+          className={filterSelectClass}
+        >
+          <option value="">{t("allSeverities")}</option>
+          {SEVERITIES.map((value) => (
+            <option key={value} value={value}>
+              {severityLabel(value)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={filterFieldClass}>
+        <span className="text-muted block text-sm uppercase">{t("colAssignee")}</span>
+        <select
+          value={assignee ?? ""}
+          onChange={(event) => setParam("assignee", event.target.value || undefined)}
+          className={filterSelectClass}
+        >
+          <option value="">{t("allAssignees")}</option>
+          <option value="unassigned">{t("unassigned")}</option>
+          {assignableMembers.map((member) => (
+            <option key={member.user_id} value={member.user_id}>
+              {member.email}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={filterFieldClass}>
+        <span className="text-muted block text-sm uppercase">{t("sortLabel")}</span>
+        <select
+          value={sort}
+          onChange={(event) => setParam("sort", event.target.value)}
+          className={filterSelectClass}
+        >
+          {SORTS.map((value) => (
+            <option key={value} value={value}>
+              {t(`sort${value[0].toUpperCase()}${value.slice(1)}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+  const headers = {
+    colStatus: (
+      <TableFilterControl
+        label={t("colStatus")}
+        value={view}
+        activeLabel={viewLabel(view)}
+        onChange={(value) => setParam("view", value)}
+        options={VIEWS.map((value) => ({
+          value,
+          label: `${viewLabel(value)} (${counts[value]})`,
+        }))}
+      />
+    ),
+    colAssignee: (
+      <TableFilterControl
+        label={t("colAssignee")}
+        value={assignee ?? ""}
+        activeLabel={
+          assignee === "unassigned"
+            ? t("unassigned")
+            : assignableMembers.find((member) => member.user_id === assignee)?.email
+        }
+        onChange={(value) => setParam("assignee", value || undefined)}
+        options={[
+          { value: "", label: t("allAssignees") },
+          { value: "unassigned", label: t("unassigned") },
+          ...assignableMembers.map((member) => ({ value: member.user_id, label: member.email })),
+        ]}
+      />
+    ),
+    colSeverity: (
+      <TableFilterControl
+        label={t("colSeverity")}
+        value={severity ?? ""}
+        activeLabel={severity ? severityLabel(severity) : undefined}
+        onChange={(value) => setParam("severity", value || undefined)}
+        options={[
+          { value: "", label: t("allSeverities") },
+          ...SEVERITIES.map((value) => ({ value, label: severityLabel(value) })),
+        ]}
+      />
+    ),
+    colAge: (
+      <TableSortControl
+        label={t("colAge")}
+        direction={sort === "newest" ? "ascending" : sort === "oldest" ? "descending" : undefined}
+        onToggle={() => setParam("sort", sort === "newest" ? "oldest" : "newest")}
+      />
+    ),
+  };
 
   return (
     <PageLayout>
       <PageHeader
-        context={
-          isLoadingTeams ? (
-            <span className="bg-muted/20 inline-block h-4 w-24 animate-pulse rounded" />
-          ) : activeTeam ? (
-            <Link
-              href={teamPath(teamId, "overview")}
-              className="hover:text-text transition-colors hover:underline"
-            >
-              {activeTeam.name}
-            </Link>
+        actions={
+          !hasNoTeams ? (
+            <>
+              <IncidentSearch
+                key={urlQuery}
+                initialValue={urlQuery}
+                label={t("searchLabel")}
+                placeholder={t("searchPlaceholder")}
+                onCommit={commitSearch}
+              />
+              <MobileCollectionFilters
+                activeCount={activeFilterCount}
+                label={t("filtersLabel")}
+                title={t("filtersLabel")}
+                description={t("filtersDescription")}
+                clearLabel={t("clearFilters")}
+                closeLabel={t("close")}
+                doneLabel={t("done")}
+                onClear={clearFilters}
+              >
+                {filterFields}
+              </MobileCollectionFilters>
+              {capabilities.canCreateIncident ? <CreateIncidentDialog teamId={teamId} /> : null}
+            </>
           ) : null
         }
-        title={t("title")}
-        description={t("queueDescription")}
-        actions={capabilities.canCreateIncident ? <CreateIncidentDialog teamId={teamId} /> : null}
       />
-
-      {!hasNoTeams ? (
-        <PageTabs
-          ariaLabel={t("viewsLabel")}
-          tabs={VIEWS.map((tab) => ({
-            href: tabHref(tab),
-            label: t(`view${tab[0].toUpperCase()}${tab.slice(1)}`),
-            count: counts[tab],
-            active: view === tab,
-          }))}
-        />
-      ) : null}
-
-      {!hasNoTeams && (hasIncidents || isLoadingIncidents) ? (
-        <PageToolbar aria-label={t("filtersLabel")}>
-          <IncidentSearch
-            key={urlQuery}
-            initialValue={urlQuery}
-            label={t("searchLabel")}
-            placeholder={t("searchPlaceholder")}
-            onCommit={commitSearch}
-          />
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:flex lg:shrink-0">
-            <label>
-              <span className="sr-only">{t("severityFilter")}</span>
-              <select
-                value={severity ?? ""}
-                onChange={(event) => setParam("severity", event.target.value || undefined)}
-                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-36"
-              >
-                <option value="">{t("allSeverities")}</option>
-                {SEVERITIES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`severity${value[0].toUpperCase()}${value.slice(1)}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span className="sr-only">{t("assigneeFilter")}</span>
-              <select
-                value={assignee ?? ""}
-                onChange={(event) => setParam("assignee", event.target.value || undefined)}
-                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-52"
-              >
-                <option value="">{t("allAssignees")}</option>
-                <option value="unassigned">{t("unassigned")}</option>
-                {assignableMembers.map((member) => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span className="sr-only">{t("sortLabel")}</span>
-              <select
-                value={sort}
-                onChange={(event) => setParam("sort", event.target.value)}
-                className="ow-input h-9 w-full rounded-md px-3 text-sm lg:w-40"
-              >
-                <option value="newest">{t("sortNewest")}</option>
-                <option value="oldest">{t("sortOldest")}</option>
-                <option value="severity">{t("sortSeverity")}</option>
-              </select>
-            </label>
-          </div>
-        </PageToolbar>
-      ) : null}
 
       <PageContent
         state={contentState}
@@ -278,7 +335,13 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
           )
         }
       >
-        <IncidentTable incidents={incidents} />
+        <IncidentTable
+          incidents={incidents}
+          headers={headers}
+          ageSortDirection={
+            sort === "newest" ? "ascending" : sort === "oldest" ? "descending" : undefined
+          }
+        />
       </PageContent>
     </PageLayout>
   );

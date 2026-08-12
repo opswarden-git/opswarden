@@ -26,7 +26,36 @@ vi.mock("@/lib/queries/automations", () => ({
 }));
 
 describe("ConnectionsView", () => {
-  it("renders the Generic Webhook connection entirely from /about.json metadata", () => {
+  it("uses the official marks for supported providers", () => {
+    const catalog = [
+      ["github", "GitHub"],
+      ["gitlab", "GitLab"],
+      ["alertmanager", "Alertmanager"],
+    ].map(([name, label]) => ({
+      name,
+      label,
+      actions: [],
+      reactions: [],
+      connection: {
+        description: `${label} connection`,
+        fields: [],
+        oauth: null,
+        testable: false,
+      },
+    })) satisfies AutomationService[];
+
+    const view = render(
+      <ConnectionsView catalog={catalog} connections={[]} rules={[]} teamId="team-1" />,
+    );
+    const imageSources = Array.from(view.container.querySelectorAll("img"), (image) => image.src);
+
+    expect(imageSources.some((source) => source.includes("github-patched.webp"))).toBe(true);
+    expect(imageSources.some((source) => source.includes("gitlab.webp"))).toBe(true);
+    expect(imageSources.some((source) => source.includes("alertmanager.svg"))).toBe(true);
+    view.unmount();
+  });
+
+  it("keeps inactive integrations compact and expands their catalog-driven form", () => {
     const service = {
       name: "generic",
       label: "Generic Webhook",
@@ -52,11 +81,16 @@ describe("ConnectionsView", () => {
 
     render(<ConnectionsView catalog={[service]} connections={[]} rules={[]} teamId="team-1" />);
 
+    expect(screen.getByRole("heading", { name: "activeIntegrations" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "inactiveIntegrations" })).toBeInTheDocument();
     expect(screen.getByText("Generic Webhook")).toBeInTheDocument();
     expect(
-      screen.getByText("Receive bounded JSON webhooks authenticated with a shared token"),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /connect/i }));
+      screen.queryByText("Receive bounded JSON webhooks authenticated with a shared token"),
+    ).not.toBeInTheDocument();
+    const connect = screen.getByRole("button", { name: /connect/i });
+    expect(connect).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(connect);
+    expect(connect).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText(/Shared webhook token/)).toHaveAttribute("type", "password");
     expect(
       screen.getByText("Required on first connection; sent in X-OpsWarden-Token"),

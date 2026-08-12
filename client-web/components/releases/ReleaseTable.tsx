@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import {
   OperationalTable,
   OperationalTableBody,
@@ -10,12 +11,16 @@ import {
 import type { ReleaseListItem } from "@/lib/queries/releases";
 import { ReleaseMobileRecord, ReleaseRow } from "./ReleaseRow";
 
-const columns = ["colRelease", "colState", "colProgress", "colNextStep", "colAge", "colBlockers"];
+const columns = ["colRelease", "colStatus", "colProgress", "colNextStep", "colBlockers", "colAge"];
 
 export function ReleaseTable({
+  ageSortDirection,
+  headers,
   hrefFor,
   releases,
 }: {
+  ageSortDirection?: "ascending" | "descending";
+  headers?: Partial<Record<(typeof columns)[number], ReactNode>>;
   hrefFor: (releaseId: string) => string;
   releases: ReleaseListItem[];
 }) {
@@ -28,7 +33,12 @@ export function ReleaseTable({
           <OperationalTableHead>
             <tr>
               {columns.map((column) => (
-                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
+                <OperationalTableHeaderCell
+                  key={column}
+                  aria-sort={column === "colAge" ? (ageSortDirection ?? "none") : undefined}
+                >
+                  {headers?.[column] ?? t(column)}
+                </OperationalTableHeaderCell>
               ))}
             </tr>
           </OperationalTableHead>

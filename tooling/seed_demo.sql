@@ -194,7 +194,10 @@ on conflict (release_id, incident_id) do nothing;
 
 -- Private-message browser tests exercise both HTTP directions and realtime
 -- delivery. Keep only the stable conversation after each run.
-delete from private_messages where content like 'E2E direct message %';
+delete from private_messages
+where content like 'E2E direct message %'
+   or content like 'giphy:%opswarden-e2e%'
+   or content = 'giphy:https://media.giphy.com/media/abc/giphy.gif';
 
 insert into private_messages (id, sender_id, recipient_id, content, created_at) values
   ('40000000-0000-4000-8000-000000000001', :'manager_id', :'responder_id', 'Can you take the checkout latency investigation?', now() - interval '50 minutes'),

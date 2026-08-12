@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import { Ban, Rocket } from "lucide-react";
+import { Rocket } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Link, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
@@ -18,42 +18,6 @@ import { teamPath } from "@/lib/team-routing";
 import { ReleaseDetail } from "./ReleaseDetail";
 import { ReleaseStateChip } from "./ReleaseStateChip";
 import { normalizeReleaseView } from "./release-views";
-
-function ReleaseBreadcrumb({
-  listHref,
-  releaseTitle,
-  teamHref,
-  teamName,
-}: {
-  listHref: string;
-  releaseTitle: string;
-  teamHref: string;
-  teamName: string;
-}) {
-  const t = useTranslations("Releases");
-
-  return (
-    <nav aria-label={t("breadcrumbLabel")} className="text-muted min-w-0 text-sm">
-      <ol className="flex min-w-0 items-center gap-2">
-        <li className="min-w-0 truncate">
-          <Link href={teamHref} className="hover:text-text transition-colors">
-            {teamName}
-          </Link>
-        </li>
-        <li aria-hidden="true">/</li>
-        <li>
-          <Link href={listHref} className="hover:text-text transition-colors">
-            {t("title")}
-          </Link>
-        </li>
-        <li aria-hidden="true">/</li>
-        <li className="text-text min-w-0 truncate font-medium" aria-current="page">
-          {releaseTitle}
-        </li>
-      </ol>
-    </nav>
-  );
-}
 
 export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; releaseId: string }) {
   const t = useTranslations("Releases");
@@ -86,19 +50,9 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
     isLoadingTeams || isLoading ? "loading" : error || !release || !team ? "error" : "ready";
 
   return (
-    <PageLayout width="workspace">
-      {release && team ? (
-        <ReleaseBreadcrumb
-          listHref={listHref}
-          releaseTitle={release.title}
-          teamHref={teamPath(teamId, "overview")}
-          teamName={team.name}
-        />
-      ) : null}
-
+    <PageLayout>
       <PageHeader
         title={release?.title ?? t("releaseDetail")}
-        description={t("detailDescription")}
         metadata={
           release ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -117,21 +71,15 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
         }
         actions={
           release && capabilities.canCancelRelease && !terminal ? (
-            <ActionMenu
-              label={t("moreActions")}
-              items={[
-                {
-                  id: "cancel",
-                  label: t("cancelRelease"),
-                  icon: Ban,
-                  tone: "danger",
-                  onSelect: () => {
-                    cancelRelease.reset();
-                    setConfirmCancel(true);
-                  },
-                },
-              ]}
-            />
+            <Button
+              size="lg"
+              onClick={() => {
+                cancelRelease.reset();
+                setConfirmCancel(true);
+              }}
+            >
+              {t("cancelRelease")}
+            </Button>
           ) : null
         }
       />

@@ -21,6 +21,7 @@ const routes = [
     path: `/en/teams/${teamId}/releases/30000000-0000-4000-8000-000000000001`,
   },
   { name: "team-overview", path: `/en/teams/${teamId}/overview` },
+  { name: "team-activity", path: `/en/teams/${teamId}/activity` },
   { name: "team-members", path: `/en/teams/${teamId}/members` },
   { name: "team-automations", path: `/en/teams/${teamId}/automations` },
   { name: "team-settings", path: `/en/teams/${teamId}/settings` },
@@ -100,7 +101,7 @@ try {
     `${JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        standardWidthDecision: "max-w-6xl",
+        widthDecision: "max-w-[90rem]",
         widths,
         routes: routes.map((route) => route.path),
         measurements,

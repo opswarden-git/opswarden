@@ -14,12 +14,21 @@ vi.mock("next-intl", () => ({
   },
 }));
 
+vi.mock("@/i18n/routing", () => ({
+  Link: ({ children, href, ...props }: React.ComponentProps<"a">) => (
+    <a href={String(href)} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("@/lib/ws", () => ({ useTeamOnline: () => ["manager-1", "responder-1"] }));
 
 const setRole = { error: null, isPending: false, mutate: vi.fn() };
 const transfer = { error: null, isPending: false, mutate: vi.fn() };
 const kick = { error: null, isPending: false, mutate: vi.fn() };
 const ban = { error: null, isPending: false, mutate: vi.fn() };
+const unban = { error: null, isPending: false, variables: undefined, mutate: vi.fn() };
 const members = [
   {
     user_id: "manager-1",
@@ -47,12 +56,23 @@ vi.mock("@/lib/queries/teams", () => ({
   useTransferManager: () => transfer,
   useKickMember: () => kick,
   useBanMember: () => ban,
+  useTeamBans: () => ({
+    data: [
+      {
+        user: { user_id: "banned-1", email: "banned@example.com" },
+        kind: "permanent",
+        expires_at: null,
+        reason: null,
+        moderator: null,
+        created_at: "2026-07-23T10:00:00Z",
+        active: true,
+      },
+    ],
+    isLoading: false,
+    error: null,
+  }),
+  useUnbanMember: () => unban,
 }));
-vi.mock("@/lib/queries/privateMessages", () => ({
-  usePrivateMessages: () => ({ data: [], isLoading: false, error: null }),
-  useSendPrivateMessage: () => ({ error: null, isPending: false, mutate: vi.fn() }),
-}));
-
 const team: Team = {
   team_id: "team-1",
   name: "Operations",
@@ -71,7 +91,7 @@ afterEach(() => {
 });
 
 describe("TeamRoster", () => {
-  it("renders online state, roles and private-message affordances", () => {
+  it("makes each peer row a direct link to its conversation", () => {
     useAuthStore
       .getState()
       .setUser({ id: "manager-1", email: "manager@example.com", locale: "en" });
@@ -79,7 +99,15 @@ describe("TeamRoster", () => {
 
     expect(screen.getAllByText("first.responder@example.com").length).toBeGreaterThan(0);
     expect(screen.getAllByText("observer@example.com").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: "message" })).toHaveLength(4);
+    expect(
+      screen.getByRole("link", { name: "openConversation:first.responder@example.com" }),
+    ).toHaveAttribute("href", "/teams/team-1/messages/responder-1");
+    expect(
+      screen.getByRole("link", { name: "openConversation:observer@example.com" }),
+    ).toHaveAttribute("href", "/teams/team-1/messages/observer-1");
+    expect(
+      screen.queryByRole("link", { name: "openConversation:manager@example.com" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("onlineCount:2")).toBeInTheDocument();
   });
 
@@ -92,6 +120,18 @@ describe("TeamRoster", () => {
 
     fireEvent.change(search, { target: { value: "nobody" } });
     expect(screen.getByText("noMatchingMembers")).toBeInTheDocument();
+    expect(screen.getByText("noMatchingBans")).toBeInTheDocument();
+  });
+
+  it("keeps active and banned accounts in two distinct rosters", () => {
+    render(<TeamRoster team={team} />);
+
+    expect(screen.getByRole("heading", { name: "activeMembers" })).toBeInTheDocument();
+    expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "bannedMembers" })).toBeInTheDocument();
+    expect(screen.getByText("banned@example.com")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "unban" }));
+    expect(unban.mutate).toHaveBeenCalledWith("banned-1");
   });
 
   it("changes a peer role through its row action menu", async () => {

@@ -1,8 +1,16 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { Button } from "@/components/ui/Button";
+import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
+import {
+  OperationalTable,
+  OperationalTableBody,
+  OperationalTableCell,
+  OperationalTableHead,
+  OperationalTableHeaderCell,
+  OperationalTableRow,
+  OperationalTableRowHeader,
+} from "@/components/ui/OperationalTable";
 import { Link } from "@/i18n/routing";
 import type { AutomationRule, AutomationRun } from "@/lib/queries/automations";
 import { teamPath } from "@/lib/team-routing";
@@ -17,113 +25,209 @@ const statusClasses: Record<string, string> = {
   ignored: "text-muted",
 };
 
+export function RunStatus({ status }: { status: string }) {
+  return (
+    <span className={cn("font-medium capitalize", statusClasses[status] ?? "text-muted")}>
+      {status}
+    </span>
+  );
+}
+
 export function RunsView({
-  isFetching,
-  onRefresh,
   rules,
   runs,
   teamId,
+  ruleFilter = "all",
+  sort = "started_desc",
+  statusFilter = "all",
+  showControls = false,
+  onRuleFilterChange = () => undefined,
+  onSortChange = () => undefined,
+  onStatusFilterChange = () => undefined,
 }: {
-  isFetching: boolean;
-  onRefresh: () => void;
   rules: AutomationRule[];
   runs: AutomationRun[];
   teamId: string;
+  ruleFilter?: string;
+  sort?: "duration_asc" | "duration_desc" | "started_asc" | "started_desc";
+  statusFilter?: string;
+  showControls?: boolean;
+  onRuleFilterChange?: (rule: string) => void;
+  onSortChange?: (sort: "duration_asc" | "duration_desc" | "started_asc" | "started_desc") => void;
+  onStatusFilterChange?: (status: string) => void;
 }) {
   const t = useTranslations("Automations");
   const locale = useLocale();
   const ruleNames = new Map(rules.map((rule) => [rule.id, rule.name]));
+  const statuses = Array.from(new Set(runs.map((run) => run.status))).sort();
+  const visibleRuns = runs
+    .filter((run) => statusFilter === "all" || run.status === statusFilter)
+    .filter((run) => ruleFilter === "all" || run.rule_id === ruleFilter)
+    .toSorted((left, right) => {
+      if (sort.startsWith("duration")) {
+        const duration = (run: AutomationRun) =>
+          run.finished_at
+            ? new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()
+            : Infinity;
+        return sort === "duration_asc"
+          ? duration(left) - duration(right)
+          : duration(right) - duration(left);
+      }
+      const delta = new Date(right.started_at).getTime() - new Date(left.started_at).getTime();
+      return sort === "started_desc" ? delta : -delta;
+    });
 
   if (runs.length === 0) {
     return (
-      <section className="surface rounded-md px-6 py-14 text-center">
-        <RefreshCw className="text-muted mx-auto h-8 w-8" aria-hidden="true" />
-        <h3 className="text-text mt-4 font-semibold">{t("noRuns")}</h3>
-        <p className="text-muted mx-auto mt-1 max-w-lg text-sm">{t("noRunsDescription")}</p>
-        <Button className="mt-5" onClick={onRefresh} loading={isFetching}>
-          <RefreshCw className="h-4 w-4" /> {t("refresh")}
-        </Button>
+      <section className="surface rounded-md p-12 text-center">
+        <h3 className="text-muted text-sm font-medium">{t("noRuns")}</h3>
       </section>
     );
   }
 
   return (
-    <>
-      <div className="mb-4 flex justify-end">
-        <Button size="sm" onClick={onRefresh} loading={isFetching}>
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> {t("refresh")}
-        </Button>
-      </div>
-      <div className="surface overflow-x-auto rounded-md">
-        <table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="surface-subtle border-border border-b text-xs uppercase">
-            <tr>
-              {["colRun", "colRule", "colStatus", "colResult", "colStarted", "colDuration"].map(
-                (column) => (
-                  <th key={column} className="text-muted px-5 py-3 font-medium">
-                    {t(column)}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {runs.map((run) => {
-              const duration = run.finished_at
-                ? Math.max(
-                    0,
-                    new Date(run.finished_at).getTime() - new Date(run.started_at).getTime(),
-                  )
-                : null;
-              return (
-                <tr key={run.id} className="hover:bg-white/[0.04]">
-                  <td className="text-text px-5 py-4 font-mono text-xs" title={run.id}>
-                    {run.id.slice(0, 8)}
-                  </td>
-                  <td className="text-text px-5 py-4">
-                    {run.rule_id ? (ruleNames.get(run.rule_id) ?? t("deletedRule")) : t("noRule")}
-                  </td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={cn(
-                        "font-medium capitalize",
-                        statusClasses[run.status] ?? "text-muted",
-                      )}
-                    >
-                      {run.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {run.incident_id ? (
-                      <Link
-                        href={teamPath(teamId, "incidents", run.incident_id)}
-                        className="text-gold hover:text-gold-hover"
-                      >
-                        {t("openIncident")}
-                      </Link>
-                    ) : run.error_code ? (
-                      <span className="text-sev-critical" title={run.error_code}>
-                        {run.error_code}
-                      </span>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="text-muted px-5 py-4 whitespace-nowrap">
-                    {new Intl.DateTimeFormat(locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(run.started_at))}
-                  </td>
-                  <td className="text-muted px-5 py-4 tabular-nums">
-                    {duration === null ? t("inProgress") : t("durationMs", { duration })}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
+    <OperationalTable
+      label={t("runsList")}
+      className="min-w-[820px]"
+      containerClassName="overflow-x-auto"
+    >
+      <OperationalTableHead>
+        <tr>
+          <OperationalTableHeaderCell>{t("colRun")}</OperationalTableHeaderCell>
+          <OperationalTableHeaderCell>
+            {showControls ? (
+              <TableFilterControl
+                label={t("colStatus")}
+                value={statusFilter === "all" ? "" : statusFilter}
+                activeLabel={statusFilter === "all" ? undefined : statusFilter}
+                onChange={(value) => onStatusFilterChange(value || "all")}
+                options={[
+                  { value: "", label: t("allStatuses") },
+                  ...statuses.map((status) => ({ value: status, label: status })),
+                ]}
+              />
+            ) : (
+              t("colStatus")
+            )}
+          </OperationalTableHeaderCell>
+          <OperationalTableHeaderCell>
+            {showControls ? (
+              <TableFilterControl
+                label={t("colRule")}
+                value={ruleFilter === "all" ? "" : ruleFilter}
+                activeLabel={ruleFilter === "all" ? undefined : ruleNames.get(ruleFilter)}
+                onChange={(value) => onRuleFilterChange(value || "all")}
+                options={[
+                  { value: "", label: t("allRules") },
+                  ...rules.map((rule) => ({ value: rule.id, label: rule.name })),
+                ]}
+              />
+            ) : (
+              t("colRule")
+            )}
+          </OperationalTableHeaderCell>
+          <OperationalTableHeaderCell>{t("colResult")}</OperationalTableHeaderCell>
+          <OperationalTableHeaderCell
+            aria-sort={
+              sort.startsWith("started")
+                ? sort === "started_asc"
+                  ? "ascending"
+                  : "descending"
+                : "none"
+            }
+          >
+            {showControls ? (
+              <TableSortControl
+                label={t("colStarted")}
+                direction={
+                  sort.startsWith("started")
+                    ? sort === "started_asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined
+                }
+                onToggle={() =>
+                  onSortChange(sort === "started_desc" ? "started_asc" : "started_desc")
+                }
+              />
+            ) : (
+              t("colStarted")
+            )}
+          </OperationalTableHeaderCell>
+          <OperationalTableHeaderCell
+            aria-sort={
+              sort.startsWith("duration")
+                ? sort === "duration_asc"
+                  ? "ascending"
+                  : "descending"
+                : "none"
+            }
+          >
+            {showControls ? (
+              <TableSortControl
+                label={t("colDuration")}
+                direction={
+                  sort.startsWith("duration")
+                    ? sort === "duration_asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined
+                }
+                onToggle={() =>
+                  onSortChange(sort === "duration_asc" ? "duration_desc" : "duration_asc")
+                }
+              />
+            ) : (
+              t("colDuration")
+            )}
+          </OperationalTableHeaderCell>
+        </tr>
+      </OperationalTableHead>
+      <OperationalTableBody>
+        {visibleRuns.map((run) => {
+          const duration = run.finished_at
+            ? Math.max(0, new Date(run.finished_at).getTime() - new Date(run.started_at).getTime())
+            : null;
+          return (
+            <OperationalTableRow key={run.id}>
+              <OperationalTableRowHeader className="text-text font-mono text-xs" title={run.id}>
+                {run.id.slice(0, 8)}
+              </OperationalTableRowHeader>
+              <OperationalTableCell>
+                <RunStatus status={run.status} />
+              </OperationalTableCell>
+              <OperationalTableCell className="text-text">
+                {run.rule_id ? (ruleNames.get(run.rule_id) ?? t("deletedRule")) : t("noRule")}
+              </OperationalTableCell>
+              <OperationalTableCell>
+                {run.incident_id ? (
+                  <Link
+                    href={teamPath(teamId, "incidents", run.incident_id)}
+                    className="text-gold hover:text-gold-hover"
+                  >
+                    {t("openIncident")}
+                  </Link>
+                ) : run.error_code ? (
+                  <span className="text-sev-critical" title={run.error_code}>
+                    {run.error_code}
+                  </span>
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
+              </OperationalTableCell>
+              <OperationalTableCell className="text-muted whitespace-nowrap">
+                {new Intl.DateTimeFormat(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(run.started_at))}
+              </OperationalTableCell>
+              <OperationalTableCell className="text-muted tabular-nums">
+                {duration === null ? t("inProgress") : t("durationMs", { duration })}
+              </OperationalTableCell>
+            </OperationalTableRow>
+          );
+        })}
+      </OperationalTableBody>
+    </OperationalTable>
   );
 }

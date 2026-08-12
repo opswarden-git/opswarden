@@ -10,7 +10,7 @@ vi.mock("next-intl", () => ({
       tableLabel: "Incident queue",
       loading: "Loading incidents...",
       colStatus: "Status",
-      colTitleId: "Title & ID",
+      colIncident: "Incident",
       colAssignee: "Assignee",
       colSeverity: "Severity",
       colAge: "Age",
@@ -50,6 +50,11 @@ describe("IncidentTable", () => {
     const table = screen.getByRole("table", { name: "Incident queue" });
     const rowHeader = within(table).getByRole("rowheader", { name: /Database outage/ });
 
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Incident", "Status", "Severity", "Assignee", "Age"]);
     expect(rowHeader).toHaveAttribute("scope", "row");
     expect(within(table).getAllByRole("link")).toHaveLength(1);
     expect(within(table).queryByText("Open", { selector: "a" })).not.toBeInTheDocument();
@@ -63,7 +68,7 @@ describe("IncidentTable", () => {
 
     expect(fields.map((field) => field.dataset.incidentField)).toEqual([
       "identity",
-      "state",
+      "status",
       "assignee",
       "age",
     ]);

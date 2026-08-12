@@ -5,22 +5,18 @@ import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { StepCredentials } from "@/components/onboarding/StepCredentials";
 import { StepStation } from "@/components/onboarding/StepStation";
-import { StepIntegrations } from "@/components/onboarding/StepIntegrations";
 import { StepVerification } from "@/components/onboarding/StepVerification";
 import type { OnboardingData, UpdateOnboardingData } from "@/components/onboarding/types";
 import { useTranslations } from "next-intl";
 
 export default function SignupPage() {
   const t = useTranslations("Auth");
+  const tOnboarding = useTranslations("Onboarding");
   const [step, setStep] = useState(1);
   const [data, setData] = useState<OnboardingData>({
-    operatorName: "",
     email: "",
     password: "",
     stationName: "",
-    timezone: "Europe/Paris",
-    clearance: "observer",
-    integrations: [],
   });
 
   const updateData: UpdateOnboardingData = (fields) => {
@@ -61,10 +57,7 @@ export default function SignupPage() {
           {step === 2 && (
             <StepStation data={data} updateData={updateData} next={next} back={back} />
           )}
-          {step === 3 && (
-            <StepIntegrations data={data} updateData={updateData} next={next} back={back} />
-          )}
-          {step === 4 && <StepVerification data={data} />}
+          {step === 3 && <StepVerification data={data} back={back} />}
         </div>
 
         {step === 1 && (
@@ -76,16 +69,7 @@ export default function SignupPage() {
           </div>
         )}
 
-        <div className="mt-2 flex items-center gap-4">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-2.5 w-2.5 rounded-full transition-colors duration-300 ${
-                s <= step ? "bg-gold" : "bg-border"
-              }`}
-            />
-          ))}
-        </div>
+        <p className="text-muted mt-2 text-xs">{tOnboarding("signupProgress", { step })}</p>
       </div>
     </section>
   );
