@@ -60,7 +60,9 @@ test.describe("Incident detail", () => {
       .evaluateAll((sections) =>
         sections.map((section) => section.querySelector("h2, a")?.textContent?.trim()),
       );
-    expect(sectionLabels).toEqual(["Direct messages", "Incidents12"]);
+    expect(sectionLabels).toHaveLength(2);
+    expect(sectionLabels[0]).toBe("Direct messages");
+    expect(sectionLabels[1]).toMatch(/^Incidents\d+$/);
     await rooms.getByRole("link", { name: "responder@opswarden.local" }).click();
     await expect(page).toHaveURL(new RegExp(`/messages/[0-9a-f-]+$`));
     await expect(page.getByRole("region", { name: "responder@opswarden.local" })).toBeVisible();

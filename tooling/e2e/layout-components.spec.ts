@@ -120,9 +120,33 @@ test("Rules and Runs reuse the collection header contract", async ({ page }) => 
   await login(page);
   await page.setViewportSize({ width: 1280, height: 900 });
 
+  await page.route(`**/api/teams/${TEAM_ID}/automation-rules`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: "40000000-0000-4000-8000-000000000001",
+          team_id: TEAM_ID,
+          name: "Failed CI",
+          trigger_connection_id: "40000000-0000-4000-8000-000000000002",
+          trigger_kind: "github_ci_failed",
+          trigger_config: { branch: "main" },
+          reaction_kind: "create_incident",
+          reaction_connection_id: null,
+          reaction_config: { severity: "high" },
+          enabled: true,
+          created_by: null,
+          created_at: "2026-08-10T08:00:00Z",
+          updated_at: "2026-08-10T08:00:00Z",
+          next_run_at: null,
+        },
+      ]),
+    });
+  });
   await page.goto(`/en/teams/${TEAM_ID}/rules`);
   const rules = page.getByRole("table", { name: "Automation rules" });
-  await expect(page.getByRole("combobox", { name: "Status" })).toBeAttached();
+  await expect(rules.getByRole("combobox", { name: "Status" })).toBeAttached();
   await expect(rules.getByRole("button", { name: "Next run" })).toBeVisible();
   await expect(rules.getByRole("button", { name: "Updated" })).toBeVisible();
 
