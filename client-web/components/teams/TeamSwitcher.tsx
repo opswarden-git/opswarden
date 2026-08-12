@@ -1,6 +1,7 @@
 "use client";
 
-import { ListTree } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Check, ChevronDown, ListTree } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
@@ -10,14 +11,69 @@ import { useTeamScope } from "./TeamScope";
 export function TeamSwitcher({
   className,
   compact = false,
+  presentation = "mobile",
 }: {
   className?: string;
   compact?: boolean;
+  presentation?: "mobile" | "breadcrumb";
 }) {
   const t = useTranslations("TeamSwitcher");
   const pathname = usePathname();
   const { teams, activeTeam, isLoading, switchTeam } = useTeamScope();
-  const isDirectory = pathname === "/teams";
+
+  if (presentation === "breadcrumb") {
+    return (
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild disabled={isLoading || !activeTeam}>
+          <button
+            type="button"
+            aria-label={`${t("label")}: ${activeTeam?.name ?? t("noTeams")}`}
+            className={cn(
+              "text-muted hover:text-text focus-visible:ring-gold flex min-w-0 items-center gap-1 rounded-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              className,
+            )}
+          >
+            <span className="truncate">{activeTeam?.name ?? t("noTeams")}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            align="start"
+            sideOffset={8}
+            className="ow-action-menu surface z-50 min-w-64 rounded-md p-1 shadow-xl outline-none"
+          >
+            {teams.map((team) => {
+              const current = team.team_id === activeTeam?.team_id;
+              return (
+                <DropdownMenu.CheckboxItem
+                  key={team.team_id}
+                  checked={current}
+                  onCheckedChange={() => !current && switchTeam(team.team_id)}
+                  className="ow-action-menu-item data-[highlighted]:bg-panel-2 text-text flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none"
+                >
+                  <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                  <Check
+                    className={cn("h-4 w-4 shrink-0", !current && "invisible")}
+                    aria-hidden="true"
+                  />
+                </DropdownMenu.CheckboxItem>
+              );
+            })}
+            <DropdownMenu.Separator className="bg-border my-1 h-px" />
+            <DropdownMenu.Item asChild>
+              <Link
+                href="/teams"
+                className="ow-action-menu-item data-[highlighted]:bg-panel-2 text-text flex cursor-default items-center rounded px-2 py-2 text-sm outline-none select-none"
+              >
+                {t("allTeams")}
+              </Link>
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    );
+  }
 
   return (
     <div className={cn("flex min-w-0 items-end gap-2", className)}>
@@ -45,7 +101,7 @@ export function TeamSwitcher({
       </label>
       <Link
         href="/teams"
-        aria-current={isDirectory ? "page" : undefined}
+        aria-current={pathname === "/teams" ? "page" : undefined}
         data-app-navigation-item="true"
         className={buttonClassNames({
           size: compact ? "lg" : "md",

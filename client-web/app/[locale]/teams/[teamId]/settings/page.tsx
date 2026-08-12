@@ -1,10 +1,10 @@
-import { TeamSettingsPage } from "@/components/teams/TeamSettingsPage";
+import { redirect } from "next/navigation";
 
 export default async function TeamSettingsRoute({
   params,
 }: {
-  params: Promise<{ teamId: string }>;
+  params: Promise<{ locale: string; teamId: string }>;
 }) {
-  const { teamId } = await params;
-  return <TeamSettingsPage teamId={teamId} />;
+  const { locale, teamId } = await params;
+  redirect(`/${locale}/teams/${teamId}/team`);
 }

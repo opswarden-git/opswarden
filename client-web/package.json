@@ -1,6 +1,7 @@
 {
   "name": "opswarden-client-web",
   "version": "1.0.14",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev -p 4242",

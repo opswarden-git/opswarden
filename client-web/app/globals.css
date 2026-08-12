@@ -12,6 +12,7 @@
     --ow-border-2: rgb(255 255 255 / 12%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
+
     /* Lifted with --panel-2: at #878b93 the pair fell to 4.41:1. */
     --ow-muted-2: #8f939b;
     --gold: #fbc02d;

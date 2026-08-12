@@ -1,200 +1,228 @@
 "use client";
 
-import { Rocket, ShieldAlert } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { RunStatus } from "@/components/automations/RunsView";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { PageTabs } from "@/components/layout/PageTabs";
 import { ReleaseStateChip } from "@/components/releases/ReleaseStateChip";
 import { Alert } from "@/components/ui/Alert";
 import { Link } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
+import { useAutomationRules, useAutomationRuns } from "@/lib/queries/automations";
 import { useIncidentQueue } from "@/lib/queries/incidents";
 import { useReleases } from "@/lib/queries/releases";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
-import { useAuthStore } from "@/store/auth";
-import {
-  deriveTeamOverview,
-  matchesFacet,
-  type AttentionFacet,
-  type AttentionItem,
-} from "./team-overview";
+import { cn, formatRelativeAge } from "@/lib/utils";
 
-const FACETS: readonly AttentionFacet[] = [
-  "all",
-  "unacknowledged",
-  "assigned",
-  "escalated",
-  "blocked",
-];
+const previewLimit = 5;
 
-/** An unknown `view` falls back to the whole inbox rather than an empty screen. */
-function normalizeFacet(value: string | null): AttentionFacet {
-  return FACETS.includes(value as AttentionFacet) ? (value as AttentionFacet) : "all";
-}
-
-import { formatRelativeAge } from "@/lib/utils";
-
-function AttentionRow({ item, teamId }: { item: AttentionItem; teamId: string }) {
-  const t = useTranslations("Teams");
-  const locale = useLocale();
-  const isIncident = item.resource === "incident";
-  const href = isIncident
-    ? teamPath(teamId, "incidents", item.id)
-    : teamPath(teamId, "releases", item.id);
-
+function OverviewSection({
+  children,
+  count,
+  href,
+  title,
+}: {
+  children: React.ReactNode;
+  count: number;
+  href: string;
+  title: string;
+}) {
   return (
-    <li>
-      <Link
-        href={href}
-        className="group hover:bg-panel-2 flex min-w-0 gap-3 px-4 py-3 transition-colors sm:px-5"
-      >
-        <span className="surface-subtle text-muted group-hover:text-gold mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors">
-          {isIncident ? (
-            <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Rocket className="h-4 w-4" aria-hidden="true" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-text min-w-0 truncate font-medium">{item.title}</span>
-            {isIncident ? (
-              <>
-                <SeverityChip severity={item.severity} />
-                <StateChip status={item.status} />
-              </>
-            ) : (
-              <ReleaseStateChip state={item.state} />
-            )}
-          </span>
-          <span className="text-muted mt-1 block text-sm">
-            {t(`attentionReasons.${item.reason}`, { related: item.relatedTitle ?? "" })}
-          </span>
-        </span>
-        <time
-          dateTime={item.timestamp}
-          title={new Date(item.timestamp).toLocaleString(locale)}
-          className="text-muted hidden shrink-0 pt-1 text-xs sm:block"
-        >
-          {formatRelativeAge(item.timestamp, locale)}
-        </time>
-      </Link>
-    </li>
+    <section aria-label={title} className="surface min-w-0 overflow-hidden rounded-md">
+      <header className="border-border border-b px-4 py-3">
+        <Link href={href} className="group inline-flex items-baseline gap-2">
+          <h2 className="text-text group-hover:text-gold text-sm font-semibold transition-colors">
+            {title}
+          </h2>
+          <span className="text-muted text-xs tabular-nums">{count}</span>
+        </Link>
+      </header>
+      {children}
+    </section>
   );
 }
 
 export function TeamOverviewPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
-  const searchParams = useSearchParams();
-  const userId = useAuthStore((state) => state.user?.id ?? null);
-  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
-  const {
-    data: incidentQueue,
-    isLoading: isLoadingIncidents,
-    error: incidentsError,
-  } = useIncidentQueue(teamId, { sort: "severity" });
-  const {
-    data: releases,
-    isLoading: isLoadingReleases,
-    error: releasesError,
-  } = useReleases(teamId);
-  const team = teams?.find((candidate) => candidate.team_id === teamId);
-  const capabilities = deriveCapabilities(team?.role ?? "observer");
-  const projection =
-    team && incidentQueue && releases
-      ? deriveTeamOverview({
-          canProgressRelease: capabilities.canProgressRelease,
-          incidents: incidentQueue.items,
-          releases,
-          role: team.role,
-          userId,
-        })
-      : null;
+  const ta = useTranslations("Automations");
+  const locale = useLocale();
+  const teams = useTeams();
+  const incidents = useIncidentQueue(teamId, { sort: "severity" });
+  const releases = useReleases(teamId);
+  const team = teams.data?.find((candidate) => candidate.team_id === teamId);
+  const canViewRuns = deriveCapabilities(team?.role ?? "observer").canManageAutomations;
+  const rules = useAutomationRules(teamId, canViewRuns);
+  const runs = useAutomationRuns(teamId, canViewRuns);
+
+  const activeIncidents = (incidents.data?.items ?? []).filter(
+    (incident) => incident.status !== "resolved",
+  );
+  const activeReleases = (releases.data ?? []).filter(
+    (release) => release.state !== "completed" && release.state !== "cancelled",
+  );
+  const ruleNames = new Map((rules.data ?? []).map((rule) => [rule.id, rule.name]));
   const state: PageContentState =
-    isLoadingTeams || isLoadingIncidents || isLoadingReleases
+    teams.isLoading ||
+    incidents.isLoading ||
+    releases.isLoading ||
+    (canViewRuns && (rules.isLoading || runs.isLoading))
       ? "loading"
-      : teamsError || incidentsError || releasesError || !team || !projection
+      : teams.error ||
+          incidents.error ||
+          releases.error ||
+          (canViewRuns && (rules.error || runs.error)) ||
+          !team
         ? "error"
         : "ready";
 
-  const base = teamPath(teamId, "overview");
-  const activeFacet = normalizeFacet(searchParams.get("view"));
-  // Observers hold no assignments, so the facet would always read zero.
-  const facets: AttentionFacet[] =
-    team?.role === "observer"
-      ? ["all", "unacknowledged", "escalated", "blocked"]
-      : ["all", "unacknowledged", "assigned", "escalated", "blocked"];
-  const items = projection
-    ? activeFacet === "all"
-      ? projection.attention
-      : projection.candidates.filter((item) => matchesFacet(item, activeFacet)).slice(0, 7)
-    : [];
-
   return (
     <PageLayout>
-      <PageHeader
-        context={team?.name}
-        title={t("overview")}
-        description={t("workspaceDescription")}
-      />
       <PageContent
         state={state}
         loadingFallback={
-          <div className="space-y-6" aria-label={t("loadingOverview")}>
-            <div className="surface h-12 animate-pulse rounded-md" />
-            <div className="surface h-96 animate-pulse rounded-md" />
+          <div
+            className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
+            aria-label={t("loadingOverview")}
+          >
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="surface h-72 animate-pulse rounded-md" />
+            ))}
           </div>
         }
         errorFallback={<Alert tone="danger">{t("overviewUnavailable")}</Alert>}
       >
-        {projection ? (
-          <section className="space-y-4" aria-labelledby="attention-title">
-            <div>
-              <h2 id="attention-title" className="text-text text-2xl font-bold tracking-tight">
-                {t("needsAttention")}
-              </h2>
-              <p className="text-muted mt-1 text-sm">{t("needsAttentionDescription")}</p>
-            </div>
+        <div
+          className={cn(
+            "grid items-start gap-4",
+            canViewRuns ? "lg:grid-cols-2 xl:grid-cols-3" : "lg:grid-cols-2",
+          )}
+        >
+          <OverviewSection
+            title={t("overviewViews.incidents")}
+            count={team?.active_incident_count ?? activeIncidents.length}
+            href={teamPath(teamId, "incidents")}
+          >
+            {activeIncidents.length ? (
+              <ul className="divide-border divide-y">
+                {activeIncidents.slice(0, previewLimit).map((incident) => (
+                  <li key={incident.id}>
+                    <Link
+                      href={teamPath(teamId, "incidents", incident.id)}
+                      className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <span className="text-text truncate text-sm font-medium">
+                          {incident.title}
+                        </span>
+                        <time
+                          className="text-muted shrink-0 text-xs"
+                          dateTime={incident.created_at}
+                        >
+                          {formatRelativeAge(incident.created_at, locale)}
+                        </time>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <StateChip status={incident.status} />
+                        <SeverityChip severity={incident.severity} />
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted px-4 py-8 text-center text-sm">
+                {t("overviewEmpty.incidents")}
+              </p>
+            )}
+          </OverviewSection>
 
-            {/*
-             * Facets, not summary tiles. A count that links somewhere else turns
-             * this screen into a table of contents; a count that narrows the
-             * queue below keeps it a place where work is picked up. Each one is
-             * measured on the same material it filters, so it can never promise
-             * more than the click delivers.
-             */}
-            <PageTabs
-              ariaLabel={t("attentionFacetsLabel")}
-              tabs={facets.map((facet) => ({
-                href: facet === "all" ? base : `${base}?view=${facet}`,
-                label: t(`facets.${facet}`),
-                count: projection.facetCounts[facet],
-                active: facet === activeFacet,
-              }))}
-            />
+          <OverviewSection
+            title={t("overviewViews.releases")}
+            count={team?.active_release_count ?? activeReleases.length}
+            href={teamPath(teamId, "releases")}
+          >
+            {activeReleases.length ? (
+              <ul className="divide-border divide-y">
+                {activeReleases.slice(0, previewLimit).map((release) => (
+                  <li key={release.release_id}>
+                    <Link
+                      href={teamPath(teamId, "releases", release.release_id)}
+                      className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <span className="text-text truncate text-sm font-medium">
+                          {release.title}
+                        </span>
+                        <time className="text-muted shrink-0 text-xs" dateTime={release.created_at}>
+                          {formatRelativeAge(release.created_at, locale)}
+                        </time>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <ReleaseStateChip state={release.state} />
+                        <span className="text-muted text-xs tabular-nums">
+                          {release.progress.completed}/{release.progress.total}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted px-4 py-8 text-center text-sm">
+                {t("overviewEmpty.releases")}
+              </p>
+            )}
+          </OverviewSection>
 
-            <div className="surface overflow-hidden rounded-md">
-              {items.length > 0 ? (
-                <ul data-attention-queue="true" className="divide-border divide-y">
-                  {items.map((item) => (
-                    <AttentionRow key={`${item.resource}-${item.id}`} item={item} teamId={teamId} />
+          {canViewRuns ? (
+            <OverviewSection
+              title={t("overviewViews.runs")}
+              count={runs.data?.length ?? 0}
+              href={teamPath(teamId, "runs")}
+            >
+              {runs.data?.length ? (
+                <ul className="divide-border divide-y">
+                  {runs.data.slice(0, previewLimit).map((run) => (
+                    <li key={run.id} className="px-4 py-3">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <span className="text-text truncate text-sm font-medium">
+                          {run.rule_id
+                            ? (ruleNames.get(run.rule_id) ?? ta("deletedRule"))
+                            : ta("noRule")}
+                        </span>
+                        <time className="text-muted shrink-0 text-xs" dateTime={run.started_at}>
+                          {formatRelativeAge(run.started_at, locale)}
+                        </time>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                        <RunStatus status={run.status} />
+                        {run.incident_id ? (
+                          <Link
+                            href={teamPath(teamId, "incidents", run.incident_id)}
+                            className="text-gold hover:text-gold-hover"
+                          >
+                            {ta("openIncident")}
+                          </Link>
+                        ) : run.error_code ? (
+                          <span className="text-sev-critical truncate" title={run.error_code}>
+                            {run.error_code}
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
                   ))}
                 </ul>
               ) : (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-text font-medium">{t("nothingNeedsAttention")}</p>
-                  <p className="text-muted mt-1 text-sm">{t("nothingNeedsAttentionDescription")}</p>
-                </div>
+                <p className="text-muted px-4 py-8 text-center text-sm">
+                  {t("overviewEmpty.runs")}
+                </p>
               )}
-            </div>
-          </section>
-        ) : null}
+            </OverviewSection>
+          ) : null}
+        </div>
       </PageContent>
     </PageLayout>
   );

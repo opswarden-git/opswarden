@@ -1,7 +1,11 @@
-import { TeamMembersPage } from "@/components/teams/TeamMembersPage";
+import { redirect } from "next/navigation";
 
-export default async function MembersPage({ params }: { params: Promise<{ teamId: string }> }) {
-  const { teamId } = await params;
+export default async function MembersPage({
+  params,
+}: {
+  params: Promise<{ locale: string; teamId: string }>;
+}) {
+  const { locale, teamId } = await params;
 
-  return <TeamMembersPage teamId={teamId} />;
+  redirect(`/${locale}/teams/${teamId}/team#members`);
 }

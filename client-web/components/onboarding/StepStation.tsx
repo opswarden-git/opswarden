@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button } from "@/components/ui/Button";
@@ -40,28 +40,10 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
             />
           </div>
         </div>
-
-        <div className="flex flex-col gap-2">
-          <label htmlFor="station-timezone" className="text-muted text-xs font-medium">
-            {t("timezone")}
-          </label>
-          <select
-            id="station-timezone"
-            value={data.timezone || "Europe/Paris"}
-            onChange={(e) => updateData({ timezone: e.target.value })}
-            className="ow-input flex h-10 w-full cursor-pointer appearance-none rounded-md px-3 py-2 text-sm transition-colors"
-          >
-            <option value="Europe/Paris">{t("timezoneParis")}</option>
-            <option value="Europe/London">{t("timezoneLondon")}</option>
-            <option value="America/New_York">{t("timezoneNewYork")}</option>
-            <option value="Asia/Tokyo">{t("timezoneTokyo")}</option>
-          </select>
-        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between pt-4">
         <Button variant="ghost" size="lg" onClick={back}>
-          <ChevronLeft className="size-4" />
           {t("back")}
         </Button>
         <Button type="submit" variant="primary" size="lg">

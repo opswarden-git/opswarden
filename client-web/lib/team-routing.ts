@@ -2,9 +2,14 @@ export const TEAM_SECTIONS = [
   "activity",
   "automations",
   "incidents",
+  "integrations",
+  "messages",
   "members",
   "releases",
+  "rules",
+  "runs",
   "settings",
+  "team",
   "overview",
 ] as const;
 
@@ -42,5 +47,13 @@ export function parseTeamPath(pathname: string): TeamRoute | null {
  */
 export function pathForTeamSwitch(pathname: string, nextTeamId: string) {
   const current = parseTeamPath(pathname);
-  return teamPath(nextTeamId, current?.section ?? "incidents");
+  const section =
+    current?.section === "settings" || current?.section === "members"
+      ? "team"
+      : current?.section === "automations" || current?.section === "activity"
+        ? "rules"
+        : current?.section === "messages"
+          ? "incidents"
+          : (current?.section ?? "incidents");
+  return teamPath(nextTeamId, section);
 }

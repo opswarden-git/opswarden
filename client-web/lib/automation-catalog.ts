@@ -1,4 +1,4 @@
-import type { AutomationService, CatalogCapability, CatalogField } from "./queries/automations";
+import type { AutomationService, CatalogField } from "./queries/automations";
 
 export function connectableServices(catalog: AutomationService[]) {
   return catalog.filter((service) => service.connection !== null);
@@ -30,11 +30,4 @@ export function catalogFieldsAreValid(
   return fields.every(
     (field) => !field.required || preserveExisting || !!values[field.name]?.trim(),
   );
-}
-
-export function capabilityByName(
-  capabilities: Array<CatalogCapability & { service: string }>,
-  name: string,
-) {
-  return capabilities.find((capability) => capability.name === name);
 }

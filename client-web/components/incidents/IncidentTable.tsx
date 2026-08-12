@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import {
   OperationalTable,
   OperationalTableBody,
@@ -10,9 +11,17 @@ import {
 import type { IncidentListItem } from "@/lib/queries/incidents";
 import { IncidentMobileRecord, IncidentRow } from "./IncidentRow";
 
-const columns = ["colStatus", "colTitleId", "colAssignee", "colSeverity", "colAge"];
+const columns = ["colIncident", "colStatus", "colSeverity", "colAssignee", "colAge"];
 
-export function IncidentTable({ incidents }: { incidents: IncidentListItem[] }) {
+export function IncidentTable({
+  headers,
+  incidents,
+  ageSortDirection,
+}: {
+  ageSortDirection?: "ascending" | "descending";
+  headers?: Partial<Record<(typeof columns)[number], ReactNode>>;
+  incidents: IncidentListItem[];
+}) {
   const t = useTranslations("Incidents");
 
   return (
@@ -22,7 +31,12 @@ export function IncidentTable({ incidents }: { incidents: IncidentListItem[] }) 
           <OperationalTableHead>
             <tr>
               {columns.map((column) => (
-                <OperationalTableHeaderCell key={column}>{t(column)}</OperationalTableHeaderCell>
+                <OperationalTableHeaderCell
+                  key={column}
+                  aria-sort={column === "colAge" ? (ageSortDirection ?? "none") : undefined}
+                >
+                  {headers?.[column] ?? t(column)}
+                </OperationalTableHeaderCell>
               ))}
             </tr>
           </OperationalTableHead>
@@ -67,7 +81,7 @@ export function IncidentTableSkeleton() {
                   <OperationalTableCell key={column}>
                     <span
                       className={`bg-panel-2 block animate-pulse rounded ${
-                        columnIndex === 1 ? "h-4 w-3/4" : "h-5 w-16"
+                        columnIndex === 0 ? "h-4 w-3/4" : "h-5 w-16"
                       }`}
                     />
                   </OperationalTableCell>

@@ -54,17 +54,17 @@ export function IncidentRow({ incident }: { incident: IncidentListItem }) {
 
   return (
     <OperationalTableRow>
-      <OperationalTableCell>
-        <StateChip status={incident.status} />
-      </OperationalTableCell>
       <OperationalTableRowHeader className="w-[34%]">
         <IncidentIdentity incident={incident} />
       </OperationalTableRowHeader>
-      <OperationalTableCell className="max-w-64">
-        <IncidentAssignee incident={incident} />
+      <OperationalTableCell>
+        <StateChip status={incident.status} />
       </OperationalTableCell>
       <OperationalTableCell>
         <SeverityChip severity={incident.severity} />
+      </OperationalTableCell>
+      <OperationalTableCell className="max-w-64">
+        <IncidentAssignee incident={incident} />
       </OperationalTableCell>
       <OperationalTableCell className="text-muted text-sm">
         <time dateTime={incident.created_at} title={createdAt.toLocaleString(locale)}>
@@ -85,7 +85,7 @@ export function IncidentMobileRecord({ incident }: { incident: IncidentListItem 
       <div data-incident-field="identity">
         <IncidentIdentity incident={incident} />
       </div>
-      <div data-incident-field="state" className="mt-3 flex flex-wrap items-center gap-2">
+      <div data-incident-field="status" className="mt-3 flex flex-wrap items-center gap-2">
         <StateChip status={incident.status} />
         <SeverityChip severity={incident.severity} />
       </div>
