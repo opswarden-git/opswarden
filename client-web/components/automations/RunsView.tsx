@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleAlert, CircleCheck, CircleHelp, Loader, SkipForward } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
 import {
@@ -14,23 +15,43 @@ import {
 import { Link } from "@/i18n/routing";
 import type { AutomationRule, AutomationRun } from "@/lib/queries/automations";
 import { teamPath } from "@/lib/team-routing";
-import { cn } from "@/lib/utils";
-
-const statusClasses: Record<string, string> = {
-  succeeded: "text-st-res",
-  completed: "text-st-res",
-  processed: "text-st-res",
-  running: "text-st-ack",
-  failed: "text-sev-critical",
-  ignored: "text-muted",
-};
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export function RunStatus({ status }: { status: string }) {
-  return (
-    <span className={cn("font-medium capitalize", statusClasses[status] ?? "text-muted")}>
-      {status}
-    </span>
-  );
+  const t = useTranslations("Automations");
+
+  switch (status) {
+    case "running":
+      return (
+        <StatusBadge tone="info" icon={<Loader />}>
+          {t("runStatusRunning")}
+        </StatusBadge>
+      );
+    case "succeeded":
+      return (
+        <StatusBadge tone="success" icon={<CircleCheck />}>
+          {t("runStatusSucceeded")}
+        </StatusBadge>
+      );
+    case "failed":
+      return (
+        <StatusBadge tone="danger" icon={<CircleAlert />}>
+          {t("runStatusFailed")}
+        </StatusBadge>
+      );
+    case "skipped":
+      return (
+        <StatusBadge tone="neutral" icon={<SkipForward />}>
+          {t("runStatusSkipped")}
+        </StatusBadge>
+      );
+    default:
+      return (
+        <StatusBadge tone="neutral" icon={<CircleHelp />}>
+          {status}
+        </StatusBadge>
+      );
+  }
 }
 
 export function RunsView({

@@ -1,7 +1,8 @@
 import React from "react";
-import { IncidentSeverity } from "@/lib/queries/incidents";
-import { AlertCircle, AlertTriangle, AlertOctagon, Flame } from "lucide-react";
+import { CircleAlert, Flame, OctagonAlert, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import type { IncidentSeverity } from "@/lib/queries/incidents";
 
 export function SeverityChip({ severity }: { severity: IncidentSeverity }) {
   const t = useTranslations("Incidents");
@@ -9,31 +10,27 @@ export function SeverityChip({ severity }: { severity: IncidentSeverity }) {
   switch (severity) {
     case "low":
       return (
-        <span className="text-sev-low inline-flex items-center gap-1 text-xs font-medium capitalize">
-          <AlertCircle className="h-3.5 w-3.5" />
+        <StatusBadge tone="neutral" icon={<CircleAlert />}>
           {t("severityLow")}
-        </span>
+        </StatusBadge>
       );
     case "medium":
       return (
-        <span className="text-sev-medium inline-flex items-center gap-1 text-xs font-medium capitalize">
-          <AlertTriangle className="h-3.5 w-3.5" />
+        <StatusBadge tone="warning" icon={<TriangleAlert />}>
           {t("severityMedium")}
-        </span>
+        </StatusBadge>
       );
     case "high":
       return (
-        <span className="text-sev-high inline-flex items-center gap-1 text-xs font-medium capitalize">
-          <AlertOctagon className="h-3.5 w-3.5" />
+        <StatusBadge tone="warning" icon={<OctagonAlert />}>
           {t("severityHigh")}
-        </span>
+        </StatusBadge>
       );
     case "critical":
       return (
-        <span className="text-sev-critical inline-flex items-center gap-1 text-xs font-bold uppercase">
-          <Flame className="ow-decorative-motion h-3.5 w-3.5 animate-pulse" />
+        <StatusBadge tone="danger" icon={<Flame />}>
           {t("severityCritical")}
-        </span>
+        </StatusBadge>
       );
   }
 }

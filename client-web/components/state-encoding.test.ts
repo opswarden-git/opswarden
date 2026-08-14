@@ -54,7 +54,7 @@ function stateBranches(file: string): Branch[] {
         // tag: `<Flame />` counts, `<span>` does not.
         if (ts.isJsxSelfClosingElement(child) || ts.isJsxOpeningElement(child)) {
           const tag = child.tagName.getText();
-          if (/^[A-Z]/.test(tag)) icons.push(tag);
+          if (/^[A-Z]/.test(tag) && tag !== "StatusBadge") icons.push(tag);
         }
         // A translated label is a `t("…")` call, never a bare string.
         if (
@@ -110,6 +110,14 @@ describe("state encoding contract", () => {
       "completed",
       "cancelled",
     ]);
+  });
+
+  it("preserves the severity escalation silhouette from the visual inventory", () => {
+    const severityIcons = branches
+      .filter((branch) => path.basename(branch.file) === "SeverityChip.tsx")
+      .map((branch) => branch.icons[0]);
+
+    expect(severityIcons).toEqual(["CircleAlert", "TriangleAlert", "OctagonAlert", "Flame"]);
   });
 
   it("never lets color carry a state on its own", () => {

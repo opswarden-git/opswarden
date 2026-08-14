@@ -26,6 +26,7 @@ afterEach(() => {
   useAuthStore.getState().logout();
   useWsStore.setState({
     watchersByIncident: {},
+    cursorsByIncident: {},
     activeWatches: [],
     sendJson: () => {},
   });
@@ -49,6 +50,24 @@ describe("WebSocket deployment URL", () => {
 });
 
 describe("WebSocket contract consumers", () => {
+  it("expires collaborator pointers without letting an older timer remove a newer position", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const store = useWsStore.getState();
+    store.setCursor("incident-1", "peer", 0.2, 0.3);
+    vi.advanceTimersByTime(1_000);
+    useWsStore.getState().setCursor("incident-1", "peer", 0.7, 0.8);
+    vi.advanceTimersByTime(900);
+
+    expect(useWsStore.getState().cursorsByIncident["incident-1"].peer).toMatchObject({
+      x: 0.7,
+      y: 0.8,
+    });
+    vi.advanceTimersByTime(900);
+    expect(useWsStore.getState().cursorsByIncident["incident-1"].peer).toBeUndefined();
+    vi.useRealTimers();
+  });
+
   it("indexes generic presence by its incident resource id", () => {
     const { queryClient } = queryClientWithInvalidationSpy();
 

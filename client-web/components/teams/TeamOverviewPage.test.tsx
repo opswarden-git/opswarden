@@ -144,6 +144,7 @@ describe("TeamOverviewPage", () => {
     expect(screen.getByText("Database outage")).toBeInTheDocument();
     expect(screen.getByText("Production deploy")).toBeInTheDocument();
     expect(screen.getByText("Open production incident")).toBeInTheDocument();
+    expect(screen.getByRole("grid", { name: /calendar\.label/ })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "overviewViewsLabel" })).toBeNull();
     expect(screen.getByRole("link", { name: /overviewViews\.incidents\s+1/ })).toHaveAttribute(
       "href",

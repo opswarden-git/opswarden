@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Globe2, Webhook } from "lucide-react";
+import { CheckCircle2, Clock3, Globe2, Unplug, Webhook } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import React, { useState, useSyncExternalStore } from "react";
@@ -27,6 +27,7 @@ import {
   useTestTeamConnection,
 } from "@/lib/queries/automations";
 import { FormField } from "@/components/ui/FormField";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 const providerMarks: Record<string, string> = {
   alertmanager: "/assets/alertmanager.svg",
@@ -51,25 +52,22 @@ function ConnectionStatus({ connection }: { connection: TeamConnection }) {
   const t = useTranslations("Automations");
   if (connection.last_error_code) {
     return (
-      <span className="text-sev-critical inline-flex items-center gap-1.5 text-xs font-medium">
-        <span className="bg-sev-critical h-1.5 w-1.5 rounded-full" />
+      <StatusBadge tone="danger" icon={<Unplug />}>
         {t("needsAttention")}
-      </span>
+      </StatusBadge>
     );
   }
   if (connection.verified_at || connection.last_delivery_at) {
     return (
-      <span className="text-st-res inline-flex items-center gap-1.5 text-xs font-medium">
-        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+      <StatusBadge tone="success" icon={<CheckCircle2 />}>
         {t("verified")}
-      </span>
+      </StatusBadge>
     );
   }
   return (
-    <span className="text-sev-medium inline-flex items-center gap-1.5 text-xs font-medium">
-      <span className="bg-sev-medium h-1.5 w-1.5 rounded-full" />
+    <StatusBadge tone="warning" icon={<Clock3 />}>
       {t("awaitingVerification")}
-    </span>
+    </StatusBadge>
   );
 }
 

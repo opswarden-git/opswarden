@@ -36,25 +36,24 @@ never use a message color, and a message must never look like a button.
 ## Domain state families
 
 Every domain state is conveyed by color **and** icon **and** text — color is
-never the only signal. Each family owns its own tokens, and one family never
-borrows another's:
+never the only signal. Domain components map their state onto one shared,
+opaque `StatusBadge` panel vocabulary:
 
-| Family         | Tokens    | Covers                                                 |
-| -------------- | --------- | ------------------------------------------------------ |
-| Severity       | `--sev-*` | `low` `medium` `high` `critical`                       |
-| Incident state | `--st-*`  | `open` `ack` `esc` `res`                               |
-| Release state  | `--rel-*` | `created` `progress` `blocked` `completed` `cancelled` |
+| Tone    | Token              | Value     | Use                                       |
+| ------- | ------------------ | --------- | ----------------------------------------- |
+| Neutral | `--status-neutral` | `#57606A` | Initial, inactive, skipped or cancelled   |
+| Info    | `--status-info`    | `#0969DA` | Acknowledged, running or in progress      |
+| Warning | `--status-warning` | `#9A6700` | Medium/high severity or awaiting an event |
+| Danger  | `--status-danger`  | `#CF222E` | Escalated, critical, blocked or failed    |
+| Success | `--status-success` | `#1A7F37` | Resolved, completed or verified           |
 
-The release family exists because the overview shows incidents and releases
-side by side. A release in progress once wore `--st-ack`, the _incident
-acknowledged_ token, so a single blue meant two different things depending on
-which column was being read.
-
-Where a release state expresses a concern the whole product shares, its token
-aliases the `--feedback-*` role rather than an incident token: `--rel-blocked`
-resolves to `--feedback-danger`, `--rel-completed` to `--feedback-success`.
-Lifecycle roles may map onto concern colors; they never adopt another object's
-vocabulary.
+The selected Incident model is **Progression**: Open is neutral, Acknowledged
+is info, Escalated is danger and Resolved is success. The shape is always a
+compact **panel** with a 4 px radius. Metadata labels, counters, presence and
+filters keep their own lighter grammar. Team roles and access restrictions
+remain identity metadata: roles use a distinct shield plus neutral text, while
+an active ban uses the Danger status panel and an expired ban falls back to
+neutral clock metadata.
 
 ## Hierarchy and surfaces
 

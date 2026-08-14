@@ -71,6 +71,13 @@ const config = {
           warning: "var(--feedback-warning)",
           danger: "var(--feedback-danger)",
         },
+        status: {
+          neutral: "var(--status-neutral)",
+          info: "var(--status-info)",
+          warning: "var(--status-warning)",
+          danger: "var(--status-danger)",
+          success: "var(--status-success)",
+        },
         sev: {
           low: "var(--sev-low)",
           medium: "var(--sev-medium)",

@@ -10,6 +10,10 @@ const releaseChipSource = readFileSync(
   resolve(process.cwd(), "components/releases/ReleaseStateChip.tsx"),
   "utf8",
 );
+const statusBadgeSource = readFileSync(
+  resolve(process.cwd(), "components/ui/StatusBadge.tsx"),
+  "utf8",
+);
 
 const p4RegressionPairs = [
   { legacyForeground: "--ow-muted-2", foreground: "--ow-muted-2", background: "--bg" },
@@ -82,6 +86,16 @@ describe("design token contrast contract", () => {
     expect(contrast(cssToken("--danger-ink"), cssToken(background))).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each([
+    "--status-neutral",
+    "--status-info",
+    "--status-warning",
+    "--status-danger",
+    "--status-success",
+  ])("keeps white badge text readable on %s", (background) => {
+    expect(contrast("#ffffff", cssToken(background))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each(["--sev-low", "--sev-critical", "--st-open", "--st-ack"])(
     "keeps %s readable over its 10% status surface",
     (foreground) => {
@@ -107,6 +121,11 @@ describe("semantic visual contract", () => {
     "--feedback-success",
     "--feedback-warning",
     "--feedback-danger",
+    "--status-neutral",
+    "--status-info",
+    "--status-warning",
+    "--status-danger",
+    "--status-success",
   ])("defines %s", (token) => {
     expect(() => cssToken(token)).not.toThrow();
   });
@@ -156,12 +175,18 @@ describe("release lifecycle contract", () => {
   });
 
   it("dresses release states only from the release family", () => {
-    // A release state must never borrow the incident vocabulary. Roles shared
-    // across the whole product (--feedback-*) are reached through --rel-*
-    // aliases, so the chip itself only ever names its own family.
+    // Domain components select a semantic tone and never style a badge from a
+    // different domain's token family.
     const borrowed = releaseChipSource.match(/\b(?:text|bg|border)-(?:st|sev)-[a-z]+/g) ?? [];
     expect(borrowed).toEqual([]);
-    expect(releaseChipSource).toContain("text-rel-progress");
+    expect(releaseChipSource).toContain('tone="info"');
+  });
+
+  it("keeps operational badges opaque and panel-shaped", () => {
+    expect(statusBadgeSource).toContain('"inline-flex shrink-0 items-center rounded ');
+    expect(statusBadgeSource).not.toContain("rounded-full");
+    expect(statusBadgeSource).toContain("text-white");
+    expect(statusBadgeSource).not.toMatch(/bg-status-[a-z]+\//);
   });
 });
 

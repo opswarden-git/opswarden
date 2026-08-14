@@ -3,9 +3,19 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useAuthStore } from "@/store/auth";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
-import { notifyDesktop } from "@/lib/desktopNotify";
 import type { Incident } from "@/lib/queries/incidents";
 import { useTranslations } from "next-intl";
+import {
+  createDesktopNotificationGate,
+  dispatchDesktopNotification,
+  type DesktopNotificationGate,
+} from "@/lib/wsNotifications";
+
+export {
+  createDesktopNotificationGate,
+  desktopNotificationForEvent,
+  dispatchDesktopNotification,
+} from "@/lib/wsNotifications";
 
 export function webSocketUrl() {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
@@ -22,6 +32,7 @@ export type WsClientCommand =
   | { type: "watch"; incident_id: string }
   | { type: "unwatch"; incident_id: string }
   | { type: "status_typing"; incident_id: string }
+  | { type: "cursor"; incident_id: string; x: number; y: number }
   | { type: "refresh_teams" };
 
 /** Events the server pushes to the client (see WEBSOCKET_SPEC.md). */
@@ -65,6 +76,13 @@ export type WsServerEvent =
   | { type: "team_presence_update"; team_id: string; online_user_ids: string[] }
   | { type: "user_typing"; incident_id: string; user_id: string }
   | {
+      type: "cursor_update";
+      incident_id: string;
+      user_id: string;
+      x: number;
+      y: number;
+    }
+  | {
       type: "rule_triggered";
       service: string;
       rule_name: string;
@@ -99,6 +117,8 @@ interface WsState {
   /** Transient "is typing" user ids, keyed by incident id. Each entry self-expires. */
   typingByIncident: Record<string, string[]>;
   addTypingUser: (incidentId: string, userId: string) => void;
+  cursorsByIncident: Record<string, Record<string, CollaboratorCursor>>;
+  setCursor: (incidentId: string, userId: string, x: number, y: number) => void;
   /** Online member ids per team (ephemeral WS presence). Pushed by the server on
    *  connect/disconnect; scoped so a client only ever holds its own teams' rosters. */
   onlineByTeam: Record<string, string[]>;
@@ -112,6 +132,15 @@ interface WsState {
   sendJson: (msg: WsClientCommand) => void;
   setSendJson: (fn: (msg: WsClientCommand) => void) => void;
 }
+
+export interface CollaboratorCursor {
+  userId: string;
+  x: number;
+  y: number;
+  updatedAt: number;
+}
+
+const CURSOR_IDLE_MS = 1800;
 
 export const useWsStore = create<WsState>((set, get) => ({
   watchersByIncident: {},
@@ -140,6 +169,36 @@ export const useWsStore = create<WsState>((set, get) => ({
         };
       });
     }, 3000);
+  },
+  cursorsByIncident: {},
+  setCursor: (incidentId, userId, x, y) => {
+    if (
+      ![x, y].every(
+        (coordinate) => Number.isFinite(coordinate) && coordinate >= 0 && coordinate <= 1,
+      )
+    ) {
+      return;
+    }
+    const updatedAt = Date.now();
+    set((state) => ({
+      cursorsByIncident: {
+        ...state.cursorsByIncident,
+        [incidentId]: {
+          ...(state.cursorsByIncident[incidentId] ?? {}),
+          [userId]: { userId, x, y, updatedAt },
+        },
+      },
+    }));
+    setTimeout(() => {
+      set((state) => {
+        const incidentCursors = state.cursorsByIncident[incidentId];
+        if (!incidentCursors || incidentCursors[userId]?.updatedAt !== updatedAt) return state;
+        const { [userId]: _expired, ...remaining } = incidentCursors;
+        return {
+          cursorsByIncident: { ...state.cursorsByIncident, [incidentId]: remaining },
+        };
+      });
+    }, CURSOR_IDLE_MS);
   },
   onlineByTeam: {},
   setTeamOnline: (teamId, userIds) =>
@@ -177,6 +236,13 @@ export const useWatchers = (incidentId: string): string[] =>
 export const useTypingUsers = (incidentId: string): string[] =>
   useWsStore((s) => s.typingByIncident[incidentId] ?? EMPTY);
 
+const EMPTY_CURSORS: Record<string, CollaboratorCursor> = {};
+
+/** Ephemeral collaborator pointers for a single incident room. The record is
+ * selected directly so Zustand keeps a stable snapshot between WS frames. */
+export const useCollaboratorCursors = (incidentId: string): Record<string, CollaboratorCursor> =>
+  useWsStore((s) => s.cursorsByIncident[incidentId] ?? EMPTY_CURSORS);
+
 /** Online member ids for a single team. */
 export const useTeamOnline = (teamId: string): string[] =>
   useWsStore((s) => s.onlineByTeam[teamId] ?? EMPTY);
@@ -190,129 +256,6 @@ type ContractEvent = Extract<
   | { type: "rule_triggered" }
   | { type: "rule_failed" }
 >;
-
-type NotificationEvent = Extract<
-  WsServerEvent,
-  | { type: "incident_created" }
-  | { type: "incident_escalated" }
-  | { type: "incident_assigned" }
-  | { type: "release_state_changed" }
->;
-
-type NotificationTranslator = (
-  key:
-    | "incidentAssignedTitle"
-    | "incidentCriticalTitle"
-    | "incidentEscalatedTitle"
-    | "incidentReference"
-    | "releaseBlockedTitle"
-    | "releaseBlockedBody",
-  values?: Record<string, string>,
-) => string;
-
-export type DesktopNotification = {
-  body: string;
-  fingerprint: string;
-  title: string;
-};
-
-/**
- * Pure notification policy shared by the live hook and its hidden-window tests.
- * Visibility is deliberately absent: a hidden Tauri webview remains the active
- * realtime client and must emit the same native notifications as a visible one.
- */
-export function desktopNotificationForEvent(
-  event: NotificationEvent,
-  currentUserId: string | undefined,
-  translate: NotificationTranslator,
-): DesktopNotification | null {
-  if (event.type === "incident_created") {
-    if (event.severity !== "critical") return null;
-    return {
-      fingerprint: `incident-created:${event.incident_id}:critical`,
-      title: translate("incidentCriticalTitle"),
-      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
-    };
-  }
-
-  if (event.type === "incident_assigned") {
-    if (!currentUserId || event.assigned_to !== currentUserId || event.by === currentUserId) {
-      return null;
-    }
-    return {
-      fingerprint: `incident-assigned:${event.incident_id}:${event.assigned_to}:${event.by}`,
-      title: translate("incidentAssignedTitle"),
-      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
-    };
-  }
-
-  if (event.type === "incident_escalated") {
-    if (
-      !currentUserId ||
-      !["high", "critical"].includes(event.new_severity) ||
-      event.by === currentUserId
-    ) {
-      return null;
-    }
-    return {
-      fingerprint: `incident-escalated:${event.incident_id}:${event.new_severity}:${event.by}`,
-      title:
-        event.new_severity === "critical"
-          ? translate("incidentCriticalTitle")
-          : translate("incidentEscalatedTitle", { severity: event.new_severity }),
-      body: translate("incidentReference", { id: event.incident_id.slice(0, 8) }),
-    };
-  }
-
-  if (event.new_state !== "blocked") return null;
-  return {
-    fingerprint: `release-blocked:${event.release_id}`,
-    title: translate("releaseBlockedTitle"),
-    body: translate("releaseBlockedBody", { id: event.release_id.slice(0, 8) }),
-  };
-}
-
-const NOTIFICATION_DEDUP_WINDOW_MS = 30_000;
-
-export type DesktopNotificationGate = (
-  event: NotificationEvent,
-  fingerprint: string,
-  now?: number,
-) => boolean;
-
-/** Keep one hook instance from replaying the same native notification when
- * React rerenders or a reconnect leaves/re-delivers the latest frame. */
-export function createDesktopNotificationGate(): DesktopNotificationGate {
-  const events = new WeakSet<object>();
-  const fingerprints = new Map<string, number>();
-
-  return (event, fingerprint, now = Date.now()) => {
-    if (events.has(event)) return false;
-    events.add(event);
-
-    for (const [key, timestamp] of fingerprints) {
-      if (now - timestamp >= NOTIFICATION_DEDUP_WINDOW_MS) {
-        fingerprints.delete(key);
-      }
-    }
-    if (fingerprints.has(fingerprint)) return false;
-    fingerprints.set(fingerprint, now);
-    return true;
-  };
-}
-
-export function dispatchDesktopNotification(
-  event: NotificationEvent,
-  currentUserId: string | undefined,
-  translate: NotificationTranslator,
-  shouldDeliver: DesktopNotificationGate,
-  notify: (title: string, body: string) => void | Promise<void> = notifyDesktop,
-): boolean {
-  const notification = desktopNotificationForEvent(event, currentUserId, translate);
-  if (!notification || !shouldDeliver(event, notification.fingerprint)) return false;
-  void notify(notification.title, notification.body);
-  return true;
-}
 
 /**
  * Apply contract-sensitive events outside React so their cache and store
@@ -466,6 +409,11 @@ export function useRealtime() {
         break;
       case "user_typing":
         useWsStore.getState().addTypingUser(event.incident_id, event.user_id);
+        break;
+      case "cursor_update":
+        if (event.user_id !== useAuthStore.getState().user?.id) {
+          useWsStore.getState().setCursor(event.incident_id, event.user_id, event.x, event.y);
+        }
         break;
       case "rule_triggered":
       case "rule_failed":

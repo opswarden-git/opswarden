@@ -25,7 +25,7 @@ const activity = [
     kind: "created" as const,
     actor: null,
     subject: null,
-    data: {},
+    data: { status: "open", severity: "high" },
     created_at: "2026-07-25T10:00:00Z",
   },
   {
@@ -96,7 +96,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   useAuthStore.getState().logout();
-  useWsStore.setState({ sendJson: () => {}, typingByIncident: {} });
+  useWsStore.setState({ sendJson: () => {}, typingByIncident: {}, cursorsByIncident: {} });
 });
 
 describe("IncidentActivity", () => {
@@ -107,13 +107,24 @@ describe("IncidentActivity", () => {
     expect(screen.getByText(/activityCreated/)).toBeInTheDocument();
     expect(screen.getByText(/activityAssigned/)).toBeInTheDocument();
     expect(screen.getByText(/activitySeverityChanged/)).toBeInTheDocument();
-    expect(screen.getAllByText(/activityStatusChanged/)).toHaveLength(1);
-    expect(screen.getByText("activityEventCount:2")).toBeInTheDocument();
-    const eventTitle = screen
-      .getByText(/activityStatusChanged/)
-      .parentElement?.getAttribute("title");
-    expect(eventTitle?.split("\n")).toHaveLength(2);
-    expect(eventTitle).toContain("2026");
+    expect(screen.getAllByText(/activityStatusChanged/)).toHaveLength(2);
+    expect(screen.getAllByText("activityTransitionFrom")).toHaveLength(3);
+    expect(screen.getAllByText("activityTransitionTo")).toHaveLength(3);
+    expect(screen.queryByText(/activityEventCount/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("statusOpen")).toHaveLength(3);
+    expect(screen.getAllByText("statusAcknowledged")).toHaveLength(2);
+    expect(screen.getAllByText("severityHigh")).toHaveLength(2);
+    expect(screen.getByText("severityCritical")).toBeInTheDocument();
+    expect(screen.getAllByText("statusOpen")[0].parentElement).toHaveClass("bg-status-neutral");
+    expect(screen.getAllByText("statusAcknowledged")[0].parentElement).toHaveClass(
+      "bg-status-info",
+    );
+    expect(screen.getAllByText(/activityStatusChanged/)[0].parentElement).toHaveAttribute(
+      "title",
+      expect.stringContaining("2026"),
+    );
+    expect(document.querySelector(".lucide-refresh-ccw")).not.toBeInTheDocument();
+    expect(document.querySelector(".lucide-arrow-right")).not.toBeInTheDocument();
     expect(screen.getByText("Investigating the primary database")).toBeInTheDocument();
     expect(
       screen.getByText("Investigating the primary database").closest("[data-note-owner]"),
@@ -179,5 +190,49 @@ describe("IncidentActivity", () => {
       { incidentId: "incident-1", content: "Mitigation deployed" },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("shares normalized pointer movement and renders peer cursors", () => {
+    const sendJson = vi.fn();
+    useWsStore.setState({
+      sendJson,
+      cursorsByIncident: {
+        "incident-1": {
+          "user-2": { userId: "user-2", x: 0.25, y: 0.5, updatedAt: Date.now() },
+        },
+      },
+    });
+    render(
+      <IncidentActivity
+        canCompose
+        incidentId="incident-1"
+        people={{ "user-2": "peer@example.com" }}
+      />,
+    );
+
+    const room = screen.getByRole("region", { name: "warRoomConversation" });
+    vi.spyOn(room, "getBoundingClientRect").mockReturnValue({
+      bottom: 600,
+      height: 500,
+      left: 100,
+      right: 900,
+      top: 100,
+      width: 800,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    fireEvent.pointerMove(room, { clientX: 300, clientY: 350, pointerType: "mouse" });
+
+    expect(sendJson).toHaveBeenCalledWith({
+      type: "cursor",
+      incident_id: "incident-1",
+      x: 0.25,
+      y: 0.5,
+    });
+    const peerCursor = document.querySelector('[data-collaborator-cursor="user-2"]');
+    expect(peerCursor).toHaveTextContent("peer");
+    expect(peerCursor?.querySelector("path")).toHaveAttribute("fill", "var(--gold)");
+    expect(peerCursor?.querySelector("span")).toHaveClass("bg-gold", "text-gold-ink");
   });
 });

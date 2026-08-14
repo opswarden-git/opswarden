@@ -16,6 +16,7 @@ import { useReleases } from "@/lib/queries/releases";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { cn, formatRelativeAge } from "@/lib/utils";
+import { OperationsCalendar, type OperationsCalendarEvent } from "./OperationsCalendar";
 
 const previewLimit = 5;
 
@@ -64,6 +65,30 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
     (release) => release.state !== "completed" && release.state !== "cancelled",
   );
   const ruleNames = new Map((rules.data ?? []).map((rule) => [rule.id, rule.name]));
+  const calendarEvents: OperationsCalendarEvent[] = [
+    ...(incidents.data?.items ?? []).map((incident) => ({
+      id: incident.id,
+      occurredAt: incident.created_at,
+      href: teamPath(teamId, "incidents", incident.id),
+      title: incident.title,
+      type: "incident" as const,
+    })),
+    ...(releases.data ?? []).map((release) => ({
+      id: release.release_id,
+      occurredAt: release.created_at,
+      href: teamPath(teamId, "releases", release.release_id),
+      title: release.title,
+      type: "release" as const,
+    })),
+    ...(canViewRuns ? (runs.data ?? []) : []).map((run) => ({
+      id: run.id,
+      occurredAt: run.started_at,
+      endedAt: run.finished_at,
+      href: teamPath(teamId, "runs"),
+      title: run.rule_id ? (ruleNames.get(run.rule_id) ?? ta("deletedRule")) : ta("noRule"),
+      type: "run" as const,
+    })),
+  ];
   const state: PageContentState =
     teams.isLoading ||
     incidents.isLoading ||
@@ -94,134 +119,158 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
         }
         errorFallback={<Alert tone="danger">{t("overviewUnavailable")}</Alert>}
       >
-        <div
-          className={cn(
-            "grid items-start gap-4",
-            canViewRuns ? "lg:grid-cols-2 xl:grid-cols-3" : "lg:grid-cols-2",
-          )}
-        >
-          <OverviewSection
-            title={t("overviewViews.incidents")}
-            count={team?.active_incident_count ?? activeIncidents.length}
-            href={teamPath(teamId, "incidents")}
-          >
-            {activeIncidents.length ? (
-              <ul className="divide-border divide-y">
-                {activeIncidents.slice(0, previewLimit).map((incident) => (
-                  <li key={incident.id}>
-                    <Link
-                      href={teamPath(teamId, "incidents", incident.id)}
-                      className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
-                    >
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <span className="text-text truncate text-sm font-medium">
-                          {incident.title}
-                        </span>
-                        <time
-                          className="text-muted shrink-0 text-xs"
-                          dateTime={incident.created_at}
-                        >
-                          {formatRelativeAge(incident.created_at, locale)}
-                        </time>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <StateChip status={incident.status} />
-                        <SeverityChip severity={incident.severity} />
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted px-4 py-8 text-center text-sm">
-                {t("overviewEmpty.incidents")}
-              </p>
+        <div className="space-y-4">
+          <OperationsCalendar
+            events={calendarEvents}
+            locale={locale}
+            labels={{
+              calendar: t("calendar.label"),
+              today: t("calendar.today"),
+              previousMonth: t("calendar.previousMonth"),
+              nextMonth: t("calendar.nextMonth"),
+              previousWeek: t("calendar.previousWeek"),
+              nextWeek: t("calendar.nextWeek"),
+              month: t("calendar.month"),
+              week: t("calendar.week"),
+              incident: t("calendar.incident"),
+              less: t("calendar.less"),
+              more: (count) => t("calendar.more", { count }),
+              release: t("calendar.release"),
+              run: t("calendar.run"),
+            }}
+          />
+          <div
+            className={cn(
+              "grid items-start gap-4",
+              canViewRuns ? "lg:grid-cols-2 xl:grid-cols-3" : "lg:grid-cols-2",
             )}
-          </OverviewSection>
-
-          <OverviewSection
-            title={t("overviewViews.releases")}
-            count={team?.active_release_count ?? activeReleases.length}
-            href={teamPath(teamId, "releases")}
           >
-            {activeReleases.length ? (
-              <ul className="divide-border divide-y">
-                {activeReleases.slice(0, previewLimit).map((release) => (
-                  <li key={release.release_id}>
-                    <Link
-                      href={teamPath(teamId, "releases", release.release_id)}
-                      className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
-                    >
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <span className="text-text truncate text-sm font-medium">
-                          {release.title}
-                        </span>
-                        <time className="text-muted shrink-0 text-xs" dateTime={release.created_at}>
-                          {formatRelativeAge(release.created_at, locale)}
-                        </time>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <ReleaseStateChip state={release.state} />
-                        <span className="text-muted text-xs tabular-nums">
-                          {release.progress.completed}/{release.progress.total}
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted px-4 py-8 text-center text-sm">
-                {t("overviewEmpty.releases")}
-              </p>
-            )}
-          </OverviewSection>
-
-          {canViewRuns ? (
             <OverviewSection
-              title={t("overviewViews.runs")}
-              count={runs.data?.length ?? 0}
-              href={teamPath(teamId, "runs")}
+              title={t("overviewViews.incidents")}
+              count={team?.active_incident_count ?? activeIncidents.length}
+              href={teamPath(teamId, "incidents")}
             >
-              {runs.data?.length ? (
+              {activeIncidents.length ? (
                 <ul className="divide-border divide-y">
-                  {runs.data.slice(0, previewLimit).map((run) => (
-                    <li key={run.id} className="px-4 py-3">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <span className="text-text truncate text-sm font-medium">
-                          {run.rule_id
-                            ? (ruleNames.get(run.rule_id) ?? ta("deletedRule"))
-                            : ta("noRule")}
-                        </span>
-                        <time className="text-muted shrink-0 text-xs" dateTime={run.started_at}>
-                          {formatRelativeAge(run.started_at, locale)}
-                        </time>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                        <RunStatus status={run.status} />
-                        {run.incident_id ? (
-                          <Link
-                            href={teamPath(teamId, "incidents", run.incident_id)}
-                            className="text-gold hover:text-gold-hover"
-                          >
-                            {ta("openIncident")}
-                          </Link>
-                        ) : run.error_code ? (
-                          <span className="text-sev-critical truncate" title={run.error_code}>
-                            {run.error_code}
+                  {activeIncidents.slice(0, previewLimit).map((incident) => (
+                    <li key={incident.id}>
+                      <Link
+                        href={teamPath(teamId, "incidents", incident.id)}
+                        className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                      >
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <span className="text-text truncate text-sm font-medium">
+                            {incident.title}
                           </span>
-                        ) : null}
-                      </div>
+                          <time
+                            className="text-muted shrink-0 text-xs"
+                            dateTime={incident.created_at}
+                          >
+                            {formatRelativeAge(incident.created_at, locale)}
+                          </time>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <StateChip status={incident.status} />
+                          <SeverityChip severity={incident.severity} />
+                        </div>
+                      </Link>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="text-muted px-4 py-8 text-center text-sm">
-                  {t("overviewEmpty.runs")}
+                  {t("overviewEmpty.incidents")}
                 </p>
               )}
             </OverviewSection>
-          ) : null}
+
+            <OverviewSection
+              title={t("overviewViews.releases")}
+              count={team?.active_release_count ?? activeReleases.length}
+              href={teamPath(teamId, "releases")}
+            >
+              {activeReleases.length ? (
+                <ul className="divide-border divide-y">
+                  {activeReleases.slice(0, previewLimit).map((release) => (
+                    <li key={release.release_id}>
+                      <Link
+                        href={teamPath(teamId, "releases", release.release_id)}
+                        className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                      >
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <span className="text-text truncate text-sm font-medium">
+                            {release.title}
+                          </span>
+                          <time
+                            className="text-muted shrink-0 text-xs"
+                            dateTime={release.created_at}
+                          >
+                            {formatRelativeAge(release.created_at, locale)}
+                          </time>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <ReleaseStateChip state={release.state} />
+                          <span className="text-muted text-xs tabular-nums">
+                            {release.progress.completed}/{release.progress.total}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted px-4 py-8 text-center text-sm">
+                  {t("overviewEmpty.releases")}
+                </p>
+              )}
+            </OverviewSection>
+
+            {canViewRuns ? (
+              <OverviewSection
+                title={t("overviewViews.runs")}
+                count={runs.data?.length ?? 0}
+                href={teamPath(teamId, "runs")}
+              >
+                {runs.data?.length ? (
+                  <ul className="divide-border divide-y">
+                    {runs.data.slice(0, previewLimit).map((run) => (
+                      <li key={run.id} className="px-4 py-3">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <span className="text-text truncate text-sm font-medium">
+                            {run.rule_id
+                              ? (ruleNames.get(run.rule_id) ?? ta("deletedRule"))
+                              : ta("noRule")}
+                          </span>
+                          <time className="text-muted shrink-0 text-xs" dateTime={run.started_at}>
+                            {formatRelativeAge(run.started_at, locale)}
+                          </time>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                          <RunStatus status={run.status} />
+                          {run.incident_id ? (
+                            <Link
+                              href={teamPath(teamId, "incidents", run.incident_id)}
+                              className="text-gold hover:text-gold-hover"
+                            >
+                              {ta("openIncident")}
+                            </Link>
+                          ) : run.error_code ? (
+                            <span className="text-sev-critical truncate" title={run.error_code}>
+                              {run.error_code}
+                            </span>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted px-4 py-8 text-center text-sm">
+                    {t("overviewEmpty.runs")}
+                  </p>
+                )}
+              </OverviewSection>
+            ) : null}
+          </div>
         </div>
       </PageContent>
     </PageLayout>

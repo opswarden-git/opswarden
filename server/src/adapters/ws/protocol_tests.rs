@@ -111,6 +111,19 @@ fn team_presence_update_wire_shape() {
 }
 
 #[test]
+fn cursor_update_wire_shape() {
+    let incident_id = Uuid::new_v4();
+    let user_id = Uuid::new_v4();
+    let value: Value =
+        serde_json::from_str(&cursor_wire(incident_id, user_id, 0.25, 0.75)).unwrap();
+    assert_eq!(value["type"], "cursor_update");
+    assert_eq!(value["incident_id"], incident_id.to_string());
+    assert_eq!(value["user_id"], user_id.to_string());
+    assert_eq!(value["x"], 0.25);
+    assert_eq!(value["y"], 0.75);
+}
+
+#[test]
 fn user_typing_wire_shape() {
     let incident_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
