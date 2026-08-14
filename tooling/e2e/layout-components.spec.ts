@@ -40,7 +40,7 @@ test("incident records switch morphology without losing operational context", as
 
   for (const viewportWidth of [320, 768, 1280, 1920]) {
     await page.setViewportSize({ width: viewportWidth, height: 900 });
-    await page.goto(`/en/teams/${TEAM_ID}/incidents`);
+    await page.goto(`/en/teams/${TEAM_ID}/incidents?view=all`);
 
     const mobile = page.locator('[data-incident-layout="mobile"]');
     const desktop = page.locator('[data-incident-layout="desktop"]');
@@ -51,7 +51,7 @@ test("incident records switch morphology without losing operational context", as
         .getByRole("listitem")
         .filter({ hasText: "Payment API returning 502 in Europe" });
       await expect(record.locator('[data-incident-field="identity"]')).toContainText("ID:");
-      await expect(record.locator('[data-incident-field="status"]')).toContainText("Open");
+      await expect(record.locator('[data-incident-field="status"]')).toContainText("Escalated");
       await expect(record.locator('[data-incident-field="assignee"]')).toContainText(
         "responder@opswarden.local",
       );

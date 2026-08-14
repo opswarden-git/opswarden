@@ -2,17 +2,6 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
 const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-const INCIDENT_IDS = [
-  "10000000-0000-4000-8000-000000000001",
-  "10000000-0000-4000-8000-000000000007",
-  "10000000-0000-4000-8000-000000000008",
-];
-const INCIDENT_TITLES = [
-  "Payment API returning 502 in Europe",
-  "Customer export job stalled",
-  "Elevated worker memory usage",
-];
-
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
@@ -78,9 +67,27 @@ test("two queues absorb a simultaneous WebSocket burst without visual agitation"
   try {
     const queueUrl = `/en/teams/${TEAM_ID}/incidents`;
     await Promise.all([manager.goto(queueUrl), responder.goto(queueUrl)]);
+
+    const token = await manager.evaluate(() => {
+      const raw = localStorage.getItem("opswarden-auth-storage");
+      return raw ? (JSON.parse(raw).state.token as string) : null;
+    });
+    expect(token).toBeTruthy();
+    const queueResponse = await manager.request.get(
+      `${API_URL}/api/incidents?team_id=${TEAM_ID}&status=open`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(queueResponse.ok()).toBe(true);
+    const openIncidents = (
+      (await queueResponse.json()) as {
+        items: Array<{ incident_id: string; title: string }>;
+      }
+    ).items.slice(0, 3);
+    expect(openIncidents).toHaveLength(3);
+
     await Promise.all(
       [manager, responder].flatMap((page) =>
-        INCIDENT_TITLES.map((title) =>
+        openIncidents.map(({ title }) =>
           expect(
             page
               .locator("[data-incident-layout]:visible")
@@ -113,14 +120,8 @@ test("two queues absorb a simultaneous WebSocket burst without visual agitation"
     });
     await Promise.all([startVisualMeasurement(manager), startVisualMeasurement(responder)]);
 
-    const token = await manager.evaluate(() => {
-      const raw = localStorage.getItem("opswarden-auth-storage");
-      return raw ? (JSON.parse(raw).state.token as string) : null;
-    });
-    expect(token).toBeTruthy();
-
     const responses = await Promise.all(
-      INCIDENT_IDS.map((incidentId) =>
+      openIncidents.map(({ incident_id: incidentId }) =>
         manager.request.put(`${API_URL}/api/incidents/${incidentId}/status`, {
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           data: { status: "acknowledged" },
@@ -131,7 +132,7 @@ test("two queues absorb a simultaneous WebSocket burst without visual agitation"
 
     await Promise.all(
       [manager, responder].flatMap((page) =>
-        INCIDENT_TITLES.map((title) =>
+        openIncidents.map(({ title }) =>
           expect(page.getByText(title, { exact: true })).toHaveCount(0),
         ),
       ),
