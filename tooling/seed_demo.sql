@@ -62,7 +62,7 @@ where team_id = '39aa8884-22cc-4764-a9e7-7df7c7619ba6'
   );
 
 insert into incidents (id, team_id, title, status, severity, assignee_id, created_at) values
-  ('10000000-0000-4000-8000-000000000001', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'Payment API returning 502 in Europe', 'open', 'critical', :'responder_id', now() - interval '18 minutes'),
+  ('10000000-0000-4000-8000-000000000001', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'Payment API returning 502 in Europe', 'escalated', 'critical', :'responder_id', now() - interval '60 minutes'),
   ('10000000-0000-4000-8000-000000000002', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'Checkout latency above SLO', 'acknowledged', 'high', :'responder_id', now() - interval '47 minutes'),
   ('10000000-0000-4000-8000-000000000003', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'Primary database replication lag', 'escalated', 'critical', :'responder_id', now() - interval '2 hours'),
   ('10000000-0000-4000-8000-000000000004', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'GitHub Actions failing on main', 'open', 'high', null, now() - interval '3 hours'),
@@ -86,6 +86,64 @@ on conflict (id) do update set
   team_id = excluded.team_id, title = excluded.title, status = excluded.status,
   severity = excluded.severity, assignee_id = excluded.assignee_id,
   created_at = excluded.created_at;
+
+-- System history is part of the deterministic demo fixture. Browser lifecycle
+-- tests create legitimate audit rows; without this scoped reset, replaying the
+-- seed would reset incident state while retaining those rows and manufacture
+-- impossible repeated transitions such as Open -> Acknowledged eight times.
+delete from incident_events
+where incident_id in (
+  select id
+  from incidents
+  where team_id in (
+    '39aa8884-22cc-4764-a9e7-7df7c7619ba6',
+    '6d1e8c20-b622-4d21-9b1b-111111111111',
+    '8b2f9d30-c733-4e32-8c2c-222222222222'
+  )
+    and id::text like '10000000-0000-4000-8000-0000000000__'
+);
+
+insert into incident_events (id, incident_id, kind, actor_id, data, created_at) values
+  (
+    '50000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    'created',
+    :'manager_id',
+    '{"status":"open","severity":"high"}'::jsonb,
+    now() - interval '60 minutes'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000002',
+    '10000000-0000-4000-8000-000000000001',
+    'assigned',
+    :'manager_id',
+    jsonb_build_object('assignee_id', :'responder_id'::text),
+    now() - interval '54 minutes'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000003',
+    '10000000-0000-4000-8000-000000000001',
+    'severity_changed',
+    :'manager_id',
+    '{"from":"high","to":"critical"}'::jsonb,
+    now() - interval '47 minutes'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000004',
+    '10000000-0000-4000-8000-000000000001',
+    'status_changed',
+    :'responder_id',
+    '{"from":"open","to":"acknowledged"}'::jsonb,
+    now() - interval '39 minutes'
+  ),
+  (
+    '50000000-0000-4000-8000-000000000005',
+    '10000000-0000-4000-8000-000000000001',
+    'status_changed',
+    :'manager_id',
+    '{"from":"acknowledged","to":"escalated"}'::jsonb,
+    now() - interval '31 minutes'
+  );
 
 -- Browser tests deliberately exercise the real note composer. Keep the demo
 -- seed replayable by removing only their clearly namespaced notes.

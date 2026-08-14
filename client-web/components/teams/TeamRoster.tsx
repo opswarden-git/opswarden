@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Search, ShieldCheck } from "lucide-react";
+import { Ban, Clock3, Search, ShieldCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import {
@@ -24,6 +24,7 @@ import { Alert } from "@/components/ui/Alert";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/Button";
 import { TableFilterControl } from "@/components/ui/CollectionControls";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MemberAvatar } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
@@ -328,9 +329,16 @@ export function TeamRoster({ team }: { team: Team }) {
                           : t("expiredBan")}
                       </div>
                     </div>
-                    <span className="border-sev-critical/40 bg-sev-critical/10 text-sev-critical inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium">
-                      {entry.active ? t("bannedStatus") : t("expiredStatus")}
-                    </span>
+                    {entry.active ? (
+                      <StatusBadge tone="danger" icon={<Ban />}>
+                        {t("bannedStatus")}
+                      </StatusBadge>
+                    ) : (
+                      <span className="text-muted inline-flex w-fit items-center gap-1 text-xs font-medium">
+                        <Clock3 className="h-3 w-3" aria-hidden="true" />
+                        {t("expiredStatus")}
+                      </span>
+                    )}
                     <div className="flex justify-end">
                       {entry.active ? (
                         <IconButton

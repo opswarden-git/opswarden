@@ -136,6 +136,17 @@ describe("TeamSettingsPage", () => {
     expect(screen.getByRole("heading", { name: "activeMembers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "bannedMembers" })).toBeInTheDocument();
     expect(screen.getByText("banned@example.com")).toBeInTheDocument();
+    expect(screen.getByText("bannedStatus").parentElement).toHaveClass(
+      "bg-status-danger",
+      "rounded",
+    );
+    expect(
+      screen.getByText("bannedStatus").parentElement?.querySelector(".lucide-ban"),
+    ).not.toBeNull();
+    const expiredStatus = screen.getByText("expiredStatus");
+    expect(expiredStatus).toHaveClass("text-muted");
+    expect(expiredStatus.querySelector(".lucide-clock-3")).not.toBeNull();
+    expect(expiredStatus).not.toHaveClass("bg-status-danger");
     fireEvent.click(screen.getByRole("button", { name: "unban" }));
     expect(unban.mutate).toHaveBeenCalledWith("banned-1");
   });

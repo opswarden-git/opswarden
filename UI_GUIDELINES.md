@@ -70,51 +70,59 @@ always paired with text, an icon or position when it communicates state.
 
 ## Operational semantics
 
-Brand colors identify OpsWarden; operational colors encode live meaning. There
-are three families, and one never borrows another's vocabulary.
+Brand colors identify OpsWarden; operational colors encode live meaning. Every
+operational badge uses the same opaque panel primitive and one of five
+accessible emphasis tones:
+
+| Tone    | Token              | Value     | White contrast | Meaning                      |
+| ------- | ------------------ | --------- | -------------: | ---------------------------- |
+| Neutral | `--status-neutral` | `#57606A` |         6.39:1 | Initial, inactive or ended   |
+| Info    | `--status-info`    | `#0969DA` |         5.19:1 | Work is owned or in progress |
+| Warning | `--status-warning` | `#9A6700` |         4.87:1 | Attention without failure    |
+| Danger  | `--status-danger`  | `#CF222E` |         5.36:1 | Escalation, block or failure |
+| Success | `--status-success` | `#1A7F37` |         5.08:1 | Successful terminal state    |
+
+The lifecycle mapping is the **Progression** model: an open Incident starts
+neutral, becomes informational once acknowledged, becomes danger when
+escalated and success when resolved.
 
 **Severity** — how bad it is.
 
-| Concept  | Token            | Value     | Required text |
-| -------- | ---------------- | --------- | ------------- |
-| Low      | `--sev-low`      | `#5798F5` | Low           |
-| Medium   | `--sev-medium`   | `#F59E0B` | Medium        |
-| High     | `--sev-high`     | `#FB7D3C` | High          |
-| Critical | `--sev-critical` | `#FF5555` | Critical      |
+| Concept  | Badge tone | Required text |
+| -------- | ---------- | ------------- |
+| Low      | Neutral    | Low           |
+| Medium   | Warning    | Medium        |
+| High     | Warning    | High          |
+| Critical | Danger     | Critical      |
+
+The severity silhouette is fixed and progressively stronger: circle alert for
+Low, triangle alert for Medium, octagon alert for High and flame for Critical.
+This is the original inventory grammar, retained inside the opaque panels.
 
 **Incident state** — where it is in its life.
 
-| Concept      | Token       | Value     | Required text |
-| ------------ | ----------- | --------- | ------------- |
-| Open         | `--st-open` | `#FF5555` | Open          |
-| Acknowledged | `--st-ack`  | `#5798F5` | Acknowledged  |
-| Escalated    | `--st-esc`  | `#C084FC` | Escalated     |
-| Resolved     | `--st-res`  | `#22C55E` | Resolved      |
+| Concept      | Badge tone | Required text |
+| ------------ | ---------- | ------------- |
+| Open         | Neutral    | Open          |
+| Acknowledged | Info       | Acknowledged  |
+| Escalated    | Danger     | Escalated     |
+| Resolved     | Success    | Resolved      |
 
 **Release state** — its own family, for its own object.
 
-| Concept     | Token             | Value     | Required text |
-| ----------- | ----------------- | --------- | ------------- |
-| Created     | `--rel-created`   | `#989BA1` | Created       |
-| In progress | `--rel-progress`  | `#2DD4BF` | In progress   |
-| Blocked     | `--rel-blocked`   | `#FF5555` | Blocked       |
-| Completed   | `--rel-completed` | `#22C55E` | Completed     |
-| Cancelled   | `--rel-cancelled` | `#878B93` | Cancelled     |
+| Concept     | Badge tone | Required text |
+| ----------- | ---------- | ------------- |
+| Created     | Neutral    | Created       |
+| In progress | Info       | In progress   |
+| Blocked     | Danger     | Blocked       |
+| Completed   | Success    | Completed     |
+| Cancelled   | Neutral    | Cancelled     |
 
-The release family exists because the overview shows incidents and releases side
-by side. A release in progress used to wear `--st-ack`, the _incident
-acknowledged_ token, so a single blue meant two different things depending on
-which column was being read.
-
-Where a release state expresses a concern the whole product shares, its token
-aliases the `--feedback-*` role rather than an incident token: `--rel-blocked`
-resolves to `--feedback-danger`, `--rel-completed` to `--feedback-success`.
-Lifecycle roles may map onto concern colors; they never adopt another object's
-vocabulary.
-
-Severity and incident state do share two values — `#FF5555` and `#5798F5` — and
-both chips can appear on the same row. They stay unambiguous because the rule
-below is absolute, never because the hue is unique.
+Connections, rules and automation runs use the same five-tone vocabulary. Team
+roles remain light identity labels with distinct shields. An active ban is an
+enforced restriction and therefore uses the Danger panel with a Ban icon; an
+expired ban is historical metadata and uses a neutral Clock icon without a
+background. Presence remains an indicator and filters remain controls.
 
 **Color is never the only signal.** Every state is carried by color **and** icon
 **and** text. An icon is unique within its family, so two states of the same
@@ -122,6 +130,23 @@ object can never render the same glyph.
 
 The server owns allowed lifecycle transitions. A colored chip renders state; it
 does not authorize a transition or invent a new one.
+
+### Visual status reference
+
+These plates document the canonical mapping for the opaque status grammar. The
+implemented shape is the prototype's **Panneau** option: a 4 px corner radius.
+They document the five emphasis tones and every operational family without
+adding binary assets to the application repository.
+
+![Accessible emphasis palette](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/status-badges/01-palette-emphasis.png){ .annotated-screen loading=lazy }
+
+![Incident status and severity](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/status-badges/02-incidents.png){ .annotated-screen loading=lazy }
+
+![Release lifecycle](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/status-badges/03-delivery.png){ .annotated-screen loading=lazy }
+
+![Team roles and access restrictions](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/status-badges/04-teams-access.png){ .annotated-screen loading=lazy }
+
+![Connection, rule and automation run status](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/status-badges/05-automations-integrations.png){ .annotated-screen loading=lazy }
 
 ## Spacing and cadence
 
@@ -158,6 +183,7 @@ meaning, not merely a different color.
 | `ActionMenu`       | closed/open                               | Keyboard-openable; arrows navigate; Escape returns focus        |
 | `OperationalTable` | loading/ready                             | Desktop scan view with a labelled mobile record equivalent      |
 | `PageContent`      | loading/error/empty/ready                 | Every data page handles all four states                         |
+| `StatusBadge`      | neutral/info/warning/danger/success       | Opaque 4 px panel; icon and translated text are mandatory       |
 
 ### Action hierarchy
 
@@ -198,6 +224,9 @@ An incident is a place, not a record, and its screen is built accordingly.
 - **System events never join a block.** A status change, an assignment or an
   escalation is precisely what someone re-reading an incident is looking for, and
   it must never be absorbed into a series of notes.
+- A system event is never deduplicated or collapsed into `×N`: one persisted
+  event produces one transcript row. Lifecycle and severity transitions render
+  their canonical before/after badges inline so the change scans instantly.
 - Below `lg` the context becomes an on-demand sheet rather than a stacked panel:
   with a fixed frame, a panel under a scrolling transcript would sit behind the
   entire conversation.
@@ -261,6 +290,7 @@ rather than a review:
 | Token families exist and clear 4.5:1 contrast       | `app/design-tokens.test.ts`              |
 | A release state never wears an incident token       | `app/design-tokens.test.ts`              |
 | Every state renders color **and** icon **and** text | `components/state-encoding.test.ts`      |
+| Status panels stay opaque, compact and accessible   | `components/ui/StatusBadge.test.tsx`     |
 | Spacing stays on the shared cadence                 | `components/spacing-scale.test.ts`       |
 | Interface prose stays within its per-locale budget  | `i18n/text-budget.test.ts`               |
 | Destructive flows name resource and consequence     | `components/destructive-actions.test.ts` |

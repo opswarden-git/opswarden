@@ -5,6 +5,8 @@ import { CircleDot, Pencil, SmilePlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type IncidentActivityItem,
+  type IncidentSeverity,
+  type IncidentStatus,
   type TimelineReaction,
   useAddTimelineEntry,
   useAvailableReactions,
@@ -13,7 +15,7 @@ import {
   useToggleTimelineReaction,
 } from "@/lib/queries/incidents";
 import { useAuthStore } from "@/store/auth";
-import { useTypingUsers, useWsStore } from "@/lib/ws";
+import { useCollaboratorCursors, useTypingUsers, useWsStore } from "@/lib/ws";
 import { giphyEntryUrl } from "@/lib/queries/gifs";
 import { Alert } from "@/components/ui/Alert";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -22,75 +24,95 @@ import { ReactionToggle } from "@/components/ui/ReactionToggle";
 import { cn } from "@/lib/utils";
 import { resolveGrouping } from "./activity-grouping";
 import { HumanNoteItem } from "./HumanNoteItem";
+import { SeverityChip } from "./SeverityChip";
+import { StateChip } from "./StateChip";
+import { CollaboratorCursors } from "./CollaboratorCursors";
 
 function valueAsString(data: Record<string, unknown>, key: string) {
   const value = data[key];
   return typeof value === "string" ? value : "";
 }
 
+function incidentStatus(value: string): IncidentStatus | null {
+  return ["open", "acknowledged", "escalated", "resolved"].includes(value)
+    ? (value as IncidentStatus)
+    : null;
+}
+
+function incidentSeverity(value: string): IncidentSeverity | null {
+  return ["low", "medium", "high", "critical"].includes(value) ? (value as IncidentSeverity) : null;
+}
+
 function SystemEventItem({
   item,
-  occurrences,
 }: {
   item: Extract<IncidentActivityItem, { type: "system_event" }>;
-  occurrences: Extract<IncidentActivityItem, { type: "system_event" }>[];
 }) {
   const t = useTranslations("Incidents");
   const locale = useLocale();
   const actor = item.actor?.email ?? t("automationActor");
-  const labelValue = (value: string) => {
-    const labels: Record<string, string> = {
-      open: t("statusOpen"),
-      acknowledged: t("statusAcknowledged"),
-      escalated: t("statusEscalated"),
-      resolved: t("statusResolved"),
-      low: t("severityLow"),
-      medium: t("severityMedium"),
-      high: t("severityHigh"),
-      critical: t("severityCritical"),
-    };
-    return labels[value] ?? value;
-  };
-  const from = labelValue(valueAsString(item.data, "from"));
-  const to = labelValue(valueAsString(item.data, "to"));
-
-  const description =
-    item.kind === "created"
-      ? t("activityCreated", { actor })
-      : item.kind === "assigned"
-        ? t("activityAssigned", {
-            actor,
-            assignee: item.subject?.email ?? t("deletedUser"),
-          })
-        : item.kind === "severity_changed"
-          ? t("activitySeverityChanged", { actor, from, to })
-          : t("activityStatusChanged", { actor, from, to });
+  const fromValue = valueAsString(item.data, "from");
+  const toValue = valueAsString(item.data, "to");
+  const fromStatus = incidentStatus(fromValue);
+  const toStatus = incidentStatus(toValue);
+  const fromSeverity = incidentSeverity(fromValue);
+  const toSeverity = incidentSeverity(toValue);
+  const initialStatus = incidentStatus(valueAsString(item.data, "status"));
+  const initialSeverity = incidentSeverity(valueAsString(item.data, "severity"));
   const timestamp = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const hoverTimes = occurrences
-    .map((occurrence) => timestamp.format(new Date(occurrence.created_at)))
-    .join("\n");
+  const hoverTime = timestamp.format(new Date(item.created_at));
+
+  const transition =
+    item.kind === "status_changed" && fromStatus && toStatus ? (
+      <>
+        <span>{t("activityStatusChanged", { actor })}</span>
+        <span>{t("activityTransitionFrom")}</span>
+        <StateChip status={fromStatus} />
+        <span>{t("activityTransitionTo")}</span>
+        <StateChip status={toStatus} />
+      </>
+    ) : item.kind === "severity_changed" && fromSeverity && toSeverity ? (
+      <>
+        <span>{t("activitySeverityChanged", { actor })}</span>
+        <span>{t("activityTransitionFrom")}</span>
+        <SeverityChip severity={fromSeverity} />
+        <span>{t("activityTransitionTo")}</span>
+        <SeverityChip severity={toSeverity} />
+      </>
+    ) : item.kind === "assigned" ? (
+      <span>
+        {t("activityAssigned", {
+          actor,
+          assignee: item.subject?.email ?? t("deletedUser"),
+        })}
+      </span>
+    ) : item.kind === "created" ? (
+      <>
+        <span>{t("activityCreated", { actor })}</span>
+        {initialStatus ? <StateChip status={initialStatus} /> : null}
+        {initialSeverity ? <SeverityChip severity={initialSeverity} /> : null}
+      </>
+    ) : (
+      <span>
+        {item.kind === "status_changed"
+          ? t("activityStatusChanged", { actor })
+          : t("activitySeverityChanged", { actor })}
+      </span>
+    );
 
   return (
-    <li className="flex justify-center px-4 py-2">
+    <li data-system-event={item.kind} className="flex justify-center px-4 py-2">
       <div
         className="text-muted flex max-w-2xl flex-wrap items-center justify-center gap-x-1.5 text-center text-xs leading-5"
-        title={hoverTimes}
+        title={hoverTime}
       >
-        <CircleDot className="h-3 w-3 shrink-0" aria-hidden="true" />
-        <span>{description}</span>
-        {occurrences.length > 1 ? (
-          <span className="text-muted-2 font-mono" aria-label={`${occurrences.length}`}>
-            {t("activityEventCount", { count: occurrences.length })}
-          </span>
-        ) : null}
-        {occurrences.map((occurrence) => (
-          <time key={occurrence.id} className="sr-only" dateTime={occurrence.created_at}>
-            {timestamp.format(new Date(occurrence.created_at))}
-          </time>
-        ))}
+        {transition}
+        <time className="sr-only" dateTime={item.created_at}>
+          {hoverTime}
+        </time>
       </div>
     </li>
   );
@@ -99,15 +121,6 @@ function SystemEventItem({
 function localDayKey(value: string) {
   const date = new Date(value);
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-function systemEventSignature(item: Extract<IncidentActivityItem, { type: "system_event" }>) {
-  return JSON.stringify([
-    item.kind,
-    item.actor?.user_id ?? item.actor?.email ?? null,
-    item.subject?.user_id ?? item.subject?.email ?? null,
-    item.data,
-  ]);
 }
 
 function ActivityComposer({
@@ -166,6 +179,10 @@ export function IncidentActivity({
   const { data = [], error, isLoading } = useIncidentActivity(incidentId);
   const { data: availableReactions = [] } = useAvailableReactions();
   const transcriptRef = React.useRef<HTMLDivElement>(null);
+  const cursorMap = useCollaboratorCursors(incidentId);
+  const cursors = React.useMemo(() => Object.values(cursorMap), [cursorMap]);
+  const sendJson = useWsStore((state) => state.sendJson);
+  const lastCursorSent = React.useRef(Number.NEGATIVE_INFINITY);
 
   // The API is newest-first; a conversation reads oldest-first toward its composer.
   const items = React.useMemo(
@@ -177,37 +194,19 @@ export function IncidentActivity({
   );
   const grouping = React.useMemo(() => resolveGrouping(items), [items]);
   const rows = React.useMemo(() => {
-    type SystemEvent = Extract<IncidentActivityItem, { type: "system_event" }>;
     type Row = {
       item: IncidentActivityItem;
       itemIndex: number;
-      occurrences: SystemEvent[];
       showDay: boolean;
     };
-    const result: Row[] = [];
-
-    items.forEach((item, itemIndex) => {
-      const day = localDayKey(item.created_at);
-      const previous = result.at(-1);
-      if (
-        item.type === "system_event" &&
-        previous?.item.type === "system_event" &&
-        localDayKey(previous.item.created_at) === day &&
-        systemEventSignature(previous.item) === systemEventSignature(item)
-      ) {
-        previous.occurrences.push(item);
-        return;
-      }
-
-      result.push({
+    return items.map((item, itemIndex): Row => {
+      const previous = items[itemIndex - 1];
+      return {
         item,
         itemIndex,
-        occurrences: item.type === "system_event" ? [item] : [],
-        showDay: !previous || localDayKey(previous.item.created_at) !== day,
-      });
+        showDay: !previous || localDayKey(previous.created_at) !== localDayKey(item.created_at),
+      };
     });
-
-    return result;
   }, [items]);
 
   // A room opens on what was just said, not on what was said first.
@@ -222,8 +221,23 @@ export function IncidentActivity({
     <section
       aria-label={t("warRoomConversation")}
       data-incident-room="true"
-      className="flex min-h-0 min-w-0 flex-1 flex-col"
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+      onPointerMove={(event) => {
+        if (event.pointerType === "touch") return;
+        const now = performance.now();
+        if (now - lastCursorSent.current < 50) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        sendJson({
+          type: "cursor",
+          incident_id: incidentId,
+          x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+          y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+        });
+        lastCursorSent.current = now;
+      }}
     >
+      <CollaboratorCursors cursors={cursors} people={people} />
       <div
         ref={transcriptRef}
         data-incident-transcript="true"
@@ -246,7 +260,7 @@ export function IncidentActivity({
           </div>
         ) : (
           <ol className="relative py-4">
-            {rows.map(({ item, itemIndex, occurrences, showDay }) => (
+            {rows.map(({ item, itemIndex, showDay }) => (
               <React.Fragment key={item.type === "system_event" ? item.id : item.entry_id}>
                 {showDay ? (
                   <li className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
@@ -263,7 +277,7 @@ export function IncidentActivity({
                   </li>
                 ) : null}
                 {item.type === "system_event" ? (
-                  <SystemEventItem item={item} occurrences={occurrences} />
+                  <SystemEventItem item={item} />
                 ) : (
                   <HumanNoteItem
                     availableReactions={availableReactions}

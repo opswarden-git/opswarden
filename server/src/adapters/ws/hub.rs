@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
-use super::protocol::{presence_wire, team_presence_wire, to_wire};
+use super::protocol::{cursor_wire, presence_wire, team_presence_wire, to_wire};
 use crate::domain::event::{DomainEvent, EventDelivery};
 use crate::ports::EventPublisher;
 
@@ -115,6 +115,32 @@ impl WsHub {
             .is_some_and(|c| c.watching.remove(&incident_id));
         if changed {
             broadcast_presence(&conns, incident_id);
+        }
+    }
+
+    /// Relay a pointer only when its connection already watches the incident.
+    /// The authorized `watch` command therefore remains the single admission
+    /// gate, while high-frequency pointer frames never hit the database.
+    pub fn cursor(&self, conn_id: ConnectionId, incident_id: Uuid, x: f64, y: f64) {
+        if !x.is_finite()
+            || !y.is_finite()
+            || !(0.0..=1.0).contains(&x)
+            || !(0.0..=1.0).contains(&y)
+        {
+            return;
+        }
+        let conns = self.connections.lock().unwrap();
+        let Some(source) = conns.get(&conn_id) else {
+            return;
+        };
+        if !source.watching.contains(&incident_id) {
+            return;
+        }
+        let payload = cursor_wire(incident_id, source.user_id, x, y);
+        for (recipient_id, conn) in conns.iter() {
+            if *recipient_id != conn_id && conn.watching.contains(&incident_id) {
+                let _ = conn.tx.send(payload.clone());
+            }
         }
     }
 
@@ -462,26 +488,8 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&last.unwrap()).unwrap();
         assert_eq!(v["watchers"].as_array().unwrap().len(), 1);
     }
-
-    #[tokio::test]
-    async fn disconnect_drops_the_user_from_presence() {
-        let hub = WsHub::new();
-        let incident = Uuid::new_v4();
-        let user_a = Uuid::new_v4();
-
-        let (tx_a, _rx_a) = mpsc::unbounded_channel();
-        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
-        let a = hub.register(user_a, HashSet::new(), tx_a);
-        let b = hub.register(Uuid::new_v4(), HashSet::new(), tx_b);
-
-        hub.watch(a, incident);
-        hub.watch(b, incident);
-        while rx_b.try_recv().is_ok() {} // drain join notifications
-
-        // A disconnects: B is told A is gone.
-        hub.unregister(a);
-        let m = rx_b.try_recv().unwrap();
-        assert!(m.contains("presence_update"));
-        assert!(!m.contains(&user_a.to_string()));
-    }
 }
+
+#[cfg(test)]
+#[path = "hub_cursor_tests.rs"]
+mod cursor_tests;

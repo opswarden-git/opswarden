@@ -30,6 +30,20 @@ pub fn team_presence_wire(team_id: Uuid, online_user_ids: &[Uuid]) -> String {
     .to_string()
 }
 
+/// Serialize an ephemeral collaborator pointer. Coordinates are normalized to
+/// the shared incident-room surface so clients with different viewport sizes
+/// can render the same relative position without persisting layout state.
+pub fn cursor_wire(incident_id: Uuid, user_id: Uuid, x: f64, y: f64) -> String {
+    json!({
+        "type": "cursor_update",
+        "incident_id": incident_id,
+        "user_id": user_id,
+        "x": x,
+        "y": y,
+    })
+    .to_string()
+}
+
 /// Serialize a domain event to its on-the-wire JSON, per the WebSocket contract
 /// documented in `WEBSOCKET_SPEC.md`. The wire format is a transport concern and
 /// lives here, never in the domain.

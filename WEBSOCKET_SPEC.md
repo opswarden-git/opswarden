@@ -76,6 +76,19 @@ Emits `user_typing` only when the incident belongs to a current team and the
 user's role has the `can_signal_typing` capability. The server stores no typing
 state; consumers expire the signal locally.
 
+### `cursor`
+
+```json
+{ "type": "cursor", "incident_id": "<uuid>", "x": 0.25, "y": 0.75 }
+```
+
+Shares an ephemeral pointer position with the other connections watching the
+same incident. Coordinates are finite values normalized to the incident room
+(`0…1`) and are rejected outside that range. The command is accepted only after
+this connection has completed an authorized `watch`; it is never persisted or
+echoed to the sending connection. Clients throttle emission and expire received
+positions locally.
+
 ### `refresh_teams`
 
 ```json
@@ -104,17 +117,18 @@ not added to a frame unless shown.
 
 ### Incident and timeline events
 
-| Event                    | Exact payload fields                                      | Emission condition                                                | Delivery |
-| ------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------- | -------- |
-| `incident_created`       | `incident_id`, `severity`                                 | An Incident is persisted, including Automation-created Incidents. | Team     |
-| `incident_state_changed` | `incident_id`, `new_state`, `by`                          | An authorized transition changes the incident status.             | Team     |
-| `incident_escalated`     | `incident_id`, `new_severity`, `by`                       | An authorized action raises severity.                             | Team     |
-| `incident_assigned`      | `incident_id`, `assigned_to`, `by`                        | An incident is assigned.                                          | Team     |
-| `timeline_entry_added`   | `incident_id`, `entry: { entry_id, content, author, at }` | A timeline entry is persisted.                                    | Team     |
-| `timeline_entry_edited`  | `incident_id`, `entry_id`, `new_content`, `edited_at`     | An authorized edit is persisted.                                  | Team     |
-| `reaction_added`         | `incident_id`, `entry_id`, `emoji`, `by`                  | A reaction is added to an entry.                                  | Team     |
-| `reaction_removed`       | `incident_id`, `entry_id`, `emoji`, `by`                  | The caller's existing reaction is removed.                        | Team     |
-| `user_typing`            | `incident_id`, `user_id`                                  | An authorized `status_typing` command is accepted.                | Team     |
+| Event                    | Exact payload fields                                      | Emission condition                                                | Delivery                |
+| ------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------- |
+| `incident_created`       | `incident_id`, `severity`                                 | An Incident is persisted, including Automation-created Incidents. | Team                    |
+| `incident_state_changed` | `incident_id`, `new_state`, `by`                          | An authorized transition changes the incident status.             | Team                    |
+| `incident_escalated`     | `incident_id`, `new_severity`, `by`                       | An authorized action raises severity.                             | Team                    |
+| `incident_assigned`      | `incident_id`, `assigned_to`, `by`                        | An incident is assigned.                                          | Team                    |
+| `timeline_entry_added`   | `incident_id`, `entry: { entry_id, content, author, at }` | A timeline entry is persisted.                                    | Team                    |
+| `timeline_entry_edited`  | `incident_id`, `entry_id`, `new_content`, `edited_at`     | An authorized edit is persisted.                                  | Team                    |
+| `reaction_added`         | `incident_id`, `entry_id`, `emoji`, `by`                  | A reaction is added to an entry.                                  | Team                    |
+| `reaction_removed`       | `incident_id`, `entry_id`, `emoji`, `by`                  | The caller's existing reaction is removed.                        | Team                    |
+| `user_typing`            | `incident_id`, `user_id`                                  | An authorized `status_typing` command is accepted.                | Team                    |
+| `cursor_update`          | `incident_id`, `user_id`, `x`, `y`                        | A watched room accepts a normalized `cursor` command.             | Other incident watchers |
 
 Example:
 

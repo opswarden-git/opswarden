@@ -1,7 +1,8 @@
 import React from "react";
 import { IncidentStatus } from "@/lib/queries/incidents";
-import { CircleDot, Clock, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { CircleAlert, Eye, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export function StateChip({ status }: { status: IncidentStatus }) {
   const t = useTranslations("Incidents");
@@ -9,31 +10,27 @@ export function StateChip({ status }: { status: IncidentStatus }) {
   switch (status) {
     case "open":
       return (
-        <span className="border-st-open/20 bg-st-open/10 text-st-open inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium capitalize">
-          <CircleDot className="h-3 w-3" />
+        <StatusBadge tone="neutral" icon={<CircleAlert />}>
           {t("statusOpen")}
-        </span>
+        </StatusBadge>
       );
     case "acknowledged":
       return (
-        <span className="border-st-ack/20 bg-st-ack/10 text-st-ack inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium capitalize">
-          <Clock className="h-3 w-3" />
+        <StatusBadge tone="info" icon={<Eye />}>
           {t("statusAcknowledged")}
-        </span>
+        </StatusBadge>
       );
     case "escalated":
       return (
-        <span className="border-st-esc/20 bg-st-esc/10 text-st-esc inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium capitalize">
-          <ShieldAlert className="h-3 w-3" />
+        <StatusBadge tone="danger" icon={<ShieldAlert />}>
           {t("statusEscalated")}
-        </span>
+        </StatusBadge>
       );
     case "resolved":
       return (
-        <span className="border-st-res/20 bg-st-res/10 text-st-res inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium capitalize">
-          <CheckCircle2 className="h-3 w-3" />
+        <StatusBadge tone="success" icon={<CheckCircle2 />}>
           {t("statusResolved")}
-        </span>
+        </StatusBadge>
       );
   }
 }

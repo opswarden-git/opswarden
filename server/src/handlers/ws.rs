@@ -65,6 +65,7 @@ enum ClientCommand {
     Watch { incident_id: Uuid },
     Unwatch { incident_id: Uuid },
     StatusTyping { incident_id: Uuid },
+    Cursor { incident_id: Uuid, x: f64, y: f64 },
     RefreshTeams,
 }
 
@@ -137,6 +138,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     // Unwatch only ever removes this connection from a watcher set,
                     // so it is harmless even for an incident the user cannot see.
                     Ok(ClientCommand::Unwatch { incident_id }) => hub.unwatch(conn_id, incident_id),
+                    Ok(ClientCommand::Cursor { incident_id, x, y }) => {
+                        hub.cursor(conn_id, incident_id, x, y)
+                    }
                     // Re-resolve the team scope from the database (the authority)
                     // and update both the hub (presence routing) and the local
                     // authz copy. The hub re-broadcasts presence for every team

@@ -126,22 +126,26 @@ test("browser-composited incident text remains above 4.5:1", async ({ page }) =>
   await login(page);
 
   const samples = [
-    { path: `/en/teams/${TEAM_ID}/incidents`, selector: ".text-st-open" },
-    { path: `/en/teams/${TEAM_ID}/incidents`, selector: ".text-sev-critical" },
-    { path: `/en/teams/${TEAM_ID}/incidents`, selector: ".text-sev-low" },
+    { path: `/en/teams/${TEAM_ID}/incidents`, label: "Open" },
+    { path: `/en/teams/${TEAM_ID}/incidents?view=all`, label: "Critical" },
+    { path: `/en/teams/${TEAM_ID}/incidents`, label: "Low" },
     {
       path: `/en/teams/${TEAM_ID}/incidents?view=acknowledged`,
-      selector: ".text-st-ack",
+      label: "Acknowledged",
     },
   ];
 
   for (const sample of samples) {
     await page.goto(sample.path);
-    const element = page.locator(sample.selector).first();
+    const element = page
+      .locator("[data-incident-layout]:visible")
+      .locator("[data-status-badge]")
+      .filter({ hasText: sample.label })
+      .first();
     await expect(element).toBeVisible();
     expect(
       await renderedContrast(element),
-      `${sample.selector} rendered contrast`,
+      `${sample.label} rendered contrast`,
     ).toBeGreaterThanOrEqual(4.5);
   }
 

@@ -42,6 +42,16 @@
     --feedback-warning: #f59e0b;
     --feedback-danger: #f55;
 
+    /*
+     * Opaque operational badges. These emphasis tones are deliberately darker
+     * than foreground feedback colors so white text clears WCAG AA at 12px.
+     */
+    --status-neutral: #57606a;
+    --status-info: #0969da;
+    --status-warning: #9a6700;
+    --status-danger: #cf222e;
+    --status-success: #1a7f37;
+
     /* severities */
     --sev-low: #5798f5;
     --sev-medium: var(--feedback-warning);

@@ -8,6 +8,7 @@ import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Button } from "@/components/ui/Button";
 import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   type AutomationRule,
   type AutomationService,
@@ -50,6 +51,19 @@ function nextRunLabel(rule: AutomationRule, locale: string, disabledLabel: strin
     timeStyle: "short",
     timeZone: timezone,
   }).format(new Date(rule.next_run_at));
+}
+
+function RuleStatus({ enabled }: { enabled: boolean }) {
+  const t = useTranslations("Automations");
+  return enabled ? (
+    <StatusBadge tone="success" icon={<Power />}>
+      {t("enabled")}
+    </StatusBadge>
+  ) : (
+    <StatusBadge tone="neutral" icon={<PowerOff />}>
+      {t("disabled")}
+    </StatusBadge>
+  );
 }
 
 export function RulesView({
@@ -208,11 +222,8 @@ export function RulesView({
                   {rule.name}
                 </OperationalTableRowHeader>
                 <OperationalTableCell>
-                  <span
-                    data-rule-state={rule.enabled ? "enabled" : "disabled"}
-                    className={rule.enabled ? "text-st-res" : "text-muted"}
-                  >
-                    {rule.enabled ? t("enabled") : t("disabled")}
+                  <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
+                    <RuleStatus enabled={rule.enabled} />
                   </span>
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted">
@@ -273,11 +284,8 @@ export function RulesView({
                 <div className="min-w-0 flex-1">
                   <h3 className="text-text font-medium">{rule.name}</h3>
                   <div className="mt-1 flex flex-wrap text-sm">
-                    <span
-                      data-rule-state={rule.enabled ? "enabled" : "disabled"}
-                      className={rule.enabled ? "text-st-res" : "text-muted"}
-                    >
-                      {rule.enabled ? t("enabled") : t("disabled")}
+                    <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
+                      <RuleStatus enabled={rule.enabled} />
                     </span>
                   </div>
                 </div>

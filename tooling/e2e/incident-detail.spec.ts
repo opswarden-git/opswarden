@@ -157,6 +157,17 @@ test("two clients see identified incident watchers", async ({ browser }) => {
     await expect(watchers.getByTitle("responder@opswarden.local")).toBeVisible();
   }
 
+  const responderRoom = responder.locator('[data-incident-room="true"]');
+  const roomBounds = await responderRoom.boundingBox();
+  expect(roomBounds).not.toBeNull();
+  await responder.mouse.move(
+    roomBounds!.x + roomBounds!.width * 0.42,
+    roomBounds!.y + roomBounds!.height * 0.38,
+  );
+  await expect(
+    manager.locator("[data-collaborator-cursor]").filter({ hasText: "responder" }),
+  ).toBeVisible();
+
   await manager.context().close();
   await responder.context().close();
 });

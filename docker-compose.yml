@@ -32,7 +32,7 @@ services:
       # The browser-facing web origin in Compose is the client_web service on
       # :8081 (used for the OAuth post-login redirect). Dev runs keep :4242.
       OPSWARDEN_WEB_ORIGIN: ${OPSWARDEN_COMPOSE_WEB_ORIGIN:-http://localhost:8081}
-      OPSWARDEN_WS_ALLOWED_ORIGINS: ${OPSWARDEN_WS_ALLOWED_ORIGINS:-http://localhost:8081}
+      OPSWARDEN_WS_ALLOWED_ORIGINS: ${OPSWARDEN_WS_ALLOWED_ORIGINS:-http://localhost:4242,http://localhost:8081}
       # The browser-facing client_web service is the single trusted HTTP proxy.
       OPSWARDEN_TRUSTED_PROXY_HOPS: "1"
       # Google OAuth (optional; blank => Google sign-in disabled).

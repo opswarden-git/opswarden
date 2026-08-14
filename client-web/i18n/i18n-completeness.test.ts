@@ -236,6 +236,8 @@ const sameTextAllowed = new Set([
   "Teams.code",
   "Teams.invitation",
   "Teams.invitationCodePlaceholder",
+  "Teams.calendar.incident",
+  "Teams.calendar.release",
   "Teams.overviewViews.incidents",
   "Teams.overviewViews.releases",
   "Teams.roleManager",
