@@ -42,7 +42,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install link checker
-        uses: taiki-e/install-action@6c6fd71fe4fb72c3697d269963d0e15df8adedad # v2
+        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
         with:
           tool: lychee@0.24.2
       - name: Validate repository documentation links
