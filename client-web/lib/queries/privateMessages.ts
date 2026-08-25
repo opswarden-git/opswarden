@@ -1,5 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import type {
+  ConversationAttachment,
+  ConversationFeature,
+  PendingConversationAttachment,
+} from "../conversations";
+import { downloadConversationAttachment } from "../conversations";
+
+export type PrivateMessageAttachment = ConversationAttachment;
+
+export interface PrivateMessageReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
 
 export interface PrivateMessage {
   id: string;
@@ -7,42 +21,62 @@ export interface PrivateMessage {
   recipient_id: string;
   content: string;
   created_at: string;
+  edited_at: string | null;
+  attachments: PrivateMessageAttachment[];
+  reactions: PrivateMessageReaction[];
+}
+
+export type PendingPrivateMessageAttachment = PendingConversationAttachment;
+
+interface ConversationCursor {
+  created_at: string;
+  id: string;
 }
 
 interface ConversationResponse {
   messages: PrivateMessage[];
+  next_cursor: ConversationCursor | null;
+  features?: ConversationFeature[];
 }
 
-/**
- * The 1-to-1 conversation with `peerId`, newest first (as the backend returns
- * it). Keyed by the peer so the WS `private_message_received` handler can
- * invalidate exactly this conversation and nothing team-wide.
- */
 export function usePrivateMessages(peerId: string, enabled = true) {
-  return useQuery<PrivateMessage[]>({
+  return useInfiniteQuery<ConversationResponse>({
     queryKey: ["private-messages", peerId],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/private-messages?peer_id=${encodeURIComponent(peerId)}`);
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as ConversationCursor | null;
+      const params = new URLSearchParams({ peer_id: peerId, limit: "50" });
+      if (cursor) {
+        params.set("before_created_at", cursor.created_at);
+        params.set("before_id", cursor.id);
+      }
+      const res = await apiFetch(`/api/private-messages?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.code ?? "private_messages_failed");
       }
-      const body = (await res.json()) as ConversationResponse;
-      return body.messages;
+      return (await res.json()) as ConversationResponse;
     },
+    initialPageParam: null,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled: !!peerId && enabled,
   });
 }
 
-/** Send a private message to `recipientId`; refreshes that peer's conversation. */
 export function useSendPrivateMessage() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ recipientId, content }: { recipientId: string; content: string }) => {
+    mutationFn: async ({
+      recipientId,
+      content,
+      attachments = [],
+    }: {
+      recipientId: string;
+      content: string;
+      attachments?: PendingPrivateMessageAttachment[];
+    }) => {
       const res = await apiFetch("/api/private-messages", {
         method: "POST",
-        body: JSON.stringify({ recipient_id: recipientId, content }),
+        body: JSON.stringify({ recipient_id: recipientId, content, attachments }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -54,4 +88,51 @@ export function useSendPrivateMessage() {
       queryClient.invalidateQueries({ queryKey: ["private-messages", variables.recipientId] });
     },
   });
+}
+
+export function useEditPrivateMessage(peerId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, content }: { messageId: string; content: string }) => {
+      const res = await apiFetch(`/api/private-messages/${messageId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "edit_private_message_failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["private-messages", peerId] });
+    },
+  });
+}
+
+export function useTogglePrivateMessageReaction(peerId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+      const res = await apiFetch(`/api/private-messages/${messageId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "toggle_private_message_reaction_failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["private-messages", peerId] });
+    },
+  });
+}
+
+export async function downloadPrivateMessageAttachment(attachment: PrivateMessageAttachment) {
+  await downloadConversationAttachment(
+    `/api/private-message-attachments/${attachment.id}`,
+    attachment,
+  );
 }

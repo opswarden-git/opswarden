@@ -1,5 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import {
+  downloadConversationAttachment,
+  type ConversationAttachment,
+  type ConversationFeature,
+  type PendingConversationAttachment,
+} from "../conversations";
 
 export type IncidentStatus = "open" | "acknowledged" | "escalated" | "resolved";
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
@@ -97,6 +103,7 @@ export type IncidentActivityItem =
       content: string;
       created_at: string;
       edited_at: string | null;
+      attachments?: ConversationAttachment[];
       reactions: TimelineReaction[];
     };
 
@@ -219,34 +226,85 @@ export function useAvailableReactions() {
   });
 }
 
+interface IncidentActivityCursor {
+  created_at: string;
+  id: string;
+}
+
+interface IncidentActivityPage {
+  items: IncidentActivityItem[];
+  next_cursor: IncidentActivityCursor | null;
+  features?: ConversationFeature[];
+}
+
+/**
+ * Incident activity is keyset-paginated: each page carries the cursor of its
+ * oldest item, so a long war room can be walked backwards without the page
+ * boundary shifting as new notes arrive at the live edge.
+ */
 export function useIncidentActivity(incidentId: string) {
-  return useQuery<IncidentActivityItem[]>({
+  const query = useInfiniteQuery<IncidentActivityPage>({
     queryKey: ["activity", incidentId],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/incidents/${incidentId}/activity`);
-      if (!res.ok) throw new Error("activity_load_failed");
-      const body = (await res.json()) as { items: IncidentActivityItem[] };
-      return body.items;
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as IncidentActivityCursor | null;
+      const params = new URLSearchParams();
+      if (cursor) {
+        params.set("before_created_at", cursor.created_at);
+        params.set("before_id", cursor.id);
+      }
+      const query = params.toString();
+      const res = await apiFetch(
+        `/api/incidents/${incidentId}/activity${query ? `?${query}` : ""}`,
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "activity_load_failed");
+      }
+      return (await res.json()) as IncidentActivityPage;
     },
+    initialPageParam: null,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
+
+  return {
+    ...query,
+    data: query.data?.pages.flatMap((page) => page.items),
+    // Capabilities are a property of the surface, not of a page.
+    features: query.data?.pages[0]?.features ?? [],
+  };
 }
 
 export function useAddTimelineEntry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ incidentId, content }: { incidentId: string; content: string }) => {
+    mutationFn: async ({
+      incidentId,
+      content,
+      attachments = [],
+    }: {
+      incidentId: string;
+      content: string;
+      attachments?: PendingConversationAttachment[];
+    }) => {
       const res = await apiFetch(`/api/incidents/${incidentId}/timeline`, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, attachments }),
       });
-      if (!res.ok) throw new Error("timeline_entry_failed");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "timeline_entry_failed");
+      }
       return res.text();
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["activity", variables.incidentId] });
     },
   });
+}
+
+export async function downloadTimelineAttachment(attachment: ConversationAttachment) {
+  await downloadConversationAttachment(`/api/timeline-attachments/${attachment.id}`, attachment);
 }
 
 /** Edit a timeline entry's content (author-only, enforced server-side). */

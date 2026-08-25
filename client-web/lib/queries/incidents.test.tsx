@@ -139,7 +139,9 @@ describe("incident read models", () => {
     const activity = [{ type: "human_note", entry_id: "entry-1", content: "Investigating" }];
     mockedApiFetch
       .mockResolvedValueOnce(jsonResponse(incidentResponse({ assignee_id: "user-2" })))
-      .mockResolvedValueOnce(jsonResponse({ items: activity }));
+      .mockResolvedValueOnce(
+        jsonResponse({ items: activity, features: ["send_text", "system_events"] }),
+      );
 
     const detail = renderHook(() => useIncident("incident-1"), {
       wrapper: queryClientWrapper(queryClient),
@@ -152,6 +154,53 @@ describe("incident read models", () => {
     await waitFor(() => expect(timeline.result.current.isSuccess).toBe(true));
     expect(detail.result.current.data).toMatchObject({ id: "incident-1", assignee: "user-2" });
     expect(timeline.result.current.data).toEqual(activity);
+    expect(timeline.result.current.features).toEqual(["send_text", "system_events"]);
+  });
+
+  it("walks the war room backwards with the cursor the server hands back", async () => {
+    const queryClient = createTestQueryClient();
+    const newest = { type: "human_note", entry_id: "entry-2", content: "Escalating" };
+    const older = { type: "human_note", entry_id: "entry-1", content: "Investigating" };
+    mockedApiFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [newest],
+          next_cursor: { created_at: "2026-08-24T10:00:00Z", id: "entry-2" },
+          features: ["send_text", "paginated_history"],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ items: [older], next_cursor: null }));
+
+    const timeline = renderHook(() => useIncidentActivity("incident-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    await waitFor(() => expect(timeline.result.current.isSuccess).toBe(true));
+    expect(timeline.result.current.hasNextPage).toBe(true);
+
+    await act(async () => {
+      await timeline.result.current.fetchNextPage();
+    });
+
+    // The cursor travels as query parameters, and both pages are held at once.
+    const [url] = mockedApiFetch.mock.calls[1];
+    expect(url).toContain("before_created_at=2026-08-24T10%3A00%3A00Z");
+    expect(url).toContain("before_id=entry-2");
+    await waitFor(() => expect(timeline.result.current.data).toEqual([newest, older]));
+    expect(timeline.result.current.hasNextPage).toBe(false);
+  });
+
+  it("reports the first page's features and never a later page's", async () => {
+    const queryClient = createTestQueryClient();
+    mockedApiFetch.mockResolvedValueOnce(
+      jsonResponse({ items: [], next_cursor: null, features: ["send_text"] }),
+    );
+
+    const timeline = renderHook(() => useIncidentActivity("incident-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(timeline.result.current.isSuccess).toBe(true));
+    expect(timeline.result.current.features).toEqual(["send_text"]);
   });
 });
 
@@ -217,7 +266,7 @@ describe("incident mutations", () => {
 
     expect(mockedApiFetch).toHaveBeenNthCalledWith(1, "/api/incidents/incident-1/timeline", {
       method: "POST",
-      body: JSON.stringify({ content: "Investigating" }),
+      body: JSON.stringify({ content: "Investigating", attachments: [] }),
     });
     expect(mockedApiFetch).toHaveBeenNthCalledWith(
       2,
@@ -285,11 +334,15 @@ describe("incident mutations", () => {
     const queryClient = createTestQueryClient();
     mockedApiFetch
       .mockResolvedValueOnce(jsonResponse({ code: "invalid_transition" }, 409))
-      .mockResolvedValueOnce(new Response("not-json", { status: 500 }));
+      .mockResolvedValueOnce(new Response("not-json", { status: 500 }))
+      .mockResolvedValueOnce(jsonResponse({ code: "invalid_timeline_attachment" }, 400));
     const status = renderHook(() => useUpdateIncidentStatus(), {
       wrapper: queryClientWrapper(queryClient),
     });
     const edit = renderHook(() => useEditTimelineEntry(), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const add = renderHook(() => useAddTimelineEntry(), {
       wrapper: queryClientWrapper(queryClient),
     });
 
@@ -303,5 +356,8 @@ describe("incident mutations", () => {
         content: "Updated",
       }),
     ).rejects.toThrow("edit_timeline_entry_failed");
+    await expect(
+      add.result.current.mutateAsync({ incidentId: "incident-1", content: "" }),
+    ).rejects.toThrow("invalid_timeline_attachment");
   });
 });

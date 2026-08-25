@@ -21,14 +21,30 @@ test.describe("Incident detail", () => {
     await login(page, "responder@opswarden.local");
     await page.goto(incidentUrl(OPEN_INCIDENT_ID));
 
+    await expect(page.locator('[data-system-event="created"]')).toBeVisible();
     await page.getByRole("button", { name: "Acknowledge", exact: true }).click();
     await expect(page.getByText("Acknowledged", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Escalate", exact: true })).toBeVisible();
+    await expect(page.locator('[data-system-event="status_changed"]')).toContainText(
+      "changed status",
+    );
 
     const note = `E2E operational update ${Date.now()}`;
     await page.getByLabel("Add a note").fill(note);
     await page.getByRole("button", { name: "Send note" }).click();
     await expect(page.getByText(note, { exact: true })).toBeVisible();
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "incident-runbook.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("restart the failed worker"),
+    });
+    await page.getByRole("button", { name: "Send note" }).click();
+    const attachment = page.getByRole("button", { name: /incident-runbook\.txt/i }).last();
+    await expect(attachment).toBeVisible();
+    const download = page.waitForEvent("download");
+    await attachment.click();
+    expect((await download).suggestedFilename()).toBe("incident-runbook.txt");
   });
 
   test("Observer sees context without false commands", async ({ page }) => {
@@ -36,6 +52,8 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
+    await expect(page.locator("[data-system-event]")).toHaveCount(5);
+    await expect(page.locator('[data-system-event="status_changed"]')).toHaveCount(2);
     await expect(page.getByRole("complementary", { name: "Incident details" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Activity" })).toHaveCount(0);
     await expect(page.getByLabel("Add a note")).toHaveCount(0);
@@ -44,28 +62,27 @@ test.describe("Incident detail", () => {
     await expect(page.getByText("Change assignee", { exact: true })).toHaveCount(0);
   });
 
-  test("War room navigation connects direct messages and incidents without workflow shortcuts", async ({
-    page,
-  }) => {
+  test("War room separates incident context from actionable Team presence", async ({ page }) => {
     await login(page, "manager@opswarden.local");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     const rooms = page.getByRole("complementary", { name: "War room navigation" });
-    await expect(rooms.getByRole("heading", { name: "Direct messages" })).toBeVisible();
-    await expect(rooms.getByRole("link", { name: /^Incidents \d+$/ })).toBeVisible();
+    await expect(rooms.getByRole("link", { name: /^Incidents \(\d+\)$/ })).toBeVisible();
     await expect(rooms.getByRole("link", { name: /Releases/ })).toHaveCount(0);
     const sectionLabels = await rooms
       .locator("section")
       .evaluateAll((sections) =>
         sections.map((section) => section.querySelector("h2, a")?.textContent?.trim()),
       );
-    expect(sectionLabels).toHaveLength(2);
-    expect(sectionLabels[0]).toBe("Direct messages");
-    expect(sectionLabels[1]).toMatch(/^Incidents\d+$/);
-    await rooms.getByRole("link", { name: "responder@opswarden.local" }).click();
+    expect(sectionLabels).toHaveLength(1);
+    expect(sectionLabels[0]).toMatch(/^Incidents \(\d+\)$/);
+
+    const context = page.getByRole("complementary", { name: "Incident details" });
+    await context.getByRole("link", { name: "Chat with responder@opswarden.local" }).click();
     await expect(page).toHaveURL(new RegExp(`/messages/[0-9a-f-]+$`));
     await expect(page.getByRole("region", { name: "responder@opswarden.local" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Members" })).toBeVisible();
   });
 
   test("Manager can assign, inspect delete safely, and follow the linked Release", async ({
@@ -76,12 +93,11 @@ test.describe("Incident detail", () => {
 
     await page.getByLabel("Change assignee").selectOption({ label: "responder@opswarden.local" });
     await page.getByRole("button", { name: "Assign", exact: true }).click();
-    await expect(
-      page.getByText("responder@opswarden.local", { exact: true }).first(),
-    ).toBeVisible();
+    await expect(page.getByLabel("Change assignee").locator("option:checked")).toHaveText(
+      "responder@opswarden.local",
+    );
 
-    await page.getByRole("button", { name: "More incident actions" }).click();
-    await page.getByRole("menuitem", { name: "Delete Incident" }).click();
+    await page.getByRole("button", { name: "Delete Incident" }).click();
     await expect(page.getByRole("dialog", { name: "Delete Incident" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
     await page.keyboard.press("Escape");
@@ -152,9 +168,13 @@ test("two clients see identified incident watchers", async ({ browser }) => {
   const managerContext = manager.locator('aside[data-war-room-context="true"]');
   const responderContext = responder.locator('aside[data-war-room-context="true"]');
   for (const context of [managerContext, responderContext]) {
-    const watchers = context.getByRole("list", { name: "Watching now" });
-    await expect(watchers.getByTitle("manager@opswarden.local")).toBeVisible();
-    await expect(watchers.getByTitle("responder@opswarden.local")).toBeVisible();
+    const members = context.getByRole("region", { name: "Members" });
+    await expect(
+      members.locator('[aria-label*="manager@opswarden.local"][aria-label$="Online"]'),
+    ).toBeVisible();
+    await expect(
+      members.locator('[aria-label*="responder@opswarden.local"][aria-label$="Online"]'),
+    ).toBeVisible();
   }
 
   const responderRoom = responder.locator('[data-incident-room="true"]');

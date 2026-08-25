@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useAuthStore } from "@/store/auth";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { create } from "zustand";
 import type { Incident } from "@/lib/queries/incidents";
 import { useTranslations } from "next-intl";
 import {
@@ -10,6 +9,18 @@ import {
   dispatchDesktopNotification,
   type DesktopNotificationGate,
 } from "@/lib/wsNotifications";
+import { useWsStore } from "@/lib/wsState";
+
+export {
+  useCollaboratorCursors,
+  usePrivateMessageTypingUsers,
+  usePrivateMessageWatchers,
+  useTeamOnline,
+  useTypingUsers,
+  useWatchers,
+  useWsStore,
+} from "@/lib/wsState";
+export type { CollaboratorCursor, ConversationRoom, WsClientCommand } from "@/lib/wsState";
 
 export {
   createDesktopNotificationGate,
@@ -25,15 +36,6 @@ export function webSocketUrl() {
   url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }
-
-/** Commands the client sends to the server (see WEBSOCKET_SPEC.md). */
-export type WsClientCommand =
-  | { type: "auth"; token: string }
-  | { type: "watch"; incident_id: string }
-  | { type: "unwatch"; incident_id: string }
-  | { type: "status_typing"; incident_id: string }
-  | { type: "cursor"; incident_id: string; x: number; y: number }
-  | { type: "refresh_teams" };
 
 /** Events the server pushes to the client (see WEBSOCKET_SPEC.md). */
 export type WsServerEvent =
@@ -74,6 +76,8 @@ export type WsServerEvent =
       watchers: string[];
     }
   | { type: "team_presence_update"; team_id: string; online_user_ids: string[] }
+  | { type: "private_message_presence"; participants: string[]; watchers: string[] }
+  | { type: "private_message_typing"; from: string; to: string }
   | { type: "user_typing"; incident_id: string; user_id: string }
   | {
       type: "cursor_update";
@@ -105,147 +109,18 @@ export type WsServerEvent =
       content: string;
       at: number;
     }
+  | { type: "private_message_edited"; message_id: string; from: string; to: string; at: number }
+  | {
+      type: "private_message_reaction_changed";
+      message_id: string;
+      from: string;
+      to: string;
+      emoji: string;
+      by: string;
+      active: boolean;
+    }
   | { type: "release_step_validated"; release_id: string; step: string; by: string }
   | { type: "release_state_changed"; release_id: string; new_state: string };
-
-interface WsState {
-  /** Presence rosters keyed by incident id. A single global roster would leak
-   *  and clobber across incidents as soon as more than one war room is live
-   *  (desktop, parallel panels, future multi-incident views). */
-  watchersByIncident: Record<string, string[]>;
-  setWatchers: (incidentId: string, watchers: string[]) => void;
-  /** Transient "is typing" user ids, keyed by incident id. Each entry self-expires. */
-  typingByIncident: Record<string, string[]>;
-  addTypingUser: (incidentId: string, userId: string) => void;
-  cursorsByIncident: Record<string, Record<string, CollaboratorCursor>>;
-  setCursor: (incidentId: string, userId: string, x: number, y: number) => void;
-  /** Online member ids per team (ephemeral WS presence). Pushed by the server on
-   *  connect/disconnect; scoped so a client only ever holds its own teams' rosters. */
-  onlineByTeam: Record<string, string[]>;
-  setTeamOnline: (teamId: string, userIds: string[]) => void;
-  /** Incidents this client intends to watch. Kept so a WS reopen can replay the
-   *  watch commands (the server drops presence when the socket closes) and so a
-   *  socket that opens after a war room mounts still establishes presence. */
-  activeWatches: string[];
-  watch: (incidentId: string) => void;
-  unwatch: (incidentId: string) => void;
-  sendJson: (msg: WsClientCommand) => void;
-  setSendJson: (fn: (msg: WsClientCommand) => void) => void;
-}
-
-export interface CollaboratorCursor {
-  userId: string;
-  x: number;
-  y: number;
-  updatedAt: number;
-}
-
-const CURSOR_IDLE_MS = 1800;
-
-export const useWsStore = create<WsState>((set, get) => ({
-  watchersByIncident: {},
-  setWatchers: (incidentId, watchers) =>
-    set((state) => ({
-      watchersByIncident: { ...state.watchersByIncident, [incidentId]: watchers },
-    })),
-  typingByIncident: {},
-  addTypingUser: (incidentId, userId) => {
-    set((state) => {
-      const current = state.typingByIncident[incidentId] ?? [];
-      if (current.includes(userId)) return state;
-      return {
-        typingByIncident: { ...state.typingByIncident, [incidentId]: [...current, userId] },
-      };
-    });
-    setTimeout(() => {
-      set((state) => {
-        const current = state.typingByIncident[incidentId];
-        if (!current?.includes(userId)) return state;
-        return {
-          typingByIncident: {
-            ...state.typingByIncident,
-            [incidentId]: current.filter((u) => u !== userId),
-          },
-        };
-      });
-    }, 3000);
-  },
-  cursorsByIncident: {},
-  setCursor: (incidentId, userId, x, y) => {
-    if (
-      ![x, y].every(
-        (coordinate) => Number.isFinite(coordinate) && coordinate >= 0 && coordinate <= 1,
-      )
-    ) {
-      return;
-    }
-    const updatedAt = Date.now();
-    set((state) => ({
-      cursorsByIncident: {
-        ...state.cursorsByIncident,
-        [incidentId]: {
-          ...(state.cursorsByIncident[incidentId] ?? {}),
-          [userId]: { userId, x, y, updatedAt },
-        },
-      },
-    }));
-    setTimeout(() => {
-      set((state) => {
-        const incidentCursors = state.cursorsByIncident[incidentId];
-        if (!incidentCursors || incidentCursors[userId]?.updatedAt !== updatedAt) return state;
-        const { [userId]: _expired, ...remaining } = incidentCursors;
-        return {
-          cursorsByIncident: { ...state.cursorsByIncident, [incidentId]: remaining },
-        };
-      });
-    }, CURSOR_IDLE_MS);
-  },
-  onlineByTeam: {},
-  setTeamOnline: (teamId, userIds) =>
-    set((state) => ({
-      onlineByTeam: { ...state.onlineByTeam, [teamId]: userIds },
-    })),
-  activeWatches: [],
-  watch: (incidentId) => {
-    set((state) =>
-      state.activeWatches.includes(incidentId)
-        ? state
-        : { activeWatches: [...state.activeWatches, incidentId] },
-    );
-    get().sendJson({ type: "watch", incident_id: incidentId });
-  },
-  unwatch: (incidentId) => {
-    set((state) => ({
-      activeWatches: state.activeWatches.filter((id) => id !== incidentId),
-    }));
-    get().sendJson({ type: "unwatch", incident_id: incidentId });
-  },
-  sendJson: () => {},
-  setSendJson: (fn) => set({ sendJson: fn }),
-}));
-
-/** Stable empty array so per-incident selectors don't return a fresh reference
- *  each render (which would defeat zustand's referential equality check). */
-const EMPTY: string[] = [];
-
-/** Presence roster for a single incident. */
-export const useWatchers = (incidentId: string): string[] =>
-  useWsStore((s) => s.watchersByIncident[incidentId] ?? EMPTY);
-
-/** Users currently typing on a single incident. */
-export const useTypingUsers = (incidentId: string): string[] =>
-  useWsStore((s) => s.typingByIncident[incidentId] ?? EMPTY);
-
-const EMPTY_CURSORS: Record<string, CollaboratorCursor> = {};
-
-/** Ephemeral collaborator pointers for a single incident room. The record is
- * selected directly so Zustand keeps a stable snapshot between WS frames. */
-export const useCollaboratorCursors = (incidentId: string): Record<string, CollaboratorCursor> =>
-  useWsStore((s) => s.cursorsByIncident[incidentId] ?? EMPTY_CURSORS);
-
-/** Online member ids for a single team. */
-export const useTeamOnline = (teamId: string): string[] =>
-  useWsStore((s) => s.onlineByTeam[teamId] ?? EMPTY);
 
 type ContractEvent = Extract<
   WsServerEvent,
@@ -253,6 +128,8 @@ type ContractEvent = Extract<
   | { type: "member_kicked" }
   | { type: "member_banned" }
   | { type: "private_message_received" }
+  | { type: "private_message_edited" }
+  | { type: "private_message_reaction_changed" }
   | { type: "rule_triggered" }
   | { type: "rule_failed" }
 >;
@@ -265,7 +142,9 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
   switch (event.type) {
     case "presence_update":
       if (event.resource_type === "incident") {
-        useWsStore.getState().setWatchers(event.resource_id, event.watchers || []);
+        useWsStore
+          .getState()
+          .setRoomWatchers({ kind: "incident", id: event.resource_id }, event.watchers || []);
       }
       break;
     case "member_kicked":
@@ -282,7 +161,9 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
         queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
       }
       break;
-    case "private_message_received": {
+    case "private_message_received":
+    case "private_message_edited":
+    case "private_message_reaction_changed": {
       // Sender and recipient invalidate the same peer-scoped conversation;
       // no team-wide cache is touched.
       const me = useAuthStore.getState().user?.id;
@@ -336,12 +217,17 @@ export function useRealtime() {
   useEffect(() => {
     if (readyState !== ReadyState.OPEN || !token) return;
     sendJsonMessage({ type: "auth", token });
-    const { activeWatches } = useWsStore.getState();
+    const { activeRooms } = useWsStore.getState();
     queryClient.invalidateQueries({ queryKey: ["incidents"] });
-    for (const incidentId of activeWatches) {
-      queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
-      queryClient.invalidateQueries({ queryKey: ["activity", incidentId] });
-      sendJsonMessage({ type: "watch", incident_id: incidentId });
+    for (const room of activeRooms) {
+      if (room.kind === "incident") {
+        queryClient.invalidateQueries({ queryKey: ["incident", room.id] });
+        queryClient.invalidateQueries({ queryKey: ["activity", room.id] });
+        sendJsonMessage({ type: "watch", incident_id: room.id });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["private-messages", room.id] });
+        sendJsonMessage({ type: "watch_private_message", peer_id: room.id });
+      }
     }
   }, [readyState, token, sendJsonMessage, queryClient]);
 
@@ -407,8 +293,24 @@ export function useRealtime() {
         // appears for members already viewing the roster.
         queryClient.invalidateQueries({ queryKey: ["team-members", event.team_id] });
         break;
+      case "private_message_presence": {
+        const me = useAuthStore.getState().user?.id;
+        if (!me || !event.participants.includes(me)) break;
+        const peer = event.participants.find((participant) => participant !== me);
+        if (peer) {
+          useWsStore.getState().setRoomWatchers({ kind: "direct", id: peer }, event.watchers || []);
+        }
+        break;
+      }
+      case "private_message_typing":
+        if (event.to === useAuthStore.getState().user?.id) {
+          useWsStore.getState().addRoomTypingUser({ kind: "direct", id: event.from }, event.from);
+        }
+        break;
       case "user_typing":
-        useWsStore.getState().addTypingUser(event.incident_id, event.user_id);
+        useWsStore
+          .getState()
+          .addRoomTypingUser({ kind: "incident", id: event.incident_id }, event.user_id);
         break;
       case "cursor_update":
         if (event.user_id !== useAuthStore.getState().user?.id) {
@@ -425,6 +327,11 @@ export function useRealtime() {
         break;
       }
       case "private_message_received": {
+        handleWsContractEvent(event, queryClient);
+        break;
+      }
+      case "private_message_edited":
+      case "private_message_reaction_changed": {
         handleWsContractEvent(event, queryClient);
         break;
       }

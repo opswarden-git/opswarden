@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertCircle, Search, Shield } from "lucide-react";
+import { AlertCircle, Shield } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { CreateIncidentDialog } from "@/components/incidents/CreateIncidentDialog";
@@ -12,6 +12,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
 import {
+  CollectionSearch,
   MobileCollectionFilters,
   TableFilterControl,
   TableSortControl,
@@ -32,43 +33,6 @@ type IncidentSort = "newest" | "oldest" | "severity";
 const VIEWS: IncidentView[] = ["open", "acknowledged", "escalated", "resolved", "all"];
 const SEVERITIES: IncidentSeverity[] = ["critical", "high", "medium", "low"];
 const SORTS: IncidentSort[] = ["newest", "oldest", "severity"];
-
-function IncidentSearch({
-  initialValue,
-  label,
-  onCommit,
-  placeholder,
-}: {
-  initialValue: string;
-  label: string;
-  onCommit: (value: string) => void;
-  placeholder: string;
-}) {
-  const [value, setValue] = React.useState(initialValue);
-
-  React.useEffect(() => {
-    if (value === initialValue) return;
-    const timer = window.setTimeout(() => onCommit(value), 250);
-    return () => window.clearTimeout(timer);
-  }, [initialValue, onCommit, value]);
-
-  return (
-    <label className="relative max-w-72 min-w-52 flex-1">
-      <span className="sr-only">{label}</span>
-      <Search
-        className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-        aria-hidden="true"
-      />
-      <input
-        type="search"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        placeholder={placeholder}
-        className="ow-input placeholder:text-muted-2 h-9 w-full rounded-md pr-3 pl-9 text-sm outline-none"
-      />
-    </label>
-  );
-}
 
 export function IncidentsPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Incidents");
@@ -278,7 +242,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
         actions={
           !hasNoTeams ? (
             <>
-              <IncidentSearch
+              <CollectionSearch
                 key={urlQuery}
                 initialValue={urlQuery}
                 label={t("searchLabel")}

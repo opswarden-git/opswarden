@@ -36,6 +36,8 @@ const leave = mutation();
 const remove = mutation();
 const unban = mutation();
 const invitationCode = vi.fn();
+let teamsLoading = false;
+let invitationLoading = false;
 
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({
@@ -51,7 +53,7 @@ vi.mock("@/lib/queries/teams", () => ({
         blocked_release_count: 0,
       },
     ],
-    isLoading: false,
+    isLoading: teamsLoading,
     error: null,
   }),
   useTeamMembers: () => ({
@@ -74,7 +76,7 @@ vi.mock("@/lib/queries/teams", () => ({
     invitationCode(teamId, enabled);
     return {
       data: { invitation_code: "invite-secret" },
-      isLoading: false,
+      isLoading: invitationLoading,
       error: null,
     };
   },
@@ -114,9 +116,19 @@ vi.mock("@/lib/queries/teams", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  teamsLoading = false;
+  invitationLoading = false;
 });
 
 describe("TeamSettingsPage", () => {
+  it("preserves the roster controls and row grid while the Team loads", () => {
+    teamsLoading = true;
+    render(<TeamSettingsPage teamId="team-1" />);
+
+    expect(screen.getByTestId("team-roster-skeleton")).toBeInTheDocument();
+    expect(screen.getByLabelText("loading").querySelectorAll("section")).not.toHaveLength(0);
+  });
+
   it("renders the Team identity, Members and Danger as one flat page", () => {
     render(<TeamSettingsPage teamId="team-1" />);
 
@@ -178,5 +190,14 @@ describe("TeamSettingsPage", () => {
     expect(screen.getByRole("dialog", { name: "shareJoinCode" })).toBeInTheDocument();
     expect(screen.getByText("invite-secret")).toBeInTheDocument();
     expect(invitationCode).toHaveBeenCalledWith("team-1", true);
+  });
+
+  it("reserves both the join code and Copy action while loading", () => {
+    invitationLoading = true;
+    render(<TeamSettingsPage teamId="team-1" />);
+    fireEvent.click(screen.getByRole("button", { name: "shareJoinCode" }));
+
+    const skeleton = screen.getByLabelText("loading");
+    expect(skeleton.querySelectorAll(".animate-pulse")).toHaveLength(2);
   });
 });

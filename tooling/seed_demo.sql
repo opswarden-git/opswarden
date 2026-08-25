@@ -103,6 +103,57 @@ where incident_id in (
     and id::text like '10000000-0000-4000-8000-0000000000__'
 );
 
+-- Every demo conversation owns a truthful minimum audit trail. Keep the first
+-- incident below as the richer hand-authored example and derive the remaining
+-- histories from their persisted lifecycle state.
+with seeded_incidents as (
+  select id, status, severity, created_at
+  from incidents
+  where team_id in (
+    '39aa8884-22cc-4764-a9e7-7df7c7619ba6',
+    '6d1e8c20-b622-4d21-9b1b-111111111111',
+    '8b2f9d30-c733-4e32-8c2c-222222222222'
+  )
+    and id::text like '10000000-0000-4000-8000-0000000000__'
+    and id <> '10000000-0000-4000-8000-000000000001'
+)
+insert into incident_events (id, incident_id, kind, actor_id, data, created_at)
+select
+  md5('demo-created:' || id::text)::uuid,
+  id,
+  'created',
+  :'manager_id',
+  jsonb_build_object('status', 'open', 'severity', severity),
+  created_at
+from seeded_incidents;
+
+with seeded_incidents as (
+  select id, status, created_at
+  from incidents
+  where team_id in (
+    '39aa8884-22cc-4764-a9e7-7df7c7619ba6',
+    '6d1e8c20-b622-4d21-9b1b-111111111111',
+    '8b2f9d30-c733-4e32-8c2c-222222222222'
+  )
+    and id::text like '10000000-0000-4000-8000-0000000000__'
+    and id <> '10000000-0000-4000-8000-000000000001'
+)
+insert into incident_events (id, incident_id, kind, actor_id, data, created_at)
+select md5('demo-ack:' || id::text)::uuid, id, 'status_changed', :'manager_id'::uuid,
+  '{"from":"open","to":"acknowledged"}'::jsonb, created_at + interval '2 minutes'
+from seeded_incidents
+where status in ('acknowledged', 'escalated', 'resolved')
+union all
+select md5('demo-escalate:' || id::text)::uuid, id, 'status_changed', :'manager_id'::uuid,
+  '{"from":"acknowledged","to":"escalated"}'::jsonb, created_at + interval '4 minutes'
+from seeded_incidents
+where status in ('escalated', 'resolved')
+union all
+select md5('demo-resolve:' || id::text)::uuid, id, 'status_changed', :'manager_id'::uuid,
+  '{"from":"escalated","to":"resolved"}'::jsonb, created_at + interval '6 minutes'
+from seeded_incidents
+where status = 'resolved';
+
 insert into incident_events (id, incident_id, kind, actor_id, data, created_at) values
   (
     '50000000-0000-4000-8000-000000000001',
@@ -147,7 +198,12 @@ insert into incident_events (id, incident_id, kind, actor_id, data, created_at) 
 
 -- Browser tests deliberately exercise the real note composer. Keep the demo
 -- seed replayable by removing only their clearly namespaced notes.
-delete from timeline_entries where content like 'E2E operational update %';
+delete from timeline_entries e
+where e.content like 'E2E operational update %'
+   or exists (
+     select 1 from timeline_entry_attachments a
+     where a.entry_id = e.id and a.file_name = 'incident-runbook.txt'
+   );
 
 insert into timeline_entries (id, incident_id, author_id, content, created_at, edited_at) values
   ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', :'manager_id', 'Alert confirmed across eu-west checkout pods. Incident declared SEV-1.', now() - interval '17 minutes', null),
@@ -254,6 +310,7 @@ on conflict (release_id, incident_id) do nothing;
 -- delivery. Keep only the stable conversation after each run.
 delete from private_messages
 where content like 'E2E direct message %'
+   or content like 'DM parity %'
    or content like 'giphy:%opswarden-e2e%'
    or content = 'giphy:https://media.giphy.com/media/abc/giphy.gif';
 
