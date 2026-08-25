@@ -37,6 +37,7 @@ mkdir -p "$portal/repository-docs/adr"
 cp "$REPOSITORY_ROOT/docs/adr/"*.md "$portal/repository-docs/adr/"
 
 OPSWARDEN_API_URL=${OPSWARDEN_API_URL:-https://api.opswarden.dev} \
+  OPSWARDEN_INVENTORY_DOCS_DIR="$portal/docs/inventory" \
   node "$REPOSITORY_ROOT/tooling/inventory/build.mjs"
 
 docker run --rm \
@@ -44,9 +45,6 @@ docker run --rm \
   --volume "$portal:/docs" \
   --workdir /docs \
   "$DOCS_IMAGE" build --strict
-
-mkdir -p "$portal/site/inventory"
-cp -R "$REPOSITORY_ROOT/tooling/inventory/dist/." "$portal/site/inventory/"
 
 output="$REPOSITORY_ROOT/site"
 rm -rf "$output"

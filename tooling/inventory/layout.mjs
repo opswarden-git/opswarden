@@ -187,7 +187,7 @@ export function page({ slug, titleFr, titleEn, introFr, introEn, body }) {
       `<a href="${entry.slug}.html"${entry.slug === slug ? ' aria-current="page"' : ""}>${bi(entry.fr, entry.en)}</a>`,
   ).join("");
 
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
@@ -224,4 +224,29 @@ export function page({ slug, titleFr, titleEn, introFr, introEn, body }) {
 <script>${SCRIPT}</script>
 </body>
 </html>`;
+
+  const docsPrefix = slug === "index" ? "" : "../";
+  const englishBody = body
+    .replace(/<span data-fr="[^"]*" data-en="([^"]*)">[^<]*<\/span>/g, (_match, english) => english)
+    .replace(/href="([a-z0-9-]+)\.html"/g, (_match, target) => {
+      if (target === "badges") return 'href="../design/ui-guidelines/"';
+      const destination = target === "index" ? "" : `${target}/`;
+      return `href="${docsPrefix}${destination}"`;
+    });
+
+  const markdown = `---
+title: ${titleEn}
+---
+
+<div class="inventory-doc">
+  <header class="inventory-heading">
+    <p class="inventory-kicker">Generated inventory</p>
+    <h1>${escape(titleEn)}</h1>
+    <p class="intro">${escape(introEn)}</p>
+  </header>
+  ${englishBody}
+</div>
+`;
+
+  return { html, markdown };
 }

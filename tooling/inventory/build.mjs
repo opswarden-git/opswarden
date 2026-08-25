@@ -13,11 +13,16 @@ import { renderContracts, renderI18n, renderIndex } from "./render-quality.mjs";
 import { ROOT } from "./sources.mjs";
 
 const OUT = path.join(ROOT, "tooling/inventory/dist");
+const DOCS_OUT = process.env.OPSWARDEN_INVENTORY_DOCS_DIR;
 const API = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
 
 async function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
+  if (DOCS_OUT) {
+    fs.rmSync(DOCS_OUT, { recursive: true, force: true });
+    fs.mkdirSync(DOCS_OUT, { recursive: true });
+  }
 
   const capabilities = server.capabilities();
   const errors = server.errors();
@@ -35,7 +40,10 @@ async function main() {
   const copy = web.i18n();
   const catalog = await web.automations(API);
 
-  const write = (slug, html) => fs.writeFileSync(path.join(OUT, `${slug}.html`), html);
+  const write = (slug, rendered) => {
+    fs.writeFileSync(path.join(OUT, `${slug}.html`), rendered.html);
+    if (DOCS_OUT) fs.writeFileSync(path.join(DOCS_OUT, `${slug}.md`), rendered.markdown);
+  };
 
   // The badge board is hand-authored and stays that way: three of its seven
   // sources encode conditions rather than enum keys, so a generator would have
