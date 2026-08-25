@@ -153,6 +153,11 @@ async fn list_returns_the_conversation_for_a_participant() {
         .unwrap();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["messages"].as_array().unwrap().len(), 2);
+    assert!(body["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|feature| feature == "attach_files"));
 }
 
 #[tokio::test]
@@ -177,5 +182,164 @@ async fn list_for_a_non_shared_peer_is_forbidden() {
         .await
         .unwrap();
 
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn attachment_round_trip_is_private_bounded_metadata_plus_download() {
+    let ctx = test_context();
+    let recipient = Uuid::new_v4();
+    let team = Uuid::new_v4();
+    seed_user(&ctx, recipient);
+    ctx.teams.seed_member(team, me(), Role::Observer);
+    ctx.teams.seed_member(team, recipient, Role::Observer);
+
+    let send = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/private-messages")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "recipient_id": recipient,
+                        "content": "runbook",
+                        "attachments": [{
+                            "file_name": "runbook.txt",
+                            "media_type": "text/plain",
+                            "data_base64": "cnVuYm9vaw=="
+                        }]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(send.status(), StatusCode::CREATED);
+    let bytes = axum::body::to_bytes(send.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let sent: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let attachment_id = sent["attachments"][0]["id"].as_str().unwrap();
+    assert_eq!(sent["attachments"][0]["size_bytes"], 7);
+    assert!(sent["attachments"][0].get("content").is_none());
+
+    let download = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/private-message-attachments/{attachment_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(download.status(), StatusCode::OK);
+    assert_eq!(download.headers()["content-type"], "text/plain");
+    assert_eq!(download.headers()["x-content-type-options"], "nosniff");
+    assert_eq!(download.headers()["cache-control"], "private, no-store");
+    let bytes = axum::body::to_bytes(download.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(&bytes[..], b"runbook");
+}
+
+#[tokio::test]
+async fn author_can_edit_and_each_participant_can_toggle_a_reaction() {
+    let ctx = test_context();
+    let peer = Uuid::new_v4();
+    let team = Uuid::new_v4();
+    seed_user(&ctx, peer);
+    ctx.teams.seed_member(team, me(), Role::Observer);
+    ctx.teams.seed_member(team, peer, Role::Observer);
+    let message = PrivateMessage::new(me(), peer, "before").unwrap();
+    let message_id = message.id;
+    ctx.private_messages.seed(message);
+
+    let edit = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/private-messages/{message_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({ "content": "after" }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(edit.status(), StatusCode::OK);
+
+    let reaction = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/private-messages/{message_id}/reactions"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({ "emoji": "✅" }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reaction.status(), StatusCode::OK);
+
+    let list = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/private-messages?peer_id={peer}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = axum::body::to_bytes(list.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["messages"][0]["content"], "after");
+    assert!(body["messages"][0]["edited_at"].is_string());
+    assert_eq!(body["messages"][0]["reactions"][0]["emoji"], "✅");
+    assert_eq!(body["messages"][0]["reactions"][0]["count"], 1);
+    assert_eq!(body["messages"][0]["reactions"][0]["reacted"], true);
+}
+
+#[tokio::test]
+async fn a_participant_cannot_edit_the_other_authors_message() {
+    let ctx = test_context();
+    let peer = Uuid::new_v4();
+    let team = Uuid::new_v4();
+    seed_user(&ctx, peer);
+    ctx.teams.seed_member(team, me(), Role::Observer);
+    ctx.teams.seed_member(team, peer, Role::Observer);
+    let message = PrivateMessage::new(peer, me(), "peer authored").unwrap();
+    let message_id = message.id;
+    ctx.private_messages.seed(message);
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/api/private-messages/{message_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({ "content": "tampered" }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }

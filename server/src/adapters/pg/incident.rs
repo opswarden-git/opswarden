@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::domain::error::DomainError;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
 use crate::domain::incident_event::{IncidentEvent, IncidentEventKind};
-use crate::ports::IncidentRepo;
+use crate::ports::{ActivityCursor, IncidentRepo};
 
 pub struct PgIncidentRepo {
     pool: PgPool,
@@ -273,18 +273,23 @@ impl IncidentRepo for PgIncidentRepo {
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,
+        before: Option<ActivityCursor>,
         limit: u32,
     ) -> Result<Vec<IncidentEvent>, DomainError> {
+        let (before_at, before_id) = before.unzip();
         let records = sqlx::query_as::<_, IncidentEventRow>(
             r#"
             SELECT id, incident_id, kind, actor_id, data, created_at
             FROM incident_events
             WHERE incident_id = $1
+              AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3))
             ORDER BY created_at DESC, id DESC
-            LIMIT $2
+            LIMIT $4
             "#,
         )
         .bind(incident_id)
+        .bind(before_at)
+        .bind(before_id)
         .bind(i64::from(limit))
         .fetch_all(&self.pool)
         .await

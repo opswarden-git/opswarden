@@ -1,9 +1,12 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use super::conversation::{
+    normalize_message_content, validate_attachments, MessageAttachment, MAX_MESSAGE_LEN,
+};
 use super::error::DomainError;
 
-pub const MAX_TIMELINE_ENTRY_LEN: usize = 2_000;
+pub const MAX_TIMELINE_ENTRY_LEN: usize = MAX_MESSAGE_LEN;
 /// The one canonical reaction catalog. It is enforced by the domain, exposed by
 /// `GET /reactions/available`, and consumed by every client.
 pub const AVAILABLE_REACTIONS: [&str; 6] = ["👍", "👀", "✅", "🚨", "❤️", "🎉"];
@@ -17,6 +20,7 @@ pub struct TimelineEntry {
     pub created_at: DateTime<Utc>,
     /// `Some` once the entry has been edited; `created_at` is never moved.
     pub edited_at: Option<DateTime<Utc>>,
+    pub attachments: Vec<MessageAttachment>,
 }
 
 impl TimelineEntry {
@@ -25,14 +29,41 @@ impl TimelineEntry {
         author_id: Uuid,
         content: impl Into<String>,
     ) -> Result<Self, DomainError> {
-        let content = Self::validate_content(content)?;
+        Self::new_with_attachments(incident_id, author_id, content, Vec::new())
+    }
+
+    pub fn new_with_attachments(
+        incident_id: Uuid,
+        author_id: Uuid,
+        content: impl Into<String>,
+        attachments: Vec<(String, String, Vec<u8>)>,
+    ) -> Result<Self, DomainError> {
+        let has_attachments = !attachments.is_empty();
+        let content = normalize_message_content(content, has_attachments)
+            .ok_or(DomainError::InvalidTimelineEntry)?;
+        let attachments =
+            validate_attachments(attachments).ok_or(DomainError::InvalidTimelineAttachment)?;
+        let id = Uuid::new_v4();
+        let created_at = Utc::now();
         Ok(Self {
-            id: Uuid::new_v4(),
+            id,
             incident_id,
             author_id: Some(author_id),
             content,
-            created_at: Utc::now(),
+            created_at,
             edited_at: None,
+            attachments: attachments
+                .into_iter()
+                .map(|attachment| MessageAttachment {
+                    id: Uuid::new_v4(),
+                    message_id: id,
+                    file_name: attachment.file_name,
+                    media_type: attachment.media_type,
+                    size_bytes: attachment.content.len(),
+                    content: attachment.content,
+                    created_at,
+                })
+                .collect(),
         })
     }
 
@@ -45,12 +76,7 @@ impl TimelineEntry {
     }
 
     fn validate_content(content: impl Into<String>) -> Result<String, DomainError> {
-        let content = content.into();
-        let trimmed = content.trim();
-        if trimmed.is_empty() || trimmed.len() > MAX_TIMELINE_ENTRY_LEN {
-            return Err(DomainError::InvalidTimelineEntry);
-        }
-        Ok(trimmed.to_string())
+        normalize_message_content(content, false).ok_or(DomainError::InvalidTimelineEntry)
     }
 }
 
@@ -102,6 +128,20 @@ mod tests {
         );
 
         assert_eq!(result.unwrap_err(), DomainError::InvalidTimelineEntry);
+    }
+
+    #[test]
+    fn attachment_can_be_the_whole_operational_note() {
+        let entry = TimelineEntry::new_with_attachments(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            "",
+            vec![("runbook.pdf".into(), "application/pdf".into(), vec![1, 2])],
+        )
+        .unwrap();
+
+        assert!(entry.content.is_empty());
+        assert_eq!(entry.attachments[0].file_name, "runbook.pdf");
     }
 
     #[test]

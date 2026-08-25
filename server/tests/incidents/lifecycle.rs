@@ -12,6 +12,7 @@ async fn create_incident_returns_created_for_team_manager() {
 
     let response = ctx
         .app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -80,7 +81,14 @@ async fn activity_reconstructs_system_events_and_human_notes() {
         (
             format!("/api/incidents/{incident_id}/timeline"),
             "POST",
-            serde_json::json!({ "content": "Investigating database saturation" }),
+            serde_json::json!({
+                "content": "Investigating database saturation",
+                "attachments": [{
+                    "file_name": "runbook.txt",
+                    "media_type": "text/plain",
+                    "data_base64": "cnVuYm9vaw=="
+                }]
+            }),
         ),
         (
             format!("/api/incidents/{incident_id}/status"),
@@ -112,6 +120,7 @@ async fn activity_reconstructs_system_events_and_human_notes() {
 
     let response = ctx
         .app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
@@ -129,6 +138,17 @@ async fn activity_reconstructs_system_events_and_human_notes() {
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let items = json["items"].as_array().unwrap();
 
+    assert!(json["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|feature| feature == "system_events"));
+    assert!(json["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|feature| feature == "attach_files"));
+
     assert_eq!(items.len(), 4);
     assert!(items
         .iter()
@@ -143,12 +163,72 @@ async fn activity_reconstructs_system_events_and_human_notes() {
             && item["content"] == "Investigating database saturation"
             && item["author"]["email"] == "existing@test.com"
     }));
+    let attachment_id = items
+        .iter()
+        .find(|item| item["type"] == "human_note")
+        .unwrap()["attachments"][0]["id"]
+        .as_str()
+        .unwrap();
+    let download = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/timeline-attachments/{attachment_id}"))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(download.status(), StatusCode::OK);
+    assert_eq!(
+        axum::body::to_bytes(download.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+        "runbook"
+    );
     assert!(items.iter().any(|item| {
         item["type"] == "system_event"
             && item["kind"] == "assigned"
             && item["actor"]["email"] == "existing@test.com"
             && item["subject"]["email"] == "responder@test.com"
     }));
+}
+
+#[tokio::test]
+async fn incident_timeline_accepts_an_attachment_above_axums_default_body_limit() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Manager);
+    let incident = Incident::new(team_id, "Large runbook", Severity::High).unwrap();
+    ctx.incidents.seed_incident(incident.clone());
+    let content = vec![b'x'; 3 * 1024 * 1024];
+    let payload = serde_json::json!({
+        "content": "",
+        "attachments": [{
+            "file_name": "runbook.txt",
+            "media_type": "text/plain",
+            "data_base64": base64::engine::general_purpose::STANDARD.encode(content)
+        }]
+    });
+
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/incidents/{}/timeline", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(payload.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
 }
 
 #[tokio::test]

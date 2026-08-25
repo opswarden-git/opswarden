@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::private_message::PrivateMessage;
+use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
 use crate::ports::{EventPublisher, PrivateMessageRepo, TeamRepo, UserRepo};
 
 use super::users_share_team;
@@ -22,6 +22,7 @@ pub struct SendPrivateMessageCommand {
     pub sender_id: Uuid,
     pub recipient_id: Uuid,
     pub content: String,
+    pub attachments: Vec<(String, String, Vec<u8>)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -31,6 +32,7 @@ pub struct SendPrivateMessageResult {
     pub recipient_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub attachments: Vec<PrivateMessageAttachment>,
 }
 
 pub struct SendPrivateMessageUseCase {
@@ -71,11 +73,16 @@ impl SendPrivateMessageUseCase {
             .ok_or(DomainError::UserNotFound)?;
 
         // ...and the two users must share at least one team.
-        if !users_share_team(&self.teams, cmd.sender_id, cmd.recipient_id).await? {
+        if !users_share_team(self.teams.as_ref(), cmd.sender_id, cmd.recipient_id).await? {
             return Err(DomainError::NoSharedTeam);
         }
 
-        let message = PrivateMessage::new(cmd.sender_id, cmd.recipient_id, cmd.content)?;
+        let message = PrivateMessage::new_with_attachments(
+            cmd.sender_id,
+            cmd.recipient_id,
+            cmd.content,
+            cmd.attachments,
+        )?;
         self.messages.save(&message).await?;
 
         self.events
@@ -94,6 +101,7 @@ impl SendPrivateMessageUseCase {
             recipient_id: message.recipient_id,
             content: message.content,
             created_at: message.created_at,
+            attachments: message.attachments,
         })
     }
 }
@@ -133,6 +141,7 @@ mod tests {
                 sender_id: sender,
                 recipient_id: recipient,
                 content: "  ready when you are  ".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap();
@@ -165,6 +174,7 @@ mod tests {
                 sender_id: sender,
                 recipient_id: recipient,
                 content: "hello?".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap_err();
@@ -193,6 +203,7 @@ mod tests {
                 sender_id: sender,
                 recipient_id: recipient,
                 content: "anyone there?".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap_err();
@@ -216,6 +227,7 @@ mod tests {
                 sender_id: me,
                 recipient_id: me,
                 content: "note to self".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap_err();
@@ -242,6 +254,7 @@ mod tests {
                 sender_id: sender,
                 recipient_id: recipient,
                 content: "   ".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap_err();

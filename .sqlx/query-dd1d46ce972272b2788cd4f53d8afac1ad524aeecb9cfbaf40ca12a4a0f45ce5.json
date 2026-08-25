@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, incident_id, author_id, content, created_at, edited_at\n            FROM timeline_entries\n            WHERE incident_id = $1\n            ORDER BY created_at DESC\n            LIMIT $2\n            ",
+  "query": "\n            SELECT id, incident_id, author_id, content, created_at, edited_at\n            FROM timeline_entries\n            WHERE incident_id = $1\n              AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3))\n            ORDER BY created_at DESC, id DESC\n            LIMIT $4\n            ",
   "describe": {
     "columns": [
       {
@@ -73,6 +73,8 @@
     "parameters": {
       "Left": [
         "Uuid",
+        "Timestamptz",
+        "Uuid",
         "Int8"
       ]
     },
@@ -85,5 +87,5 @@
       true
     ]
   },
-  "hash": "e11f1d514cebd458dcf9b6a963018016710ad8b271d661193c32a6b63f42b676"
+  "hash": "dd1d46ce972272b2788cd4f53d8afac1ad524aeecb9cfbaf40ca12a4a0f45ce5"
 }

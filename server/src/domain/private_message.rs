@@ -9,11 +9,21 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use super::conversation::{
+    normalize_message_content, validate_attachments, MessageAttachment, MessageReactionSummary,
+};
 use super::error::DomainError;
 
 /// Server-side body cap. Matches the timeline-entry limit: generous for a real
 /// message, tight enough to refuse pasted documents.
-pub const MAX_PRIVATE_MESSAGE_LEN: usize = 2_000;
+pub use super::conversation::{
+    MAX_MESSAGE_ATTACHMENTS as MAX_PRIVATE_MESSAGE_ATTACHMENTS,
+    MAX_MESSAGE_ATTACHMENTS_TOTAL_BYTES as MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES,
+    MAX_MESSAGE_ATTACHMENT_BYTES as MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES,
+    MAX_MESSAGE_LEN as MAX_PRIVATE_MESSAGE_LEN,
+};
+pub type PrivateMessageAttachment = MessageAttachment;
+pub type PrivateMessageReaction = MessageReactionSummary;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrivateMessage {
@@ -22,6 +32,9 @@ pub struct PrivateMessage {
     pub recipient_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub edited_at: Option<DateTime<Utc>>,
+    pub attachments: Vec<PrivateMessageAttachment>,
+    pub reactions: Vec<PrivateMessageReaction>,
 }
 
 impl PrivateMessage {
@@ -33,23 +46,53 @@ impl PrivateMessage {
         recipient_id: Uuid,
         content: impl Into<String>,
     ) -> Result<Self, DomainError> {
-        let content = Self::validate_content(content)?;
+        Self::new_with_attachments(sender_id, recipient_id, content, Vec::new())
+    }
+
+    pub fn new_with_attachments(
+        sender_id: Uuid,
+        recipient_id: Uuid,
+        content: impl Into<String>,
+        attachments: Vec<(String, String, Vec<u8>)>,
+    ) -> Result<Self, DomainError> {
+        let has_attachments = !attachments.is_empty();
+        let content = normalize_message_content(content, has_attachments)
+            .ok_or(DomainError::InvalidPrivateMessage)?;
+        let attachments = validate_attachments(attachments)
+            .ok_or(DomainError::InvalidPrivateMessageAttachment)?;
+
+        let message_id = Uuid::new_v4();
+        let created_at = Utc::now();
+        let attachments = attachments
+            .into_iter()
+            .map(|attachment| {
+                let size_bytes = attachment.content.len();
+                PrivateMessageAttachment {
+                    id: Uuid::new_v4(),
+                    message_id,
+                    file_name: attachment.file_name,
+                    media_type: attachment.media_type,
+                    size_bytes,
+                    content: attachment.content,
+                    created_at,
+                }
+            })
+            .collect();
+
         Ok(Self {
-            id: Uuid::new_v4(),
+            id: message_id,
             sender_id,
             recipient_id,
             content,
-            created_at: Utc::now(),
+            created_at,
+            edited_at: None,
+            attachments,
+            reactions: Vec::new(),
         })
     }
 
-    fn validate_content(content: impl Into<String>) -> Result<String, DomainError> {
-        let content = content.into();
-        let trimmed = content.trim();
-        if trimmed.is_empty() || trimmed.len() > MAX_PRIVATE_MESSAGE_LEN {
-            return Err(DomainError::InvalidPrivateMessage);
-        }
-        Ok(trimmed.to_string())
+    pub fn validate_edited_content(content: impl Into<String>) -> Result<String, DomainError> {
+        normalize_message_content(content, false).ok_or(DomainError::InvalidPrivateMessage)
     }
 }
 
@@ -87,5 +130,44 @@ mod tests {
             "x".repeat(MAX_PRIVATE_MESSAGE_LEN),
         );
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn attachment_can_be_the_whole_message() {
+        let message = PrivateMessage::new_with_attachments(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            "",
+            vec![(
+                "runbook.pdf".into(),
+                "application/pdf".into(),
+                vec![1, 2, 3],
+            )],
+        )
+        .unwrap();
+        assert!(message.content.is_empty());
+        assert_eq!(message.attachments[0].message_id, message.id);
+    }
+
+    #[test]
+    fn active_or_oversized_attachment_is_rejected() {
+        for (media_type, bytes) in [
+            ("text/html", vec![1]),
+            (
+                "image/png",
+                vec![0; MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES + 1],
+            ),
+        ] {
+            assert_eq!(
+                PrivateMessage::new_with_attachments(
+                    Uuid::new_v4(),
+                    Uuid::new_v4(),
+                    "file",
+                    vec![("file".into(), media_type.into(), bytes)],
+                )
+                .unwrap_err(),
+                DomainError::InvalidPrivateMessageAttachment
+            );
+        }
     }
 }

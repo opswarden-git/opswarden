@@ -30,6 +30,33 @@ pub fn team_presence_wire(team_id: Uuid, online_user_ids: &[Uuid]) -> String {
     .to_string()
 }
 
+pub fn private_message_presence_wire(participants: [Uuid; 2], watchers: &[Uuid]) -> String {
+    json!({
+        "type": "private_message_presence",
+        "participants": participants,
+        "watchers": watchers,
+    })
+    .to_string()
+}
+
+pub fn private_message_typing_wire(from: Uuid, to: Uuid) -> String {
+    json!({
+        "type": "private_message_typing",
+        "from": from,
+        "to": to,
+    })
+    .to_string()
+}
+
+pub fn user_typing_wire(incident_id: Uuid, user_id: Uuid) -> String {
+    json!({
+        "type": "user_typing",
+        "incident_id": incident_id,
+        "user_id": user_id,
+    })
+    .to_string()
+}
+
 /// Serialize an ephemeral collaborator pointer. Coordinates are normalized to
 /// the shared incident-room surface so clients with different viewport sizes
 /// can render the same relative position without persisting layout state.
@@ -147,15 +174,6 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "emoji": emoji,
             "by": user_id,
         }),
-        DomainEvent::UserTyping {
-            incident_id,
-            user_id,
-            ..
-        } => json!({
-            "type": "user_typing",
-            "incident_id": incident_id,
-            "user_id": user_id,
-        }),
         DomainEvent::RuleTriggered {
             service,
             rule_name,
@@ -214,6 +232,34 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "to": recipient_id,
             "content": content,
             "at": at.timestamp(),
+        }),
+        DomainEvent::PrivateMessageEdited {
+            message_id,
+            sender_id,
+            recipient_id,
+            at,
+        } => json!({
+            "type": "private_message_edited",
+            "message_id": message_id,
+            "from": sender_id,
+            "to": recipient_id,
+            "at": at.timestamp(),
+        }),
+        DomainEvent::PrivateMessageReactionChanged {
+            message_id,
+            sender_id,
+            recipient_id,
+            emoji,
+            user_id,
+            active,
+        } => json!({
+            "type": "private_message_reaction_changed",
+            "message_id": message_id,
+            "from": sender_id,
+            "to": recipient_id,
+            "emoji": emoji,
+            "by": user_id,
+            "active": active,
         }),
         DomainEvent::ReleaseStepValidated {
             release_id,
