@@ -52,7 +52,7 @@ const eventClasses: Record<OperationsCalendarEvent["type"], string> = {
   run: "bg-status-neutral text-white hover:bg-status-neutral/90",
 };
 
-const visibleEventLimit = 3;
+const visibleEventLimit = 2;
 const hourHeight = 60;
 
 interface CalendarLabels {
@@ -105,10 +105,12 @@ function CalendarEventLink({
 }
 
 export function OperationsCalendar({
+  className,
   events,
   labels,
   locale,
 }: {
+  className?: string;
   events: OperationsCalendarEvent[];
   labels: CalendarLabels;
   locale: string;
@@ -189,20 +191,23 @@ export function OperationsCalendar({
   }
 
   return (
-    <section aria-label={labels.calendar} className="surface overflow-hidden rounded-md">
-      <header className="border-border flex flex-wrap items-center gap-3 border-b px-4 py-3">
+    <section
+      aria-label={labels.calendar}
+      className={cn("surface flex min-h-0 flex-col overflow-hidden rounded-md", className)}
+    >
+      <header className="border-border flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-2">
         <h2 className="text-text min-w-48 flex-1 text-base font-semibold capitalize">
           {view === "month" ? monthLabel : weekLabel}
         </h2>
-        <div className="border-border flex rounded-md border p-0.5" aria-label={labels.calendar}>
+        <div className="flex" aria-label={labels.calendar}>
           {(["week", "month"] as const).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={view === option}
               className={cn(
-                "rounded px-2 py-1 text-xs font-medium transition-colors",
-                view === option ? "bg-panel-2 text-text" : "text-muted hover:text-text",
+                "px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current",
+                view === option ? "text-text" : "text-muted hover:text-text",
               )}
               onClick={() => selectView(option)}
             >
@@ -236,9 +241,9 @@ export function OperationsCalendar({
       </header>
 
       {view === "month" ? (
-        <div className="overflow-x-auto">
+        <div className="min-h-0 overflow-x-auto md:flex-1">
           <div
-            className="min-w-[760px]"
+            className="min-w-[760px] md:flex md:h-full md:flex-col"
             role="grid"
             aria-label={`${labels.calendar} — ${monthLabel}`}
           >
@@ -253,7 +258,7 @@ export function OperationsCalendar({
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7" role="rowgroup">
+            <div className="grid grid-cols-7 md:min-h-0 md:flex-1 md:grid-rows-6" role="rowgroup">
               {monthDays.map((date) => {
                 const key = dayKey(date);
                 const dayEvents = eventsByDay.get(key) ?? [];
@@ -269,7 +274,8 @@ export function OperationsCalendar({
                     role="gridcell"
                     aria-label={fullDateFormatter.format(date)}
                     className={cn(
-                      "border-border min-h-28 border-r border-b p-1.5 last:border-r-0",
+                      "border-border min-h-28 border-r border-b p-1.5 last:border-r-0 md:min-h-0",
+                      isExpanded ? "md:overflow-y-auto" : "md:overflow-hidden",
                       !belongsToMonth && "bg-bg/30",
                     )}
                   >
@@ -319,9 +325,9 @@ export function OperationsCalendar({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-[840px]">
-            <div className="border-border grid grid-cols-[4rem_repeat(7,minmax(0,1fr))] border-b">
+        <div className="min-h-0 overflow-x-auto md:flex-1">
+          <div className="min-w-[840px] md:flex md:h-full md:flex-col">
+            <div className="border-border grid shrink-0 grid-cols-[4rem_repeat(7,minmax(0,1fr))] border-b">
               <div />
               {weekDays.map((date) => (
                 <div key={dayKey(date)} className="border-border border-l px-2 py-2 text-center">
@@ -342,7 +348,10 @@ export function OperationsCalendar({
                 </div>
               ))}
             </div>
-            <div ref={weekScroller} className="max-h-[640px] overflow-y-auto">
+            <div
+              ref={weekScroller}
+              className="max-h-[640px] overflow-y-auto md:max-h-none md:min-h-0 md:flex-1"
+            >
               <div
                 className="grid grid-cols-[4rem_repeat(7,minmax(0,1fr))]"
                 style={{ height: 24 * hourHeight }}
@@ -417,7 +426,7 @@ export function OperationsCalendar({
         </div>
       )}
 
-      <footer className="border-border flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2">
+      <footer className="border-border flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2">
         {(["incident", "release", "run"] as const).map((type) => (
           <span key={type} className="text-muted inline-flex items-center gap-1.5 text-xs">
             <span className={cn("h-2 w-2 rounded-sm", eventClasses[type].split(" ")[0])} />

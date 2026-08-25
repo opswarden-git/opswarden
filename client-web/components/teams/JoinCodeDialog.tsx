@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Dialog } from "@/components/ui/Dialog";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export function JoinCodeDialog({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
@@ -31,7 +32,10 @@ export function JoinCodeDialog({ teamId }: { teamId: string }) {
       }
     >
       {invitation.isLoading ? (
-        <div className="bg-muted/20 h-10 w-full animate-pulse rounded-md" />
+        <div className="flex items-center gap-2" aria-busy="true" aria-label={t("loading")}>
+          <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
       ) : invitation.error || !invitation.data ? (
         <Alert tone="danger">{t("invitationFailed")}</Alert>
       ) : (

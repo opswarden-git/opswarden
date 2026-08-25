@@ -1,6 +1,7 @@
 use axum::{
+    body::Body,
     extract::{Extension, Path, Query, State},
-    http::StatusCode,
+    http::{Response, StatusCode},
     Json,
 };
 use chrono::{DateTime, Utc};
@@ -8,19 +9,25 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::incident::{
-    IncidentActivityItem, ListIncidentActivityCommand, ListIncidentActivityUseCase,
+    GetTimelineAttachmentUseCase, IncidentActivityItem, ListIncidentActivityCommand,
+    ListIncidentActivityUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::{IncidentStatus, Severity};
 use crate::domain::timeline::AVAILABLE_REACTIONS;
+use crate::domain::{ConversationFeature, ConversationScope};
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 
-use super::ReactionResponse;
+use crate::handlers::conversation::{
+    attachment_download_response, AttachmentResponse, ConversationCursorResponse, ReactionResponse,
+};
 
 #[derive(Deserialize)]
 pub struct ListIncidentActivityQuery {
     pub limit: Option<u32>,
+    pub before_created_at: Option<DateTime<Utc>>,
+    pub before_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -55,6 +62,7 @@ pub enum IncidentActivityItemResponse {
         content: String,
         created_at: DateTime<Utc>,
         edited_at: Option<DateTime<Utc>>,
+        attachments: Vec<AttachmentResponse>,
         reactions: Vec<ReactionResponse>,
     },
 }
@@ -84,6 +92,7 @@ impl From<IncidentActivityItem> for IncidentActivityItemResponse {
                 content: entry.content,
                 created_at: entry.created_at,
                 edited_at: entry.edited_at,
+                attachments: entry.attachments.into_iter().map(Into::into).collect(),
                 reactions: reactions.into_iter().map(ReactionResponse::from).collect(),
             },
         }
@@ -93,6 +102,8 @@ impl From<IncidentActivityItem> for IncidentActivityItemResponse {
 #[derive(Serialize)]
 pub struct ListIncidentActivityResponse {
     pub items: Vec<IncidentActivityItemResponse>,
+    pub next_cursor: Option<ConversationCursorResponse>,
+    pub features: Vec<ConversationFeature>,
 }
 
 pub async fn list_incident_activity(
@@ -101,6 +112,13 @@ pub async fn list_incident_activity(
     Path(incident_id): Path<Uuid>,
     Query(query): Query<ListIncidentActivityQuery>,
 ) -> Result<Json<ListIncidentActivityResponse>, DomainError> {
+    // Half a cursor is a client bug, not a first page: refuse it rather than
+    // silently rewinding the reader to the top of the incident.
+    let before = match (query.before_created_at, query.before_id) {
+        (Some(at), Some(id)) => Some((at, id)),
+        (None, None) => None,
+        _ => return Err(DomainError::InvalidTimelineEntry),
+    };
     let use_case = ListIncidentActivityUseCase::new(
         state.teams.clone(),
         state.incidents.clone(),
@@ -112,6 +130,7 @@ pub async fn list_incident_activity(
             incident_id,
             requester_id: session.user_id,
             limit: query.limit,
+            before,
         })
         .await?;
 
@@ -121,6 +140,15 @@ pub async fn list_incident_activity(
             .into_iter()
             .map(IncidentActivityItemResponse::from)
             .collect(),
+        next_cursor: result
+            .next_cursor
+            .map(|(created_at, id)| ConversationCursorResponse { created_at, id }),
+        features: ConversationScope::Incident {
+            team_id: result.team_id,
+            incident_id,
+        }
+        .features()
+        .to_vec(),
     }))
 }
 
@@ -133,6 +161,17 @@ pub async fn available_reactions() -> Json<AvailableReactionsResponse> {
     Json(AvailableReactionsResponse {
         reactions: AVAILABLE_REACTIONS.to_vec(),
     })
+}
+
+pub async fn download_timeline_attachment(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(attachment_id): Path<Uuid>,
+) -> Result<Response<Body>, DomainError> {
+    let attachment = GetTimelineAttachmentUseCase::new(state.timeline.clone())
+        .get(attachment_id, session.user_id)
+        .await?;
+    Ok(attachment_download_response(attachment))
 }
 
 pub async fn delete_incident(

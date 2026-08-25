@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Team } from "@/lib/queries/teams";
 import { useAuthStore } from "@/store/auth";
-import { TeamRoster } from "./TeamRoster";
+import { TeamRoster, TeamRosterRowsSkeleton } from "./TeamRoster";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
@@ -91,6 +91,17 @@ afterEach(() => {
 });
 
 describe("TeamRoster", () => {
+  it("keeps the loading rows on the same responsive four-column grid", () => {
+    render(<TeamRosterRowsSkeleton />);
+
+    const skeleton = screen.getByTestId("team-roster-skeleton");
+    expect(skeleton.children).toHaveLength(3);
+    expect(skeleton.firstElementChild).toHaveClass(
+      "md:grid",
+      "md:grid-cols-[auto_minmax(0,1fr)_auto_auto]",
+    );
+  });
+
   it("makes each peer row a direct link to its conversation", () => {
     useAuthStore
       .getState()

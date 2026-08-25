@@ -82,10 +82,7 @@ export function AppBreadcrumbs({
   if (items.length === 0) return heading ? <h1 className="sr-only">{heading}</h1> : null;
 
   return (
-    <div
-      data-page-topbar="true"
-      className="mx-auto w-full max-w-[90rem] px-4 pt-6 sm:px-6 md:px-8 md:pt-8"
-    >
+    <div data-page-topbar="true" className="workspace-frame px-4 pt-6 sm:px-6 md:px-8 md:pt-8">
       {heading ? <h1 className="sr-only">{heading}</h1> : null}
       <div className="flex min-h-9 min-w-0 flex-wrap items-center justify-between gap-4">
         <nav aria-label={tIncidents("breadcrumbLabel")} className="min-w-0 flex-1 text-sm">

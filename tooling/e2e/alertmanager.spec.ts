@@ -108,12 +108,12 @@ test("real Alertmanager delivers firing and resolved lifecycle transitions", asy
     await page.getByRole("button", { name: "New rule" }).click();
     await page.getByLabel("Incoming event").selectOption("alert_firing");
     await page.getByLabel("Source connection").selectOption(connection.id);
-    await expect(page.getByRole("status").filter({ hasText: "Resolved Alertmanager events" })).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Resolved Alertmanager events" }),
+    ).toBeVisible();
     await page.getByLabel("Incoming event").selectOption("alert_resolved");
     await expect(page.getByRole("option", { name: "Alert resolved" })).toBeAttached();
-    await expect(
-      page.getByRole("status").filter({ hasText: "do not close" }),
-    ).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "do not close" })).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
 
     await createRule(page.request, headers, connection.id, "alert_firing");

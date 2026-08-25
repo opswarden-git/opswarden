@@ -66,6 +66,9 @@ enum ClientCommand {
     Unwatch { incident_id: Uuid },
     StatusTyping { incident_id: Uuid },
     Cursor { incident_id: Uuid, x: f64, y: f64 },
+    WatchPrivateMessage { peer_id: Uuid },
+    UnwatchPrivateMessage { peer_id: Uuid },
+    PrivateMessageTyping { peer_id: Uuid },
     RefreshTeams,
 }
 
@@ -141,6 +144,39 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     Ok(ClientCommand::Cursor { incident_id, x, y }) => {
                         hub.cursor(conn_id, incident_id, x, y)
                     }
+                    Ok(ClientCommand::WatchPrivateMessage { peer_id }) => {
+                        if peer_id != user_id
+                            && matches!(
+                                crate::app::private_message::users_share_team(
+                                    teams_repo.as_ref(),
+                                    user_id,
+                                    peer_id,
+                                )
+                                .await,
+                                Ok(true)
+                            )
+                        {
+                            hub.watch_private_message(conn_id, peer_id);
+                        }
+                    }
+                    Ok(ClientCommand::UnwatchPrivateMessage { peer_id }) => {
+                        hub.unwatch_private_message(conn_id, peer_id)
+                    }
+                    Ok(ClientCommand::PrivateMessageTyping { peer_id }) => {
+                        if peer_id != user_id
+                            && matches!(
+                                crate::app::private_message::users_share_team(
+                                    teams_repo.as_ref(),
+                                    user_id,
+                                    peer_id,
+                                )
+                                .await,
+                                Ok(true)
+                            )
+                        {
+                            hub.private_message_typing(conn_id, peer_id);
+                        }
+                    }
                     // Re-resolve the team scope from the database (the authority)
                     // and update both the hub (presence routing) and the local
                     // authz copy. The hub re-broadcasts presence for every team
@@ -163,15 +199,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                     Ok(Some(role)) if derive_capabilities(role).can_signal_typing
                                 );
                             if may_type {
-                                use crate::domain::event::DomainEvent;
-                                use crate::ports::EventPublisher;
-                                let _ = hub
-                                    .publish(DomainEvent::UserTyping {
-                                        team_id: incident.team_id,
-                                        incident_id,
-                                        user_id,
-                                    })
-                                    .await;
+                                hub.typing(conn_id, incident_id);
                             }
                         }
                     }

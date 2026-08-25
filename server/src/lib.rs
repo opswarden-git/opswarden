@@ -10,7 +10,8 @@ pub mod handlers;
 pub mod ports;
 
 use axum::{
-    routing::{delete, get, post, put},
+    extract::DefaultBodyLimit,
+    routing::{delete, get, patch, post, put},
     Router,
 };
 
@@ -79,7 +80,20 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/private-messages",
             post(handlers::private_message::send_private_message)
-                .get(handlers::private_message::list_private_messages),
+                .get(handlers::private_message::list_private_messages)
+                .layer(DefaultBodyLimit::max(14 * 1024 * 1024)),
+        )
+        .route(
+            "/api/private-messages/{id}",
+            patch(handlers::private_message::edit_private_message),
+        )
+        .route(
+            "/api/private-messages/{id}/reactions",
+            post(handlers::private_message::toggle_private_message_reaction),
+        )
+        .route(
+            "/api/private-message-attachments/{id}",
+            get(handlers::private_message::download_private_message_attachment),
         )
         .route(
             "/api/releases",
@@ -191,7 +205,12 @@ pub fn build_app(state: AppState) -> Router {
         )
         .route(
             "/api/incidents/{incident_id}/timeline",
-            post(handlers::incident::add_timeline_entry),
+            post(handlers::incident::add_timeline_entry)
+                .layer(DefaultBodyLimit::max(14 * 1024 * 1024)),
+        )
+        .route(
+            "/api/timeline-attachments/{attachment_id}",
+            get(handlers::incident::download_timeline_attachment),
         )
         .route(
             "/api/incidents/{incident_id}/activity",

@@ -10,8 +10,10 @@ import { useReleases } from "@/lib/queries/releases";
 import type { TeamMember } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { ReleaseStateChip } from "@/components/releases/ReleaseStateChip";
+import { TeamPresenceList } from "@/components/messages/TeamPresenceList";
 import { MemberAvatar } from "@/components/teams/MemberAvatar";
 import { IconButton } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { SeverityChip } from "./SeverityChip";
 import { StateChip } from "./StateChip";
 
@@ -21,6 +23,7 @@ export function IncidentContextPanel({
   members,
   watcherIds,
   commands,
+  dangerCommands,
   inDialog = false,
 }: {
   canAssign: boolean;
@@ -28,6 +31,7 @@ export function IncidentContextPanel({
   members: TeamMember[];
   watcherIds: string[];
   commands?: ReactNode;
+  dangerCommands?: ReactNode;
   inDialog?: boolean;
 }) {
   const t = useTranslations("Incidents");
@@ -48,10 +52,6 @@ export function IncidentContextPanel({
   const linkedReleases = (releases ?? []).filter((release) =>
     release.linked_incident_ids.includes(incident.id),
   );
-  const watcherMembers = [...new Set(watcherIds)].map((userId) => ({
-    userId,
-    email: memberById.get(userId)?.email ?? t("teamMember"),
-  }));
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
 
   const assign = () => {
@@ -69,121 +69,109 @@ export function IncidentContextPanel({
       aria-label={t("incidentContext")}
       data-war-room-context="true"
     >
-      <div
-        className={
-          inDialog
-            ? "mb-5 flex items-center justify-between gap-3"
-            : "border-border flex items-center justify-between gap-3 border-b p-3"
-        }
-      >
-        <div className="flex flex-wrap gap-2">
-          <StateChip status={incident.status} />
-          <SeverityChip severity={incident.severity} />
-        </div>
-
-        {watcherMembers.length > 0 ? (
-          <ul
-            aria-label={t("watchersTitle")}
-            className="flex shrink-0 -space-x-2"
-            title={t("watchersTitle")}
-          >
-            {watcherMembers.slice(0, 4).map((watcher) => (
-              <li key={watcher.userId} title={watcher.email} className="relative">
-                <MemberAvatar
-                  email={watcher.email}
-                  className="border-bg h-7 w-7 border-2 text-[9px]"
-                />
-                <span className="bg-st-res border-bg absolute right-0 bottom-0 h-2 w-2 rounded-full border" />
-                <span className="sr-only">{watcher.email}</span>
-              </li>
-            ))}
-            {watcherMembers.length > 4 ? (
-              <li className="surface-subtle border-bg text-muted flex h-7 w-7 items-center justify-center rounded-full border-2 text-[9px] font-medium">
-                +{watcherMembers.length - 4}
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
-      </div>
-
-      {commands ? (
-        <div className={inDialog ? "mb-5" : "border-border border-b p-4"}>{commands}</div>
-      ) : null}
-
-      <div className={inDialog ? "space-y-5 text-sm" : "space-y-5 p-4 text-sm"}>
-        {canAssign ? (
-          <div>
-            <div className="flex items-center gap-2">
-              <label className="min-w-0 flex-1">
-                <span className="sr-only">{t("changeAssignee")}</span>
-                <select
-                  value={selectedAssignee}
-                  onChange={(event) => setAssigneeId(event.target.value)}
-                  className="ow-input h-9 w-full min-w-0 rounded-md px-3 text-sm"
-                >
-                  <option value="">{t("unassigned")}</option>
-                  {eligibleAssignees.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <IconButton
-                label={t("assign")}
-                size="sm"
-                onClick={assign}
-                loading={assignIncident.isPending}
-                disabled={!selectedAssignee || selectedAssignee === incident.assignee}
-              >
-                <UserRoundCheck className="h-4 w-4" aria-hidden="true" />
-              </IconButton>
-            </div>
-            {assignIncident.error ? (
-              <p className="text-sev-critical mt-2 text-xs" role="alert">
-                {errorText(assignIncident.error.message)}
-              </p>
-            ) : null}
+      <div className="divide-border divide-y text-sm">
+        <section className={inDialog ? "space-y-3 py-4" : "space-y-3 p-4"}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted text-xs font-medium">{t("colStatus")}</span>
+            <StateChip status={incident.status} />
           </div>
-        ) : (
-          <div className="flex min-w-0 items-center gap-2" title={t("colAssignee")}>
-            <MemberAvatar
-              email={assignee?.email ?? t("unassigned")}
-              className="h-7 w-7 text-[9px]"
-            />
-            <span className="text-text truncate">{assignee?.email ?? t("unassigned")}</span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted text-xs font-medium">{t("severity")}</span>
+            <SeverityChip severity={incident.severity} />
           </div>
-        )}
-
-        {releasesLoading ? (
-          <div className="bg-panel-2 h-8 animate-pulse rounded-md" />
-        ) : releasesError ? (
-          <p className="text-sev-critical text-xs" role="alert">
-            {t("failedToLoadLinkedReleases")}
-          </p>
-        ) : linkedReleases.length > 0 ? (
-          <section aria-labelledby="linked-release-actions">
-            <h2
-              id="linked-release-actions"
-              className="text-muted mb-1 text-[10px] font-semibold tracking-wide uppercase"
-            >
-              {t("linkedReleases")}
-            </h2>
-            <ul className="space-y-1">
-              {linkedReleases.map((release) => (
-                <li key={release.release_id}>
-                  <Link
-                    href={teamPath(incident.team_id, "releases", release.release_id)}
-                    className="text-muted hover:bg-panel-2 hover:text-text flex min-w-0 items-center gap-2 rounded-md px-2 py-2 transition-colors"
+          <div className="space-y-2">
+            <h3 className="text-muted text-xs font-medium">{t("colAssignee")}</h3>
+            {canAssign ? (
+              <div>
+                <div className="flex min-w-0 items-center gap-2">
+                  <label className="min-w-0 flex-1">
+                    <span className="sr-only">{t("changeAssignee")}</span>
+                    <select
+                      value={selectedAssignee}
+                      onChange={(event) => setAssigneeId(event.target.value)}
+                      className="ow-input h-9 w-full min-w-0 rounded-md px-3 text-sm"
+                    >
+                      <option value="">{t("unassigned")}</option>
+                      {eligibleAssignees.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <IconButton
+                    label={t("assign")}
+                    size="sm"
+                    onClick={assign}
+                    loading={assignIncident.isPending}
+                    disabled={!selectedAssignee || selectedAssignee === incident.assignee}
                   >
-                    <span className="text-text min-w-0 flex-1 truncate">{release.title}</span>
-                    <ReleaseStateChip state={release.state} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+                    <UserRoundCheck className="h-4 w-4" aria-hidden="true" />
+                  </IconButton>
+                </div>
+                {assignIncident.error ? (
+                  <p className="text-sev-critical mt-2 text-xs" role="alert">
+                    {errorText(assignIncident.error.message)}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2" title={t("colAssignee")}>
+                <MemberAvatar
+                  email={assignee?.email ?? t("unassigned")}
+                  className="h-7 w-7 text-[9px]"
+                />
+                <span className="text-text truncate">{assignee?.email ?? t("unassigned")}</span>
+              </div>
+            )}
+          </div>
+
+          {releasesLoading ? (
+            <div className="space-y-2" aria-busy="true" aria-label={t("linkedReleases")}>
+              <Skeleton className="h-3 w-24" />
+              <div className="flex items-center gap-2 py-2">
+                <Skeleton className="h-4 min-w-0 flex-1" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+            </div>
+          ) : releasesError ? (
+            <p className="text-sev-critical text-xs" role="alert">
+              {t("failedToLoadLinkedReleases")}
+            </p>
+          ) : linkedReleases.length > 0 ? (
+            <div aria-labelledby="linked-release-actions" className="space-y-2">
+              <h3 id="linked-release-actions" className="text-muted text-xs font-medium">
+                {t("linkedReleases")}
+              </h3>
+              <ul className="space-y-1">
+                {linkedReleases.map((release) => (
+                  <li key={release.release_id}>
+                    <Link
+                      href={teamPath(incident.team_id, "releases", release.release_id)}
+                      className="text-muted hover:text-gold flex min-w-0 items-center gap-2 py-2 transition-colors"
+                    >
+                      <span className="text-text min-w-0 flex-1 truncate">{release.title}</span>
+                      <ReleaseStateChip state={release.state} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
+        <section className={inDialog ? "space-y-3 py-4" : "space-y-3 p-4"}>
+          <h3 className="text-muted text-xs font-medium">{t("moreActions")}</h3>
+          {commands}
+          {dangerCommands}
+        </section>
+
+        <TeamPresenceList
+          className={inDialog ? "px-0" : undefined}
+          members={members}
+          presentUserIds={watcherIds}
+          teamId={incident.team_id}
+        />
       </div>
     </aside>
   );

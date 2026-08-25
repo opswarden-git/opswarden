@@ -9,3 +9,7 @@ flake.lock
 
 # Vendored reference implementations are read for patterns, never reformatted.
 references
+
+# Planche de badges ecrite a la main : sa mise en page est deliberee et sert
+# aux captures. Regeneree par personne, reformatee par personne.
+tooling/inventory/static

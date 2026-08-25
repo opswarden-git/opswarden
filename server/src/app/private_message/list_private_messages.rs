@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
@@ -23,12 +24,14 @@ pub struct ListPrivateMessagesCommand {
     pub requester_id: Uuid,
     pub peer_id: Uuid,
     pub limit: Option<u32>,
+    pub before: Option<(DateTime<Utc>, Uuid)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ListPrivateMessagesResult {
     /// Newest first, capped at the (clamped) limit.
     pub messages: Vec<PrivateMessage>,
+    pub next_cursor: Option<(DateTime<Utc>, Uuid)>,
 }
 
 pub struct ListPrivateMessagesUseCase {
@@ -63,7 +66,7 @@ impl ListPrivateMessagesUseCase {
             .await?
             .ok_or(DomainError::UserNotFound)?;
 
-        if !users_share_team(&self.teams, cmd.requester_id, cmd.peer_id).await? {
+        if !users_share_team(self.teams.as_ref(), cmd.requester_id, cmd.peer_id).await? {
             return Err(DomainError::NoSharedTeam);
         }
 
@@ -72,12 +75,24 @@ impl ListPrivateMessagesUseCase {
             .unwrap_or(DEFAULT_CONVERSATION_LIMIT)
             .clamp(1, MAX_CONVERSATION_LIMIT);
 
-        let messages = self
+        let mut messages = self
             .messages
-            .list_conversation(cmd.requester_id, cmd.peer_id, limit)
+            .list_conversation(cmd.requester_id, cmd.peer_id, cmd.before, limit + 1)
             .await?;
+        let has_more = messages.len() > limit as usize;
+        messages.truncate(limit as usize);
+        let next_cursor = has_more
+            .then(|| {
+                messages
+                    .last()
+                    .map(|message| (message.created_at, message.id))
+            })
+            .flatten();
 
-        Ok(ListPrivateMessagesResult { messages })
+        Ok(ListPrivateMessagesResult {
+            messages,
+            next_cursor,
+        })
     }
 }
 
@@ -120,6 +135,7 @@ mod tests {
                 requester_id: a,
                 peer_id: b,
                 limit: None,
+                before: None,
             })
             .await
             .unwrap();
@@ -145,6 +161,7 @@ mod tests {
                 requester_id: b,
                 peer_id: a,
                 limit: None,
+                before: None,
             })
             .await
             .unwrap();
@@ -176,6 +193,7 @@ mod tests {
                 requester_id: stranger,
                 peer_id: a,
                 limit: None,
+                before: None,
             })
             .await
             .unwrap_err();
@@ -201,6 +219,7 @@ mod tests {
                 requester_id: a,
                 peer_id: b,
                 limit: Some(1),
+                before: None,
             })
             .await
             .unwrap();

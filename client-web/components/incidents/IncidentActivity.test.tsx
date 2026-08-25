@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useWsStore } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
@@ -71,6 +71,7 @@ const activity = [
     content: "Investigating the primary database",
     created_at: "2026-07-25T10:04:00Z",
     edited_at: null,
+    attachments: [],
     reactions: [{ emoji: "👍", count: 1, reacted: true }],
   },
   {
@@ -80,12 +81,18 @@ const activity = [
     content: "giphy:https://media.giphy.com/media/abc/giphy.gif",
     created_at: "2026-07-25T10:05:00Z",
     edited_at: "2026-07-25T10:06:00Z",
+    attachments: [],
     reactions: [],
   },
 ];
 
 vi.mock("@/lib/queries/incidents", () => ({
-  useIncidentActivity: () => ({ data: activity, error: null, isLoading: false }),
+  useIncidentActivity: () => ({
+    data: activity,
+    error: null,
+    features: ["send_text", "attach_files", "collaborative_cursors"],
+    isLoading: false,
+  }),
   useAvailableReactions: () => ({ data: ["👍", "✅"] }),
   useAddTimelineEntry: () => addEntry,
   useEditTimelineEntry: () => editEntry,
@@ -96,7 +103,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   useAuthStore.getState().logout();
-  useWsStore.setState({ sendJson: () => {}, typingByIncident: {}, cursorsByIncident: {} });
+  useWsStore.setState({ sendJson: () => {}, typingByRoom: {}, cursorsByIncident: {} });
 });
 
 describe("IncidentActivity", () => {
@@ -169,7 +176,7 @@ describe("IncidentActivity", () => {
     );
   });
 
-  it("sends a trimmed note and emits throttled typing presence", () => {
+  it("sends a trimmed note and emits throttled typing presence", async () => {
     const sendJson = vi.fn();
     useWsStore.setState({ sendJson });
     render(
@@ -186,9 +193,11 @@ describe("IncidentActivity", () => {
     fireEvent.click(screen.getByRole("button", { name: "send" }));
 
     expect(sendJson).toHaveBeenCalledWith({ type: "status_typing", incident_id: "incident-1" });
-    expect(addEntry.mutate).toHaveBeenCalledWith(
-      { incidentId: "incident-1", content: "Mitigation deployed" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    await waitFor(() =>
+      expect(addEntry.mutate).toHaveBeenCalledWith(
+        { incidentId: "incident-1", content: "Mitigation deployed", attachments: [] },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      ),
     );
   });
 

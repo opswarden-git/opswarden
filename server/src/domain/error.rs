@@ -15,10 +15,14 @@ pub enum DomainError {
     InvalidSeverity,
     InvalidIncidentTransition,
     InvalidTimelineEntry,
+    /// An incident-room attachment exceeded its bounds or used an unsafe type.
+    InvalidTimelineAttachment,
     /// A timeline reaction emoji was blank or too long.
     InvalidReaction,
     /// A private message body was blank or exceeded the length limit.
     InvalidPrivateMessage,
+    /// A private-message attachment exceeded its bounds or used an unsafe type.
+    InvalidPrivateMessageAttachment,
     /// A private message was attempted between two users who share no team (or
     /// with oneself). PMs are only allowed between distinct co-members.
     NoSharedTeam,
@@ -149,8 +153,10 @@ impl DomainError {
             DomainError::InvalidSeverity => "invalid_severity",
             DomainError::InvalidIncidentTransition => "invalid_incident_transition",
             DomainError::InvalidTimelineEntry => "invalid_timeline_entry",
+            DomainError::InvalidTimelineAttachment => "invalid_timeline_attachment",
             DomainError::InvalidReaction => "invalid_reaction",
             DomainError::InvalidPrivateMessage => "invalid_private_message",
+            DomainError::InvalidPrivateMessageAttachment => "invalid_private_message_attachment",
             DomainError::NoSharedTeam => "no_shared_team",
             DomainError::InvalidReleaseTitle => "invalid_release_title",
             DomainError::InvalidReleaseSteps => "invalid_release_steps",
@@ -230,9 +236,15 @@ impl std::fmt::Display for DomainError {
             DomainError::InvalidTimelineEntry => {
                 write!(f, "Timeline entry content is invalid")
             }
+            DomainError::InvalidTimelineAttachment => {
+                write!(f, "Timeline attachment is invalid")
+            }
             DomainError::InvalidReaction => write!(f, "Reaction emoji is invalid"),
             DomainError::InvalidPrivateMessage => {
                 write!(f, "Private message content is invalid")
+            }
+            DomainError::InvalidPrivateMessageAttachment => {
+                write!(f, "Private message attachment is invalid")
             }
             DomainError::NoSharedTeam => {
                 write!(f, "You can only message members of a team you share")

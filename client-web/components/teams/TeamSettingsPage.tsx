@@ -8,14 +8,59 @@ import { type Team, useDeleteTeam, useLeaveTeam, useTeams } from "@/lib/queries/
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { IdentityHeader } from "@/components/settings/SettingsPrimitives";
 import { JoinCodeDialog } from "./JoinCodeDialog";
 import { RoleChip } from "./RoleChip";
-import { TeamRoster } from "./TeamRoster";
+import { TeamRoster, TeamRosterRowsSkeleton } from "./TeamRoster";
 
 type Dialog = "leave" | "delete" | null;
+
+function TeamSettingsSkeleton({ label }: { label: string }) {
+  return (
+    <div className="space-y-8" aria-label={label} aria-busy="true">
+      <div className="border-border flex items-center gap-4 border-b pb-6">
+        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+      </div>
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-9 w-24" />
+        </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Skeleton className="h-10 min-w-0 flex-1" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <section className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <div className="surface overflow-hidden rounded-md">
+              <TeamRosterRowsSkeleton />
+            </div>
+          </section>
+        </div>
+      </section>
+      <section className="surface border-sev-critical/40 rounded-md p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+          <Skeleton className="h-9 w-24 shrink-0" />
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function teamMark(name: string) {
   return name
@@ -70,7 +115,10 @@ function TeamPage({ team }: { team: Team }) {
         <TeamRoster team={team} />
       </section>
 
-      <section aria-labelledby="team-danger" className="border-sev-critical/40 border-t pt-6">
+      <section
+        aria-labelledby="team-danger"
+        className="surface border-sev-critical/40 rounded-md p-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 id="team-danger" className="text-sev-critical font-semibold">
@@ -144,9 +192,7 @@ export function TeamSettingsPage({ teamId }: { teamId: string }) {
     <PageLayout>
       <PageContent
         state={state}
-        loadingFallback={
-          <div className="text-muted animate-pulse py-12 text-center">{t("loading")}</div>
-        }
+        loadingFallback={<TeamSettingsSkeleton label={t("loading")} />}
         errorFallback={<Alert tone="danger">{t("teamUnavailable")}</Alert>}
       >
         {team ? <TeamPage team={team} /> : null}

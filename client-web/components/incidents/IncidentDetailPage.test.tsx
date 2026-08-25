@@ -61,7 +61,12 @@ vi.mock("@/lib/queries/incidents", () => ({
   useUpdateIncidentStatus: () => updateStatus,
   useDeleteIncident: () => deleteIncident,
   useAssignIncident: () => assignIncident,
-  useIncidentActivity: () => ({ data: [], error: null, isLoading: false }),
+  useIncidentActivity: () => ({
+    data: [],
+    error: null,
+    features: ["send_text", "attach_files", "collaborative_cursors"],
+    isLoading: false,
+  }),
   useAvailableReactions: () => ({ data: ["👍"] }),
   useAddTimelineEntry: () => addEntry,
   useEditTimelineEntry: () => editEntry,
@@ -113,8 +118,10 @@ afterEach(() => {
   vi.clearAllMocks();
   incidentQuery = { data: incident, isLoading: false, error: null };
   useWsStore.setState({
-    watchersByIncident: { [incident.id]: ["manager-1", "responder-1", "unknown"] },
-    activeWatches: [],
+    watchersByRoom: {
+      [`incident:${incident.id}`]: ["manager-1", "responder-1", "unknown"],
+    },
+    activeRooms: [],
     sendJson: () => {},
   });
 });
@@ -124,7 +131,7 @@ describe("IncidentDetailPage", () => {
     render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
 
     expect(screen.getByRole("heading", { name: "Database outage" })).toBeInTheDocument();
-    expect(screen.getAllByText("responder@example.com").length).toBeGreaterThan(1);
+    expect(screen.getByText("responder@example.com")).toBeInTheDocument();
     expect(screen.getByText("Production deploy")).toBeInTheDocument();
     expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);
     expect(screen.queryByText("teamLabel")).not.toBeInTheDocument();
@@ -168,7 +175,7 @@ describe("IncidentDetailPage", () => {
   it("renders deterministic loading and error states", () => {
     incidentQuery = { data: undefined, isLoading: true, error: null };
     const view = render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
-    expect(document.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(screen.getByTestId("conversation-room-skeleton")).toBeInTheDocument();
 
     view.unmount();
     incidentQuery = { data: undefined, isLoading: false, error: new Error("load_failed") };

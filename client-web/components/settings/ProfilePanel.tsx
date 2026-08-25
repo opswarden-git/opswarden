@@ -12,7 +12,13 @@ import { memberDisplayName, memberInitials } from "@/components/teams/MemberAvat
 import { IdentityHeader, SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
 /** Station setup (when the user has no team yet) + read-only user identity card. */
-export function ProfilePanel() {
+export function ProfilePanel({
+  showIdentityHeader = true,
+  showStationSetup = true,
+}: {
+  showIdentityHeader?: boolean;
+  showStationSetup?: boolean;
+}) {
   const t = useTranslations("Settings");
   const tErr = useTranslations("errors");
   const router = useRouter();
@@ -24,7 +30,8 @@ export function ProfilePanel() {
   const email = user?.email ?? t("unknown");
   const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
-  const needsStationSetup = searchParams.get("setup") === "station" || teams?.length === 0;
+  const needsStationSetup =
+    showStationSetup && (searchParams.get("setup") === "station" || teams?.length === 0);
 
   const handleCreateStation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +49,7 @@ export function ProfilePanel() {
   return (
     <>
       {needsStationSetup && (
-        <div className="surface border-gold/30 rounded-md p-6 shadow-[inset_0_0_20px_rgba(251,192,45,0.05)]">
+        <div className="surface border-gold/30 rounded-md p-6">
           <div className="mb-4 flex items-start gap-3">
             <ShieldAlert className="text-gold mt-0.5 h-5 w-5 shrink-0" />
             <div>
@@ -81,10 +88,12 @@ export function ProfilePanel() {
         </div>
       )}
 
-      <IdentityHeader
-        mark={memberInitials(email)}
-        title={user?.email ? memberDisplayName(user.email) : t("user")}
-      />
+      {showIdentityHeader ? (
+        <IdentityHeader
+          mark={memberInitials(email)}
+          title={user?.email ? memberDisplayName(user.email) : t("user")}
+        />
+      ) : null}
 
       <SettingsSection title={t("profile")}>
         <SettingsRow label={t("emailLabel")}>

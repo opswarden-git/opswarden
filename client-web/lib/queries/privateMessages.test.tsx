@@ -2,7 +2,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, queryClientWrapper } from "../../test/reactQuery";
 import { apiFetch } from "../api";
-import { usePrivateMessages, useSendPrivateMessage } from "./privateMessages";
+import {
+  useEditPrivateMessage,
+  usePrivateMessages,
+  useSendPrivateMessage,
+  useTogglePrivateMessageReaction,
+} from "./privateMessages";
 
 vi.mock("../api", () => ({
   apiFetch: vi.fn(),
@@ -51,7 +56,9 @@ describe("private message mutations", () => {
         created_at: "2026-06-26T00:00:00Z",
       },
     ];
-    mockedApiFetch.mockResolvedValueOnce(jsonResponse({ messages }));
+    mockedApiFetch.mockResolvedValueOnce(
+      jsonResponse({ messages, next_cursor: null, features: ["send_text", "attach_files"] }),
+    );
 
     const { result } = renderHook(() => usePrivateMessages("peer-1"), {
       wrapper: queryClientWrapper(queryClient),
@@ -59,8 +66,9 @@ describe("private message mutations", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(mockedApiFetch).toHaveBeenCalledWith("/api/private-messages?peer_id=peer-1");
-    expect(result.current.data).toEqual(messages);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/private-messages?peer_id=peer-1&limit=50");
+    expect(result.current.data?.pages[0].messages).toEqual(messages);
+    expect(result.current.data?.pages[0].features).toEqual(["send_text", "attach_files"]);
   });
 
   it("invalidates exactly the recipient conversation after sending", async () => {
@@ -86,7 +94,7 @@ describe("private message mutations", () => {
 
     expect(mockedApiFetch).toHaveBeenCalledWith("/api/private-messages", {
       method: "POST",
-      body: JSON.stringify({ recipient_id: "peer-1", content: "hello" }),
+      body: JSON.stringify({ recipient_id: "peer-1", content: "hello", attachments: [] }),
     });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["private-messages", "peer-1"] });
   });
@@ -102,5 +110,53 @@ describe("private message mutations", () => {
     await expect(
       result.current.mutateAsync({ recipientId: "peer-2", content: "hello" }),
     ).rejects.toThrow("no_shared_team");
+  });
+
+  it("uses the server cursor to load older history without an offset", async () => {
+    const queryClient = createTestQueryClient();
+    mockedApiFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          messages: [],
+          next_cursor: { created_at: "2026-08-24T10:00:00Z", id: "message-50" },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ messages: [], next_cursor: null }));
+
+    const { result } = renderHook(() => usePrivateMessages("peer-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+    await act(async () => result.current.fetchNextPage());
+
+    expect(mockedApiFetch).toHaveBeenLastCalledWith(
+      "/api/private-messages?peer_id=peer-1&limit=50&before_created_at=2026-08-24T10%3A00%3A00Z&before_id=message-50",
+    );
+  });
+
+  it("edits and reacts through peer-scoped cache invalidation", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    mockedApiFetch
+      .mockResolvedValueOnce(jsonResponse({ content: "edited", edited_at: "now" }))
+      .mockResolvedValueOnce(jsonResponse({ active: true }));
+    const wrapper = queryClientWrapper(queryClient);
+    const { result: edit } = renderHook(() => useEditPrivateMessage("peer-1"), { wrapper });
+    const { result: reaction } = renderHook(() => useTogglePrivateMessageReaction("peer-1"), {
+      wrapper,
+    });
+
+    await act(async () => edit.current.mutateAsync({ messageId: "message-1", content: "edited" }));
+    await act(async () => reaction.current.mutateAsync({ messageId: "message-1", emoji: "✅" }));
+
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(1, "/api/private-messages/message-1", {
+      method: "PATCH",
+      body: JSON.stringify({ content: "edited" }),
+    });
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, "/api/private-messages/message-1/reactions", {
+      method: "POST",
+      body: JSON.stringify({ emoji: "✅" }),
+    });
+    expect(invalidate).toHaveBeenCalledTimes(2);
   });
 });

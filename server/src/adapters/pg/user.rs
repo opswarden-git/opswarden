@@ -221,7 +221,7 @@ mod tests {
             .unwrap()
             .is_some());
         let notes = timeline
-            .list_entries_for_incident(incident.id, 10)
+            .list_entries_for_incident(incident.id, None, 10)
             .await
             .unwrap();
         assert_eq!(notes.len(), 1);

@@ -35,6 +35,11 @@ const iconToneClasses: Record<IconButtonTone, string> = {
     "text-sev-critical hover:bg-sev-critical/10 hover:text-sev-critical focus-visible:ring-sev-critical/40",
 };
 
+/** Elevates operational actions without changing their semantic colour. */
+export function actionButtonClassNames() {
+  return "shadow-[0_6px_16px_rgb(0_0_0/0.28),inset_0_1px_0_rgb(255_255_255/0.05)]";
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
