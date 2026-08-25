@@ -4,6 +4,7 @@ import { Link, usePathname } from "@/i18n/routing";
 import { Settings } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { useTranslations } from "next-intl";
@@ -19,6 +20,10 @@ import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar
 import { RoleChip } from "@/components/teams/RoleChip";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { RailToggle } from "./RailToggle";
+import { Dialog } from "@/components/ui/Dialog";
+import { ProfilePanel } from "@/components/settings/ProfilePanel";
+import { LanguagePanel } from "@/components/settings/LanguagePanel";
+import { AccountDangerZone } from "@/components/settings/AccountDangerZone";
 
 type ScopedTeam = ReturnType<typeof useTeamScope>["activeTeam"];
 
@@ -113,6 +118,7 @@ export function Sidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const t = useTranslations("Sidebar");
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const { activeTeam, hrefFor } = useTeamScope();
   const canManageTeam = activeTeam
@@ -131,7 +137,10 @@ export function Sidebar({
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
       <RailToggle
-        className="top-1/2 right-0 -translate-y-1/2"
+        className={cn(
+          "top-1/2 -translate-y-1/2",
+          collapsed ? "left-1/2 -translate-x-1/2" : "right-0",
+        )}
         direction={collapsed ? "right" : "left"}
         label={t(collapsed ? "expandNavigation" : "collapseNavigation")}
         onClick={() => onCollapsedChange(!collapsed)}
@@ -194,31 +203,54 @@ export function Sidebar({
       </nav>
 
       <div className={cn("mt-auto shrink-0", collapsed ? "p-2" : "p-4")}>
-        <Link
-          href="/settings"
+        <Dialog
+          open={isAccountOpen}
+          onOpenChange={setIsAccountOpen}
+          size="lg"
           title={t("account")}
-          aria-label={t("account")}
-          aria-current={isSettingsActive ? "page" : undefined}
-          data-app-navigation-item="true"
-          className={cn(
-            "flex h-12 min-w-0 flex-1 items-center gap-2 rounded-md px-2 transition-colors",
-            collapsed && "justify-center px-0",
-            isSettingsActive ? "bg-panel text-text" : "text-text hover:bg-panel/60",
-          )}
+          description={user?.email ?? t("operator")}
+          closeLabel={t("close")}
+          icon={<MemberAvatar email={user?.email || t("operator")} className="h-10 w-10 text-xs" />}
+          bodyClassName="space-y-8"
+          trigger={
+            <button
+              type="button"
+              title={t("account")}
+              aria-label={t("account")}
+              aria-current={isSettingsActive ? "page" : undefined}
+              data-app-navigation-item="true"
+              className={cn(
+                "group flex h-12 w-full min-w-0 items-center gap-2 rounded-md px-2 transition-colors",
+                collapsed && "justify-center px-0",
+                isSettingsActive ? "bg-panel text-text" : "text-text hover:bg-panel/60",
+              )}
+            >
+              {!collapsed ? (
+                <>
+                  <MemberAvatar
+                    email={user?.email || t("operator")}
+                    className="h-8 w-8 text-[11px]"
+                  />
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <span className="truncate text-sm leading-5 font-medium">
+                      {user?.email ? memberDisplayName(user.email) : t("operator")}
+                    </span>
+                    {activeTeam ? <RoleChip role={activeTeam.role} iconOnly /> : null}
+                  </div>
+                </>
+              ) : null}
+              <Settings
+                className="text-muted group-hover:text-gold h-5 w-5 shrink-0 transition-colors"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+            </button>
+          }
         >
-          {!collapsed ? (
-            <>
-              <MemberAvatar email={user?.email || t("operator")} className="h-8 w-8 text-[11px]" />
-              <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                <span className="truncate text-sm leading-5 font-medium">
-                  {user?.email ? memberDisplayName(user.email) : t("operator")}
-                </span>
-                {activeTeam ? <RoleChip role={activeTeam.role} iconOnly /> : null}
-              </div>
-            </>
-          ) : null}
-          <Settings className="text-muted h-5 w-5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
-        </Link>
+          <ProfilePanel showIdentityHeader={false} showStationSetup={false} />
+          <LanguagePanel />
+          <AccountDangerZone />
+        </Dialog>
       </div>
     </aside>
   );

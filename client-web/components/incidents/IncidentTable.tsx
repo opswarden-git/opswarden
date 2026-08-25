@@ -98,14 +98,21 @@ export function IncidentTableSkeleton() {
         aria-busy="true"
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="animate-pulse space-y-3 px-4 py-4">
+          <div key={index} className="animate-pulse px-4 py-4">
             <span className="bg-panel-2 block h-4 w-3/4 rounded" />
-            <span className="bg-panel-2 block h-3 w-24 rounded" />
-            <div className="flex gap-2">
+            <span className="bg-panel-2 mt-1 block h-3 w-24 rounded" />
+            <div className="mt-3 flex gap-2">
               <span className="bg-panel-2 block h-5 w-16 rounded-full" />
               <span className="bg-panel-2 block h-5 w-20 rounded-full" />
             </div>
-            <span className="bg-panel-2 block h-4 w-2/3 rounded" />
+            <div className="mt-3 grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+              <span className="bg-panel-2 block h-3 w-14 rounded" />
+              <span className="bg-panel-2 block h-6 w-2/3 rounded" />
+            </div>
+            <div className="mt-2 grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2">
+              <span className="bg-panel-2 block h-3 w-10 rounded" />
+              <span className="bg-panel-2 block h-4 w-20 rounded" />
+            </div>
           </div>
         ))}
       </div>

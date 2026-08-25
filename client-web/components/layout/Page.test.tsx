@@ -12,7 +12,7 @@ describe("PageLayout", () => {
   it("owns the single workspace width, padding and region rhythm", () => {
     const { container } = render(<PageLayout>Content</PageLayout>);
 
-    expect(container.firstChild).toHaveClass("max-w-[90rem]", "px-4", "md:px-8", "gap-6");
+    expect(container.firstChild).toHaveClass("workspace-frame", "px-4", "md:px-8", "gap-6");
     expect(container.firstChild).toHaveAttribute("data-page-layout", "true");
     expect(container.firstChild).toHaveAttribute("data-page-width", "workspace");
   });

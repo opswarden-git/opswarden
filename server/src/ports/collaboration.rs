@@ -1,14 +1,20 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
+use crate::domain::conversation::MessageAttachment;
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
-use crate::domain::private_message::PrivateMessage;
+use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
 use crate::domain::release::{Release, ReleaseState};
 use crate::domain::team::{Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::{Locale, User};
+
+/// Position in a merged incident-activity stream: the `(created_at, id)` of the
+/// oldest item a client already holds. Both activity sources order by it, so one
+/// cursor walks the timeline and the system event log together.
+pub type ActivityCursor = (chrono::DateTime<chrono::Utc>, Uuid);
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {
@@ -105,9 +111,13 @@ pub trait IncidentRepo: Send + Sync {
         incident: &Incident,
         event: &IncidentEvent,
     ) -> Result<(), DomainError>;
+    /// Newest first. `before` is a `(created_at, id)` keyset cursor: only rows
+    /// strictly older than it are returned, so a war room can walk back through
+    /// a long incident without the page boundary shifting under it.
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,
+        before: Option<ActivityCursor>,
         limit: u32,
     ) -> Result<Vec<IncidentEvent>, DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
@@ -125,9 +135,12 @@ pub trait IncidentRepo: Send + Sync {
 #[async_trait]
 pub trait TimelineRepo: Send + Sync {
     async fn append_entry(&self, entry: &TimelineEntry) -> Result<(), DomainError>;
+    /// Newest first, sharing the incident activity cursor with the event log so
+    /// the two streams can be merged into one stable page.
     async fn list_entries_for_incident(
         &self,
         incident_id: Uuid,
+        before: Option<ActivityCursor>,
         limit: u32,
     ) -> Result<Vec<TimelineEntry>, DomainError>;
     /// Load a single entry (to authorize and apply an edit).
@@ -156,6 +169,12 @@ pub trait TimelineRepo: Send + Sync {
         &self,
         incident_id: Uuid,
     ) -> Result<Vec<ReactionRecord>, DomainError>;
+    /// Load one attachment only when the requester still belongs to its Team.
+    async fn find_attachment_for_member(
+        &self,
+        attachment_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<MessageAttachment>, DomainError>;
 }
 
 #[async_trait]
@@ -167,10 +186,32 @@ pub trait PrivateMessageRepo: Send + Sync {
     /// does not matter.
     async fn list_conversation(
         &self,
-        user_a: Uuid,
-        user_b: Uuid,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        before: Option<(chrono::DateTime<chrono::Utc>, Uuid)>,
         limit: u32,
     ) -> Result<Vec<PrivateMessage>, DomainError>;
+    async fn find_participants(
+        &self,
+        message_id: Uuid,
+    ) -> Result<Option<(Uuid, Uuid)>, DomainError>;
+    async fn update_content(
+        &self,
+        message_id: Uuid,
+        content: &str,
+        edited_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
+    async fn toggle_reaction(
+        &self,
+        message_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<bool, DomainError>;
+    async fn find_attachment_for_participant(
+        &self,
+        attachment_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<PrivateMessageAttachment>, DomainError>;
 }
 
 #[async_trait]

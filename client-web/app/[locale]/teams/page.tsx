@@ -10,6 +10,7 @@ import { PageContent, type PageContentState } from "@/components/layout/PageCont
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/routing";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
@@ -59,7 +60,29 @@ export default function TeamsPage() {
       <PageContent
         state={contentState}
         loadingFallback={
-          <div className="text-muted animate-pulse py-10 text-center text-sm">{t("loading")}</div>
+          <div
+            className="surface divide-border divide-y overflow-hidden rounded-md"
+            aria-label={t("loading")}
+            aria-busy="true"
+          >
+            {Array.from({ length: 4 }, (_, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5"
+              >
+                <Skeleton className="h-9 w-9 rounded-md" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-64 max-w-full" />
+                  <Skeleton className="h-5 w-20 rounded-full sm:hidden" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="hidden h-5 w-20 rounded-full sm:block" />
+                  <Skeleton className="h-4 w-4" />
+                </div>
+              </div>
+            ))}
+          </div>
         }
         errorFallback={<Alert tone="danger">{t("failedToLoad")}</Alert>}
         emptyFallback={

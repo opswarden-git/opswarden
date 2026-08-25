@@ -42,12 +42,20 @@ impl IntoResponse for DomainError {
             DomainError::InvalidTimelineEntry => {
                 (StatusCode::BAD_REQUEST, "Timeline entry content is invalid")
             }
+            DomainError::InvalidTimelineAttachment => (
+                StatusCode::BAD_REQUEST,
+                "Timeline attachment is invalid",
+            ),
             DomainError::InvalidReaction => {
                 (StatusCode::BAD_REQUEST, "Reaction emoji is invalid")
             }
             DomainError::InvalidPrivateMessage => {
                 (StatusCode::BAD_REQUEST, "Private message content is invalid")
             }
+            DomainError::InvalidPrivateMessageAttachment => (
+                StatusCode::BAD_REQUEST,
+                "Private message attachment is invalid",
+            ),
             DomainError::NoSharedTeam => (
                 StatusCode::FORBIDDEN,
                 "You can only message members of a team you share",

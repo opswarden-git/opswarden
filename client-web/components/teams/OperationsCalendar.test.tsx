@@ -78,6 +78,8 @@ describe("OperationsCalendar", () => {
 
     const viewButtons = screen.getAllByRole("button", { name: /Week|Month/ });
     expect(viewButtons.map((button) => button.textContent)).toEqual(["Week", "Month"]);
+    expect(screen.getByRole("button", { name: "Month" })).toHaveClass("text-text");
+    expect(screen.getByRole("button", { name: "Month" })).not.toHaveClass("bg-panel-2");
     expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
     expect(screen.getByRole("heading", { name: "July 2026" })).toBeInTheDocument();
@@ -96,8 +98,8 @@ describe("OperationsCalendar", () => {
     }));
     render(<OperationsCalendar locale="en" labels={labels} events={events} />);
 
-    expect(screen.getAllByRole("link", { name: /Incident: Incident/ })).toHaveLength(3);
-    fireEvent.click(screen.getByRole("button", { name: "+2 more" }));
+    expect(screen.getAllByRole("link", { name: /Incident: Incident/ })).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "+3 more" }));
     expect(screen.getAllByRole("link", { name: /Incident: Incident/ })).toHaveLength(5);
     expect(screen.getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
   });

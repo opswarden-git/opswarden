@@ -1,4 +1,11 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
 const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
@@ -31,6 +38,18 @@ async function signIn(request: APIRequestContext, email: string) {
   return ((await response.json()) as { token: string }).token;
 }
 
+async function openMemberConversationInContext(
+  browser: Browser,
+  email: string,
+  peerEmail: string,
+): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await login(page, email);
+  await openConversation(page, peerEmail);
+  return { context, page };
+}
+
 test("a Team member opens a full routed conversation", async ({ page }) => {
   await login(page, "manager@opswarden.local");
   const room = await openConversation(page, "responder@opswarden.local");
@@ -39,6 +58,7 @@ test("a Team member opens a full routed conversation", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByPlaceholder("Write a message…")).toBeVisible();
   await expect(page.getByRole("complementary", { name: "War room navigation" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Members" })).toBeVisible();
 });
 
 test("Observer sends a real private message", async ({ page }) => {
@@ -75,7 +95,7 @@ test("a direct conversation sends and renders a GIF", async ({ page }) => {
   const room = await openConversation(page, "responder@opswarden.local");
 
   await room.getByRole("button", { name: "Search GIFs" }).click();
-  await room.getByPlaceholder("Search GIPHY…").fill("deploy");
+  await room.getByPlaceholder("Search…").fill("deploy");
   await room.getByRole("button", { name: "Deployment dance" }).click();
 
   await expect(room.getByRole("img", { name: "GIF" }).last()).toHaveAttribute("src", gifUrl);
@@ -129,4 +149,60 @@ test("the transcript owns scrolling on a narrow viewport", async ({ page }) => {
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(1);
+});
+
+test("a rich direct message supports a file, reaction and edit", async ({ page }) => {
+  await login(page, "manager@opswarden.local");
+  const room = await openConversation(page, "responder@opswarden.local");
+  const original = `DM parity ${Date.now()}`;
+  const edited = `${original} verified`;
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "runbook.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("restart the payment gateway"),
+  });
+  await room.getByPlaceholder("Write a message…").fill(original);
+  await room.getByRole("button", { name: "Send", exact: true }).click();
+
+  const item = room.getByRole("listitem").filter({ hasText: original }).last();
+  await expect(item.getByText("runbook.txt")).toBeVisible();
+  await item.hover();
+  await item.getByRole("button", { name: "Add reaction" }).click();
+  await item.getByRole("button", { name: "✅ (0)" }).click();
+  await expect(item.getByRole("button", { name: "✅ (1)" })).toBeVisible();
+
+  await item.getByRole("button", { name: "Edit" }).click();
+  await item.getByRole("textbox", { name: "Edit message" }).fill(edited);
+  await item.getByRole("button", { name: "Save" }).click();
+  await expect(item.getByText(edited, { exact: true })).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await item.getByRole("button", { name: /runbook\.txt/i }).click();
+  expect((await download).suggestedFilename()).toBe("runbook.txt");
+});
+
+test("presence and typing are live only inside the shared conversation", async ({ browser }) => {
+  const manager = await openMemberConversationInContext(
+    browser,
+    "manager@opswarden.local",
+    "responder@opswarden.local",
+  );
+  const responder = await openMemberConversationInContext(
+    browser,
+    "responder@opswarden.local",
+    "manager@opswarden.local",
+  );
+
+  await expect(
+    manager.page.getByLabel("Chat with responder@opswarden.local — Online"),
+  ).toBeVisible();
+  await responder.page.getByPlaceholder("Write a message…").fill("typing signal");
+  await expect(manager.page.getByText("responder@opswarden.local typing…")).toBeVisible();
+
+  await responder.context.close();
+  await expect(
+    manager.page.getByLabel("Chat with responder@opswarden.local — Offline"),
+  ).toBeVisible();
+  await manager.context.close();
 });

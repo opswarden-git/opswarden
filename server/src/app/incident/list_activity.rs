@@ -1,30 +1,26 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::domain::conversation::MessageReactionSummary;
 use crate::domain::error::DomainError;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::timeline::TimelineEntry;
 use crate::domain::user::UserSummary;
-use crate::ports::{IncidentRepo, TeamRepo, TimelineRepo, UserRepo};
+use crate::ports::{ActivityCursor, IncidentRepo, TeamRepo, TimelineRepo, UserRepo};
 
 pub const DEFAULT_ACTIVITY_LIMIT: u32 = 50;
 pub const MAX_ACTIVITY_LIMIT: u32 = 100;
 
-/// Aggregated reactions for one emoji on one note.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReactionSummary {
-    pub emoji: String,
-    pub count: u64,
-    pub reacted: bool,
-}
+pub type ReactionSummary = MessageReactionSummary;
 
 pub struct ListIncidentActivityCommand {
     pub incident_id: Uuid,
     pub requester_id: Uuid,
     pub limit: Option<u32>,
+    /// Walk further back: only activity strictly older than this cursor.
+    pub before: Option<ActivityCursor>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -42,7 +38,7 @@ pub enum IncidentActivityItem {
 }
 
 impl IncidentActivityItem {
-    fn sort_key(&self) -> (DateTime<Utc>, Uuid) {
+    fn sort_key(&self) -> ActivityCursor {
         match self {
             Self::System { event, .. } => (event.created_at, event.id),
             Self::Note { entry, .. } => (entry.created_at, entry.id),
@@ -52,7 +48,10 @@ impl IncidentActivityItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ListIncidentActivityResult {
+    pub team_id: Uuid,
     pub items: Vec<IncidentActivityItem>,
+    /// `Some` while older activity remains; feed it back as `before`.
+    pub next_cursor: Option<ActivityCursor>,
 }
 
 pub struct ListIncidentActivityUseCase {
@@ -96,16 +95,18 @@ impl ListIncidentActivityUseCase {
             .limit
             .unwrap_or(DEFAULT_ACTIVITY_LIMIT)
             .clamp(1, MAX_ACTIVITY_LIMIT);
-        // Fetch up to the requested amount from both sources, then merge and
-        // truncate. This avoids one source starving the other while keeping a
-        // hard upper bound until a cursor is justified by real history volume.
+        // One extra row from each source: after merging, holding more than the
+        // page size is exactly the signal that older activity remains. Asking
+        // each source for a full page keeps a chatty timeline from starving the
+        // event log, or the reverse.
+        let probe = limit + 1;
         let events = self
             .incidents
-            .list_events_for_incident(cmd.incident_id, limit)
+            .list_events_for_incident(cmd.incident_id, cmd.before, probe)
             .await?;
         let entries = self
             .timeline
-            .list_entries_for_incident(cmd.incident_id, limit)
+            .list_entries_for_incident(cmd.incident_id, cmd.before, probe)
             .await?;
         let reaction_records = self
             .timeline
@@ -177,8 +178,18 @@ impl ListIncidentActivityUseCase {
             .collect();
 
         items.sort_by_key(|item| std::cmp::Reverse(item.sort_key()));
+        let has_more = items.len() > limit as usize;
         items.truncate(limit as usize);
-        Ok(ListIncidentActivityResult { items })
+        // The cursor is the oldest item actually handed out, so the next page
+        // resumes exactly where this one stopped.
+        let next_cursor = has_more
+            .then(|| items.last().map(IncidentActivityItem::sort_key))
+            .flatten();
+        Ok(ListIncidentActivityResult {
+            team_id: incident.team_id,
+            items,
+            next_cursor,
+        })
     }
 }
 
@@ -188,4 +199,117 @@ fn assigned_user_id(event: &IncidentEvent) -> Option<Uuid> {
         .get("assignee_id")
         .and_then(|value| value.as_str())
         .and_then(|value| Uuid::parse_str(value).ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::app::incident::tests::{MockIncidentRepo, MockTeamRepo, MockTimelineRepo};
+    use crate::app::private_message::tests::MockUserRepo;
+    use crate::domain::incident::{Incident, Severity};
+    use crate::domain::incident_event::IncidentEvent;
+    use crate::domain::team::Role;
+    use chrono::{Duration, Utc};
+
+    /// A war room with interleaved system events and human notes, each a minute
+    /// apart so the merge order is unambiguous.
+    fn seeded() -> (Incident, Uuid, ListIncidentActivityUseCase) {
+        let team_id = Uuid::new_v4();
+        let member = Uuid::new_v4();
+        let incident = Incident::new(team_id, "Cache outage", Severity::Critical).unwrap();
+        let start = Utc::now() - Duration::minutes(60);
+
+        let incidents = MockIncidentRepo::with_incident(incident.clone());
+        let timeline = MockTimelineRepo::default();
+        for step in 0..6 {
+            let mut event = IncidentEvent::created(&incident, Some(member));
+            event.created_at = start + Duration::minutes(step * 2);
+            incidents.incident_events.lock().unwrap().push(event);
+
+            let mut entry =
+                TimelineEntry::new(incident.id, member, format!("note {step}")).unwrap();
+            entry.created_at = start + Duration::minutes(step * 2 + 1);
+            timeline.appended.lock().unwrap().push(entry);
+        }
+
+        let teams = MockTeamRepo::default().with_member(team_id, member, Role::Responder);
+        let use_case = ListIncidentActivityUseCase::new(
+            Arc::new(teams),
+            Arc::new(incidents),
+            Arc::new(timeline),
+            Arc::new(MockUserRepo::default().with_user(member)),
+        );
+        (incident, member, use_case)
+    }
+
+    async fn page(
+        use_case: &ListIncidentActivityUseCase,
+        incident_id: Uuid,
+        requester_id: Uuid,
+        before: Option<ActivityCursor>,
+    ) -> ListIncidentActivityResult {
+        use_case
+            .list(ListIncidentActivityCommand {
+                incident_id,
+                requester_id,
+                limit: Some(5),
+                before,
+            })
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_full_page_reports_that_older_activity_remains() {
+        let (incident, member, use_case) = seeded();
+
+        let first = page(&use_case, incident.id, member, None).await;
+
+        assert_eq!(first.items.len(), 5);
+        assert!(first.next_cursor.is_some());
+        // Newest first, and both sources are represented in the same page.
+        let keys: Vec<_> = first.items.iter().map(|item| item.sort_key()).collect();
+        let mut sorted = keys.clone();
+        sorted.sort_by(|a, b| b.cmp(a));
+        assert_eq!(keys, sorted);
+    }
+
+    #[tokio::test]
+    async fn following_the_cursor_yields_strictly_older_activity_without_overlap() {
+        let (incident, member, use_case) = seeded();
+
+        let first = page(&use_case, incident.id, member, None).await;
+        let second = page(&use_case, incident.id, member, first.next_cursor).await;
+
+        let first_keys: Vec<_> = first.items.iter().map(|item| item.sort_key()).collect();
+        let second_keys: Vec<_> = second.items.iter().map(|item| item.sort_key()).collect();
+        assert!(second_keys.iter().all(|key| !first_keys.contains(key)));
+        assert!(second_keys
+            .iter()
+            .all(|key| *key < *first_keys.last().unwrap()));
+    }
+
+    #[tokio::test]
+    async fn walking_to_the_end_reaches_every_item_exactly_once_and_stops() {
+        let (incident, member, use_case) = seeded();
+
+        let mut seen: Vec<ActivityCursor> = Vec::new();
+        let mut cursor = None;
+        loop {
+            let result = page(&use_case, incident.id, member, cursor).await;
+            seen.extend(result.items.iter().map(|item| item.sort_key()));
+            match result.next_cursor {
+                Some(next) => cursor = Some(next),
+                None => break,
+            }
+        }
+
+        // Six events and six notes, each returned once.
+        assert_eq!(seen.len(), 12);
+        let mut unique = seen.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), 12);
+    }
 }

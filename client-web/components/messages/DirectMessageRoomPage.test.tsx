@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/store/auth";
 import { DirectMessageRoomPage } from "./DirectMessageRoomPage";
@@ -13,10 +13,16 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-vi.mock("@/components/incidents/WarRoomNavigation", () => ({
-  WarRoomNavigation: ({ activePeerId }: { activePeerId?: string }) => (
-    <aside aria-label="roomNavigation">peer:{activePeerId}</aside>
+vi.mock("@/i18n/routing", () => ({
+  Link: ({ children, href, ...props }: React.ComponentProps<"a">) => (
+    <a href={String(href)} {...props}>
+      {children}
+    </a>
   ),
+}));
+
+vi.mock("@/components/incidents/WarRoomNavigation", () => ({
+  WarRoomNavigation: () => <aside aria-label="roomNavigation" />,
 }));
 
 const peer = {
@@ -31,42 +37,92 @@ let membersQuery: { data: (typeof peer)[]; isLoading: boolean; error: Error | nu
   error: null,
 };
 let messagesQuery: {
-  data: Array<{
-    id: string;
-    sender_id: string;
-    recipient_id: string;
-    content: string;
-    created_at: string;
-  }>;
+  data: {
+    pages: Array<{
+      messages: Array<{
+        id: string;
+        sender_id: string;
+        recipient_id: string;
+        content: string;
+        created_at: string;
+        edited_at: null;
+        attachments: never[];
+        reactions: never[];
+      }>;
+      next_cursor: null;
+      features: Array<
+        | "send_text"
+        | "send_gif"
+        | "edit_own_message"
+        | "react"
+        | "attach_files"
+        | "paginated_history"
+        | "presence"
+        | "typing"
+      >;
+    }>;
+  };
   isLoading: boolean;
   isFetching: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: ReturnType<typeof vi.fn>;
   error: Error | null;
 } = {
-  data: [
-    {
-      id: "mine",
-      sender_id: "me-1",
-      recipient_id: "peer-1",
-      content: "My update",
-      created_at: "2026-08-10T10:01:00Z",
-    },
-    {
-      id: "theirs",
-      sender_id: "peer-1",
-      recipient_id: "me-1",
-      content: "Their update",
-      created_at: "2026-08-10T10:00:00Z",
-    },
-    {
-      id: "gif",
-      sender_id: "peer-1",
-      recipient_id: "me-1",
-      content: "giphy:https://media.giphy.com/media/abc/giphy.gif",
-      created_at: "2026-08-10T09:59:00Z",
-    },
-  ],
+  data: {
+    pages: [
+      {
+        messages: [
+          {
+            id: "mine",
+            sender_id: "me-1",
+            recipient_id: "peer-1",
+            content: "My update",
+            created_at: "2026-08-10T10:01:00Z",
+            edited_at: null,
+            attachments: [],
+            reactions: [],
+          },
+          {
+            id: "theirs",
+            sender_id: "peer-1",
+            recipient_id: "me-1",
+            content: "Their update",
+            created_at: "2026-08-10T10:00:00Z",
+            edited_at: null,
+            attachments: [],
+            reactions: [],
+          },
+          {
+            id: "gif",
+            sender_id: "peer-1",
+            recipient_id: "me-1",
+            content: "giphy:https://media.giphy.com/media/abc/giphy.gif",
+            created_at: "2026-08-10T09:59:00Z",
+            edited_at: null,
+            attachments: [],
+            reactions: [],
+          },
+        ],
+        next_cursor: null,
+        features: [
+          "send_text",
+          "send_gif",
+          "edit_own_message",
+          "react",
+          "attach_files",
+          "paginated_history",
+          "presence",
+          "typing",
+        ],
+      },
+    ],
+  },
   isLoading: false,
   isFetching: false,
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  fetchNextPage: vi.fn(),
   error: null,
 };
 const send = { error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() };
@@ -78,6 +134,13 @@ vi.mock("@/lib/queries/teams", () => ({
 vi.mock("@/lib/queries/privateMessages", () => ({
   usePrivateMessages: () => messagesQuery,
   useSendPrivateMessage: () => send,
+  useEditPrivateMessage: () => ({ error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() }),
+  useTogglePrivateMessageReaction: () => ({ isPending: false, mutate: vi.fn() }),
+  downloadPrivateMessageAttachment: vi.fn(),
+}));
+
+vi.mock("@/lib/queries/incidents", () => ({
+  useAvailableReactions: () => ({ data: ["👍", "✅"] }),
 }));
 
 afterEach(() => {
@@ -95,9 +158,15 @@ describe("DirectMessageRoomPage", () => {
 
     expect(screen.getByRole("heading", { name: "peer@example.com" })).toHaveClass("sr-only");
     expect(screen.getByRole("region", { name: "peer@example.com" })).toBeVisible();
-    expect(screen.getByText("My update").closest("article")).toHaveClass("justify-end");
-    expect(screen.getByText("My update")).toHaveClass("bg-gold");
-    expect(screen.getByText("Their update").closest("article")).toHaveClass("justify-start");
+    expect(screen.getByText("My update").closest("li")).toHaveAttribute(
+      "data-direct-message-owner",
+      "current",
+    );
+    expect(screen.getByText("My update").parentElement).toHaveClass("bg-gold");
+    expect(screen.getByText("Their update").closest("li")).toHaveAttribute(
+      "data-direct-message-owner",
+      "peer",
+    );
     expect(screen.getByRole("img", { name: "gifAlt" })).toHaveAttribute(
       "src",
       "https://media.giphy.com/media/abc/giphy.gif",
@@ -105,18 +174,20 @@ describe("DirectMessageRoomPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("sends trimmed content to the routed peer", () => {
+  it("sends trimmed content to the routed peer", async () => {
     useAuthStore.getState().setUser({ id: "me-1", locale: "en" });
     render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
 
-    fireEvent.change(screen.getByPlaceholderText("placeholder"), {
+    fireEvent.change(screen.getByPlaceholderText("messagePlaceholder"), {
       target: { value: "  Status checked  " },
     });
     fireEvent.click(screen.getByRole("button", { name: "send" }));
 
-    expect(send.mutate).toHaveBeenCalledWith(
-      { recipientId: "peer-1", content: "Status checked" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    await waitFor(() =>
+      expect(send.mutate).toHaveBeenCalledWith(
+        { recipientId: "peer-1", content: "Status checked", attachments: [] },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      ),
     );
   });
 
@@ -130,8 +201,26 @@ describe("DirectMessageRoomPage", () => {
     expect(document.querySelector('[data-rooms-rail-open="true"]')).toBeInTheDocument();
   });
 
+  it("loads earlier messages without replacing the current conversation", async () => {
+    useAuthStore.getState().setUser({ id: "me-1", locale: "en" });
+    messagesQuery = { ...messagesQuery, hasNextPage: true };
+    render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "loadEarlier" }));
+
+    await waitFor(() => expect(messagesQuery.fetchNextPage).toHaveBeenCalledOnce());
+    expect(screen.getByText("My update")).toBeVisible();
+  });
+
   it("rejects a peer outside the current Team", () => {
     render(<DirectMessageRoomPage teamId="team-1" peerId="unknown" />);
     expect(screen.getByRole("alert")).toHaveTextContent("loadFailed");
+  });
+
+  it("preserves the conversation layout while Team members load", () => {
+    membersQuery = { data: [], isLoading: true, error: null };
+    render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
+
+    expect(screen.getByTestId("conversation-room-skeleton")).toBeInTheDocument();
   });
 });

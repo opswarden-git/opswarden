@@ -139,7 +139,7 @@ test("desktop and mobile navigation expose one current product area", async ({ p
       mobileDestination: "Team settings",
     },
     { path: "/en/teams", current: "Workspace", mobile: "Team directory" },
-    { path: "/en/settings", current: "Account", mobile: "More", mobileDestination: "Settings" },
+    { path: "/en/settings", current: "Account", mobile: "More", mobileDestination: "Account" },
   ];
 
   for (const viewportWidth of [320, 1280]) {
@@ -203,10 +203,20 @@ test("desktop shell exposes Operations, Settings and one current destination", a
     await expect(navigation.getByRole("link", { name: "Team", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Workspace", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Current team: OpsWarden Demo" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();
+    const accountTrigger = page.getByRole("button", { name: "Account", exact: true });
+    await expect(accountTrigger).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText(
       "OpsWarden Demo/Overview",
     );
+
+    await accountTrigger.click();
+    const accountDialog = page.getByRole("dialog", { name: "Account" });
+    await expect(accountDialog).toBeVisible();
+    await expect(accountDialog.getByRole("heading", { name: "Profile" })).toBeVisible();
+    await expect(accountDialog.getByRole("heading", { name: "Preferences" })).toBeVisible();
+    await expect(accountDialog.getByRole("heading", { name: "Account Actions" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(accountDialog).toBeHidden();
 
     const sidebarBox = await page.locator("aside").boundingBox();
     const mainBox = await page.locator("main").boundingBox();
@@ -324,7 +334,7 @@ test("breadcrumb and page actions share one strict desktop rail", async ({ page 
 
     const breadcrumbBox = await page.getByRole("navigation", { name: "Breadcrumb" }).boundingBox();
     const actionBox = await page
-      .getByRole("button", { name: "Declare Incident", exact: true })
+      .getByRole("button", { name: "New incident", exact: true })
       .boundingBox();
     const layoutBox = await page.locator('[data-page-layout="true"]').boundingBox();
 

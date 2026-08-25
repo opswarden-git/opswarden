@@ -85,11 +85,6 @@ pub enum DomainEvent {
         emoji: String,
         user_id: Uuid,
     },
-    UserTyping {
-        team_id: Uuid,
-        incident_id: Uuid,
-        user_id: Uuid,
-    },
     /// An automation rule fired and its reaction succeeded (Phase 2). Carries the
     /// opened incident when the reaction created one (`CreateIncident`), `None`
     /// for side-effect reactions like `Notify`.
@@ -130,6 +125,22 @@ pub enum DomainEvent {
         recipient_id: Uuid,
         content: String,
         at: DateTime<Utc>,
+    },
+    /// A private message body was edited by its original author.
+    PrivateMessageEdited {
+        message_id: Uuid,
+        sender_id: Uuid,
+        recipient_id: Uuid,
+        at: DateTime<Utc>,
+    },
+    /// One participant added or removed an emoji reaction.
+    PrivateMessageReactionChanged {
+        message_id: Uuid,
+        sender_id: Uuid,
+        recipient_id: Uuid,
+        emoji: String,
+        user_id: Uuid,
+        active: bool,
     },
     /// A release step was validated. Team-scoped.
     ReleaseStepValidated {
@@ -173,7 +184,6 @@ impl DomainEvent {
             | DomainEvent::TimelineEntryEdited { team_id, .. }
             | DomainEvent::ReactionAdded { team_id, .. }
             | DomainEvent::ReactionRemoved { team_id, .. }
-            | DomainEvent::UserTyping { team_id, .. }
             | DomainEvent::RuleTriggered { team_id, .. }
             | DomainEvent::RuleFailed { team_id, .. }
             | DomainEvent::MemberKicked { team_id, .. }
@@ -181,6 +191,16 @@ impl DomainEvent {
             | DomainEvent::ReleaseStepValidated { team_id, .. }
             | DomainEvent::ReleaseStateChanged { team_id, .. } => EventDelivery::Team(*team_id),
             DomainEvent::PrivateMessageReceived {
+                sender_id,
+                recipient_id,
+                ..
+            }
+            | DomainEvent::PrivateMessageEdited {
+                sender_id,
+                recipient_id,
+                ..
+            }
+            | DomainEvent::PrivateMessageReactionChanged {
                 sender_id,
                 recipient_id,
                 ..

@@ -8,6 +8,7 @@ import { PageContent, type PageContentState } from "@/components/layout/PageCont
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ReleaseStateChip } from "@/components/releases/ReleaseStateChip";
 import { Alert } from "@/components/ui/Alert";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { useAutomationRules, useAutomationRuns } from "@/lib/queries/automations";
@@ -18,27 +19,123 @@ import { teamPath } from "@/lib/team-routing";
 import { cn, formatRelativeAge } from "@/lib/utils";
 import { OperationsCalendar, type OperationsCalendarEvent } from "./OperationsCalendar";
 
-const previewLimit = 5;
+const previewLimit = 2;
+
+function OverviewSkeleton({ canViewRuns, label }: { canViewRuns: boolean; label: string }) {
+  const sectionCount = canViewRuns ? 3 : 2;
+  return (
+    <div
+      aria-busy="true"
+      aria-label={label}
+      className="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0"
+    >
+      <div
+        className="surface flex min-h-72 flex-col overflow-hidden rounded-md md:min-h-0 md:flex-1"
+        data-skeleton-region="calendar"
+      >
+        <div className="border-border flex items-center gap-3 border-b px-4 py-2">
+          <Skeleton className="mr-auto h-5 w-48" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-10" />
+            <Skeleton className="h-5 w-12" />
+          </div>
+          <div className="flex gap-1">
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+        </div>
+        <div className="min-h-0 overflow-x-auto md:flex-1">
+          <div className="min-w-[760px] md:flex md:h-full md:flex-col">
+            <div className="border-border grid grid-cols-7 border-b">
+              {Array.from({ length: 7 }, (_, index) => (
+                <div key={index} className="flex justify-center px-2 py-2">
+                  <Skeleton className="h-3 w-8" />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 md:min-h-0 md:flex-1 md:grid-rows-6">
+              {Array.from({ length: 42 }, (_, index) => (
+                <div
+                  key={index}
+                  className="border-border min-h-28 border-r border-b p-1.5 last:border-r-0 md:min-h-0"
+                  data-skeleton-calendar-day="true"
+                >
+                  <div className="mb-1 flex h-6 items-center justify-end">
+                    <Skeleton className="h-3 w-5" />
+                  </div>
+                  {index % 7 === 2 || index % 11 === 0 ? (
+                    <Skeleton className="h-5 w-full rounded" />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className={cn(
+          "grid gap-3 md:mt-3 md:shrink-0",
+          canViewRuns ? "md:grid-cols-3" : "md:grid-cols-2",
+        )}
+      >
+        {Array.from({ length: sectionCount }, (_, index) => (
+          <div
+            key={index}
+            className="surface min-w-0 overflow-hidden rounded-md"
+            data-skeleton-region="overview-summary"
+          >
+            <div className="border-border flex items-center justify-between border-b px-4 py-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-3 w-4" />
+              </div>
+              <Skeleton className="h-3 w-10" />
+            </div>
+            {[0, 1].map((row) => (
+              <div key={row} className="border-border border-b px-4 py-2 last:border-b-0">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function OverviewSection({
   children,
   count,
   href,
+  seeAllLabel,
   title,
 }: {
   children: React.ReactNode;
   count: number;
   href: string;
+  seeAllLabel: string;
   title: string;
 }) {
   return (
     <section aria-label={title} className="surface min-w-0 overflow-hidden rounded-md">
-      <header className="border-border border-b px-4 py-3">
-        <Link href={href} className="group inline-flex items-baseline gap-2">
-          <h2 className="text-text group-hover:text-gold text-sm font-semibold transition-colors">
-            {title}
-          </h2>
+      <header className="border-border flex items-center justify-between gap-3 border-b px-4 py-2">
+        <div className="inline-flex min-w-0 items-baseline gap-2">
+          <h2 className="text-text truncate text-sm font-semibold">{title}</h2>
           <span className="text-muted text-xs tabular-nums">{count}</span>
+        </div>
+        <Link
+          href={href}
+          aria-label={`${seeAllLabel}: ${title}`}
+          className="text-muted hover:text-gold shrink-0 text-xs font-medium transition-colors"
+        >
+          {seeAllLabel}
         </Link>
       </header>
       {children}
@@ -104,23 +201,18 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
         : "ready";
 
   return (
-    <PageLayout>
+    <PageLayout fill className="gap-3 md:overflow-hidden md:pb-4">
       <PageContent
+        className="md:min-h-0 md:flex-1"
         state={state}
         loadingFallback={
-          <div
-            className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
-            aria-label={t("loadingOverview")}
-          >
-            {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="surface h-72 animate-pulse rounded-md" />
-            ))}
-          </div>
+          <OverviewSkeleton canViewRuns={canViewRuns} label={t("loadingOverview")} />
         }
         errorFallback={<Alert tone="danger">{t("overviewUnavailable")}</Alert>}
       >
-        <div className="space-y-4">
+        <div className="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0">
           <OperationsCalendar
+            className="md:min-h-0 md:flex-1"
             events={calendarEvents}
             locale={locale}
             labels={{
@@ -141,14 +233,15 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
           />
           <div
             className={cn(
-              "grid items-start gap-4",
-              canViewRuns ? "lg:grid-cols-2 xl:grid-cols-3" : "lg:grid-cols-2",
+              "grid items-start gap-3 md:mt-3 md:shrink-0",
+              canViewRuns ? "md:grid-cols-3" : "md:grid-cols-2",
             )}
           >
             <OverviewSection
               title={t("overviewViews.incidents")}
               count={team?.active_incident_count ?? activeIncidents.length}
               href={teamPath(teamId, "incidents")}
+              seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeIncidents.length ? (
                 <ul className="divide-border divide-y">
@@ -156,7 +249,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                     <li key={incident.id}>
                       <Link
                         href={teamPath(teamId, "incidents", incident.id)}
-                        className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                        className="block px-4 py-2 transition-colors hover:bg-white/[0.04]"
                       >
                         <div className="flex min-w-0 items-start justify-between gap-3">
                           <span className="text-text truncate text-sm font-medium">
@@ -169,7 +262,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                             {formatRelativeAge(incident.created_at, locale)}
                           </time>
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="mt-1.5 flex items-center gap-2">
                           <StateChip status={incident.status} />
                           <SeverityChip severity={incident.severity} />
                         </div>
@@ -178,7 +271,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted px-4 py-8 text-center text-sm">
+                <p className="text-muted px-4 py-6 text-center text-sm">
                   {t("overviewEmpty.incidents")}
                 </p>
               )}
@@ -188,6 +281,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
               title={t("overviewViews.releases")}
               count={team?.active_release_count ?? activeReleases.length}
               href={teamPath(teamId, "releases")}
+              seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeReleases.length ? (
                 <ul className="divide-border divide-y">
@@ -195,7 +289,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                     <li key={release.release_id}>
                       <Link
                         href={teamPath(teamId, "releases", release.release_id)}
-                        className="block px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                        className="block px-4 py-2 transition-colors hover:bg-white/[0.04]"
                       >
                         <div className="flex min-w-0 items-start justify-between gap-3">
                           <span className="text-text truncate text-sm font-medium">
@@ -208,7 +302,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                             {formatRelativeAge(release.created_at, locale)}
                           </time>
                         </div>
-                        <div className="mt-2 flex items-center justify-between gap-3">
+                        <div className="mt-1.5 flex items-center justify-between gap-3">
                           <ReleaseStateChip state={release.state} />
                           <span className="text-muted text-xs tabular-nums">
                             {release.progress.completed}/{release.progress.total}
@@ -219,7 +313,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted px-4 py-8 text-center text-sm">
+                <p className="text-muted px-4 py-6 text-center text-sm">
                   {t("overviewEmpty.releases")}
                 </p>
               )}
@@ -230,11 +324,12 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                 title={t("overviewViews.runs")}
                 count={runs.data?.length ?? 0}
                 href={teamPath(teamId, "runs")}
+                seeAllLabel={t("overviewViews.seeAll")}
               >
                 {runs.data?.length ? (
                   <ul className="divide-border divide-y">
                     {runs.data.slice(0, previewLimit).map((run) => (
-                      <li key={run.id} className="px-4 py-3">
+                      <li key={run.id} className="px-4 py-2">
                         <div className="flex min-w-0 items-start justify-between gap-3">
                           <span className="text-text truncate text-sm font-medium">
                             {run.rule_id
@@ -245,7 +340,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                             {formatRelativeAge(run.started_at, locale)}
                           </time>
                         </div>
-                        <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                        <div className="mt-1.5 flex items-center justify-between gap-3 text-xs">
                           <RunStatus status={run.status} />
                           {run.incident_id ? (
                             <Link
@@ -264,7 +359,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-muted px-4 py-8 text-center text-sm">
+                  <p className="text-muted px-4 py-6 text-center text-sm">
                     {t("overviewEmpty.runs")}
                   </p>
                 )}

@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::domain::capabilities::derive_capabilities;
+use crate::domain::conversation::MessageAttachment;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 #[cfg(test)]
@@ -15,6 +16,7 @@ pub struct AddTimelineEntryCommand {
     pub incident_id: Uuid,
     pub author_id: Uuid,
     pub content: String,
+    pub attachments: Vec<(String, String, Vec<u8>)>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -24,6 +26,7 @@ pub struct AddTimelineEntryResult {
     pub author_id: Uuid,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub attachments: Vec<MessageAttachment>,
 }
 
 pub struct AddTimelineEntryUseCase {
@@ -68,7 +71,12 @@ impl AddTimelineEntryUseCase {
             return Err(DomainError::Forbidden);
         }
 
-        let entry = TimelineEntry::new(cmd.incident_id, cmd.author_id, cmd.content)?;
+        let entry = TimelineEntry::new_with_attachments(
+            cmd.incident_id,
+            cmd.author_id,
+            cmd.content,
+            cmd.attachments,
+        )?;
         self.timeline.append_entry(&entry).await?;
 
         self.events
@@ -88,6 +96,7 @@ impl AddTimelineEntryUseCase {
             author_id: cmd.author_id,
             content: entry.content,
             created_at: entry.created_at,
+            attachments: entry.attachments,
         })
     }
 }
@@ -119,6 +128,7 @@ mod tests {
                 incident_id: incident.id,
                 author_id,
                 content: "Investigating upstream saturation".to_string(),
+                attachments: Vec::new(),
             })
             .await
             .unwrap();
@@ -149,6 +159,7 @@ mod tests {
                 incident_id: incident.id,
                 author_id,
                 content: "I should not be able to post".to_string(),
+                attachments: Vec::new(),
             })
             .await;
 

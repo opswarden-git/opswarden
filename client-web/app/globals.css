@@ -12,6 +12,7 @@
     --ow-border-2: rgb(255 255 255 / 12%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
+    --workspace-max: 90rem;
 
     /* Lifted with --panel-2: at #878b93 the pair fell to 4.41:1. */
     --ow-muted-2: #8f939b;
@@ -82,6 +83,15 @@
   }
 }
 
+/* Conversation actions stay reachable on touch. Fine pointers may reveal them
+   on hover/focus without making the transcript permanently noisy. */
+@media (hover: hover) and (pointer: fine) {
+  [data-conversation-message="true"]:not(:hover):not(:focus-within)
+    [data-conversation-actions="true"] {
+    opacity: 0;
+  }
+}
+
 @layer base {
   body {
     @apply text-text font-sans antialiased;
@@ -120,6 +130,13 @@
 
   .surface-subtle {
     background-color: var(--panel-2);
+  }
+
+  /* One owner for the horizontal geometry shared by breadcrumbs and pages. */
+  .workspace-frame {
+    width: 100%;
+    max-width: var(--workspace-max);
+    margin-inline: auto;
   }
 
   .ow-input {

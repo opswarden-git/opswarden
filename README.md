@@ -97,16 +97,19 @@ native desktop behavior without introducing a second application architecture.
 
 ### Collaboration limits
 
-The server owns these values; clients read them rather than hard-coding them.
+The server owns and enforces these values. Clients mirror attachment limits for
+early feedback; server validation remains authoritative.
 
-| Rule                          | Value                                                              | Served by                    |
-| ----------------------------- | ------------------------------------------------------------------ | ---------------------------- |
-| Timeline reaction set         | 👍 👀 ✅ 🚨 ❤️ 🎉 — six emojis, anything else is rejected          | `GET /reactions/available`   |
-| Private message length        | 2 000 characters, enforced server-side                             | `POST /api/private-messages` |
-| Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                |
+| Rule                          | Value                                                              | Served by                                         |
+| ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------- |
+| Timeline reaction set         | 👍 👀 ✅ 🚨 ❤️ 🎉 — six emojis, anything else is rejected          | `GET /reactions/available`                        |
+| Conversation text length      | 2 000 characters                                                   | Incident timeline and private-message POST routes |
+| Attachments per message       | 4 files; 5 MiB each; 10 MiB combined                               | Incident timeline and private-message POST routes |
+| Attachment media policy       | Download-only allowlist; active HTML is rejected                   | Incident timeline and private-message POST routes |
+| Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                                     |
 
-Reactions apply to Incident timeline entries only — not to Release step
-validations and not to private messages.
+Reactions apply to Incident timeline entries and private messages, never to
+Release step validations.
 
 ## For developers
 

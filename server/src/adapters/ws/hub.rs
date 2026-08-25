@@ -7,27 +7,26 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
-use super::protocol::{cursor_wire, presence_wire, team_presence_wire, to_wire};
+use super::hub_rooms::{broadcast_room_presence, RoomKey};
+use super::protocol::{cursor_wire, team_presence_wire, to_wire};
 use crate::domain::event::{DomainEvent, EventDelivery};
 use crate::ports::EventPublisher;
 
 pub type ConnectionId = Uuid;
 
-struct Connection {
-    user_id: Uuid,
+pub(super) struct Connection {
+    pub(super) user_id: Uuid,
     teams: HashSet<Uuid>,
     /// Incidents this connection is currently watching (presence). Ephemeral.
-    watching: HashSet<Uuid>,
-    tx: UnboundedSender<String>,
+    /// Incident and bilateral rooms actively open on this connection.
+    pub(super) rooms: HashSet<RoomKey>,
+    pub(super) tx: UnboundedSender<String>,
 }
 
-/// In-memory registry of live WebSocket connections. Implements `EventPublisher`
-/// by fanning a domain event out to every connection whose user belongs to the
-/// event's team. Ephemeral by design: presence and routing state live here, not
-/// in the database.
+/// In-memory registry of live WebSocket connections and presence.
 #[derive(Default)]
 pub struct WsHub {
-    connections: Mutex<HashMap<ConnectionId, Connection>>,
+    pub(super) connections: Mutex<HashMap<ConnectionId, Connection>>,
 }
 
 impl WsHub {
@@ -50,7 +49,7 @@ impl WsHub {
             Connection {
                 user_id,
                 teams,
-                watching: HashSet::new(),
+                rooms: HashSet::new(),
                 tx,
             },
         );
@@ -69,8 +68,8 @@ impl WsHub {
             // The connection is already gone from the map, so rebroadcasting now
             // naturally drops it from every incident's watcher list and from each
             // of its teams' online rosters.
-            for incident_id in conn.watching {
-                broadcast_presence(&conns, incident_id);
+            for room in conn.rooms {
+                broadcast_room_presence(&conns, room);
             }
             for team_id in conn.teams {
                 broadcast_team_presence(&conns, team_id);
@@ -96,28 +95,6 @@ impl WsHub {
         }
     }
 
-    /// Mark a connection as watching an incident and notify the co-watchers.
-    pub fn watch(&self, conn_id: ConnectionId, incident_id: Uuid) {
-        let mut conns = self.connections.lock().unwrap();
-        let changed = conns
-            .get_mut(&conn_id)
-            .is_some_and(|c| c.watching.insert(incident_id));
-        if changed {
-            broadcast_presence(&conns, incident_id);
-        }
-    }
-
-    /// Stop watching an incident and notify the remaining co-watchers.
-    pub fn unwatch(&self, conn_id: ConnectionId, incident_id: Uuid) {
-        let mut conns = self.connections.lock().unwrap();
-        let changed = conns
-            .get_mut(&conn_id)
-            .is_some_and(|c| c.watching.remove(&incident_id));
-        if changed {
-            broadcast_presence(&conns, incident_id);
-        }
-    }
-
     /// Relay a pointer only when its connection already watches the incident.
     /// The authorized `watch` command therefore remains the single admission
     /// gate, while high-frequency pointer frames never hit the database.
@@ -133,12 +110,13 @@ impl WsHub {
         let Some(source) = conns.get(&conn_id) else {
             return;
         };
-        if !source.watching.contains(&incident_id) {
+        let room = RoomKey::Incident(incident_id);
+        if !source.rooms.contains(&room) {
             return;
         }
         let payload = cursor_wire(incident_id, source.user_id, x, y);
         for (recipient_id, conn) in conns.iter() {
-            if *recipient_id != conn_id && conn.watching.contains(&incident_id) {
+            if *recipient_id != conn_id && conn.rooms.contains(&room) {
                 let _ = conn.tx.send(payload.clone());
             }
         }
@@ -147,26 +125,6 @@ impl WsHub {
     #[cfg(test)]
     pub fn connection_count(&self) -> usize {
         self.connections.lock().unwrap().len()
-    }
-}
-
-/// Send a `presence_update` for `incident_id` to every connection watching it.
-/// The watcher list is the *distinct* users currently watching (a user with two
-/// tabs counts once). Called while holding the connections lock.
-fn broadcast_presence(conns: &HashMap<ConnectionId, Connection>, incident_id: Uuid) {
-    let mut watchers: Vec<Uuid> = conns
-        .values()
-        .filter(|c| c.watching.contains(&incident_id))
-        .map(|c| c.user_id)
-        .collect();
-    watchers.sort();
-    watchers.dedup();
-
-    let payload = presence_wire(incident_id, "incident", &watchers);
-    for conn in conns.values() {
-        if conn.watching.contains(&incident_id) {
-            let _ = conn.tx.send(payload.clone());
-        }
     }
 }
 
