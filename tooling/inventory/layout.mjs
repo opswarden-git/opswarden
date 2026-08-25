@@ -240,7 +240,6 @@ title: ${titleEn}
 
 <div class="inventory-doc">
   <header class="inventory-heading">
-    <p class="inventory-kicker">Generated inventory</p>
     <h1>${escape(titleEn)}</h1>
     <p class="intro">${escape(introEn)}</p>
   </header>
