@@ -131,7 +131,7 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
-For a deep dive into setup, configuration, and advanced development commands, be sure to check out our comprehensive **[Technical documentation](https://opswarden-git.github.io/opswarden/)**. It includes everything from architectural decisions and our [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) to the complete [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
+For a deep dive into setup, configuration, and advanced development commands, see the [technical documentation](https://opswarden-git.github.io/opswarden/). It includes everything from architectural decisions and the [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) to the complete [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
@@ -144,7 +144,7 @@ For a deep dive into setup, configuration, and advanced development commands, be
   <img src="https://api.iconify.design/simple-icons/githubactions.svg" height="25" alt="GitHub Actions" />
 </p>
 
-When it comes to production deployment, we take infrastructure seriously. The **[`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops)** repository houses all of our cloud and observability engineering. We rely on modern tooling to keep the platform reliable and observable:
+When it comes to production deployment, we take infrastructure seriously. The [`opswarden-ops`](https://github.com/opswarden-git/opswarden-ops) repository houses all of our cloud and observability engineering. We rely on modern tooling to keep the platform reliable and observable:
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kubernetes/kubernetes-plain.svg" height="25" alt="Kubernetes" />
@@ -158,7 +158,7 @@ When it comes to production deployment, we take infrastructure seriously. The **
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nixos/nixos-original.svg" height="25" alt="NixOS" />
 </p>
 
-Finally, if you're looking for our public-facing presentation, you can find the Next.js source code for our landing page in the **[`opswarden-website`](https://github.com/opswarden-git/opswarden-website)** repository.
+Finally, if you're looking for our public-facing presentation, you can find the Next.js source code for our landing page in the [`opswarden-website`](https://github.com/opswarden-git/opswarden-website) repository.
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" height="25" alt="Next.js" />
@@ -173,7 +173,7 @@ Finally, if you're looking for our public-facing presentation, you can find the 
 
 Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
 
-See [HOWTOCONTRIBUTE.md](HOWTOCONTRIBUTE.md) for the contribution workflow. The
+See the [contribution guide](HOWTOCONTRIBUTE.md) for the contribution workflow. The
 executable source-hygiene, migration and container-pin policies are enforced by
 the required CI gate.
 
