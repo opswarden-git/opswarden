@@ -39,44 +39,53 @@ function messages(locale: string): Record<string, unknown> {
 }
 
 /**
- * Measured 2026-08-04, per locale rather than through a multiplier: French runs
+ * Measured 2026-08-04 and deliberately re-measured 2026-08-24 after restoring
+ * actionable messaging errors and giving each conversation surface ownership
+ * of its visible labels. Per locale rather than through a multiplier: French runs
  * 30% heavier than English overall, and unevenly — 8% on DirectMessages, 65% on
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
+ *
+ * `Common` rises once here, on purpose: the nine GIPHY picker strings moved out
+ * of `Incidents` into the shared namespace they are actually rendered from, and
+ * the two that had been copied into `DirectMessages` collapsed back into one
+ * entry. The interface carries three fewer English words and four fewer French
+ * ones than before the move — a raise on one namespace, not on the budget.
+ * `Teams` adds the explicit self label used in the actionable presence list.
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 422,
-    Incidents: 335,
-    errors: 331,
-    Automations: 311,
-    Releases: 224,
+    Teams: 329,
+    Incidents: 293,
+    errors: 335,
+    Automations: 294,
+    Releases: 219,
     Onboarding: 48,
-    Settings: 102,
+    Settings: 100,
     Auth: 31,
-    DirectMessages: 26,
+    DirectMessages: 56,
     Notifications: 23,
     Sidebar: 26,
-    TeamSwitcher: 12,
+    TeamSwitcher: 11,
     Metadata: 7,
-    Common: 3,
+    Common: 29,
     Index: 3,
   },
   fr: {
-    Teams: 527,
-    Incidents: 436,
-    errors: 411,
-    Automations: 424,
-    Releases: 281,
+    Teams: 401,
+    Incidents: 402,
+    errors: 417,
+    Automations: 417,
+    Releases: 280,
     Onboarding: 66,
-    Settings: 129,
+    Settings: 127,
     Auth: 39,
-    DirectMessages: 28,
+    DirectMessages: 71,
     Notifications: 38,
     Sidebar: 38,
-    TeamSwitcher: 17,
+    TeamSwitcher: 16,
     Metadata: 11,
-    Common: 5,
+    Common: 43,
     Index: 3,
   },
 };

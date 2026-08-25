@@ -5,6 +5,7 @@ pub mod create_incident;
 pub mod delete_incident;
 pub mod edit_timeline_entry;
 pub mod get_incident;
+pub mod get_timeline_attachment;
 pub mod list_activity;
 pub mod list_incidents;
 pub mod toggle_timeline_reaction;
@@ -22,6 +23,7 @@ pub use edit_timeline_entry::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
 };
 pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
+pub use get_timeline_attachment::GetTimelineAttachmentUseCase;
 pub use list_activity::{
     IncidentActivityItem, ListIncidentActivityCommand, ListIncidentActivityResult,
     ListIncidentActivityUseCase, ReactionSummary, DEFAULT_ACTIVITY_LIMIT, MAX_ACTIVITY_LIMIT,
@@ -36,7 +38,7 @@ pub use toggle_timeline_reaction::{
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::sync::Mutex;
 
     use async_trait::async_trait;
@@ -300,6 +302,7 @@ pub(crate) mod tests {
         async fn list_events_for_incident(
             &self,
             incident_id: Uuid,
+            before: Option<crate::ports::ActivityCursor>,
             limit: u32,
         ) -> Result<Vec<IncidentEvent>, DomainError> {
             let mut events: Vec<_> = self
@@ -308,6 +311,7 @@ pub(crate) mod tests {
                 .unwrap()
                 .iter()
                 .filter(|event| event.incident_id == incident_id)
+                .filter(|event| before.is_none_or(|cursor| (event.created_at, event.id) < cursor))
                 .cloned()
                 .collect();
             events.sort_by_key(|event| std::cmp::Reverse((event.created_at, event.id)));
@@ -345,8 +349,15 @@ pub(crate) mod tests {
     #[derive(Default)]
     pub struct MockTimelineRepo {
         pub appended: Mutex<Vec<TimelineEntry>>,
+        pub attachment_members: Mutex<HashSet<Uuid>>,
         /// (entry_id, user_id, emoji) — the unique-per-tuple reaction store.
         pub reactions: Mutex<Vec<(Uuid, Uuid, String)>>,
+    }
+
+    impl MockTimelineRepo {
+        pub fn allow_attachment_member(&self, user_id: Uuid) {
+            self.attachment_members.lock().unwrap().insert(user_id);
+        }
     }
 
     #[async_trait]
@@ -359,6 +370,7 @@ pub(crate) mod tests {
         async fn list_entries_for_incident(
             &self,
             incident_id: Uuid,
+            before: Option<crate::ports::ActivityCursor>,
             limit: u32,
         ) -> Result<Vec<TimelineEntry>, DomainError> {
             let mut entries: Vec<_> = self
@@ -367,9 +379,10 @@ pub(crate) mod tests {
                 .unwrap()
                 .iter()
                 .filter(|entry| entry.incident_id == incident_id)
+                .filter(|entry| before.is_none_or(|cursor| (entry.created_at, entry.id) < cursor))
                 .cloned()
                 .collect();
-            entries.reverse();
+            entries.sort_by_key(|entry| std::cmp::Reverse((entry.created_at, entry.id)));
             entries.truncate(limit as usize);
             Ok(entries)
         }
@@ -457,6 +470,24 @@ pub(crate) mod tests {
                     emoji: emoji.clone(),
                 })
                 .collect())
+        }
+
+        async fn find_attachment_for_member(
+            &self,
+            attachment_id: Uuid,
+            user_id: Uuid,
+        ) -> Result<Option<crate::domain::conversation::MessageAttachment>, DomainError> {
+            if !self.attachment_members.lock().unwrap().contains(&user_id) {
+                return Ok(None);
+            }
+            Ok(self
+                .appended
+                .lock()
+                .unwrap()
+                .iter()
+                .flat_map(|entry| entry.attachments.iter())
+                .find(|attachment| attachment.id == attachment_id)
+                .cloned())
         }
     }
 }

@@ -127,11 +127,7 @@ fn cursor_update_wire_shape() {
 fn user_typing_wire_shape() {
     let incident_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
-    let v = parse(&DomainEvent::UserTyping {
-        team_id: Uuid::new_v4(),
-        incident_id,
-        user_id,
-    });
+    let v: Value = serde_json::from_str(&user_typing_wire(incident_id, user_id)).unwrap();
     assert_eq!(v["type"], "user_typing");
     assert_eq!(v["incident_id"], incident_id.to_string());
     assert_eq!(v["user_id"], user_id.to_string());
@@ -279,6 +275,55 @@ fn private_message_received_is_flat_with_unix_time() {
     assert_eq!(v["at"], at.timestamp());
     assert!(v.get("message").is_none());
     assert!(!v.to_string().contains(&message_id.to_string()));
+}
+
+#[test]
+fn private_message_presence_and_typing_are_flat_and_scoped() {
+    let (alice, bob) = (Uuid::new_v4(), Uuid::new_v4());
+    let presence: serde_json::Value =
+        serde_json::from_str(&private_message_presence_wire([alice, bob], &[alice])).unwrap();
+    assert_eq!(presence["type"], "private_message_presence");
+    assert_eq!(presence["participants"], serde_json::json!([alice, bob]));
+    assert_eq!(presence["watchers"], serde_json::json!([alice]));
+
+    let typing: serde_json::Value =
+        serde_json::from_str(&private_message_typing_wire(alice, bob)).unwrap();
+    assert_eq!(typing["type"], "private_message_typing");
+    assert_eq!(typing["from"], alice.to_string());
+    assert_eq!(typing["to"], bob.to_string());
+}
+
+#[test]
+fn private_message_mutations_have_stable_wire_contracts() {
+    let (message_id, from, to, by) = (
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+    );
+    let at = Utc::now();
+    let edited = parse(&DomainEvent::PrivateMessageEdited {
+        message_id,
+        sender_id: from,
+        recipient_id: to,
+        at,
+    });
+    assert_eq!(edited["type"], "private_message_edited");
+    assert_eq!(edited["message_id"], message_id.to_string());
+    assert_eq!(edited["at"], at.timestamp());
+
+    let reaction = parse(&DomainEvent::PrivateMessageReactionChanged {
+        message_id,
+        sender_id: from,
+        recipient_id: to,
+        emoji: "✅".into(),
+        user_id: by,
+        active: true,
+    });
+    assert_eq!(reaction["type"], "private_message_reaction_changed");
+    assert_eq!(reaction["emoji"], "✅");
+    assert_eq!(reaction["by"], by.to_string());
+    assert_eq!(reaction["active"], true);
 }
 
 #[test]

@@ -27,7 +27,7 @@ export function RailToggle({
         className,
       )}
     >
-      <Icon className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
+      <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
 }

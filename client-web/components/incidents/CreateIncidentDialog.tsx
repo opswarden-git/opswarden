@@ -37,7 +37,7 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
       onOpenChange={setOpen}
       trigger={
         <Button disabled={!teamId} variant="danger">
-          {t("declareIncident")}
+          {t("newIncident")}
         </Button>
       }
       title={t("declareTitle")}

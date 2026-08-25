@@ -25,9 +25,10 @@ afterEach(() => {
   vi.unstubAllEnvs();
   useAuthStore.getState().logout();
   useWsStore.setState({
-    watchersByIncident: {},
+    watchersByRoom: {},
+    typingByRoom: {},
     cursorsByIncident: {},
-    activeWatches: [],
+    activeRooms: [],
     sendJson: () => {},
   });
 });
@@ -81,7 +82,10 @@ describe("WebSocket contract consumers", () => {
       queryClient,
     );
 
-    expect(useWsStore.getState().watchersByIncident["incident-1"]).toEqual(["user-1", "user-2"]);
+    expect(useWsStore.getState().watchersByRoom["incident:incident-1"]).toEqual([
+      "user-1",
+      "user-2",
+    ]);
   });
 
   it("refreshes a peer roster after a kick", () => {
@@ -146,6 +150,36 @@ describe("WebSocket contract consumers", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["private-messages", "peer"],
     });
+  });
+
+  it("tracks a bilateral room and emits symmetric watch commands", () => {
+    const sendJson = vi.fn();
+    useWsStore.setState({ sendJson });
+
+    const room = { kind: "direct" as const, id: "peer" };
+    useWsStore.getState().watchRoom(room);
+    useWsStore.getState().watchRoom(room);
+    expect(useWsStore.getState().activeRooms).toEqual([room]);
+    expect(sendJson).toHaveBeenCalledWith({ type: "watch_private_message", peer_id: "peer" });
+
+    useWsStore.getState().unwatchRoom(room);
+    expect(useWsStore.getState().activeRooms).toEqual([]);
+    expect(sendJson).toHaveBeenLastCalledWith({
+      type: "unwatch_private_message",
+      peer_id: "peer",
+    });
+  });
+
+  it("deduplicates and expires private typing presence", () => {
+    vi.useFakeTimers();
+    const room = { kind: "direct" as const, id: "peer" };
+    useWsStore.getState().addRoomTypingUser(room, "peer");
+    useWsStore.getState().addRoomTypingUser(room, "peer");
+    expect(useWsStore.getState().typingByRoom["direct:peer"]).toEqual(["peer"]);
+
+    vi.advanceTimersByTime(3_000);
+    expect(useWsStore.getState().typingByRoom["direct:peer"]).toEqual([]);
+    vi.useRealTimers();
   });
 
   it("consumes the canonical successful-rule result fields", () => {

@@ -146,18 +146,19 @@ describe("TeamOverviewPage", () => {
     expect(screen.getByText("Open production incident")).toBeInTheDocument();
     expect(screen.getByRole("grid", { name: /calendar\.label/ })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "overviewViewsLabel" })).toBeNull();
-    expect(screen.getByRole("link", { name: /overviewViews\.incidents\s+1/ })).toHaveAttribute(
-      "href",
-      "/teams/team-1/incidents",
-    );
-    expect(screen.getByRole("link", { name: /overviewViews\.releases\s+1/ })).toHaveAttribute(
-      "href",
-      "/teams/team-1/releases",
-    );
-    expect(screen.getByRole("link", { name: /overviewViews\.runs\s+1/ })).toHaveAttribute(
-      "href",
-      "/teams/team-1/runs",
-    );
+    expect(
+      screen.getByRole("link", {
+        name: "overviewViews.seeAll: overviewViews.incidents",
+      }),
+    ).toHaveAttribute("href", "/teams/team-1/incidents");
+    expect(
+      screen.getByRole("link", {
+        name: "overviewViews.seeAll: overviewViews.releases",
+      }),
+    ).toHaveAttribute("href", "/teams/team-1/releases");
+    expect(
+      screen.getByRole("link", { name: "overviewViews.seeAll: overviewViews.runs" }),
+    ).toHaveAttribute("href", "/teams/team-1/runs");
   });
 
   it("keeps automation runs out of roles that cannot manage them", () => {
@@ -171,7 +172,9 @@ describe("TeamOverviewPage", () => {
   it("renders explicit loading and error boundaries", () => {
     loading = true;
     const view = render(<TeamOverviewPage teamId="team-1" />);
-    expect(screen.getByLabelText("loadingOverview")).toBeInTheDocument();
+    const skeleton = screen.getByLabelText("loadingOverview");
+    expect(skeleton.querySelectorAll('[data-skeleton-calendar-day="true"]')).toHaveLength(42);
+    expect(skeleton.querySelectorAll('[data-skeleton-region="overview-summary"]')).toHaveLength(3);
     view.unmount();
 
     loading = false;

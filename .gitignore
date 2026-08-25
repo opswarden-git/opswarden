@@ -23,6 +23,7 @@ next-env.d.ts
 
 # Agent brief + tooling — contexte local pour les IA, hors git.
 AGENTS.md
+CLAUDE.md
 .agents/
 .codex/
 
@@ -34,3 +35,6 @@ result-*
 # Generated tooling output
 /tooling/health_report.md
 site/
+
+# Inventaire genere : reproductible par `just inventory`, jamais commite.
+/tooling/inventory/dist/

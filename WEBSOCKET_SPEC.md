@@ -2,7 +2,7 @@
 
 This document is the canonical contract between the Rust server, the web
 client, and the desktop client. It describes the protocol implemented on
-24 July 2026.
+24 August 2026.
 
 ## Conventions
 
@@ -99,6 +99,21 @@ Reloads the authenticated user's memberships from persistent storage and
 replaces the connection's routing and authorization scope. The client sends it
 after a create, join, leave, kick, ban, or delete operation that can make the
 cached scope stale.
+
+### Direct-message rooms
+
+```json
+{ "type": "watch_private_message", "peer_id": "<uuid>" }
+{ "type": "unwatch_private_message", "peer_id": "<uuid>" }
+{ "type": "private_message_typing", "peer_id": "<uuid>" }
+```
+
+`watch_private_message` joins the bilateral room formed by the authenticated
+user and `peer_id`; `unwatch_private_message` leaves it. The pair is normalized,
+so reversing the two users cannot create another room. Both users must be
+distinct and currently share a Team. Watching emits `private_message_presence`
+to that pair. Typing is ephemeral, authorized against the same pair and never
+persisted.
 
 ## Delivery scopes
 
@@ -217,6 +232,48 @@ The event is emitted after a message between two distinct users sharing at
 least one team is validated and persisted. It is delivered through the Users
 scope to exactly the sender and recipient, including all of their live
 connections. Co-members and other team connections receive nothing.
+
+The remaining direct-message frames are also delivered only to the normalized
+sender/recipient pair:
+
+```json
+{
+  "type": "private_message_presence",
+  "participants": ["<normalized-uuid-a>", "<normalized-uuid-b>"],
+  "watchers": ["<uuid>"]
+}
+```
+
+```json
+{ "type": "private_message_typing", "from": "<uuid>", "to": "<uuid>" }
+```
+
+```json
+{
+  "type": "private_message_edited",
+  "message_id": "<uuid>",
+  "from": "<uuid>",
+  "to": "<uuid>",
+  "at": 1784901600
+}
+```
+
+```json
+{
+  "type": "private_message_reaction_changed",
+  "message_id": "<uuid>",
+  "from": "<uuid>",
+  "to": "<uuid>",
+  "emoji": "✅",
+  "by": "<uuid>",
+  "active": true
+}
+```
+
+Presence changes when a participant watches, leaves, or disconnects. Typing
+expires client-side. Edit and reaction frames are emitted only after their
+authorized mutations have persisted. They are invalidation signals: REST owns
+message bodies, attachment metadata and aggregate reaction state.
 
 ### Release events
 

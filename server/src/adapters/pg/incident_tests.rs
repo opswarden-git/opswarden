@@ -96,7 +96,7 @@ async fn incident_and_initial_event_are_committed_together(pool: PgPool) {
         .unwrap();
 
     let events = repo
-        .list_events_for_incident(incident.id, 10)
+        .list_events_for_incident(incident.id, None, 10)
         .await
         .unwrap();
     assert_eq!(events.len(), 1);

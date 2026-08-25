@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Dialog, DialogClose } from "./Dialog";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,43 @@ export type CollectionFilterOption = {
   label: string;
   value: string;
 };
+
+export function CollectionSearch({
+  initialValue,
+  label,
+  onCommit,
+  placeholder,
+}: {
+  initialValue: string;
+  label: string;
+  onCommit: (value: string) => void;
+  placeholder: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (value === initialValue) return;
+    const timer = window.setTimeout(() => onCommit(value), 250);
+    return () => window.clearTimeout(timer);
+  }, [initialValue, onCommit, value]);
+
+  return (
+    <label className="relative max-w-72 min-w-52 flex-1">
+      <span className="sr-only">{label}</span>
+      <Search
+        className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder={placeholder}
+        className="ow-input placeholder:text-muted-2 h-9 w-full rounded-md pr-3 pl-9 text-sm outline-none"
+      />
+    </label>
+  );
+}
 
 export function TableFilterControl({
   activeLabel,

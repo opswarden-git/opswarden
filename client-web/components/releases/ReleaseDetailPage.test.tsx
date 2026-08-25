@@ -31,7 +31,12 @@ vi.mock("@/i18n/routing", () => ({
   ),
 }));
 vi.mock("./ReleaseDetail", () => ({
-  ReleaseDetail: ({ release }: { release: Release }) => <div>detail:{release.title}</div>,
+  ReleaseDetail: ({ release, onCancel }: { release: Release; onCancel?: () => void }) => (
+    <div>
+      detail:{release.title}
+      {onCancel ? <button onClick={onCancel}>cancelRelease</button> : null}
+    </div>
+  ),
 }));
 
 const team = {
@@ -100,7 +105,7 @@ describe("ReleaseDetailPage", () => {
     render(<ReleaseDetailPage teamId="team-1" releaseId="release-1" />);
 
     expect(screen.getByRole("heading", { name: "Production deployment" })).toBeInTheDocument();
-    expect(screen.getByText("progressCount:1:2")).toBeInTheDocument();
+    expect(screen.getByText(/createdOn:/)).toBeInTheDocument();
     expect(screen.getByText("detail:Production deployment")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "cancelRelease" }));
     expect(cancelRelease.reset).toHaveBeenCalled();
@@ -122,7 +127,7 @@ describe("ReleaseDetailPage", () => {
   it("renders loading and error boundaries", () => {
     loading = true;
     const pending = render(<ReleaseDetailPage teamId="team-1" releaseId="release-1" />);
-    expect(pending.container.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(screen.getByTestId("release-detail-skeleton")).toBeInTheDocument();
     pending.unmount();
 
     loading = false;

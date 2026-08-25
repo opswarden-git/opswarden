@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/Button";
 import { TableFilterControl } from "@/components/ui/CollectionControls";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { MemberAvatar } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
@@ -32,6 +33,44 @@ import { RoleChip } from "./RoleChip";
 type Dialog = "makeManager" | "kick" | "ban" | null;
 type BanDuration = "permanent" | "1h" | "24h" | "7d";
 type RoleFilter = "all" | "manager" | "responder" | "observer";
+
+export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="divide-border divide-y" aria-busy="true" data-testid="team-roster-skeleton">
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
+        >
+          <div className="flex items-start justify-between gap-3 md:contents">
+            <div className="flex items-center gap-3 md:contents">
+              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+              <div className="min-w-0 md:hidden">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="mt-1 h-3 w-16" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-16 shrink-0 md:hidden" />
+          </div>
+
+          <div className="hidden min-w-0 md:block">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-1 h-3 w-32" />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 md:contents">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-4 w-24 md:hidden" />
+          </div>
+
+          <div className="hidden items-center gap-1 md:flex">
+            <Skeleton className="h-8 w-16" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function durationToBan(duration: BanDuration): BanKindInput {
   if (duration === "permanent") return { kind: "permanent" };
@@ -148,39 +187,7 @@ export function TeamRoster({ team }: { team: Team }) {
           ) : null}
 
           {isLoading ? (
-            <div className="divide-border divide-y">
-              {[0, 1, 2].map((index) => (
-                <div
-                  key={index}
-                  className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
-                >
-                  <div className="flex items-start justify-between gap-3 md:contents">
-                    <div className="flex items-center gap-3 md:contents">
-                      <div className="bg-muted/20 h-9 w-9 shrink-0 animate-pulse rounded-full" />
-                      <div className="min-w-0 md:hidden">
-                        <div className="bg-muted/20 h-4 w-32 animate-pulse rounded" />
-                        <div className="bg-muted/20 mt-1 h-3 w-16 animate-pulse rounded" />
-                      </div>
-                    </div>
-                    <div className="bg-muted/20 h-8 w-16 shrink-0 animate-pulse rounded md:hidden" />
-                  </div>
-
-                  <div className="hidden min-w-0 md:block">
-                    <div className="bg-muted/20 h-4 w-48 animate-pulse rounded" />
-                    <div className="bg-muted/20 mt-1 h-3 w-32 animate-pulse rounded" />
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 md:contents">
-                    <div className="bg-muted/20 h-5 w-20 animate-pulse rounded-full" />
-                    <div className="bg-muted/20 h-4 w-24 animate-pulse rounded md:hidden" />
-                  </div>
-
-                  <div className="hidden items-center gap-1 md:flex">
-                    <div className="bg-muted/20 h-8 w-16 animate-pulse rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TeamRosterRowsSkeleton />
           ) : error ? (
             <Alert tone="danger" className="m-4">
               {t("membersFailed")}
@@ -301,7 +308,7 @@ export function TeamRoster({ team }: { team: Team }) {
               </Alert>
             ) : null}
             {bans.isLoading ? (
-              <div className="text-muted px-5 py-4 text-sm">{t("loadingBans")}</div>
+              <TeamRosterRowsSkeleton rows={1} />
             ) : visibleBans.length === 0 ? (
               <div className="text-muted px-1 py-3 text-sm">
                 {query ? t("noMatchingBans") : t("noBansInView")}

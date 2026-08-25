@@ -99,15 +99,21 @@ export function ReleaseTableSkeleton() {
         aria-busy="true"
       >
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="animate-pulse space-y-3 px-4 py-4">
+          <div key={index} className="animate-pulse px-4 py-4">
             <span className="bg-panel-2 block h-4 w-3/4 rounded" />
-            <span className="bg-panel-2 block h-5 w-16 rounded-full" />
-            <span className="bg-panel-2 block h-3 w-24 rounded" />
-            <div className="flex gap-2">
-              <span className="bg-panel-2 block h-4 w-1/3 rounded" />
-              <span className="bg-panel-2 block h-4 w-1/4 rounded" />
+            <span className="bg-panel-2 mt-3 block h-5 w-20 rounded-full" />
+            <div className="mt-3 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
+              <span className="bg-panel-2 block h-3 w-16 rounded" />
+              <span className="bg-panel-2 block h-4 w-3/4 rounded" />
             </div>
-            <span className="bg-panel-2 block h-4 w-1/2 rounded" />
+            <div className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
+              <span className="bg-panel-2 block h-3 w-16 rounded" />
+              <span className="bg-panel-2 block h-4 w-1/2 rounded" />
+            </div>
+            <div className="mt-2 grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
+              <span className="bg-panel-2 block h-3 w-10 rounded" />
+              <span className="bg-panel-2 block h-4 w-20 rounded" />
+            </div>
           </div>
         ))}
       </div>

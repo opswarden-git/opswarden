@@ -16,6 +16,7 @@ function note(offsetMs: number, authorId: string | null, content = "note"): Inci
     content,
     created_at: at(offsetMs),
     edited_at: null,
+    attachments: [],
     reactions: [],
   };
 }

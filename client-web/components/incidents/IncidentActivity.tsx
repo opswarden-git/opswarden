@@ -1,28 +1,25 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { CircleDot, Pencil, SmilePlus } from "lucide-react";
+import React from "react";
+import { CircleDot } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   type IncidentActivityItem,
   type IncidentSeverity,
   type IncidentStatus,
-  type TimelineReaction,
   useAddTimelineEntry,
   useAvailableReactions,
-  useEditTimelineEntry,
   useIncidentActivity,
-  useToggleTimelineReaction,
 } from "@/lib/queries/incidents";
 import { useAuthStore } from "@/store/auth";
 import { useCollaboratorCursors, useTypingUsers, useWsStore } from "@/lib/ws";
-import { giphyEntryUrl } from "@/lib/queries/gifs";
 import { Alert } from "@/components/ui/Alert";
-import { Button, IconButton } from "@/components/ui/Button";
 import { ConversationComposer } from "@/components/messages/ConversationComposer";
-import { ReactionToggle } from "@/components/ui/ReactionToggle";
-import { cn } from "@/lib/utils";
-import { resolveGrouping } from "./activity-grouping";
+import { ConversationTranscript } from "@/components/messages/ConversationTranscript";
+import { ConversationTranscriptSkeleton } from "@/components/messages/ConversationTranscriptSkeleton";
+import { hasConversationFeature, serializeConversationAttachments } from "@/lib/conversations";
+import { useConversationTyping } from "@/lib/useConversationRoom";
+import { groupsWithPrevious } from "./activity-grouping";
 import { HumanNoteItem } from "./HumanNoteItem";
 import { SeverityChip } from "./SeverityChip";
 import { StateChip } from "./StateChip";
@@ -118,40 +115,53 @@ function SystemEventItem({
   );
 }
 
-function localDayKey(value: string) {
-  const date = new Date(value);
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
 function ActivityComposer({
+  allowAttachments,
   incidentId,
   people,
 }: {
+  allowAttachments: boolean;
   incidentId: string;
   people: Record<string, string>;
 }) {
   const t = useTranslations("Incidents");
+  const tCommon = useTranslations("Common");
   const addEntry = useAddTimelineEntry();
+  const [encodingError, setEncodingError] = React.useState("");
   const typingUsers = useTypingUsers(incidentId);
-  const sendJson = useWsStore((state) => state.sendJson);
-  const lastTypingTime = useRef(0);
+  const signalTyping = useConversationTyping({ kind: "incident", id: incidentId });
 
   return (
     <ConversationComposer
+      allowAttachments={allowAttachments}
+      attachmentLabel={t("attachFiles")}
+      attachmentRemoveLabel={t("removeAttachment")}
+      attachmentRejectedText={t("attachmentRejected")}
       inputLabel={t("addNote")}
-      placeholder={t("addNotePlaceholder")}
+      placeholder={tCommon("messagePlaceholder")}
       sendLabel={t("send")}
-      gifLabel={t("gifButton")}
-      gifText={t("gifAlt")}
+      gifLabel={tCommon("gifButton")}
+      gifText={tCommon("gifAlt")}
       pending={addEntry.isPending}
+      error={
+        addEntry.error || encodingError ? (
+          <p className="text-sev-critical text-xs" role="alert">
+            {encodingError || t("actionFailed")}
+          </p>
+        ) : null
+      }
       onChange={() => {
-        const now = Date.now();
-        if (now - lastTypingTime.current > 1500) {
-          sendJson({ type: "status_typing", incident_id: incidentId });
-          lastTypingTime.current = now;
+        signalTyping();
+      }}
+      onSend={async (content, onSuccess, files = []) => {
+        setEncodingError("");
+        try {
+          const attachments = await serializeConversationAttachments(files);
+          addEntry.mutate({ incidentId, content, attachments }, { onSuccess });
+        } catch {
+          setEncodingError(t("attachmentReadFailed"));
         }
       }}
-      onSend={(content, onSuccess) => addEntry.mutate({ incidentId, content }, { onSuccess })}
       status={
         typingUsers.length > 0 ? (
           <p className="text-muted mt-2 text-xs">
@@ -175,10 +185,18 @@ export function IncidentActivity({
   people: Record<string, string>;
 }) {
   const t = useTranslations("Incidents");
+  const tCommon = useTranslations("Common");
   const locale = useLocale();
-  const { data = [], error, isLoading } = useIncidentActivity(incidentId);
+  const {
+    data = [],
+    error,
+    features = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useIncidentActivity(incidentId);
   const { data: availableReactions = [] } = useAvailableReactions();
-  const transcriptRef = React.useRef<HTMLDivElement>(null);
   const cursorMap = useCollaboratorCursors(incidentId);
   const cursors = React.useMemo(() => Object.values(cursorMap), [cursorMap]);
   const sendJson = useWsStore((state) => state.sendJson);
@@ -192,31 +210,6 @@ export function IncidentActivity({
       ),
     [data],
   );
-  const grouping = React.useMemo(() => resolveGrouping(items), [items]);
-  const rows = React.useMemo(() => {
-    type Row = {
-      item: IncidentActivityItem;
-      itemIndex: number;
-      showDay: boolean;
-    };
-    return items.map((item, itemIndex): Row => {
-      const previous = items[itemIndex - 1];
-      return {
-        item,
-        itemIndex,
-        showDay: !previous || localDayKey(previous.created_at) !== localDayKey(item.created_at),
-      };
-    });
-  }, [items]);
-
-  // A room opens on what was just said, not on what was said first.
-  const last = items.at(-1);
-  const lastId = last ? (last.type === "human_note" ? last.entry_id : last.id) : null;
-  React.useEffect(() => {
-    const node = transcriptRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [lastId]);
-
   return (
     <section
       aria-label={t("warRoomConversation")}
@@ -237,64 +230,54 @@ export function IncidentActivity({
         lastCursorSent.current = now;
       }}
     >
-      <CollaboratorCursors cursors={cursors} people={people} />
-      <div
-        ref={transcriptRef}
-        data-incident-transcript="true"
-        className="min-h-0 flex-1 overflow-y-auto"
-      >
-        {isLoading ? (
-          <div className="space-y-3 p-4" aria-label={t("loadingActivity")}>
-            {[0, 1, 2].map((item) => (
-              <div key={item} className="bg-panel-2 h-16 max-w-[70%] animate-pulse rounded-2xl" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="p-4">
-            <Alert tone="danger">{t("failedToLoadActivity")}</Alert>
-          </div>
-        ) : data.length === 0 ? (
+      {hasConversationFeature(features, "collaborative_cursors") ? (
+        <CollaboratorCursors cursors={cursors} people={people} />
+      ) : null}
+      <ConversationTranscript
+        empty={
           <div className="flex h-full min-h-40 flex-col items-center justify-center p-8 text-center">
             <CircleDot className="text-muted mx-auto h-5 w-5" aria-hidden="true" />
             <p className="text-muted mt-3 text-sm">{t("noMessages")}</p>
           </div>
-        ) : (
-          <ol className="relative py-4">
-            {rows.map(({ item, itemIndex, showDay }) => (
-              <React.Fragment key={item.type === "system_event" ? item.id : item.entry_id}>
-                {showDay ? (
-                  <li className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
-                    <span className="bg-border h-px flex-1" />
-                    <time
-                      className="text-muted-2 text-[10px] font-medium tracking-wide uppercase"
-                      dateTime={item.created_at}
-                    >
-                      {new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
-                        new Date(item.created_at),
-                      )}
-                    </time>
-                    <span className="bg-border h-px flex-1" />
-                  </li>
-                ) : null}
-                {item.type === "system_event" ? (
-                  <SystemEventItem item={item} />
-                ) : (
-                  <HumanNoteItem
-                    availableReactions={availableReactions}
-                    continuesAbove={grouping[itemIndex].continuesAbove}
-                    incidentId={incidentId}
-                    item={item}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </ol>
-        )}
-      </div>
+        }
+        error={
+          <div className="p-4">
+            <Alert tone="danger">{t("failedToLoadActivity")}</Alert>
+          </div>
+        }
+        getCreatedAt={(item) => item.created_at}
+        getId={(item) => (item.type === "system_event" ? item.id : item.entry_id)}
+        hasError={!!error}
+        isLoading={isLoading}
+        items={items}
+        loading={<ConversationTranscriptSkeleton label={t("loadingActivity")} systemEvents />}
+        loadEarlier={hasNextPage ? () => fetchNextPage() : undefined}
+        loadEarlierLabel={tCommon("loadEarlier")}
+        loadingEarlier={isFetchingNextPage}
+        locale={locale}
+        surface="incident"
+        continuesFromPrevious={groupsWithPrevious}
+        renderItem={(item, _index, continuesAbove) =>
+          item.type === "system_event" ? (
+            <SystemEventItem item={item} />
+          ) : (
+            <HumanNoteItem
+              availableReactions={availableReactions}
+              continuesAbove={continuesAbove}
+              incidentId={incidentId}
+              item={item}
+            />
+          )
+        }
+      />
 
-      {canCompose ? (
+      {canCompose && hasConversationFeature(features, "send_text") ? (
         <div data-incident-composer="true" className="shrink-0">
-          <ActivityComposer incidentId={incidentId} people={people} />
+          <ActivityComposer
+            allowAttachments={hasConversationFeature(features, "attach_files")}
+            incidentId={incidentId}
+            people={people}
+          />
         </div>
       ) : null}
     </section>

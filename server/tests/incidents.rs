@@ -4,6 +4,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use base64::Engine as _;
 use common::test_context;
 use opswarden_server::domain::incident::{Incident, Severity};
 use opswarden_server::domain::team::Role;

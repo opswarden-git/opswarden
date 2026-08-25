@@ -13,7 +13,7 @@ async function loginAsManager(page: Page) {
 }
 
 async function openCreateIncident(page: Page) {
-  const trigger = page.getByRole("button", { name: "Declare Incident", exact: true });
+  const trigger = page.getByRole("button", { name: "New incident", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Declare New Incident" });
   await expect(dialog).toBeVisible();

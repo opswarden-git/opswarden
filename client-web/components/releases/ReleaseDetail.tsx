@@ -1,11 +1,11 @@
 "use client";
 
-import { Ban, Check, CircleDashed, Link2, Link2Off } from "lucide-react";
+import { Ban, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { Alert } from "@/components/ui/Alert";
-import { Button, IconButton } from "@/components/ui/Button";
+import { actionButtonClassNames, Button } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
 import { deriveCapabilities, type TeamRole } from "@/lib/capabilities";
 import { useIncidents } from "@/lib/queries/incidents";
@@ -17,15 +17,20 @@ import {
 } from "@/lib/queries/releases";
 import { useTeamMembers } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
+import { ReleaseStateChip } from "./ReleaseStateChip";
 
 export function ReleaseDetail({
   release,
   teamId,
   role,
+  cancelPending = false,
+  onCancel,
 }: {
   release: Release;
   teamId: string;
   role: TeamRole;
+  cancelPending?: boolean;
+  onCancel?: () => void;
 }) {
   const t = useTranslations("Releases");
   const tErr = useTranslations("errors");
@@ -89,36 +94,6 @@ export function ReleaseDetail({
             <p className="text-muted mt-1 text-sm">{t("deploymentStepsDescription")}</p>
           </div>
 
-          {nextStep && !terminal ? (
-            <div className="surface-subtle border-border mt-5 flex flex-col gap-3 rounded-md border p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="text-muted text-xs font-medium uppercase">{t("nextStep")}</div>
-                <div className="text-text mt-1 truncate font-medium">{nextStep.name}</div>
-                {release.state === "blocked" ? (
-                  <div className="text-rel-blocked mt-1 flex items-center gap-1.5 text-xs">
-                    <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("resolveBlockersFirst")}
-                  </div>
-                ) : null}
-              </div>
-              {capabilities.canProgressRelease && validatable ? (
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    validateStep.mutate({
-                      releaseId: release.release_id,
-                      step: nextStep.name,
-                      teamId,
-                    })
-                  }
-                  loading={validateStep.isPending}
-                >
-                  {t("validateNextStep")}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-
           <ol className="mt-6" aria-label={t("deploymentSteps")}>
             {steps.map((step, index) => {
               const isNext = index === nextStepIndex;
@@ -177,92 +152,156 @@ export function ReleaseDetail({
           </ol>
         </section>
 
-        <aside className="surface h-fit rounded-md p-5" aria-labelledby="linked-incidents-title">
-          <h2 id="linked-incidents-title" className="text-text font-semibold">
-            {t("linkedIncidents")}
-          </h2>
-          <p className="text-muted mt-1 text-sm">{t("linkedIncidentsDescription")}</p>
+        <aside
+          className="surface h-fit overflow-hidden rounded-md"
+          aria-labelledby="release-actions-title"
+        >
+          <header className="border-border border-b px-4 py-3">
+            <h2 id="release-actions-title" className="text-text text-sm font-semibold">
+              {t("releaseDetail")}
+            </h2>
+          </header>
 
-          {release.linked_incident_ids.length === 0 ? (
-            <p className="text-muted mt-4 text-sm">{t("noLinkedIncidents")}</p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {release.linked_incident_ids.map((id) => {
-                const incident = incidentById(id);
-                return (
-                  <li
-                    key={id}
-                    className="surface-subtle border-border flex min-w-0 items-center gap-2 rounded-md border p-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={teamPath(teamId, "incidents", id)}
-                        className="text-text hover:text-gold block truncate text-sm font-medium transition-colors"
-                      >
-                        {incident ? incident.title : t("unknownIncident")}
-                      </Link>
-                      {incident ? (
-                        <div className="mt-1">
-                          <StateChip status={incident.status} />
-                        </div>
-                      ) : null}
-                    </div>
-                    {capabilities.canLinkReleaseIncident ? (
-                      <IconButton
-                        label={t("unlinkIncident", {
-                          title: incident?.title ?? t("unknownIncident"),
-                        })}
-                        size="sm"
-                        variant="ghost"
-                        tone="danger"
-                        onClick={() =>
-                          unlinkIncident.mutate({
-                            releaseId: release.release_id,
-                            incidentId: id,
-                            teamId,
-                          })
-                        }
-                        disabled={unlinkIncident.isPending}
-                      >
-                        <Link2Off className="h-4 w-4" aria-hidden="true" />
-                      </IconButton>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <div className="divide-border divide-y text-sm">
+            <section className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted text-xs font-medium">{t("colStatus")}</span>
+                <ReleaseStateChip state={release.state} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted text-xs font-medium">{t("colProgress")}</span>
+                <span className="text-text text-xs tabular-nums">
+                  {t("progressCount", {
+                    completed: steps.filter((step) => step.validated).length,
+                    total: steps.length,
+                  })}
+                </span>
+              </div>
+            </section>
 
-          {capabilities.canLinkReleaseIncident && !terminal ? (
-            <label className="mt-4 block">
-              <span className="text-muted text-xs font-medium">{t("linkIncident")}</span>
-              <span className="mt-1.5 flex items-center gap-2">
-                <Link2 className="text-muted h-4 w-4 shrink-0" aria-hidden="true" />
-                <select
-                  value=""
-                  onChange={(event) => {
-                    const incidentId = event.target.value;
-                    if (incidentId) {
-                      linkIncident.mutate({ releaseId: release.release_id, incidentId, teamId });
+            {nextStep && !terminal ? (
+              <section className="space-y-3 p-4">
+                <div>
+                  <h3 className="text-muted text-xs font-medium">{t("nextStep")}</h3>
+                  <p className="text-text mt-1 truncate font-medium">{nextStep.name}</p>
+                </div>
+                {release.state === "blocked" ? (
+                  <p className="text-rel-blocked flex items-center gap-1.5 text-xs">
+                    <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("resolveBlockersFirst")}
+                  </p>
+                ) : null}
+                {capabilities.canProgressRelease && validatable ? (
+                  <Button
+                    fullWidth
+                    variant="primary"
+                    className={actionButtonClassNames()}
+                    onClick={() =>
+                      validateStep.mutate({
+                        releaseId: release.release_id,
+                        step: nextStep.name,
+                        teamId,
+                      })
                     }
-                  }}
-                  disabled={linkIncident.isPending || linkable.length === 0}
-                  className="ow-input h-9 min-w-0 flex-1 rounded-md px-3 text-sm disabled:opacity-50"
-                >
-                  <option value="">
-                    {linkable.length === 0
-                      ? t("noLinkableIncidents")
-                      : t("linkIncidentPlaceholder")}
-                  </option>
-                  {linkable.map((incident) => (
-                    <option key={incident.id} value={incident.id}>
-                      {incident.title}
+                    loading={validateStep.isPending}
+                  >
+                    {t("validateNextStep")}
+                  </Button>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="p-4" aria-labelledby="linked-incidents-title">
+              <h3 id="linked-incidents-title" className="text-muted text-xs font-medium">
+                {t("linkedIncidents")}
+              </h3>
+
+              {release.linked_incident_ids.length === 0 ? (
+                <p className="text-muted mt-3 text-sm">{t("noLinkedIncidents")}</p>
+              ) : (
+                <ul className="divide-border mt-2 divide-y">
+                  {release.linked_incident_ids.map((id) => {
+                    const incident = incidentById(id);
+                    return (
+                      <li key={id} className="min-w-0 py-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Link
+                            href={teamPath(teamId, "incidents", id)}
+                            className="text-text hover:text-gold min-w-0 flex-1 truncate text-sm font-medium transition-colors"
+                          >
+                            {incident ? incident.title : t("unknownIncident")}
+                          </Link>
+                          {incident ? <StateChip status={incident.status} /> : null}
+                        </div>
+                        {capabilities.canLinkReleaseIncident ? (
+                          <Button
+                            className="mt-2"
+                            fullWidth
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              unlinkIncident.mutate({
+                                releaseId: release.release_id,
+                                incidentId: id,
+                                teamId,
+                              })
+                            }
+                            disabled={unlinkIncident.isPending}
+                          >
+                            {t("unlinkIncident", {
+                              title: incident?.title ?? t("unknownIncident"),
+                            })}
+                          </Button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {capabilities.canLinkReleaseIncident && !terminal ? (
+                <label className="mt-3 block">
+                  <span className="sr-only">{t("linkIncident")}</span>
+                  <select
+                    value=""
+                    onChange={(event) => {
+                      const incidentId = event.target.value;
+                      if (incidentId) {
+                        linkIncident.mutate({ releaseId: release.release_id, incidentId, teamId });
+                      }
+                    }}
+                    disabled={linkIncident.isPending || linkable.length === 0}
+                    className="ow-input h-9 w-full min-w-0 rounded-md px-3 text-sm disabled:opacity-50"
+                  >
+                    <option value="">
+                      {linkable.length === 0
+                        ? t("noLinkableIncidents")
+                        : t("linkIncidentPlaceholder")}
                     </option>
-                  ))}
-                </select>
-              </span>
-            </label>
-          ) : null}
+                    {linkable.map((incident) => (
+                      <option key={incident.id} value={incident.id}>
+                        {incident.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </section>
+
+            {onCancel && capabilities.canCancelRelease && !terminal ? (
+              <section className="p-4">
+                <Button
+                  fullWidth
+                  variant="danger"
+                  className={actionButtonClassNames()}
+                  loading={cancelPending}
+                  onClick={onCancel}
+                >
+                  {t("cancelRelease")}
+                </Button>
+              </section>
+            ) : null}
+          </div>
         </aside>
       </div>
     </div>

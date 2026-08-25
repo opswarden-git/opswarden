@@ -354,17 +354,63 @@ A PR is mergeable only when:
 - SQLx query changes include the regenerated `.sqlx` cache.
 - No real secrets, generated build output, or one-off scripts are committed.
 
+### Repository guardrails
+
+`main` remains protected: changes go through pull requests, the required gate
+must pass on an up-to-date branch, conversations must be resolved, linear
+history is required, and force-pushes or deletion are disabled. Administrators
+remain subject to the protection. The approving-review count may stay at zero
+while the repository has only one regular maintainer.
+
+The required gate enforces these source rules:
+
+- new owned Rust, TypeScript, JavaScript and shell files stay below 500 lines;
+- application code does not use `as any`, `@ts-ignore` or `@ts-nocheck`;
+- tests are not deleted as an unrelated cleanup;
+- Docker base images remain pinned to full SHA-256 manifest digests;
+- released migrations are immutable and every new migration declares exactly
+  one `expand`, `backfill` or `contract` phase;
+- destructive or narrowing SQL is confined to a later contract migration after
+  a compatibility window and a verified backup.
+
+The executable policies live in `tooling/check_source_hygiene.sh`,
+`tooling/check_dockerfile_pins.sh` and `tooling/check_migration_policy.sh`.
+The 500-line limit is a ceiling, not a target; prefer a coherent module around
+200–350 lines.
+
+Every integration change covers its successful end-to-end path, missing and
+invalid authentication, malformed input, non-triggering provider states,
+retry/idempotency behavior, the server-owned catalog and EN/FR translations.
+Sensitive behavior has at least one negative case, and tests assert durable
+effects rather than only an HTTP status.
+
+The bounded Alertmanager mutation campaign remains available as:
+
+```bash
+cargo install --locked cargo-mutants --version 27.1.0
+just test-mutations-alertmanager
+```
+
+Any surviving, non-viable or timed-out mutant must be investigated.
+
 ## Releases
 
 Tags `v*.*.*` trigger the release workflow. Its release gate runs Rust and web
 checks first. A successful tag creates the GitHub Release, pushes the server
 image to GHCR and attaches the Linux AppImage.
 
-Before tagging:
+Prepare version changes in a dedicated pull request. After its required gate is
+green:
 
-- Update the README version badge first.
-- Ensure `main` is clean and CI green.
-- Write release notes that state what is proven and what is still partial.
+1. merge the release pull request into `main`;
+2. fetch and verify the resulting clean `main` commit;
+3. create the annotated version tag on that merged commit;
+4. push the tag and monitor the release through artifact publication.
+
+Update the README version badge and write release notes that distinguish proven
+behavior from partial work before merging. Never tag the release branch:
+squash-merging changes its commit ID, and release automation rejects a tag that
+is not reachable from `main`.
 
 Do not use this guide as a roadmap. Pick work from the current issue or project
 board, keep the change small, and ask early when a requirement is unclear.

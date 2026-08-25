@@ -23,8 +23,7 @@ export function PageLayout({ children, className, fill = false, ...props }: Page
       data-page-width="workspace"
       data-page-fill={fill ? "true" : undefined}
       className={cn(
-        "mx-auto flex w-full flex-col gap-6 px-4 pt-4 sm:px-6 md:px-8 md:pt-4 md:pb-8",
-        "max-w-[90rem]",
+        "workspace-frame flex flex-col gap-6 px-4 pt-4 sm:px-6 md:px-8 md:pt-4 md:pb-8",
         fill ? "min-h-0 flex-1 pb-6" : "pb-16",
         className,
       )}
