@@ -275,6 +275,7 @@ ci-backend-quality: (_require "cargo")
 ci-backend-test: (_require "cargo" "sqlx")
     SQLX_OFFLINE=true cargo build --workspace
     cd server && sqlx migrate run
+    cargo sqlx prepare --workspace --check -- --all-targets
     cargo test --workspace
 
 # Lent : hors de `just ci`, présent dans `just ci-full`.
@@ -350,3 +351,21 @@ ci: ci-workflow ci-backend-quality ci-backend-test ci-web ci-web-build ci-e2e
 # `just ci ci-backend-coverage` puis le paquet à part.
 # Le gate au complet, couverture et paquet desktop inclus.
 ci-full: ci ci-backend-coverage ci-desktop
+
+# Inventaire genere : 12 planches derivees du code (matchs exhaustifs,
+# contrats testes, /about.json du serveur). Sortie dans tooling/inventory/dist.
+inventory: (_require "node")
+    node tooling/inventory/build.mjs
+
+# Sert les planches pour visualisation/capture.
+inventory-serve port="4300": inventory
+    @echo "Inventaire sur http://localhost:{{port}}/index.html"
+    python3 -m http.server {{port}} --directory tooling/inventory/dist
+
+# Assemble le wiki public, les contrats canoniques et l'inventaire genere.
+docs-build: (_require "docker") (_require "node")
+    ./tooling/docs.sh
+
+# Construit et sert le portail documentaire complet en local.
+docs-serve port="8000": docs-build
+    python3 -m http.server {{port}} --directory site

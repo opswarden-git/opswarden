@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpsWarden — inventaire actuel des badges</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #15161a;
+        --panel: #1c1d22;
+        --panel-2: #25262d;
+        --border: rgb(255 255 255 / 8%);
+        --border-2: rgb(255 255 255 / 12%);
+        --text: #e7e7ea;
+        --muted: #989ba1;
+        --muted-2: #878b93;
+        --gold: #fbc02d;
+        --neutral: #57606a;
+        --info: #0969da;
+        --warning: #9a6700;
+        --danger: #cf222e;
+        --success: #1a7f37;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 44px 0 72px;
+      }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(24px, 3vw, 36px);
+        letter-spacing: -0.035em;
+      }
+
+      .intro {
+        max-width: 760px;
+        margin-top: 9px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .locale {
+        display: inline-flex;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--panel);
+      }
+
+      .locale button {
+        border: 0;
+        border-radius: 5px;
+        padding: 7px 11px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .locale button[aria-pressed="true"] {
+        background: var(--panel-2);
+        color: var(--text);
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .summary div {
+        padding: 13px 16px;
+        border-right: 1px solid var(--border);
+      }
+
+      .summary div:last-child {
+        border-right: 0;
+      }
+
+      .summary strong {
+        display: block;
+        font-size: 19px;
+      }
+
+      .summary span {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      section {
+        margin-top: 30px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 10px;
+      }
+
+      h2 {
+        font-size: 15px;
+      }
+
+      .section-head p {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .capture-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+
+      .capture-card {
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        break-inside: avoid;
+        isolation: isolate;
+      }
+
+      .capture-card.wide {
+        grid-column: 1 / -1;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 43px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h3 {
+        font-size: 12px;
+      }
+
+      .card-head code {
+        color: var(--muted-2);
+        font:
+          10px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 12px;
+      }
+
+      col.key-column {
+        width: 29%;
+      }
+
+      col.render-column {
+        width: 47%;
+      }
+
+      col.tone-column {
+        width: 24%;
+      }
+
+      th {
+        padding: 8px 14px;
+        background: var(--panel-2);
+        color: var(--muted);
+        text-align: left;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.055em;
+        text-transform: uppercase;
+      }
+
+      td {
+        height: 48px;
+        padding: 9px 14px;
+        border-top: 1px solid var(--border);
+        vertical-align: middle;
+      }
+
+      tbody tr:first-child td {
+        border-top: 0;
+      }
+
+      .key {
+        overflow-wrap: anywhere;
+        color: var(--muted);
+        font:
+          10px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .tone {
+        color: var(--muted-2);
+        font-size: 10px;
+      }
+
+      .status-panel,
+      .role-label,
+      .access-metadata {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        white-space: nowrap;
+      }
+
+      .status-panel {
+        height: 20px;
+        gap: 4px;
+        padding: 0 6px;
+        border-radius: 4px;
+        color: white;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1;
+      }
+
+      .status-panel.neutral {
+        background: var(--neutral);
+      }
+
+      .status-panel.info {
+        background: var(--info);
+      }
+
+      .status-panel.warning {
+        background: var(--warning);
+      }
+
+      .status-panel.danger {
+        background: var(--danger);
+      }
+
+      .status-panel.success {
+        background: var(--success);
+      }
+
+      .status-panel svg,
+      .role-label svg {
+        width: 12px;
+        height: 12px;
+        flex: 0 0 12px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .role-label {
+        gap: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .access-metadata {
+        gap: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .access-metadata svg {
+        width: 12px;
+        height: 12px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .note {
+        margin-top: 28px;
+        padding: 14px 16px;
+        border-left: 2px solid var(--gold);
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .note strong {
+        color: var(--text);
+      }
+
+      @media print {
+        main {
+          width: 100%;
+          padding: 16px;
+        }
+
+        header,
+        .summary,
+        section,
+        .capture-card,
+        .note {
+          break-inside: avoid;
+        }
+
+        .locale {
+          display: none;
+        }
+      }
+
+      @media (max-width: 760px) {
+        main {
+          width: min(100% - 20px, 1180px);
+          padding-top: 28px;
+        }
+
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .summary,
+        .capture-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .summary div {
+          border-right: 0;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .summary div:last-child {
+          border-bottom: 0;
+        }
+
+        .capture-card.wide {
+          grid-column: auto;
+        }
+
+        table {
+          min-width: 470px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="circle-alert" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v4M12 16h.01" />
+      </symbol>
+      <symbol id="eye" viewBox="0 0 24 24">
+        <path
+          d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+        />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="shield-alert" viewBox="0 0 24 24">
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path d="M12 8v4M12 16h.01" />
+      </symbol>
+      <symbol id="check-circle" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="triangle-alert" viewBox="0 0 24 24">
+        <path
+          d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
+        />
+        <path d="M12 9v4M12 17h.01" />
+      </symbol>
+      <symbol id="octagon-alert" viewBox="0 0 24 24">
+        <path d="M12 16h.01M12 8v4" />
+        <path
+          d="M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z"
+        />
+      </symbol>
+      <symbol id="flame" viewBox="0 0 24 24">
+        <path
+          d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"
+        />
+      </symbol>
+      <symbol id="circle-dashed" viewBox="0 0 24 24">
+        <path d="M10.1 2.182a10 10 0 0 1 3.8 0M13.9 21.818a10 10 0 0 1-3.8 0" />
+        <path
+          d="M17.609 3.721a10 10 0 0 1 2.69 2.7M2.182 13.9a10 10 0 0 1 0-3.8"
+        />
+        <path
+          d="M20.279 17.609a10 10 0 0 1-2.7 2.69M21.818 10.1a10 10 0 0 1 0 3.8"
+        />
+        <path
+          d="M3.721 6.391a10 10 0 0 1 2.7-2.69M6.391 20.279a10 10 0 0 1-2.69-2.7"
+        />
+      </symbol>
+      <symbol id="loader" viewBox="0 0 24 24">
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        <path
+          d="m4.9 4.9 2.9 2.9m8.4 8.4 2.9 2.9m0-14.2-2.9 2.9m-8.4 8.4-2.9 2.9"
+        />
+      </symbol>
+      <symbol id="ban" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M4.929 4.929 19.07 19.071" />
+      </symbol>
+      <symbol id="circle-x" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m15 9-6 6M9 9l6 6" />
+      </symbol>
+      <symbol id="shield" viewBox="0 0 24 24">
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+      </symbol>
+      <symbol id="shield-check" viewBox="0 0 24 24">
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="unplug" viewBox="0 0 24 24">
+        <path d="m19 5 3-3M2 22l3-3M7.5 13.5 10 11M10.5 16.5 13 14" />
+        <path
+          d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4ZM12 6l6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"
+        />
+      </symbol>
+      <symbol id="clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6h4" />
+      </symbol>
+      <symbol id="power" viewBox="0 0 24 24">
+        <path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04" />
+      </symbol>
+      <symbol id="power-off" viewBox="0 0 24 24">
+        <path
+          d="M18.36 6.64A9 9 0 0 1 20.77 15M6.16 6.16a9 9 0 1 0 12.68 12.68M12 2v4M2 2l20 20"
+        />
+      </symbol>
+      <symbol id="skip-forward" viewBox="0 0 24 24">
+        <path
+          d="M21 4v16M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z"
+        />
+      </symbol>
+      <symbol id="circle-help" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+      </symbol>
+    </svg>
+
+    <main>
+      <header>
+        <div>
+          <h1>Inventaire actuel des badges</h1>
+          <p class="intro">
+            Contrat visuel extrait du code au 14 août 2026. Les états
+            opérationnels utilisent des panneaux opaques de 4 px ; Teams et
+            accès conservent une grammaire de métadonnées plus légère.
+          </p>
+        </div>
+        <div class="locale" aria-label="Langue des libellés">
+          <button type="button" data-locale="fr" aria-pressed="true">FR</button>
+          <button type="button" data-locale="en" aria-pressed="false">
+            EN
+          </button>
+        </div>
+      </header>
+
+      <div class="summary">
+        <div><strong>28</strong><span>variantes rendues</span></div>
+        <div><strong>8</strong><span>familles métier</span></div>
+        <div><strong>3</strong><span>grammaires visuelles</span></div>
+        <div><strong>1</strong><span>primitive d’état</span></div>
+      </div>
+
+      <section>
+        <div class="section-head">
+          <h2>Incidents</h2>
+          <p>Deux planches indépendantes pour les captures</p>
+        </div>
+        <div class="capture-grid">
+          <article class="capture-card" data-capture="incident-status">
+            <div class="card-head">
+              <h3>Incident status</h3>
+              <code>StateChip.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">open</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#circle-alert" /></svg
+                        ><span data-fr="Ouvert" data-en="Open"
+                          >Ouvert</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                  <tr>
+                    <td class="key">acknowledged</td>
+                    <td>
+                      <span class="status-panel info"
+                        ><svg><use href="#eye" /></svg
+                        ><span data-fr="Acquitté" data-en="Acknowledged"
+                          >Acquitté</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Info</td>
+                  </tr>
+                  <tr>
+                    <td class="key">escalated</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#shield-alert" /></svg
+                        ><span data-fr="Escaladé" data-en="Escalated"
+                          >Escaladé</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                  <tr>
+                    <td class="key">resolved</td>
+                    <td>
+                      <span class="status-panel success"
+                        ><svg><use href="#check-circle" /></svg
+                        ><span data-fr="Résolu" data-en="Resolved"
+                          >Résolu</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Success</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="capture-card" data-capture="incident-severity">
+            <div class="card-head">
+              <h3>Incident severity</h3>
+              <code>SeverityChip.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">low</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#circle-alert" /></svg
+                        ><span data-fr="Basse" data-en="Low">Basse</span></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                  <tr>
+                    <td class="key">medium</td>
+                    <td>
+                      <span class="status-panel warning"
+                        ><svg><use href="#triangle-alert" /></svg
+                        ><span data-fr="Moyenne" data-en="Medium"
+                          >Moyenne</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Warning</td>
+                  </tr>
+                  <tr>
+                    <td class="key">high</td>
+                    <td>
+                      <span class="status-panel warning"
+                        ><svg><use href="#octagon-alert" /></svg
+                        ><span data-fr="Haute" data-en="High">Haute</span></span
+                      >
+                    </td>
+                    <td class="tone">Warning</td>
+                  </tr>
+                  <tr>
+                    <td class="key">critical</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#flame" /></svg
+                        ><span data-fr="Critique" data-en="Critical"
+                          >Critique</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Delivery</h2>
+          <p>Cycle de vie Release</p>
+        </div>
+        <div class="capture-grid">
+          <article class="capture-card wide" data-capture="release-status">
+            <div class="card-head">
+              <h3>Release status</h3>
+              <code>ReleaseStateChip.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">created</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#circle-dashed" /></svg
+                        ><span data-fr="Créée" data-en="Created"
+                          >Créée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                  <tr>
+                    <td class="key">in_progress</td>
+                    <td>
+                      <span class="status-panel info"
+                        ><svg><use href="#loader" /></svg
+                        ><span data-fr="En cours" data-en="In progress"
+                          >En cours</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Info</td>
+                  </tr>
+                  <tr>
+                    <td class="key">blocked</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#ban" /></svg
+                        ><span data-fr="Bloquée" data-en="Blocked"
+                          >Bloquée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                  <tr>
+                    <td class="key">completed</td>
+                    <td>
+                      <span class="status-panel success"
+                        ><svg><use href="#check-circle" /></svg
+                        ><span data-fr="Terminée" data-en="Completed"
+                          >Terminée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Success</td>
+                  </tr>
+                  <tr>
+                    <td class="key">cancelled</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#circle-x" /></svg
+                        ><span data-fr="Annulée" data-en="Cancelled"
+                          >Annulée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Teams et accès</h2>
+          <p>Métadonnées distinctes des états opérationnels</p>
+        </div>
+        <div class="capture-grid">
+          <article class="capture-card" data-capture="team-roles">
+            <div class="card-head">
+              <h3>Team roles</h3>
+              <code>RoleChip.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Grammaire</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">manager</td>
+                    <td>
+                      <span class="role-label"
+                        ><svg style="color: var(--gold)">
+                          <use href="#shield-alert" /></svg
+                        >Manager</span
+                      >
+                    </td>
+                    <td class="tone">Identity</td>
+                  </tr>
+                  <tr>
+                    <td class="key">responder</td>
+                    <td>
+                      <span class="role-label"
+                        ><svg style="color: var(--info)">
+                          <use href="#shield-check" /></svg
+                        ><span data-fr="Intervenant" data-en="Responder"
+                          >Intervenant</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Identity</td>
+                  </tr>
+                  <tr>
+                    <td class="key">observer</td>
+                    <td>
+                      <span class="role-label"
+                        ><svg><use href="#shield" /></svg
+                        ><span data-fr="Observateur" data-en="Observer"
+                          >Observateur</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Identity</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="capture-card" data-capture="team-access">
+            <div class="card-head">
+              <h3>Team access</h3>
+              <code>TeamRoster.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Grammaire</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">expired ban</td>
+                    <td>
+                      <span class="access-metadata"
+                        ><svg><use href="#clock" /></svg
+                        ><span data-fr="Expiré" data-en="Expired"
+                          >Expiré</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Metadata</td>
+                  </tr>
+                  <tr>
+                    <td class="key">active ban</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#ban" /></svg
+                        ><span data-fr="Banni" data-en="Banned"
+                          >Banni</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Automations et intégrations</h2>
+          <p>Trois planches courtes au lieu d’une table monolithique</p>
+        </div>
+        <div class="capture-grid">
+          <article class="capture-card" data-capture="connection-status">
+            <div class="card-head">
+              <h3>Connection status</h3>
+              <code>ConnectionsView.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">error</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#unplug" /></svg
+                        ><span data-fr="À vérifier" data-en="Needs attention"
+                          >À vérifier</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                  <tr>
+                    <td class="key">verified</td>
+                    <td>
+                      <span class="status-panel success"
+                        ><svg><use href="#check-circle" /></svg
+                        ><span data-fr="Vérifié" data-en="Verified"
+                          >Vérifié</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Success</td>
+                  </tr>
+                  <tr>
+                    <td class="key">awaiting</td>
+                    <td>
+                      <span class="status-panel warning"
+                        ><svg><use href="#clock" /></svg
+                        ><span data-fr="En attente" data-en="Awaiting event"
+                          >En attente</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Warning</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="capture-card" data-capture="rule-status">
+            <div class="card-head">
+              <h3>Rule status</h3>
+              <code>RulesView.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">enabled</td>
+                    <td>
+                      <span class="status-panel success"
+                        ><svg><use href="#power" /></svg
+                        ><span data-fr="Activée" data-en="Enabled"
+                          >Activée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Success</td>
+                  </tr>
+                  <tr>
+                    <td class="key">disabled</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#power-off" /></svg
+                        ><span data-fr="Désactivée" data-en="Disabled"
+                          >Désactivée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="capture-card wide" data-capture="run-status">
+            <div class="card-head">
+              <h3>Automation run status</h3>
+              <code>RunsView.tsx</code>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="key-column" />
+                  <col class="render-column" />
+                  <col class="tone-column" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Clé</th>
+                    <th>Rendu</th>
+                    <th>Ton</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="key">running</td>
+                    <td>
+                      <span class="status-panel info"
+                        ><svg><use href="#loader" /></svg
+                        ><span data-fr="En cours" data-en="Running"
+                          >En cours</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Info</td>
+                  </tr>
+                  <tr>
+                    <td class="key">succeeded</td>
+                    <td>
+                      <span class="status-panel success"
+                        ><svg><use href="#check-circle" /></svg
+                        ><span data-fr="Réussie" data-en="Succeeded"
+                          >Réussie</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Success</td>
+                  </tr>
+                  <tr>
+                    <td class="key">failed</td>
+                    <td>
+                      <span class="status-panel danger"
+                        ><svg><use href="#circle-alert" /></svg
+                        ><span data-fr="Échouée" data-en="Failed"
+                          >Échouée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Danger</td>
+                  </tr>
+                  <tr>
+                    <td class="key">skipped</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#skip-forward" /></svg
+                        ><span data-fr="Ignorée" data-en="Skipped"
+                          >Ignorée</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                  <tr>
+                    <td class="key">unknown fallback</td>
+                    <td>
+                      <span class="status-panel neutral"
+                        ><svg><use href="#circle-help" /></svg
+                        ><span data-fr="Inconnu" data-en="Unknown"
+                          >Inconnu</span
+                        ></span
+                      >
+                    </td>
+                    <td class="tone">Neutral</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <aside class="note">
+        <strong>Hors inventaire :</strong> avatars, présence, compteurs,
+        réactions, marqueurs d’étapes et filtres. Ce sont des identités,
+        indicateurs, nombres, contrôles ou éléments de progression — pas des
+        états métier. Chaque carte possède un attribut <code>data-capture</code>
+        stable pour produire une image isolée avec Playwright.
+      </aside>
+    </main>
+
+    <script>
+      const buttons = document.querySelectorAll("[data-locale]");
+      buttons.forEach((button) =>
+        button.addEventListener("click", () => {
+          const locale = button.dataset.locale;
+          document.documentElement.lang = locale;
+          buttons.forEach((candidate) =>
+            candidate.setAttribute(
+              "aria-pressed",
+              String(candidate === button),
+            ),
+          );
+          document.querySelectorAll("[data-fr][data-en]").forEach((label) => {
+            label.textContent = label.dataset[locale];
+          });
+        }),
+      );
+    </script>
+  </body>
+</html>
