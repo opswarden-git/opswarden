@@ -83,6 +83,14 @@ h1{font-size:clamp(22px,3vw,32px);letter-spacing:-.035em}
 h2{font-size:15px}
 h3{font-size:12px}
 a{color:inherit}
+nav.portal{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:30px;
+padding-bottom:14px;border-bottom:1px solid var(--border)}
+nav.portal>div{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}
+nav.portal a{padding:6px 9px;border-radius:6px;color:var(--muted);font-size:12px;font-weight:600;
+text-decoration:none}
+nav.portal a:hover{background:var(--panel);color:var(--text)}
+nav.portal a.brand{padding-left:0;color:var(--text);font-size:14px}
+nav.portal a[aria-current=page]{background:var(--panel-2);color:var(--text)}
 header.top{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:18px}
 .intro{max-width:820px;margin-top:9px;color:var(--muted);font-size:13.5px;line-height:1.55}
 .locale{display:inline-flex;padding:3px;border:1px solid var(--border);border-radius:7px;background:var(--panel)}
@@ -146,6 +154,7 @@ text-decoration:none}
 .hub .label{display:block;margin-top:2px;font-size:12.5px;font-weight:650}
 .hub .sub{display:block;margin-top:6px;color:var(--muted-2);font-size:11px;line-height:1.45}
 @media(max-width:900px){.capture-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){nav.portal{align-items:flex-start;flex-direction:column}nav.portal>div{justify-content:flex-start}}
 `;
 
 const SCRIPT = `
@@ -188,6 +197,17 @@ export function page({ slug, titleFr, titleEn, introFr, introEn, body }) {
 </head>
 <body>
 <main>
+  <nav class="portal" aria-label="Documentation">
+    <a class="brand" href="https://opswarden-git.github.io/opswarden/">OpsWarden</a>
+    <div>
+      <a href="index.html" aria-current="page">${bi("Inventaire", "Inventory")}</a>
+      <a href="https://opswarden-git.github.io/opswarden/getting-started/">${bi("Démarrer", "Run")}</a>
+      <a href="https://opswarden-git.github.io/opswarden/architecture/">Architecture</a>
+      <a href="https://opswarden-git.github.io/opswarden/reference/">Référence</a>
+      <a href="https://opswarden-git.github.io/opswarden/design/">Design</a>
+      <a href="https://opswarden-git.github.io/opswarden/contributing/">${bi("Contribuer", "Contribute")}</a>
+    </div>
+  </nav>
   <header class="top">
     <div>
       <h1>${bi(titleFr, titleEn)}</h1>
