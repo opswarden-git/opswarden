@@ -2,6 +2,7 @@
 #[derive(Default)]
 pub struct DummyPrivateMessageRepo {
     messages: Mutex<Vec<PrivateMessage>>,
+    reactions: Mutex<HashSet<(Uuid, Uuid, String)>>,
 }
 
 #[allow(dead_code)]
@@ -24,24 +25,107 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
 
     async fn list_conversation(
         &self,
-        user_a: Uuid,
-        user_b: Uuid,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        before: Option<(DateTime<Utc>, Uuid)>,
         limit: u32,
     ) -> Result<Vec<PrivateMessage>, DomainError> {
+        let reactions = self.reactions.lock().unwrap();
         let mut msgs: Vec<PrivateMessage> = self
             .messages
             .lock()
             .unwrap()
             .iter()
             .filter(|m| {
-                (m.sender_id == user_a && m.recipient_id == user_b)
-                    || (m.sender_id == user_b && m.recipient_id == user_a)
+                ((m.sender_id == viewer_id && m.recipient_id == peer_id)
+                    || (m.sender_id == peer_id && m.recipient_id == viewer_id))
+                    && before.is_none_or(|cursor| (m.created_at, m.id) < cursor)
             })
             .cloned()
             .collect();
+        for message in &mut msgs {
+            let mut by_emoji: HashMap<String, (u64, bool)> = HashMap::new();
+            for (_, user_id, emoji) in reactions.iter().filter(|(id, _, _)| *id == message.id) {
+                let summary = by_emoji.entry(emoji.clone()).or_default();
+                summary.0 += 1;
+                summary.1 |= *user_id == viewer_id;
+            }
+            message.reactions = by_emoji
+                .into_iter()
+                .map(|(emoji, (count, reacted))| PrivateMessageReaction {
+                    emoji,
+                    count,
+                    reacted,
+                })
+                .collect();
+        }
         msgs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
         msgs.truncate(limit as usize);
         Ok(msgs)
+    }
+
+    async fn find_participants(
+        &self,
+        message_id: Uuid,
+    ) -> Result<Option<(Uuid, Uuid)>, DomainError> {
+        Ok(self
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|message| message.id == message_id)
+            .map(|message| (message.sender_id, message.recipient_id)))
+    }
+
+    async fn update_content(
+        &self,
+        message_id: Uuid,
+        content: &str,
+        edited_at: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        if let Some(message) = self
+            .messages
+            .lock()
+            .unwrap()
+            .iter_mut()
+            .find(|message| message.id == message_id)
+        {
+            message.content = content.to_string();
+            message.edited_at = Some(edited_at);
+        }
+        Ok(())
+    }
+
+    async fn toggle_reaction(
+        &self,
+        message_id: Uuid,
+        user_id: Uuid,
+        emoji: &str,
+    ) -> Result<bool, DomainError> {
+        let key = (message_id, user_id, emoji.to_string());
+        let mut reactions = self.reactions.lock().unwrap();
+        if reactions.remove(&key) {
+            Ok(false)
+        } else {
+            reactions.insert(key);
+            Ok(true)
+        }
+    }
+
+    async fn find_attachment_for_participant(
+        &self,
+        attachment_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<PrivateMessageAttachment>, DomainError> {
+        Ok(self
+            .messages
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|message| message.sender_id == user_id || message.recipient_id == user_id)
+            .flat_map(|message| message.attachments.iter())
+            .find(|attachment| attachment.id == attachment_id)
+            .cloned())
     }
 }
 

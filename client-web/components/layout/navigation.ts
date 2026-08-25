@@ -153,6 +153,6 @@ export function primaryNavigationItems(teamId?: string, canManageTeam = false): 
 export const settingsNavigationItem = {
   href: "/settings",
   icon: Settings,
-  labelKey: "settings",
+  labelKey: "account",
   activePaths: ["/settings"],
 } as const;

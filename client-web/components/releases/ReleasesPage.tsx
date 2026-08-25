@@ -19,6 +19,7 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
 import {
+  CollectionSearch,
   MobileCollectionFilters,
   TableFilterControl,
   TableSortControl,
@@ -34,11 +35,13 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
   const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
   const { data: releases, isLoading, error } = useReleases(teamId);
   const selectedReleaseId = searchParams.get("release") ?? "";
   const view = normalizeReleaseView(searchParams.get("view"));
   const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";
+  const urlQuery = searchParams.get("q") ?? "";
 
   const activeTeam = teams?.find((team) => team.team_id === teamId);
   const role = activeTeam?.role ?? "observer";
@@ -47,6 +50,14 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const counts = releaseViewCounts(releases ?? []);
   const visibleReleases = (releases ?? [])
     .filter((release) => releaseBelongsToView(release, view))
+    .filter((release) => {
+      const query = urlQuery.trim().toLocaleLowerCase();
+      return (
+        !query ||
+        release.title.toLocaleLowerCase().includes(query) ||
+        release.release_id.toLocaleLowerCase().includes(query)
+      );
+    })
     .toSorted((left, right) => {
       const delta = new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
       return sort === "newest" ? delta : -delta;
@@ -74,9 +85,21 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
     router.replace(legacyDetailHref);
   }, [legacyDetailHref, router]);
   const setParam = (name: string, value?: string) => router.push(paramsWith({ [name]: value }));
+  const commitSearch = React.useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParamsString);
+      const normalized = value.trim();
+      if (normalized) params.set("q", normalized);
+      else params.delete("q");
+      const suffix = params.toString();
+      router.replace(suffix ? `${pathname}?${suffix}` : pathname);
+    },
+    [pathname, router, searchParamsString],
+  );
   const viewLabel = (value: ReleaseView) => t(`view${value[0].toUpperCase()}${value.slice(1)}`);
   const activeFilterCount = (view === "all" ? 0 : 1) + (sort === "newest" ? 0 : 1);
-  const clearFilters = () => router.push(paramsWith({ view: "all", sort: undefined }));
+  const clearFilters = () =>
+    router.push(paramsWith({ view: "all", sort: undefined, q: undefined }));
   const headers = {
     colStatus: (
       <TableFilterControl
@@ -114,6 +137,13 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
         actions={
           !hasNoTeams ? (
             <>
+              <CollectionSearch
+                key={urlQuery}
+                initialValue={urlQuery}
+                label={t("searchLabel")}
+                placeholder={t("searchPlaceholder")}
+                onCommit={commitSearch}
+              />
               <MobileCollectionFilters
                 activeCount={activeFilterCount}
                 label={t("filtersLabel")}

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReleaseListItem } from "@/lib/queries/releases";
 import { ReleasesPage } from "./ReleasesPage";
@@ -118,6 +118,21 @@ describe("ReleasesPage", () => {
     expect(replace).toHaveBeenCalledWith("/teams/team-1/releases/release-2?view=blocked");
   });
 
+  it("searches releases by title and preserves collection state in the URL", async () => {
+    params = new URLSearchParams("view=all&q=emergency");
+    render(<ReleasesPage teamId="team-1" />);
+
+    expect(screen.getAllByText("Emergency rollout")).toHaveLength(2);
+    expect(screen.queryByText("Production deployment")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "searchLabel" }), {
+      target: { value: "production" },
+    });
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/teams/team-1/releases?view=all&q=production"),
+    );
+  });
+
   it("distinguishes filtered-empty, no-team, error, and loading states", () => {
     params = new URLSearchParams("view=completed");
     const filtered = render(<ReleasesPage teamId="team-1" />);
@@ -141,6 +156,7 @@ describe("ReleasesPage", () => {
     queryError = null;
     loading = true;
     render(<ReleasesPage teamId="team-1" />);
-    expect(screen.getByTestId("release-skeleton-desktop")).toBeInTheDocument();
+    const skeleton = screen.getByTestId("release-skeleton-desktop");
+    expect(within(skeleton).getAllByRole("columnheader")).toHaveLength(6);
   });
 });

@@ -149,7 +149,7 @@ async fn github_event_escalates_an_acknowledged_incident_with_an_audit_event() {
     assert_eq!(stored.status, IncidentStatus::Escalated);
     let events = ctx
         .incidents
-        .list_events_for_incident(incident.id, 10)
+        .list_events_for_incident(incident.id, None, 10)
         .await
         .unwrap();
     assert_eq!(events.len(), 1);

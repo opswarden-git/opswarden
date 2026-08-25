@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useGifSearch } from "@/lib/queries/gifs";
 import { IconButton } from "@/components/ui/Button";
 import { MediaButton } from "@/components/ui/MediaButton";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 /** Shared GIPHY picker for every conversation composer. */
 export function GifSearchPanel({
@@ -15,7 +16,7 @@ export function GifSearchPanel({
   onClose: () => void;
   disabled?: boolean;
 }) {
-  const t = useTranslations("Incidents");
+  const t = useTranslations("Common");
   const tErr = useTranslations("errors");
   const [term, setTerm] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -39,7 +40,7 @@ export function GifSearchPanel({
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder={t("gifSearchPlaceholder")}
-            className="ow-input flex h-9 w-full rounded-md px-3 py-2 text-sm transition-colors"
+            className="ow-input focus-visible:border-border flex h-9 w-full rounded-md px-3 py-2 text-sm transition-colors focus-visible:shadow-none"
           />
         </label>
         <IconButton label={t("gifClose")} size="sm" variant="ghost" onClick={onClose}>
@@ -55,7 +56,15 @@ export function GifSearchPanel({
         ) : debounced.length === 0 ? (
           <p className="text-muted py-6 text-center text-xs">{t("gifSearchHint")}</p>
         ) : isFetching && !data ? (
-          <p className="text-muted animate-pulse py-6 text-center text-xs">{t("gifSearching")}</p>
+          <div
+            className="grid max-h-56 grid-cols-3 gap-2 overflow-hidden sm:grid-cols-4"
+            aria-busy="true"
+            aria-label={t("gifSearching")}
+          >
+            {Array.from({ length: 8 }, (_, index) => (
+              <Skeleton key={index} className="aspect-video w-full rounded-md" />
+            ))}
+          </div>
         ) : data && data.length === 0 ? (
           <p className="text-muted py-6 text-center text-xs">{t("gifNoResults")}</p>
         ) : (
@@ -79,10 +88,6 @@ export function GifSearchPanel({
             ))}
           </div>
         )}
-      </div>
-
-      <div className="text-muted-2 mt-2 text-right text-[10px] tracking-wide uppercase">
-        {t("poweredByGiphy")}
       </div>
     </div>
   );

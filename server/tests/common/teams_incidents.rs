@@ -287,6 +287,7 @@ impl IncidentRepo for DummyIncidentRepo {
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,
+        before: Option<opswarden_server::ports::ActivityCursor>,
         limit: u32,
     ) -> Result<Vec<IncidentEvent>, DomainError> {
         let mut events: Vec<_> = self
@@ -295,6 +296,7 @@ impl IncidentRepo for DummyIncidentRepo {
             .unwrap()
             .iter()
             .filter(|event| event.incident_id == incident_id)
+            .filter(|event| before.is_none_or(|cursor| (event.created_at, event.id) < cursor))
             .cloned()
             .collect();
         events.sort_by_key(|event| std::cmp::Reverse((event.created_at, event.id)));
@@ -366,6 +368,7 @@ impl TimelineRepo for DummyTimelineRepo {
     async fn list_entries_for_incident(
         &self,
         incident_id: Uuid,
+        before: Option<opswarden_server::ports::ActivityCursor>,
         limit: u32,
     ) -> Result<Vec<TimelineEntry>, DomainError> {
         let mut entries: Vec<_> = self
@@ -374,9 +377,10 @@ impl TimelineRepo for DummyTimelineRepo {
             .unwrap()
             .iter()
             .filter(|entry| entry.incident_id == incident_id)
+            .filter(|entry| before.is_none_or(|cursor| (entry.created_at, entry.id) < cursor))
             .cloned()
             .collect();
-        entries.reverse();
+        entries.sort_by_key(|entry| std::cmp::Reverse((entry.created_at, entry.id)));
         entries.truncate(limit as usize);
         Ok(entries)
     }
@@ -460,6 +464,21 @@ impl TimelineRepo for DummyTimelineRepo {
                 user_id: *user_id,
                 emoji: emoji.clone(),
             })
-            .collect())
+                .collect())
+    }
+
+    async fn find_attachment_for_member(
+        &self,
+        attachment_id: Uuid,
+        _user_id: Uuid,
+    ) -> Result<Option<opswarden_server::domain::conversation::MessageAttachment>, DomainError> {
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .flat_map(|entry| entry.attachments.iter())
+            .find(|attachment| attachment.id == attachment_id)
+            .cloned())
     }
 }

@@ -5,7 +5,17 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { MobileCollectionFilters } from "@/components/ui/CollectionControls";
+import {
+  OperationalTable,
+  OperationalTableBody,
+  OperationalTableCell,
+  OperationalTableHead,
+  OperationalTableHeaderCell,
+  OperationalTableRow,
+  OperationalTableRowHeader,
+} from "@/components/ui/OperationalTable";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -19,24 +29,114 @@ import {
 } from "@/lib/queries/automations";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
+import { cn } from "@/lib/utils";
 import { ConnectionsView } from "./ConnectionsView";
 import { RulesView } from "./RulesView";
 import { RunsView } from "./RunsView";
 
-function AutomationLoading() {
-  const t = useTranslations("Automations");
+function AutomationTableLoading({
+  columns,
+  label,
+  rows = 5,
+}: {
+  columns: number;
+  label: string;
+  rows?: number;
+}) {
+  const widths =
+    columns === 7
+      ? ["w-32", "w-20", "w-28", "w-28", "w-28", "w-20", "w-8"]
+      : ["w-16", "w-20", "w-28", "w-20", "w-28", "w-16"];
   return (
-    <div className="surface overflow-hidden rounded-md" aria-label={t("loading")}>
-      <div className="surface-subtle border-border h-11 border-b" />
-      <div className="divide-border divide-y">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="flex h-16 animate-pulse items-center gap-8 px-5">
-            <span className="bg-panel-2 h-4 w-1/4 rounded" />
-            <span className="bg-panel-2 h-4 w-1/5 rounded" />
-            <span className="bg-panel-2 h-4 w-1/5 rounded" />
-          </div>
+    <OperationalTable label={label} className="min-w-[820px]" containerClassName="overflow-x-auto">
+      <OperationalTableHead>
+        <tr>
+          {widths.map((width, index) => (
+            <OperationalTableHeaderCell key={index}>
+              <Skeleton className={cn("h-3", width)} />
+            </OperationalTableHeaderCell>
+          ))}
+        </tr>
+      </OperationalTableHead>
+      <OperationalTableBody>
+        {Array.from({ length: rows }, (_, rowIndex) => (
+          <OperationalTableRow key={rowIndex} className="hover:bg-transparent">
+            <OperationalTableRowHeader>
+              <Skeleton className={cn("h-4", widths[0])} />
+            </OperationalTableRowHeader>
+            {widths.slice(1).map((width, columnIndex) => (
+              <OperationalTableCell key={columnIndex}>
+                <Skeleton className={cn(columnIndex === 0 ? "h-5 rounded-full" : "h-4", width)} />
+              </OperationalTableCell>
+            ))}
+          </OperationalTableRow>
+        ))}
+      </OperationalTableBody>
+    </OperationalTable>
+  );
+}
+
+function AutomationLoading({ view }: { view: "connections" | "rules" | "runs" }) {
+  const t = useTranslations("Automations");
+  if (view === "connections") {
+    return (
+      <div className="space-y-8" aria-label={t("loading")} aria-busy="true">
+        {[2, 4].map((rows, groupIndex) => (
+          <section key={groupIndex}>
+            <div className="mb-2 flex items-center gap-2 px-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-4" />
+            </div>
+            <div className="surface divide-border divide-y overflow-hidden rounded-md">
+              {Array.from({ length: rows }, (_, index) => (
+                <div key={index} className="flex min-h-16 items-center gap-4 px-4 py-3">
+                  <Skeleton className="h-8 w-8 shrink-0" />
+                  <Skeleton className="h-4 w-32" />
+                  {groupIndex === 0 ? <Skeleton className="ml-auto h-5 w-20 rounded-full" /> : null}
+                  <Skeleton className={cn("h-8 w-20", groupIndex !== 0 && "ml-auto")} />
+                </div>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
+    );
+  }
+
+  if (view === "rules") {
+    return (
+      <div aria-label={t("loading")} aria-busy="true">
+        <div className="hidden overflow-x-auto lg:block">
+          <AutomationTableLoading columns={7} label={t("loading")} rows={4} />
+        </div>
+        <div className="surface divide-border divide-y overflow-hidden rounded-md lg:hidden">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+                <Skeleton className="h-8 w-8" />
+              </div>
+              <div className="surface-subtle border-border space-y-2 rounded border px-3 py-2">
+                {[0, 1, 2, 3].map((row) => (
+                  <div key={row} className="flex items-center justify-between gap-4">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto" aria-label={t("loading")} aria-busy="true">
+      <AutomationTableLoading columns={6} label={t("loading")} />
     </div>
   );
 }
@@ -244,7 +344,7 @@ export function TeamAutomationsPage({
       />
       <PageContent
         state={state}
-        loadingFallback={<AutomationLoading />}
+        loadingFallback={<AutomationLoading view={view} />}
         errorFallback={<Alert tone="danger">{t("unavailable")}</Alert>}
       >
         {team && !canManage ? (

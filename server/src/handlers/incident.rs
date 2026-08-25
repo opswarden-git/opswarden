@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -13,11 +14,12 @@ use crate::app::incident::{
     ChangeIncidentStatusUseCase, CreateIncidentCommand, CreateIncidentUseCase,
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
     GetIncidentCommand, GetIncidentUseCase, IncidentAssigneeFilter, IncidentCounts,
-    IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase, ReactionSummary,
+    IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase,
     ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
+use crate::handlers::conversation::{AttachmentResponse, ReactionResponse};
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 
@@ -324,14 +326,17 @@ pub async fn assign_responder(
 
 #[derive(Deserialize)]
 pub struct AddTimelineEntryPayload {
+    #[serde(default)]
     pub content: String,
+    #[serde(default)]
+    pub attachments: Vec<TimelineAttachmentPayload>,
 }
 
-#[derive(Serialize)]
-pub struct ReactionResponse {
-    pub emoji: String,
-    pub count: u64,
-    pub reacted: bool,
+#[derive(Deserialize)]
+pub struct TimelineAttachmentPayload {
+    pub file_name: String,
+    pub media_type: String,
+    pub data_base64: String,
 }
 
 #[derive(Serialize)]
@@ -343,17 +348,8 @@ pub struct TimelineEntryResponse {
     pub content: String,
     pub created_at: DateTime<Utc>,
     pub edited_at: Option<DateTime<Utc>>,
+    pub attachments: Vec<AttachmentResponse>,
     pub reactions: Vec<ReactionResponse>,
-}
-
-impl From<ReactionSummary> for ReactionResponse {
-    fn from(reaction: ReactionSummary) -> Self {
-        Self {
-            emoji: reaction.emoji,
-            count: reaction.count,
-            reacted: reaction.reacted,
-        }
-    }
 }
 
 // A freshly added entry has no edit and no reactions yet.
@@ -367,6 +363,7 @@ impl From<AddTimelineEntryResult> for TimelineEntryResponse {
             content: result.content,
             created_at: result.created_at,
             edited_at: None,
+            attachments: result.attachments.into_iter().map(Into::into).collect(),
             reactions: Vec::new(),
         }
     }
@@ -384,6 +381,7 @@ impl From<EditTimelineEntryResult> for TimelineEntryResponse {
             content: result.content,
             created_at: result.created_at,
             edited_at: result.edited_at,
+            attachments: Vec::new(),
             reactions: Vec::new(),
         }
     }
@@ -395,6 +393,16 @@ pub async fn add_timeline_entry(
     Path(incident_id): Path<Uuid>,
     Json(payload): Json<AddTimelineEntryPayload>,
 ) -> Result<(StatusCode, Json<TimelineEntryResponse>), DomainError> {
+    let attachments = payload
+        .attachments
+        .into_iter()
+        .map(|attachment| {
+            base64::engine::general_purpose::STANDARD
+                .decode(attachment.data_base64)
+                .map(|content| (attachment.file_name, attachment.media_type, content))
+                .map_err(|_| DomainError::InvalidTimelineAttachment)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let use_case = AddTimelineEntryUseCase::new(
         state.teams.clone(),
         state.incidents.clone(),
@@ -406,6 +414,7 @@ pub async fn add_timeline_entry(
             incident_id,
             author_id: session.user_id,
             content: payload.content,
+            attachments,
         })
         .await?;
 
@@ -484,6 +493,7 @@ pub async fn toggle_reaction(
 mod incident_activity;
 
 pub use incident_activity::{
-    available_reactions, delete_incident, list_incident_activity, UserSummaryResponse,
+    available_reactions, delete_incident, download_timeline_attachment, list_incident_activity,
+    UserSummaryResponse,
 };
 use incident_activity::{parse_incident_status, parse_severity};

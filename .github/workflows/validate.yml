@@ -202,6 +202,8 @@ jobs:
         run: echo "DATABASE_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_DB}" >> "$GITHUB_ENV"
       - name: Apply database migrations
         run: sqlx migrate run --source server/migrations
+      - name: Verify SQLx offline metadata
+        run: cargo sqlx prepare --workspace --check -- --all-targets
       - name: Build workspace
         run: cargo build --workspace --verbose
       - name: Run tests

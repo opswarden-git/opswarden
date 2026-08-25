@@ -80,7 +80,9 @@ describe("IncidentTable", () => {
   it("gives loading the same desktop and mobile boundaries", () => {
     render(<IncidentTableSkeleton />);
 
-    expect(screen.getByTestId("incident-skeleton-desktop")).toHaveClass("hidden", "lg:block");
+    const desktop = screen.getByTestId("incident-skeleton-desktop");
+    expect(desktop).toHaveClass("hidden", "lg:block");
+    expect(within(desktop).getAllByRole("columnheader")).toHaveLength(5);
     expect(screen.getByTestId("incident-skeleton-mobile")).toHaveClass("lg:hidden");
   });
 });

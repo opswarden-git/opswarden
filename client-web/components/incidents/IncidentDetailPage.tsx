@@ -1,28 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
-import { PanelLeftOpen, PanelRightOpen, Trash2 } from "lucide-react";
+import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
 import { useDeleteIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
 import { useTeamMembers, useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
-import { useWatchers, useWsStore } from "@/lib/ws";
+import { useWatchers } from "@/lib/ws";
 import { IncidentActivity } from "@/components/incidents/IncidentActivity";
 import { IncidentContextPanel } from "@/components/incidents/IncidentContextPanel";
 import { WarRoomNavigation } from "@/components/incidents/WarRoomNavigation";
+import { ConversationRoomSkeleton } from "@/components/messages/ConversationRoomSkeleton";
 import { deriveIncidentHeaderActions } from "@/components/incidents/incident-detail";
 import { PageContent } from "@/components/layout/PageContent";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { RailToggle } from "@/components/layout/RailToggle";
-import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Alert } from "@/components/ui/Alert";
-import { Button, IconButton } from "@/components/ui/Button";
+import { actionButtonClassNames, Button, IconButton } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Dialog } from "@/components/ui/Dialog";
 import { cn } from "@/lib/utils";
+import { useConversationRoom } from "@/lib/useConversationRoom";
 
 export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string; teamId: string }) {
   const t = useTranslations("Incidents");
@@ -38,14 +39,8 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const [isRoomsOpen, setIsRoomsOpen] = useState(false);
   const [isRoomsRailOpen, setIsRoomsRailOpen] = useState(true);
   const [isContextRailOpen, setIsContextRailOpen] = useState(true);
-  const watch = useWsStore((state) => state.watch);
-  const unwatch = useWsStore((state) => state.unwatch);
   const watchers = useWatchers(incidentId);
-
-  React.useEffect(() => {
-    watch(incidentId);
-    return () => unwatch(incidentId);
-  }, [incidentId, watch, unwatch]);
+  useConversationRoom({ kind: "incident", id: incidentId });
 
   React.useEffect(() => {
     if (!incident || teamId === incident.team_id) return;
@@ -54,17 +49,10 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
 
   if (isLoading) {
     return (
-      <PageLayout>
-        <PageHeader title={t("title")} />
-        <PageContent
-          state="loading"
-          loadingFallback={
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-              <div className="surface h-96 animate-pulse rounded-md" />
-              <div className="surface h-72 animate-pulse rounded-md" />
-            </div>
-          }
-        />
+      <PageLayout fill className="max-w-none gap-0 px-0 pt-0 pb-0 sm:px-0 md:px-0 md:pt-0 md:pb-0">
+        <PageContent className="flex min-h-0 flex-1 flex-col">
+          <ConversationRoomSkeleton context="incident" label={t("loadingActivity")} />
+        </PageContent>
       </PageLayout>
     );
   }
@@ -100,7 +88,8 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     <Button
       key={transition}
       variant={primary ? "primary" : "secondary"}
-      size="sm"
+      className={actionButtonClassNames()}
+      fullWidth
       loading={updateStatus.isPending}
       onClick={() => updateStatus.mutate({ incidentId: incident.id, status: transition })}
     >
@@ -114,28 +103,9 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     });
 
   const commands = (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
-        {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
-        {actions.canDelete ? (
-          <ActionMenu
-            label={t("moreActions")}
-            items={[
-              {
-                id: "delete",
-                label: t("deleteIncident"),
-                icon: Trash2,
-                tone: "danger",
-                onSelect: () => {
-                  deleteIncident.reset();
-                  setDeleteOpen(true);
-                },
-              },
-            ]}
-          />
-        ) : null}
-      </div>
+    <div className="space-y-2">
+      {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
+      {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
       {updateStatus.error ? (
         <p className="text-sev-critical text-xs" role="alert">
           {errorText(updateStatus.error.message)}
@@ -143,6 +113,19 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
       ) : null}
     </div>
   );
+  const dangerCommands = actions.canDelete ? (
+    <Button
+      variant="danger"
+      className={actionButtonClassNames()}
+      fullWidth
+      onClick={() => {
+        deleteIncident.reset();
+        setDeleteOpen(true);
+      }}
+    >
+      {t("deleteIncident")}
+    </Button>
+  ) : null;
 
   return (
     <PageLayout fill className="max-w-none gap-0 px-0 pt-0 pb-0 sm:px-0 md:px-0 md:pt-0 md:pb-0">
@@ -167,11 +150,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             data-rooms-rail-open={isRoomsRailOpen ? "true" : "false"}
           >
             {isRoomsRailOpen ? (
-              <WarRoomNavigation
-                activeIncidentId={incident.id}
-                members={members ?? []}
-                teamId={incident.team_id}
-              />
+              <WarRoomNavigation activeIncidentId={incident.id} teamId={incident.team_id} />
             ) : null}
             <RailToggle
               className="top-1/2 right-0 -translate-y-1/2"
@@ -231,6 +210,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
                 watcherIds={watchers}
                 canAssign={actions.canAssign}
                 commands={commands}
+                dangerCommands={dangerCommands}
               />
             ) : null}
           </div>
@@ -260,12 +240,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         title={t("warRoom")}
         description={incident.title}
       >
-        <WarRoomNavigation
-          inDialog
-          activeIncidentId={incident.id}
-          members={members ?? []}
-          teamId={incident.team_id}
-        />
+        <WarRoomNavigation inDialog activeIncidentId={incident.id} teamId={incident.team_id} />
       </Dialog>
 
       <Dialog
@@ -282,6 +257,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
           watcherIds={watchers}
           canAssign={actions.canAssign}
           commands={commands}
+          dangerCommands={dangerCommands}
         />
       </Dialog>
     </PageLayout>

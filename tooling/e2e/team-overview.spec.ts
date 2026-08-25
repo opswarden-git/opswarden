@@ -28,16 +28,20 @@ test.describe("Team operational overview", () => {
     // Incidents section
     const incidentsSection = page.getByRole("region", { name: "Incidents" });
     await expect(incidentsSection).toBeVisible();
-    await expect(
-      incidentsSection.getByText("Payment API returning 502 in Europe", { exact: true }),
-    ).toBeVisible();
+    await expect(incidentsSection.getByRole("listitem").first().getByRole("link")).toHaveAttribute(
+      "href",
+      new RegExp(`/en/teams/${TEAM_ID}/incidents/[0-9a-f-]+$`),
+    );
+    await expect(incidentsSection.getByRole("link", { name: "See all: Incidents" })).toBeVisible();
 
     // Releases section
     const releasesSection = page.getByRole("region", { name: "Releases" });
     await expect(releasesSection).toBeVisible();
-    await expect(
-      releasesSection.getByText("v2.8.0 — Payment resilience", { exact: true }),
-    ).toBeVisible();
+    await expect(releasesSection.getByRole("listitem").first().getByRole("link")).toHaveAttribute(
+      "href",
+      new RegExp(`/en/teams/${TEAM_ID}/releases/[0-9a-f-]+$`),
+    );
+    await expect(releasesSection.getByRole("link", { name: "See all: Releases" })).toBeVisible();
 
     // Runs section
     const runsSection = page.getByRole("region", { name: "Runs" });
@@ -77,6 +81,14 @@ test.describe("Team operational overview", () => {
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(overflow, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
+
+      if (width >= 1280) {
+        const shellOverflow = await page
+          .locator("main")
+          .first()
+          .evaluate((element) => element.scrollHeight - element.clientHeight);
+        expect(shellOverflow, `vertical shell overflow at ${width}px`).toBeLessThanOrEqual(1);
+      }
     }
   });
 });
