@@ -142,9 +142,9 @@ export function renderIndex(stats) {
     titleFr: "Inventaire OpsWarden",
     titleEn: "OpsWarden inventory",
     introFr:
-      "Onze familles d’ensembles fermés, dérivées du code plutôt que transcrites. Chaque planche est lue depuis un match exhaustif, un contrat vérifié par un test, ou le serveur en fonctionnement — donc aucune ne peut diverger en silence de ce qu’elle documente.",
+      "Rôles, routes, événements, données, automatisations et interface, générés directement depuis le code.",
     introEn:
-      "Eleven families of closed sets, derived from the code rather than transcribed. Every board is read from an exhaustive match, a contract asserted by a test, or the running server — so none can quietly drift from what it documents.",
+      "Roles, routes, events, data, automations and interface, generated directly from the code.",
     body: `
 <section>
   <div class="section-head"><h2>${bi("Planches", "Boards")}</h2>
