@@ -1,5 +1,5 @@
 import { bi, card, escape, note, page, summary, table, tone, yesNo } from "./layout.mjs";
-import { cell, key, muted, text, STATUS_TONE, METHOD_TONE } from "./render-helpers.mjs";
+import { cell, key, muted, text } from "./render-helpers.mjs";
 
 export function renderConversations(features, limits) {
   const featureRows = features.all.map((feature) => [
@@ -13,8 +13,8 @@ export function renderConversations(features, limits) {
 
   return page({
     slug: "conversations",
-    titleFr: "Surfaces de conversation",
-    titleEn: "Conversation surfaces",
+    titleFr: "Conversations",
+    titleEn: "Conversations",
     introFr:
       "Ce que chaque surface déclare savoir faire, et les bornes que le domaine impose des deux côtés. La colonne où les deux surfaces divergent est la seule qui mérite une justification.",
     introEn:
@@ -172,8 +172,8 @@ export function renderAutomations(catalog, api) {
   if (!catalog.available) {
     return page({
       slug: "automations",
-      titleFr: "Catalogue d’automation",
-      titleEn: "Automation catalogue",
+      titleFr: "Automations",
+      titleEn: "Automations",
       introFr: "Cette planche est servie par le serveur en fonctionnement.",
       introEn: "This board is served by the running server.",
       body: `<section><div class="capture-grid single">${card(
@@ -196,8 +196,8 @@ export function renderAutomations(catalog, api) {
 
   return page({
     slug: "automations",
-    titleFr: "Catalogue d’automation",
-    titleEn: "Automation catalogue",
+    titleFr: "Automations",
+    titleEn: "Automations",
     introFr:
       "Les services intégrés, avec ce que chacun peut déclencher (action) et ce qu’il peut exécuter en retour (réaction). Lu depuis /about.json du serveur en fonctionnement, donc exactement ce que voit un client.",
     introEn:

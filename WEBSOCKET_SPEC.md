@@ -1,4 +1,4 @@
-# OpsWarden WebSocket protocol
+# WebSocket protocol
 
 This document is the canonical contract between the Rust server, the web
 client, and the desktop client. It describes the protocol implemented on

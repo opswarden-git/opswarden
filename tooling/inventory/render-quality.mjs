@@ -1,5 +1,5 @@
-import { bi, card, escape, note, page, summary, table, tone, yesNo } from "./layout.mjs";
-import { cell, key, muted, text, STATUS_TONE, METHOD_TONE } from "./render-helpers.mjs";
+import { bi, card, note, page, summary, table, tone, yesNo } from "./layout.mjs";
+import { cell, key, muted, text } from "./render-helpers.mjs";
 
 export function renderContracts(attributes) {
   const uncovered = attributes.filter((attribute) => !attribute.covered);
@@ -91,9 +91,9 @@ ${summary([
           bi("Namespace", "Namespace"),
           bi("Clés", "Keys"),
           bi("Mots EN", "EN words"),
-          bi("Marge", "Slack"),
+          bi("Marge EN", "EN slack"),
           bi("Mots FR", "FR words"),
-          bi("Marge", "Slack"),
+          bi("Marge FR", "FR slack"),
           bi("Écart FR/EN", "FR/EN gap"),
         ],
         data.namespaces.map((entry) => {
@@ -109,16 +109,16 @@ ${summary([
               entry.locales.en.ceiling === null
                 ? `<span class="muted">—</span>`
                 : entry.locales.en.slack === 0
-                  ? tone("success", "0")
-                  : tone("warning", String(entry.locales.en.slack)),
+                  ? tone("warning", "0")
+                  : tone("success", String(entry.locales.en.slack)),
             ),
             text(entry.locales.fr.words),
             cell(
               entry.locales.fr.ceiling === null
                 ? `<span class="muted">—</span>`
                 : entry.locales.fr.slack === 0
-                  ? tone("success", "0")
-                  : tone("warning", String(entry.locales.fr.slack)),
+                  ? tone("warning", "0")
+                  : tone("success", String(entry.locales.fr.slack)),
             ),
             muted(`${ratio >= 0 ? "+" : ""}${ratio}%`),
           ];
@@ -126,8 +126,8 @@ ${summary([
         ["18%", "8%", "12%", "12%", "12%", "12%", "13%"],
       ) +
         note(
-          "Une marge à zéro veut dire que le plafond a été re-mesuré sur l’état exact du jour. Une marge positive est du mou : la prose peut regrandir jusque-là sans qu’aucun test ne bronche.",
-          "Zero slack means the ceiling was re-measured against the exact state of the day. Positive slack is give: prose can regrow up to it without any test complaining.",
+          "La marge est le nombre de mots qu’un namespace peut encore gagner. À zéro, le plafond a été re-mesuré sur l’état exact du jour : plus un mot n’entre sans faire tomber le test. Une marge positive est du mou disponible.",
+          "Slack is how many words a namespace can still gain. At zero, the ceiling was re-measured against the exact state of the day: not one more word fits without failing the test. Positive slack is give still available.",
         ),
       true,
     )}
@@ -136,29 +136,33 @@ ${summary([
   });
 }
 
+// Les enfants de la section Product dans la nav. Un hub liste ses enfants,
+// ni plus ni moins : chaque autre planche est listée par sa propre section.
+const PRODUCT_BOARDS = [
+  { slug: "capabilities", fr: "Rôles et permissions", en: "Roles and permissions" },
+  { slug: "conversations", fr: "Conversations", en: "Conversations" },
+  { slug: "automations", fr: "Automations", en: "Automations" },
+];
+
 export function renderIndex(stats) {
   return page({
     slug: "index",
-    titleFr: "Inventaire OpsWarden",
-    titleEn: "OpsWarden inventory",
+    titleFr: "Produit",
+    titleEn: "Product",
     introFr:
-      "Rôles, routes, événements, données, automatisations et interface, générés directement depuis le code.",
+      "Ce que le produit autorise, ce que ses conversations savent faire et ce que ses automations déclenchent. Ces trois planches sont générées depuis le code.",
     introEn:
-      "Roles, routes, events, data, automations and interface, generated directly from the code.",
+      "What the product authorises, what its conversations can do and what its automations trigger. These three boards are generated from the source.",
     body: `
-<section>
-  <div class="section-head"><h2>${bi("Planches", "Boards")}</h2></div>
-  <div class="hub">
-    ${stats
-      .map(
-        (entry) =>
-          `<a href="${entry.slug}.html"><strong>${escape(entry.count)}</strong>
-<span class="label">${bi(entry.fr, entry.en)}</span>
-<span class="sub">${bi(entry.subFr, entry.subEn)}</span></a>`,
-      )
-      .join("")}
-  </div>
-</section>`,
+<div class="grid cards">
+  <ul>
+    ${PRODUCT_BOARDS.map((board) => {
+      const stat = stats.find((entry) => entry.slug === board.slug);
+      return `<li><p><strong><a href="${board.slug}.html">${bi(board.fr, board.en)}</a></strong></p>
+<p>${bi(stat.subFr, stat.subEn)}</p></li>`;
+    }).join("")}
+  </ul>
+</div>`,
   });
 }
 
