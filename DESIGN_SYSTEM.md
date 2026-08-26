@@ -1,4 +1,4 @@
-# OpsWarden visual contract
+# Design system
 
 This document defines the visual rules shared by the web and desktop clients.
 Canonical values live in `client-web/app/globals.css`; shared components consume

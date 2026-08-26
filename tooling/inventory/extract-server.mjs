@@ -19,6 +19,63 @@ import {
   snake,
 } from "./sources.mjs";
 
+/**
+ * A body ceiling is written in Rust as an expression: `1024 * 1024`, or a path
+ * to a `const`. Rendering that raw leaked `crate::adapters::webhook::generic::
+ * MAX_GENERIC_BODY_BYTES` into a column meant to state a size. We resolve the
+ * constant against the server source, evaluate the arithmetic, and format it.
+ */
+const SIZE_CONSTANTS = (() => {
+  const map = new Map();
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".rs")) {
+        for (const [, name, value] of fs
+          .readFileSync(full, "utf8")
+          .matchAll(/const\s+([A-Z0-9_]+)\s*:\s*usize\s*=\s*([^;]+);/g)) {
+          map.set(name, value.trim());
+        }
+      }
+    }
+  };
+  walk(path.join(ROOT, "server/src"));
+  return map;
+})();
+
+function resolveBytes(expression, seen = new Set()) {
+  if (!expression) return null;
+  const trimmed = expression.trim();
+  const name = trimmed.split("::").pop();
+  // Un identifiant d'abord : retirer les underscores avant ce test effacerait
+  // le nom de la constante en même temps que les séparateurs de chiffres.
+  if (/^[A-Z][A-Z0-9_]*$/.test(name)) {
+    if (seen.has(name) || !SIZE_CONSTANTS.has(name)) return null;
+    seen.add(name);
+    return resolveBytes(SIZE_CONSTANTS.get(name), seen);
+  }
+  const digits = trimmed.replace(/_/g, "");
+  if (!/^[\d\s*+]+$/.test(digits)) return null;
+  const total = digits
+    .split("+")
+    .reduce((sum, term) => sum + term.split("*").reduce((a, b) => a * Number(b), 1), 0);
+  return Number.isFinite(total) && total > 0 ? total : null;
+}
+
+/** Bytes as the unit an operator reads, never a raw byte count. */
+export function formatBytes(expression) {
+  const bytes = resolveBytes(expression);
+  if (bytes === null) return expression;
+  for (const [unit, size] of [
+    ["MiB", 1024 * 1024],
+    ["KiB", 1024],
+  ]) {
+    if (bytes % size === 0) return `${bytes / size} ${unit}`;
+  }
+  return `${bytes} B`;
+}
+
 /** 3 roles x 17 capabilities, from the contract `capabilities.rs` is tested against. */
 export function capabilities() {
   const contract = readJson("contracts/role-capabilities.json");
@@ -203,7 +260,7 @@ export function routes() {
           method: verb[1].toUpperCase(),
           handler: verb[2],
           guarded,
-          bodyLimit: limit ? limit[1].replace(/\s+/g, " ").replace(/,$/, "") : null,
+          bodyLimit: limit ? formatBytes(limit[1].replace(/\s+/g, " ").replace(/,$/, "")) : null,
         }),
       );
     });

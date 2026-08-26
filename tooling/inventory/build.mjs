@@ -70,97 +70,27 @@ async function main() {
   write("contracts", renderContracts(attributes));
   write("i18n", renderI18n(copy));
 
-  const uncovered = attributes.filter((attribute) => !attribute.covered).length;
   write(
     "index",
     renderIndex([
       {
         slug: "capabilities",
-        count: `${capabilities.roles.length}×${capabilities.fields.length}`,
-        fr: "Rôles et capacités",
-        en: "Roles and capabilities",
-        subFr: "Toute l’autorisation produit sur une grille",
-        subEn: "The whole product authorisation on one grid",
-      },
-      {
-        slug: "errors",
-        count: errors.rows.length,
-        fr: "Erreurs",
-        en: "Errors",
-        subFr: `${errors.rows.filter((row) => !row.en).length} sans message d’interface`,
-        subEn: `${errors.rows.filter((row) => !row.en).length} with no interface message`,
-      },
-      {
-        slug: "api",
-        count: routes.length,
-        fr: "Routes HTTP",
-        en: "HTTP routes",
-        subFr: `${routes.filter((route) => !route.guarded).length} publiques, ${routes.filter((route) => route.bodyLimit).length} avec plafond explicite`,
-        subEn: `${routes.filter((route) => !route.guarded).length} public, ${routes.filter((route) => route.bodyLimit).length} with an explicit ceiling`,
-      },
-      {
-        slug: "events",
-        count: `${events.length}+${ws.frames.length}`,
-        fr: "Événements et trames",
-        en: "Events and frames",
-        subFr: "Portée de livraison et protocole temps réel",
-        subEn: "Delivery scope and the realtime protocol",
+        subFr: "Toute l’autorisation produit sur une grille.",
+        subEn: "The whole product authorisation on one grid.",
       },
       {
         slug: "conversations",
-        count: features.all.length,
-        fr: "Capacités de conversation",
-        en: "Conversation features",
-        subFr: "Parité entre messagerie directe et war room",
-        subEn: "Parity between direct messages and the war room",
-      },
-      {
-        slug: "data",
-        count: migrations.length,
-        fr: "Migrations et états",
-        en: "Migrations and states",
-        subFr: "Registre forward-only et cycles de vie",
-        subEn: "Forward-only ledger and lifecycles",
+        subFr: "Parité entre messagerie directe et war room.",
+        subEn: "Parity between direct messages and the war room.",
       },
       {
         slug: "automations",
-        count: catalog.available ? catalog.services.length : "—",
-        fr: "Services d’automation",
-        en: "Automation services",
-        subFr: catalog.available ? "Lu depuis le serveur en fonctionnement" : "Serveur injoignable",
-        subEn: catalog.available ? "Read from the running server" : "Server unreachable",
-      },
-      {
-        slug: "ui",
-        count: primitives.length,
-        fr: "Primitives d’interface",
-        en: "Interface primitives",
-        subFr: `${tokenData.total} jetons de design déclarés`,
-        subEn: `${tokenData.total} declared design tokens`,
-      },
-      {
-        slug: "contracts",
-        count: attributes.length,
-        fr: "Contrats DOM",
-        en: "DOM contracts",
-        subFr: `${uncovered} jamais sélectionnés par les E2E`,
-        subEn: `${uncovered} never selected by the E2E suite`,
-      },
-      {
-        slug: "i18n",
-        count: copy.totalKeys,
-        fr: "Clés de texte",
-        en: "Copy keys",
-        subFr: `${copy.namespaces.length} namespaces sous plafond`,
-        subEn: `${copy.namespaces.length} namespaces under a ceiling`,
-      },
-      {
-        slug: "badges",
-        count: 28,
-        fr: "Badges d’état",
-        en: "State badges",
-        subFr: "Écrite à la main — la seule planche qui ne se génère pas",
-        subEn: "Hand-authored — the one board that is not generated",
+        subFr: catalog.available
+          ? "Lu depuis le serveur en fonctionnement."
+          : "Serveur injoignable.",
+        subEn: catalog.available
+          ? "Read from the running server."
+          : "Server unreachable.",
       },
     ]),
   );

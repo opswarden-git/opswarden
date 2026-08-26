@@ -139,20 +139,15 @@ color:#fff;font-size:11px;font-weight:650;line-height:1;white-space:nowrap}
 .pill.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
 .mark{font-size:13px;font-weight:700}
 .mark.yes{color:#3fb950}.mark.no{color:var(--muted-2)}
-.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.tokenchip{display:inline-block;width:14px;height:14px;border:1px solid var(--border);border-radius:3px;
-vertical-align:-3px;margin-right:6px}
-.bar{position:relative;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;min-width:70px}
-.bar i{position:absolute;inset:0 auto 0 0;background:var(--gold);border-radius:3px}
-.bar.over i{background:var(--danger)}
-.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;color:var(--muted-2);font-size:11px}
-.hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px}
-.hub a{display:block;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--panel);
-text-decoration:none}
-.hub a:hover{border-color:rgb(255 255 255/18%);background:var(--panel-2)}
-.hub strong{display:block;font-size:26px;letter-spacing:-.02em}
-.hub .label{display:block;margin-top:2px;font-size:12.5px;font-weight:650}
-.hub .sub{display:block;margin-top:6px;color:var(--muted-2);font-size:11px;line-height:1.45}
+.grid.cards>ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:16px 0 0;padding:0;list-style:none}
+.grid.cards>ul>li{position:relative;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--panel);
+transition:border-color .1s linear,background .1s linear}
+.grid.cards>ul>li:hover{border-color:rgb(255 255 255/18%);background:var(--panel-2)}
+.grid.cards>ul>li>p{margin:0}
+.grid.cards>ul>li>p+p{margin-top:6px;color:var(--muted-2);font-size:12px;line-height:1.45}
+.grid.cards>ul>li a{color:var(--text);text-decoration:none}
+.grid.cards>ul>li a::after{position:absolute;content:"";inset:0}
+.grid.cards>ul>li:hover a{color:var(--gold)}
 @media(max-width:900px){.capture-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){nav.portal{align-items:flex-start;flex-direction:column}nav.portal>div{justify-content:flex-start}}
 `;

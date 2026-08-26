@@ -1,11 +1,11 @@
-# How to Contribute to OpsWarden
+# Contributing
 
 OpsWarden is an alpha incident-management product built as a modular monorepo:
 Rust/Axum on the server, Next.js on the web, and a Tauri desktop shell. This
 guide is intentionally practical: it tells you how to run the product, how the
 code is organized, and what a pull request must prove before it is merged.
 
-## Repository Map
+## Repository map
 
 ```text
 .
@@ -39,7 +39,7 @@ For the desktop shell, use the Tauri-specific shell:
 nix develop .#tauri
 ```
 
-## Run the Product
+## Run the product
 
 Start the server and database, matching the jury-friendly Docker path:
 
@@ -66,7 +66,7 @@ just desktop-dev   # wrapper for ./client-desktop/dev.sh
 The desktop app currently runs in URL mode against `http://localhost:4242`.
 Compose and CI also build and smoke-test the Linux `.deb` and AppImage packages.
 
-## Demo Accounts
+## Demo accounts
 
 Create or restore the demo data with:
 
@@ -77,18 +77,22 @@ just demo
 The command creates the demo Teams, Incidents, Releases and Automation rule. It
 also creates these accounts:
 
-| Email                        | Password | Role       |
-| ---------------------------- | -------- | ---------- |
-| `manager@opswarden.local`    | `sudo`   | Manager    |
-| `responder@opswarden.local`  | `sudo`   | Responder  |
-| `observer@opswarden.local`   | `sudo`   | Observer   |
-| `contractor@opswarden.local` | `sudo`   | Non-member |
+| Email                        | Role       |
+| ---------------------------- | ---------- |
+| `manager@opswarden.local`    | Manager    |
+| `responder@opswarden.local`  | Responder  |
+| `observer@opswarden.local`   | Observer   |
+| `contractor@opswarden.local` | Non-member |
+
+All four share `OPSWARDEN_DEMO_PASSWORD`. The seed script prints the value it
+used when it finishes, so the credential stays with the run rather than with
+this published page.
 
 Use disposable users for verification runs, and clean them up afterwards. Do not
 leave generated `*_it_*`, `e2e-*`, `verify*`, or `repro-*` accounts in the demo
 database.
 
-## Architecture Rules
+## Architecture rules
 
 The backend follows a hexagonal layout. Keep these boundaries sharp:
 
@@ -137,7 +141,7 @@ Common variables:
 
 Never commit real secrets. `.env` is ignored.
 
-## Extend Automation and Realtime
+## Extend automation and realtime
 
 You do not need to build a custom frontend form for every integration. The
 server publishes its Automation catalog through `/about.json`, and the web app
@@ -233,7 +237,7 @@ After any of these extensions, run the focused tests while you work, then run:
 just ci
 ```
 
-## Checks Before a PR
+## Checks before a PR
 
 `just ci` mirrors the GitHub gate: one recipe per job, named after it. Run it
 whatever the change touches.
@@ -295,7 +299,7 @@ are excluded from the ratio. The `source-only-summary.json` gate rejects an
 empty or contaminated report and enforces 70% line coverage. Vitest/V8 applies
 the corresponding global runtime-source gate to the frontend.
 
-## Database Tests
+## Database tests
 
 Postgres adapter tests use `#[sqlx::test]`. Each test gets an ephemeral database
 that is created, migrated and dropped automatically.
@@ -313,7 +317,7 @@ postgres://opswarden:opswarden@localhost:5433/opswarden
 
 Running `cargo test` directly requires you to export `DATABASE_URL` yourself.
 
-## Branching and Commits
+## Branching and commits
 
 Use short branches from `main`:
 
@@ -341,7 +345,7 @@ Keep commits logical. A good PR explains:
 - exact commands run;
 - any manual/live verification performed.
 
-## Pull Request Definition of Done
+## Pull request definition of done
 
 A PR is mergeable only when:
 

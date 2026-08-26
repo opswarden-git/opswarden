@@ -1,5 +1,5 @@
 import { bi, card, escape, note, page, summary, table, tone, yesNo } from "./layout.mjs";
-import { cell, key, muted, text, STATUS_TONE, METHOD_TONE } from "./render-helpers.mjs";
+import { cell, key, muted, text, statusTone, statusLabel, METHOD_TONE } from "./render-helpers.mjs";
 
 export function renderCapabilities(data) {
   const rows = data.fields.map((field) => [
@@ -10,12 +10,12 @@ export function renderCapabilities(data) {
 
   return page({
     slug: "capabilities",
-    titleFr: "Matrice rôle × capacité",
-    titleEn: "Role × capability matrix",
+    titleFr: "Rôles et permissions",
+    titleEn: "Roles and permissions",
     introFr:
-      "Les 17 capacités produit dérivées d’une appartenance à une équipe. Le serveur reste l’autorité ; le client web ne fait que refléter ce contrat pour éviter d’afficher une action qui sera refusée.",
+      "Les 17 capacités produit dérivées d’une appartenance à une équipe. Le serveur reste l’autorité ; le client web ne fait que refléter ce contrat pour éviter d’afficher une action qui sera refusée. La grille est lue depuis contracts/role-capabilities.json, qu’un test Rust vérifie contre le serveur.",
     introEn:
-      "The 17 product capabilities derived from one team membership. The server remains the authority; the web client mirrors this contract only to avoid rendering an action it would reject.",
+      "The 17 product capabilities derived from one team membership. The server remains the authority; the web client mirrors this contract only to avoid rendering an action it would reject. The grid is read from contracts/role-capabilities.json, which a Rust test asserts against the server.",
     body: `
 ${summary([
   [data.roles.length, "rôles", "roles"],
@@ -24,8 +24,7 @@ ${summary([
   ...data.roles.map((role, index) => [totals[index], `accordées à ${role}`, `granted to ${role}`]),
 ])}
 <section>
-  <div class="section-head"><h2>${bi("Grille complète", "Full grid")}</h2>
-  <p>${bi("Source : contracts/role-capabilities.json, vérifié par un test Rust", "Source: contracts/role-capabilities.json, asserted by a Rust test")}</p></div>
+  <div class="section-head"><h2>${bi("Grille complète", "Full grid")}</h2></div>
   <div class="capture-grid single">
     ${card(
       bi("derive_capabilities()", "derive_capabilities()"),
@@ -50,12 +49,7 @@ ${summary([
 export function renderErrors(data) {
   const rows = data.rows.map((row) => [
     key(row.code, true),
-    cell(
-      tone(
-        STATUS_TONE[row.status] ?? "neutral",
-        escape(row.status.replace(/_/g, " ").toLowerCase()),
-      ),
-    ),
+    cell(tone(statusTone(row.status), escape(statusLabel(row.status)))),
     text(row.en),
     text(row.fr),
   ]);
@@ -93,8 +87,8 @@ ${summary([
           .map(([status, count]) => [
             cell(
               tone(
-                STATUS_TONE[status] ?? "neutral",
-                escape(status.replace(/_/g, " ").toLowerCase()),
+                statusTone(status),
+                escape(statusLabel(status)),
               ),
             ),
             text(count),
@@ -123,8 +117,8 @@ ${
           key(row.code, true),
           cell(
             tone(
-              STATUS_TONE[row.status] ?? "neutral",
-              escape(row.status.replace(/_/g, " ").toLowerCase()),
+              statusTone(row.status),
+              escape(statusLabel(row.status)),
             ),
           ),
           muted(row.doc),
@@ -182,9 +176,9 @@ ${
 
 export function renderApi(routes) {
   const rows = routes.map((route) => [
-    cell(tone(METHOD_TONE[route.method] ?? "neutral", route.method)),
+    cell(tone(METHOD_TONE[route.method] ?? "ghost", route.method)),
     key(route.path, true),
-    cell(route.guarded ? tone("info", bi("auth", "auth")) : tone("ghost", bi("public", "public"))),
+    cell(route.guarded ? tone("ghost", bi("auth", "auth")) : tone("ghost", bi("public", "public"))),
     muted(route.handler),
     muted(route.bodyLimit),
   ]);
@@ -193,8 +187,8 @@ export function renderApi(routes) {
 
   return page({
     slug: "api",
-    titleFr: "Surface HTTP",
-    titleEn: "HTTP surface",
+    titleFr: "Routes HTTP",
+    titleEn: "HTTP routes",
     introFr:
       "Chaque route, son verbe, si elle est derrière l’authentification et le plafond de corps qu’elle accepte. Une colonne vide en limite signifie le défaut d’axum, soit 2 Mio.",
     introEn:
@@ -211,11 +205,10 @@ ${summary([
     .map(([method, count]) => [count, method, method]),
 ])}
 <section>
-  <div class="section-head"><h2>${bi("Toutes les routes", "Every route")}</h2>
-  <p>${bi("Source : build_app() dans server/src/lib.rs", "Source: build_app() in server/src/lib.rs")}</p></div>
+  <div class="section-head"><h2>${bi("Toutes les routes", "Every route")}</h2></div>
   <div class="capture-grid single">
     ${card(
-      bi("Router", "Router"),
+      bi("build_app()", "build_app()"),
       "server/src/lib.rs",
       table(
         [
@@ -242,8 +235,8 @@ ${summary([
 export function renderEvents(events, ws) {
   return page({
     slug: "events",
-    titleFr: "Événements et protocole",
-    titleEn: "Events and protocol",
+    titleFr: "Événements et temps réel",
+    titleEn: "Events and realtime",
     introFr:
       "Les événements du domaine, la portée à laquelle chacun est livré, et la trame WebSocket correspondante. Une portée Team atteint tous les membres ; une portée Users ne vise que les deux participants nommés.",
     introEn:

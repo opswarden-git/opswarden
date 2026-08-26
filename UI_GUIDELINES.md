@@ -1,4 +1,4 @@
-# OpsWarden UI guidelines
+# UI guidelines
 
 **Owner:** web client maintainers · **Status:** implemented contract · **Review:**
 when shared components or tokens change
@@ -25,9 +25,9 @@ contrast or responsive behavior.
 - Labels describe outcomes: “Resolve incident”, “Validate step” and “Transfer
   Manager”, not vague verbs such as “Submit” or “Continue”.
 
-![OpsWarden logo exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/02-logo-usage.png){ .brand-board loading=lazy }
-
 ### Logo
+
+![OpsWarden logo exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/02-logo-usage.png){ .brand-board loading=lazy }
 
 - Use the complete wordmark when the product identity is not already visible;
   use the shield icon for compact navigation, favicons and app icons.
@@ -38,9 +38,9 @@ contrast or responsive behavior.
 - On dark surfaces use the supplied light wordmark; on light surfaces use its
   approved dark variant. Never place it over busy operational content.
 
-![OpsWarden typography exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/03-typography.png){ .brand-board loading=lazy }
-
 ### Typography
+
+![OpsWarden typography exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/03-typography.png){ .brand-board loading=lazy }
 
 | Family             | Purpose                                          | Rule                                             |
 | ------------------ | ------------------------------------------------ | ------------------------------------------------ |
@@ -50,9 +50,9 @@ contrast or responsive behavior.
 Do not introduce a third family. A table may use Inter for human-readable names
 and JetBrains Mono for an Incident identifier in the same row.
 
-![OpsWarden color exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/04-color-palette.png){ .brand-board loading=lazy }
-
 ### Canonical palette
+
+![OpsWarden color exploration](https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/ui-guidelines/pomelli/04-color-palette.png){ .brand-board loading=lazy }
 
 Pomelli's generated color names are not canonical. Use semantic roles instead:
 
@@ -86,37 +86,37 @@ The lifecycle mapping is the **Progression** model: an open Incident starts
 neutral, becomes informational once acknowledged, becomes danger when
 escalated and success when resolved.
 
+Every badge below carries its own name as text, verbatim: the tone never
+travels alone. The severity silhouette is progressively stronger, and this is
+the original inventory grammar, retained inside the opaque panels.
+
 **Severity** — how bad it is.
 
-| Concept  | Badge tone | Required text |
-| -------- | ---------- | ------------- |
-| Low      | Neutral    | Low           |
-| Medium   | Warning    | Medium        |
-| High     | Warning    | High          |
-| Critical | Danger     | Critical      |
-
-The severity silhouette is fixed and progressively stronger: circle alert for
-Low, triangle alert for Medium, octagon alert for High and flame for Critical.
-This is the original inventory grammar, retained inside the opaque panels.
+| State    | Tone    | Icon           |
+| -------- | ------- | -------------- |
+| Low      | Neutral | circle alert   |
+| Medium   | Warning | triangle alert |
+| High     | Warning | octagon alert  |
+| Critical | Danger  | flame          |
 
 **Incident state** — where it is in its life.
 
-| Concept      | Badge tone | Required text |
-| ------------ | ---------- | ------------- |
-| Open         | Neutral    | Open          |
-| Acknowledged | Info       | Acknowledged  |
-| Escalated    | Danger     | Escalated     |
-| Resolved     | Success    | Resolved      |
+| State        | Tone    |
+| ------------ | ------- |
+| Open         | Neutral |
+| Acknowledged | Info    |
+| Escalated    | Danger  |
+| Resolved     | Success |
 
 **Release state** — its own family, for its own object.
 
-| Concept     | Badge tone | Required text |
-| ----------- | ---------- | ------------- |
-| Created     | Neutral    | Created       |
-| In progress | Info       | In progress   |
-| Blocked     | Danger     | Blocked       |
-| Completed   | Success    | Completed     |
-| Cancelled   | Neutral    | Cancelled     |
+| State       | Tone    |
+| ----------- | ------- |
+| Created     | Neutral |
+| In progress | Info    |
+| Blocked     | Danger  |
+| Completed   | Success |
+| Cancelled   | Neutral |
 
 Connections, rules and automation runs use the same five-tone vocabulary. Team
 roles remain light identity labels with distinct shields. An active ban is an
