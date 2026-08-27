@@ -132,7 +132,14 @@
     "deleteModalDesc": "Supprime définitivement {email}. Transférez d’abord votre rôle Manager si nécessaire. Saisissez DELETE pour confirmer.",
     "cancel": "Annuler",
     "deleting": "Suppression...",
-    "deleteFailed": "Échec de la suppression du compte"
+    "deleteFailed": "Échec de la suppression du compte",
+    "notifications": "Notifications",
+    "desktopNotifications": "Notifications du bureau",
+    "notificationsEnable": "Activer",
+    "notificationsOn": "Activées",
+    "notificationsOff": "Désactivées",
+    "notificationsBlocked": "Bloquées dans les réglages du navigateur",
+    "notificationsUnsupported": "Indisponibles dans ce navigateur"
   },
   "errors": {
     "unknown": "Une erreur est survenue. Veuillez réessayer.",
@@ -313,7 +320,10 @@
     "create": "Créer",
     "close": "Fermer la boîte de dialogue",
     "openWorkspace": "Ouvrir les membres et les paramètres de l’équipe",
-    "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre."
+    "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre.",
+    "changeTeamImage": "Modifier l’image de l’équipe",
+    "removeTeamImage": "Supprimer l’image de l’équipe",
+    "teamImageFailed": "Impossible de modifier l’image de l’équipe."
   },
   "Automations": {
     "filtersLabel": "Filtres",

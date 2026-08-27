@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
 import { LanguagePanel } from "@/components/settings/LanguagePanel";
+import { NotificationsPanel } from "@/components/settings/NotificationsPanel";
 import { AccountDangerZone } from "@/components/settings/AccountDangerZone";
 import { useSearchParams } from "next/navigation";
 import { PageContent } from "@/components/layout/PageContent";
@@ -22,6 +23,7 @@ export default function SettingsPage() {
       <PageContent className="surface mx-auto w-full max-w-3xl space-y-8 rounded-md p-6">
         <ProfilePanel />
         <LanguagePanel />
+        <NotificationsPanel />
         <AccountDangerZone />
       </PageContent>
     </PageLayout>

@@ -132,7 +132,14 @@
     "deleteModalDesc": "Delete {email} permanently. If others belong to your team, transfer your Manager role first. Type DELETE to confirm.",
     "cancel": "Cancel",
     "deleting": "Deleting...",
-    "deleteFailed": "Failed to delete account"
+    "deleteFailed": "Failed to delete account",
+    "notifications": "Notifications",
+    "desktopNotifications": "Desktop notifications",
+    "notificationsEnable": "Turn on",
+    "notificationsOn": "On",
+    "notificationsOff": "Off",
+    "notificationsBlocked": "Blocked in your browser settings",
+    "notificationsUnsupported": "Unavailable in this browser"
   },
   "errors": {
     "unknown": "Something went wrong. Please try again.",
@@ -313,7 +320,10 @@
     "create": "Create",
     "close": "Close dialog",
     "openWorkspace": "Open members and team settings",
-    "teamUnavailable": "This team is unavailable or you are no longer a member."
+    "teamUnavailable": "This team is unavailable or you are no longer a member.",
+    "changeTeamImage": "Change team image",
+    "removeTeamImage": "Remove team image",
+    "teamImageFailed": "The team image could not be updated."
   },
   "Automations": {
     "filtersLabel": "Filters",

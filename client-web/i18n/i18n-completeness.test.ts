@@ -225,6 +225,8 @@ const sameTextAllowed = new Set([
   // Pure interpolation: the body of a direct-message notification is the
   // message itself, so there is no prose to translate.
   "Notifications.directMessageBody",
+  // Same word in both languages.
+  "Settings.notifications",
   "Onboarding.operatorNamePlaceholder",
   "Onboarding.teamNamePlaceholder",
   "Teams.namePlaceholder",

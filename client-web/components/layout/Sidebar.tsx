@@ -22,6 +22,7 @@ import { RailToggle } from "./RailToggle";
 import { Dialog } from "@/components/ui/Dialog";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
 import { LanguagePanel } from "@/components/settings/LanguagePanel";
+import { NotificationsPanel } from "@/components/settings/NotificationsPanel";
 import { AccountDangerZone } from "@/components/settings/AccountDangerZone";
 
 type ScopedTeam = ReturnType<typeof useTeamScope>["activeTeam"];
@@ -250,6 +251,7 @@ export function Sidebar({
         >
           <ProfilePanel showIdentityHeader={false} showTeamSetup={false} />
           <LanguagePanel />
+          <NotificationsPanel />
           <AccountDangerZone />
         </Dialog>
       </div>

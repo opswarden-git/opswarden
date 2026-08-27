@@ -46,6 +46,13 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
+ * `Settings` rises on purpose on 2026-08-27, from 100/127, for the desktop
+ * notification permission control. Browsers only honour a permission request
+ * that follows a click, so the interface has to own that click and then say
+ * which of four answers it got back — on, off, blocked in the browser, or
+ * unavailable here. The blocked state is the one the app cannot recover from
+ * alone, so it names where to undo it rather than leaving a dead toggle.
+ *
  * `Notifications` rises on purpose on 2026-08-27, from 23/38 to the measured
  * weight of the desktop notification vocabulary. The namespace grew from a
  * handful of strings to sixteen, covering every event the OS is allowed to
@@ -72,7 +79,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Automations: 294,
     Releases: 219,
     Onboarding: 48,
-    Settings: 100,
+    Settings: 114,
     Auth: 31,
     DirectMessages: 56,
     Notifications: 45,
@@ -89,7 +96,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Automations: 417,
     Releases: 280,
     Onboarding: 66,
-    Settings: 127,
+    Settings: 145,
     Auth: 39,
     DirectMessages: 71,
     Notifications: 71,
