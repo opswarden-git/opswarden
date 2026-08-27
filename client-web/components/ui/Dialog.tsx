@@ -20,7 +20,8 @@ interface DialogProps {
   /** Renders the header close button when provided; the visible footer may be the only close action. */
   closeLabel?: string;
   contentClassName?: string;
-  description: ReactNode;
+  /** Optional. Omit rather than restating the title in other words. */
+  description?: ReactNode;
   footer?: ReactNode;
   icon?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
@@ -28,6 +29,8 @@ interface DialogProps {
   open: boolean;
   size?: DialogSize;
   title: ReactNode;
+  /** Keeps the accessible name while removing the visible heading. */
+  titleHidden?: boolean;
   trigger?: ReactElement;
   variant?: "modal" | "sheet";
 }
@@ -49,6 +52,7 @@ export function Dialog({
   open,
   size = "md",
   title,
+  titleHidden = false,
   trigger,
   variant = "modal",
 }: DialogProps) {
@@ -57,14 +61,15 @@ export function Dialog({
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
 
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="bg-bg/80 data-[state=closed]:animate-dialog-overlay-hide data-[state=open]:animate-dialog-overlay-show fixed inset-0 z-50 backdrop-blur-sm" />
+        <RadixDialog.Overlay className="bg-bg/80 fixed inset-0 z-50" />
         <RadixDialog.Content
           data-dialog-part="content"
+          {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
             "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
             variant === "modal"
-              ? "sm:data-[state=closed]:animate-dialog-content-hide sm:data-[state=open]:animate-dialog-content-show inset-x-4 top-4 bottom-4 w-auto rounded-md sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
-              : "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full rounded-t-2xl",
+              ? "surface-floating inset-x-4 top-4 bottom-4 w-auto sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+              : "surface-floating-top data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full",
             variant === "modal" && sizeClasses[size],
             contentClassName,
           )}
@@ -80,15 +85,23 @@ export function Dialog({
               aria-hidden="true"
             />
           ) : null}
-          <header className="border-border relative flex shrink-0 items-start gap-3 border-b p-6 pr-14">
+          <header
+            className={cn(
+              "relative flex shrink-0 items-start gap-3 px-6 pt-6",
+              closeLabel && "pr-14",
+              titleHidden && "sr-only",
+            )}
+          >
             {icon}
             <div className="min-w-0">
               <RadixDialog.Title className="text-text text-lg font-semibold">
                 {title}
               </RadixDialog.Title>
-              <RadixDialog.Description className="text-muted mt-1 text-sm">
-                {description}
-              </RadixDialog.Description>
+              {description ? (
+                <RadixDialog.Description className="text-muted mt-1 text-sm">
+                  {description}
+                </RadixDialog.Description>
+              ) : null}
             </div>
             {closeLabel ? (
               <RadixDialog.Close asChild>
@@ -106,16 +119,19 @@ export function Dialog({
 
           <div
             data-dialog-part="body"
-            className={cn("min-h-0 flex-1 overflow-y-auto p-6", bodyClassName)}
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto p-6",
+              // The rule below the body appears only when there is a footer to
+              // separate it from, and only while the body can actually scroll.
+              footer && "scroll-divider",
+              bodyClassName,
+            )}
           >
             {children}
           </div>
 
           {footer ? (
-            <footer
-              data-dialog-part="footer"
-              className="border-border flex shrink-0 justify-end gap-2 border-t px-6 py-4"
-            >
+            <footer data-dialog-part="footer" className="flex shrink-0 justify-end gap-2 px-6 pb-6">
               {footer}
             </footer>
           ) : null}

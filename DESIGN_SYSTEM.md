@@ -55,11 +55,50 @@ remain identity metadata: roles use a distinct shield plus neutral text, while
 an active ban uses the Danger status panel and an expired ban falls back to
 neutral clock metadata.
 
+## Shape and borders
+
+Radius states what kind of box something is, so the four values are not
+interchangeable. Values follow Primer's radius scale.
+
+| Token              | Value  | Use for                              | Never for          |
+| ------------------ | ------ | ------------------------------------ | ------------------ |
+| `--ow-radius-sm`   | 3px    | Badges, tags, inline marks           | Cards or buttons   |
+| `--ow-radius-md`   | 6px    | Default: buttons, inputs, containers | —                  |
+| `--ow-radius-lg`   | 12px   | Dialogs and sheets                   | Row-level elements |
+| `--ow-radius-full` | 9999px | Avatars, pills, presence dots        | Rectangular boxes  |
+
+Conversation bubbles are the single documented exception: they keep a larger
+radius with one squared corner, because that asymmetry is what makes a bubble
+read as speech rather than as a card.
+
+Three neutral border weights exist so that a line can be ranked. One weight
+cannot rank anything: a separator between two rows and the edge of the surface
+containing them would read identically, and the eye stops telling a container
+from its contents.
+
+| Token                  | Alpha | Meaning                                    |
+| ---------------------- | ----- | ------------------------------------------ |
+| `--ow-border-muted`    | 5%    | Separator between rows inside a surface    |
+| `--ow-border`          | 8%    | Edge of a surface                          |
+| `--ow-border-emphasis` | 12%   | Control the user can act on, such as input |
+
+`--ow-border-width` is 1px. `--ow-border-width-thick` is 2px and is reserved for
+focus rings: at that weight a line reads as a state, not as a separation.
+
+A divider answers an overflow; it is not decoration. `.scroll-divider` draws its
+rule only while its own content can actually scroll under it, decided in CSS
+alone. A short dialog therefore carries no horizontal line at all, and a long
+one carries exactly the line that means there is more underneath. Browsers
+without scroll-driven animations keep the rule, which is the safe side of the
+trade.
+
 ## Hierarchy and surfaces
 
 - One primary action leads each decision area.
 - Secondary actions appear before destructive actions in dialogs.
-- `surface` holds primary content; `surface-subtle` groups supporting details.
+- `surface` holds primary content; `surface-subtle` groups supporting details;
+  `surface-floating` is the same surface once it leaves the plane, and only
+  changes its radius.
 - Screens use the shared `Button`, `IconButton`, `Alert`, `Dialog`,
   `ConfirmDialog`, `FormField`, `ActionMenu` and `OperationalTable` components.
 - `PageContent` owns the loading, error, empty and ready states.
