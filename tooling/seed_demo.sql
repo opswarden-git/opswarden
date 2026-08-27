@@ -334,6 +334,8 @@ where s.validated_at is not null
 
 -- Private-message browser tests exercise both HTTP directions and realtime
 -- delivery. Keep only the stable conversation after each run.
+delete from private_message_reads;
+
 delete from private_messages
 where content like 'E2E direct message %'
    or content like 'DM parity %'
@@ -342,9 +344,9 @@ where content like 'E2E direct message %'
 
 insert into private_messages (id, sender_id, recipient_id, content, created_at) values
   ('40000000-0000-4000-8000-000000000001', :'manager_id', :'responder_id', 'Can you take the checkout latency investigation?', now() - interval '50 minutes'),
-  ('40000000-0000-4000-8000-000000000002', :'responder_id', :'manager_id', 'On it. I am checking the promotion lookup path first.', now() - interval '48 minutes'),
-  ('40000000-0000-4000-8000-000000000003', :'observer_id', :'manager_id', 'Support has linked twelve customer reports to the payment incident.', now() - interval '16 minutes'),
+  ('40000000-0000-4000-8000-000000000002', :'responder_id', :'manager_id', 'On it. I am checking the promotion lookup path first.', now() - interval '1 minute'),
   ('40000000-0000-4000-8000-000000000004', :'manager_id', :'observer_id', 'Thanks. Keep the incident channel updated with new regions.', now() - interval '14 minutes'),
+  ('40000000-0000-4000-8000-000000000003', :'observer_id', :'manager_id', 'Support has linked twelve customer reports to the payment incident.', now() - interval '30 seconds'),
   ('40000000-0000-4000-8000-000000000005', :'responder_id', :'observer_id', 'Could you validate whether the Android reports are all version 8.4.1?', now() - interval '6 hours'),
   ('40000000-0000-4000-8000-000000000006', :'observer_id', :'responder_id', 'Confirmed: 87% are 8.4.1, mostly Android 14.', now() - interval '350 minutes')
 on conflict (id) do update set
