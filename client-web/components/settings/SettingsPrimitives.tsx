@@ -52,12 +52,16 @@ export function SettingsSection({
   title: ReactNode;
 }) {
   return (
-    <section className={cn("space-y-3", className)}>
+    // A rule belongs between two topics, not between two facts about one. The
+    // rows below a heading are the same subject — an identity, a preference —
+    // so they group by proximity; the sections themselves are what a reader
+    // needs help telling apart.
+    <section className={cn("border-border-muted space-y-3 border-t pt-8", className)}>
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
         <h2 className="text-text font-semibold">{title}</h2>
         {action}
       </div>
-      <div className="divide-border-muted divide-y">{children}</div>
+      <div>{children}</div>
     </section>
   );
 }

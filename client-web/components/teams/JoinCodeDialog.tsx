@@ -34,7 +34,7 @@ export function JoinCodeDialog({ teamId }: { teamId: string }) {
       ) : invitation.error || !invitation.data ? (
         <Alert tone="danger">{t("invitationFailed")}</Alert>
       ) : (
-        <FormField label={t("invitationCodeLabel")}>
+        <FormField label={<span className="sr-only">{t("invitationCodeLabel")}</span>}>
           <div className="flex items-center gap-2">
             <code className="ow-input text-text flex h-10 min-w-0 flex-1 items-center rounded-md px-3 font-mono text-sm">
               {invitation.data.invitation_code}

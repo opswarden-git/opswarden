@@ -17,6 +17,24 @@ import { AutomationDialog } from "./AutomationDialog";
 
 export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
 
+/**
+ * The catalogue ships a description for every field, and for a filter it is
+ * usually the label again inside a sentence: "Repository" then "Only match this
+ * repository". Printing both puts the same word twice under the reader's eye,
+ * which is most of what makes this form feel dense. The caption survives only
+ * when it says something the label does not.
+ */
+function captionFor(label: string, description?: string): string | undefined {
+  if (!description) return undefined;
+  const flatten = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const stripped = flatten(description).replace(/^only match (this|the) /, "");
+  return stripped === flatten(label) ? undefined : description;
+}
+
 function capabilityOptionValue(
   capabilities: CapabilityWithService[],
   capability: CapabilityWithService,
@@ -308,7 +326,9 @@ export function RuleForm({
                         <option value="UTC" />
                       </datalist>
                     ) : null}
-                    <span className="mt-1 block font-normal">{field.description}</span>
+                    {captionFor(field.label, field.description) ? (
+                      <span className="mt-1 block font-normal">{field.description}</span>
+                    ) : null}
                   </label>
                 ))}
               </div>
@@ -398,9 +418,11 @@ export function RuleForm({
                       required={field.required}
                     />
                   )}
-                  <span className="text-muted mt-1 block text-xs font-normal">
-                    {field.description}
-                  </span>
+                  {captionFor(field.label, field.description) ? (
+                    <span className="text-muted mt-1 block text-xs font-normal">
+                      {field.description}
+                    </span>
+                  ) : null}
                 </label>
               ))}
             </div>

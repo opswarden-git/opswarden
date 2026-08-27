@@ -110,7 +110,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         </>
       }
     >
-      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0">
+      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0 space-y-4">
         <label className="text-text block text-sm font-medium">
           <span>{t("releaseTitle")}</span>
           <input
@@ -122,7 +122,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           />
         </label>
 
-        <fieldset className="mt-6">
+        <fieldset>
           <legend className="text-text text-sm font-medium">{t("steps")}</legend>
 
           <ol className="mt-2 space-y-2">

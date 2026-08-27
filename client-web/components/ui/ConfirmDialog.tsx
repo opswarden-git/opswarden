@@ -93,7 +93,9 @@ function ConfirmDialogBody({
 
       {requireType ? (
         <label className="text-text block text-sm font-medium">
-          <span>{requireTypeLabel ?? requireType}</span>
+          {/* The description already says which word to type; repeating it as a
+              label is the third time the same word appears. */}
+          <span className="sr-only">{requireTypeLabel ?? requireType}</span>
           <input
             value={typed}
             onChange={(event) => setTyped(event.target.value)}

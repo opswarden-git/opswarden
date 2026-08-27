@@ -20,7 +20,7 @@ export default function SettingsPage() {
 
   return (
     <PageLayout>
-      <PageContent className="surface mx-auto w-full max-w-3xl space-y-8 rounded-md p-6">
+      <PageContent className="surface mx-auto w-full max-w-3xl rounded-md p-6">
         <ProfilePanel />
         <LanguagePanel />
         <NotificationsPanel />
