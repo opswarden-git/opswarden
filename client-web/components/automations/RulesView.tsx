@@ -277,7 +277,7 @@ export function RulesView({
 
       {/* Mobile view */}
       <div className="surface overflow-hidden rounded-md lg:hidden">
-        <ul aria-label={t("rulesList")} className="divide-border divide-y">
+        <ul aria-label={t("rulesList")} className="divide-border-muted divide-y">
           {visibleRules.map((rule) => (
             <li key={rule.id} className="flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-4">

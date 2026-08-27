@@ -61,6 +61,10 @@ const members = [
   },
 ];
 
+vi.mock("@/lib/queries/privateMessages", () => ({
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+}));
+
 vi.mock("@/lib/queries/teams", () => ({
   useTeamMembers: () => ({ data: members, isLoading: false, error: null }),
   useSetMemberRole: () => setRole,

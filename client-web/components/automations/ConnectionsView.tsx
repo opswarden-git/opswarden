@@ -274,7 +274,7 @@ export function ConnectionsView({
                 </h2>
                 <span className="text-muted text-xs tabular-nums">{group.items.length}</span>
               </div>
-              <div className="surface divide-border divide-y overflow-hidden rounded-md">
+              <div className="surface divide-border-muted divide-y overflow-hidden rounded-md">
                 {group.items.length === 0 ? (
                   <p className="text-muted px-4 py-4 text-sm">{group.emptyLabel}</p>
                 ) : (

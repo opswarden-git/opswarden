@@ -1,12 +1,12 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useInvitationCode } from "@/lib/queries/teams";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { FormField } from "@/components/ui/FormField";
 import { Dialog } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -25,30 +25,28 @@ export function JoinCodeDialog({ teamId }: { teamId: string }) {
       description={t("shareJoinCodeDescription")}
       closeLabel={tSidebar("close")}
       size="sm"
-      icon={
-        <div className="bg-gold/15 text-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <KeyRound className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
     >
       {invitation.isLoading ? (
         <div className="flex items-center gap-2" aria-busy="true" aria-label={t("loading")}>
           <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
-          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-10 w-10 rounded-md" />
         </div>
       ) : invitation.error || !invitation.data ? (
         <Alert tone="danger">{t("invitationFailed")}</Alert>
       ) : (
-        <div className="flex items-center gap-2">
-          <code className="surface-subtle border-border text-text min-w-0 flex-1 rounded-md border px-3 py-2 font-mono text-sm">
-            {invitation.data.invitation_code}
-          </code>
-          <CopyButton
-            value={invitation.data.invitation_code}
-            label={t("copyInvitationCode")}
-            copiedLabel={t("invitationCodeCopied")}
-          />
-        </div>
+        <FormField label={t("invitationCodeLabel")}>
+          <div className="flex items-center gap-2">
+            <code className="ow-input text-text flex h-10 min-w-0 flex-1 items-center rounded-md px-3 font-mono text-sm">
+              {invitation.data.invitation_code}
+            </code>
+            <CopyButton
+              className="h-10 w-10"
+              value={invitation.data.invitation_code}
+              label={t("copyInvitationCode")}
+              copiedLabel={t("invitationCodeCopied")}
+            />
+          </div>
+        </FormField>
       )}
     </Dialog>
   );

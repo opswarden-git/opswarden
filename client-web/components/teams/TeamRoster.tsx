@@ -37,7 +37,11 @@ type RoleFilter = "all" | "manager" | "responder" | "observer";
 
 export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="divide-border divide-y" aria-busy="true" data-testid="team-roster-skeleton">
+    <div
+      className="divide-border-muted divide-y"
+      aria-busy="true"
+      data-testid="team-roster-skeleton"
+    >
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="flex items-center gap-3 px-4 py-4">
           <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
@@ -127,7 +131,7 @@ export function TeamRoster({ team }: { team: Team }) {
 
   const memberList = (items: TeamMember[]) => (
     <div className="surface overflow-hidden rounded-md">
-      <ul className="divide-border divide-y">
+      <ul className="divide-border-muted divide-y">
         {items.map((member) => {
           const active = member.user_id === currentUserId || onlineSet.has(member.user_id);
           const hasUnread = unreadPeerSet.has(member.user_id);
@@ -293,7 +297,7 @@ export function TeamRoster({ team }: { team: Team }) {
             {bans.isLoading ? (
               <TeamRosterRowsSkeleton rows={1} />
             ) : (
-              <ul className="divide-border divide-y">
+              <ul className="divide-border-muted divide-y">
                 {visibleBans.map((entry) => (
                   <li
                     key={`ban:${entry.user.user_id}:${entry.created_at}`}

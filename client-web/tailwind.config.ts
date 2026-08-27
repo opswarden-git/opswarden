@@ -126,6 +126,17 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // Opacity only: the centring transform belongs to the layout, and a
+        // keyframe that also drives `transform` would fight it — which is what
+        // made the previous version stutter.
+        "dialog-fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "dialog-fade-out": {
+          from: { opacity: "1" },
+          to: { opacity: "0" },
+        },
         "sheet-content-show": {
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
@@ -138,6 +149,8 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "dialog-fade-in": "dialog-fade-in 0.12s ease-out",
+        "dialog-fade-out": "dialog-fade-out 0.1s ease-in",
         "sheet-content-show": "sheet-content-show 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         "sheet-content-hide": "sheet-content-hide 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
       },

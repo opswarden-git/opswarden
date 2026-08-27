@@ -7,12 +7,14 @@ export function IdentityHeader({
   mark,
   title,
   subtitle,
+  markInteractive = false,
 }: {
   action?: ReactNode;
   bordered?: boolean;
   mark: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
+  markInteractive?: boolean;
 }) {
   return (
     <header
@@ -24,7 +26,7 @@ export function IdentityHeader({
       <div className="flex min-w-0 flex-1 items-center gap-4">
         <span
           className="surface-subtle text-text border-border flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-sm font-semibold tracking-wide"
-          aria-hidden="true"
+          aria-hidden={markInteractive ? undefined : "true"}
         >
           {mark}
         </span>
@@ -55,7 +57,7 @@ export function SettingsSection({
         <h2 className="text-text font-semibold">{title}</h2>
         {action}
       </div>
-      <div className="border-border divide-border divide-y border-y">{children}</div>
+      <div className="divide-border-muted divide-y">{children}</div>
     </section>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAddTeamMember } from "@/lib/queries/teams";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { FormField } from "@/components/ui/FormField";
 import { Dialog } from "@/components/ui/Dialog";
 
 const USER_ID_PATTERN =
@@ -36,11 +36,6 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
       description={t("addMemberDescription")}
       closeLabel={tSidebar("close")}
       size="sm"
-      icon={
-        <div className="bg-gold/15 text-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <UserPlus className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
     >
       <form
         className="space-y-4"
@@ -50,8 +45,7 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
           addMember.mutate(normalizedId, { onSuccess: close });
         }}
       >
-        <label className="space-y-2">
-          <span className="text-text block text-sm font-medium">{t("userId")}</span>
+        <FormField label={t("userId")}>
           <input
             autoFocus
             value={userId}
@@ -63,7 +57,7 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
             className="ow-input h-10 w-full rounded-md px-3 font-mono text-sm"
             aria-invalid={normalizedId.length > 0 && !valid}
           />
-        </label>
+        </FormField>
         {addMember.error ? (
           <Alert tone="danger">
             {tErr.has(addMember.error.message)

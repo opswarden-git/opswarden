@@ -24,7 +24,7 @@ export type ActionMenuEntry = ActionMenuItem | { id: string; separator: true };
  * need the same one.
  */
 export const menuSurfaceClassNames =
-  "ow-action-menu surface z-50 rounded-md p-1 shadow-xl outline-none";
+  "ow-action-menu surface elevated z-50 rounded-md p-1 outline-none";
 export const menuItemClassNames =
   "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none";
 export const MENU_SIDE_OFFSET = 6;

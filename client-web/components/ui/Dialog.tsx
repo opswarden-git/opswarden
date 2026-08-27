@@ -67,18 +67,18 @@ export function Dialog({
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
 
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="bg-bg/80 fixed inset-0 z-50" />
+        <RadixDialog.Overlay className="bg-bg/80 data-[state=closed]:animate-dialog-fade-out data-[state=open]:animate-dialog-fade-in fixed inset-0 z-50" />
         <RadixDialog.Content
           data-dialog-part="content"
           {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
-            "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
+            "surface elevated fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden outline-none",
             // Both variants are the same surface anchored to the bottom edge; a
             // modal simply lifts off it and centres from `sm` up. A phone has no
             // room for a floating card, and a sheet is where a thumb already is.
             "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full rounded-t-[var(--ow-radius-lg)] rounded-b-none",
             variant === "modal" &&
-              "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:mt-0 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:animate-none sm:rounded-[var(--ow-radius-lg)]",
+              "sm:data-[state=closed]:animate-dialog-fade-out sm:data-[state=open]:animate-dialog-fade-in sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:mt-0 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--ow-radius-lg)]",
             variant === "modal" && sizeClasses[size],
             contentClassName,
           )}

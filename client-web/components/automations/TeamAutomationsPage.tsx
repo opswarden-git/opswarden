@@ -87,7 +87,7 @@ function AutomationLoading({ view }: { view: "connections" | "rules" | "runs" })
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-4" />
             </div>
-            <div className="surface divide-border divide-y overflow-hidden rounded-md">
+            <div className="surface divide-border-muted divide-y overflow-hidden rounded-md">
               {Array.from({ length: rows }, (_, index) => (
                 <div key={index} className="flex min-h-16 items-center gap-4 px-4 py-3">
                   <Skeleton className="h-8 w-8 shrink-0" />
@@ -109,7 +109,7 @@ function AutomationLoading({ view }: { view: "connections" | "rules" | "runs" })
         <div className="hidden overflow-x-auto lg:block">
           <AutomationTableLoading columns={7} label={t("loading")} rows={4} />
         </div>
-        <div className="surface divide-border divide-y overflow-hidden rounded-md lg:hidden">
+        <div className="surface divide-border-muted divide-y overflow-hidden rounded-md lg:hidden">
           {Array.from({ length: 4 }, (_, index) => (
             <div key={index} className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-4">

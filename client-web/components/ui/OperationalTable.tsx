@@ -67,7 +67,7 @@ export function OperationalTableBody({
   ...props
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={cn("divide-border divide-y", className)} {...props}>
+    <tbody className={cn("divide-border-muted divide-y", className)} {...props}>
       {children}
     </tbody>
   );

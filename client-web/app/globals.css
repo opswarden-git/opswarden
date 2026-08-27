@@ -30,6 +30,14 @@
     --ow-radius-md: 6px;
     --ow-radius-lg: 12px;
     --ow-radius-full: 9999px;
+
+    /*
+     * A floating surface is separated by a crisp edge, not by a glow. Primer's
+     * `shadow-floating-small` is a one-pixel ring at 25% with no blur at all.
+     * A 50px drop shadow is what a marketing page uses to make a card look
+     * expensive, and it read exactly that way here.
+     */
+    --ow-shadow-floating: 0 0 0 1px rgb(0 0 0 / 45%);
     --text: #e7e7ea;
     --ow-muted: #989ba1;
     --workspace-max: 90rem;
@@ -147,6 +155,16 @@
     border: var(--ow-border-width) solid var(--ow-border);
     border-radius: var(--ow-radius-md);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+  }
+
+  /*
+   * What lifts a surface off the plane: the same inset highlight every surface
+   * carries, plus the ring that separates it from whatever it covers.
+   */
+  .elevated {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 4%),
+      var(--ow-shadow-floating);
   }
 
   /* A dialog is a surface that floats, and floating surfaces are softer. */

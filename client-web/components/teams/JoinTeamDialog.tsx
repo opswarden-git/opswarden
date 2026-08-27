@@ -1,5 +1,4 @@
 import React, { useRef, useState } from "react";
-import { Users } from "lucide-react";
 import { useJoinTeam } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -41,11 +40,6 @@ export function JoinTeamDialog() {
       closeLabel={t("close")}
       initialFocus={codeRef}
       size="sm"
-      icon={
-        <div className="bg-panel-2 text-text flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <Users className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
       footer={
         <>
           <DialogClose>

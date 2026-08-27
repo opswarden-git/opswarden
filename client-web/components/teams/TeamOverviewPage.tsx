@@ -244,7 +244,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
               seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeIncidents.length ? (
-                <ul className="divide-border divide-y">
+                <ul className="divide-border-muted divide-y">
                   {activeIncidents.slice(0, previewLimit).map((incident) => (
                     <li key={incident.id}>
                       <Link
@@ -284,7 +284,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
               seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeReleases.length ? (
-                <ul className="divide-border divide-y">
+                <ul className="divide-border-muted divide-y">
                   {activeReleases.slice(0, previewLimit).map((release) => (
                     <li key={release.release_id}>
                       <Link
@@ -327,7 +327,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                 seeAllLabel={t("overviewViews.seeAll")}
               >
                 {runs.data?.length ? (
-                  <ul className="divide-border divide-y">
+                  <ul className="divide-border-muted divide-y">
                     {runs.data.slice(0, previewLimit).map((run) => (
                       <li key={run.id} className="px-4 py-2">
                         <div className="flex min-w-0 items-start justify-between gap-3">

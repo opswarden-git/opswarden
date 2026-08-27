@@ -39,6 +39,10 @@ const invitationCode = vi.fn();
 let teamsLoading = false;
 let invitationLoading = false;
 
+vi.mock("@/lib/queries/privateMessages", () => ({
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+}));
+
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({
     data: [
@@ -112,6 +116,8 @@ vi.mock("@/lib/queries/teams", () => ({
   useDeleteTeam: () => remove,
   useUnbanMember: () => unban,
   useAddTeamMember: () => mutation(),
+  useUpdateTeamImage: () => mutation(),
+  useDeleteTeamImage: () => mutation(),
 }));
 
 afterEach(() => {

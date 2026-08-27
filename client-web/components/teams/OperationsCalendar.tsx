@@ -1,8 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, History, Rocket, ShieldAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, Circle, History, Rocket, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, IconButton } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 
@@ -125,6 +124,9 @@ export function OperationsCalendar({
 }) {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [view, setView] = useState<CalendarView>("month");
+  const [selectedTypes, setSelectedTypes] = useState<Set<OperationsCalendarEvent["type"]>>(
+    () => new Set(),
+  );
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const weekScroller = useRef<HTMLDivElement>(null);
   const today = new Date();
@@ -135,9 +137,30 @@ export function OperationsCalendar({
   const anchorTimestamp = anchorDate.getTime();
   const monthDays = calendarDays(visibleMonth);
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+
+  function toggleTypeFilter(type: OperationsCalendarEvent["type"]) {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+        if (next.size === 3) {
+          next.clear();
+        }
+      }
+      return next;
+    });
+  }
+
+  const filteredEvents = useMemo(() => {
+    if (selectedTypes.size === 0) return events;
+    return events.filter((event) => selectedTypes.has(event.type));
+  }, [events, selectedTypes]);
+
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, OperationsCalendarEvent[]>();
-    for (const event of events) {
+    for (const event of filteredEvents) {
       const date = new Date(event.occurredAt);
       if (Number.isNaN(date.getTime())) continue;
       const key = dayKey(date);
@@ -149,7 +172,7 @@ export function OperationsCalendar({
       );
     }
     return grouped;
-  }, [events]);
+  }, [filteredEvents]);
 
   const monthLabel = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(
     visibleMonth,
@@ -215,7 +238,7 @@ export function OperationsCalendar({
               aria-pressed={view === option}
               className={cn(
                 "px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current",
-                view === option ? "text-text" : "text-muted hover:text-text",
+                view === option ? "text-gold font-semibold" : "text-muted hover:text-gold",
               )}
               onClick={() => selectView(option)}
             >
@@ -224,27 +247,30 @@ export function OperationsCalendar({
           ))}
         </div>
         <div className="flex items-center gap-1">
-          {!showingToday ? (
-            <Button size="sm" onClick={() => setAnchorDate(new Date())}>
-              {labels.today}
-            </Button>
-          ) : null}
-          <IconButton
-            size="sm"
-            variant="ghost"
-            label={view === "month" ? labels.previousMonth : labels.previousWeek}
+          <button
+            type="button"
+            aria-label={view === "month" ? labels.previousMonth : labels.previousWeek}
+            className="text-muted hover:text-gold inline-flex h-7 w-7 items-center justify-center rounded transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
             onClick={() => movePeriod(-1)}
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="ghost"
-            label={view === "month" ? labels.nextMonth : labels.nextWeek}
+          </button>
+          <button
+            type="button"
+            aria-label={labels.today}
+            className="text-muted hover:text-gold inline-flex h-7 w-7 items-center justify-center rounded transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+            onClick={() => setAnchorDate(new Date())}
+          >
+            <Circle className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={view === "month" ? labels.nextMonth : labels.nextWeek}
+            className="text-muted hover:text-gold inline-flex h-7 w-7 items-center justify-center rounded transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
             onClick={() => movePeriod(1)}
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </IconButton>
+          </button>
         </div>
       </header>
 
@@ -432,14 +458,25 @@ export function OperationsCalendar({
         </div>
       )}
 
-      <footer className="border-border flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2">
+      <footer className="border-border flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t px-4 py-2">
         {(["incident", "release", "run"] as const).map((type) => {
           const EventIcon = eventIcons[type];
+          const isSelected = selectedTypes.has(type);
+
           return (
-            <span key={type} className="text-muted inline-flex items-center gap-1.5 text-xs">
-              <EventIcon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
-              {labels[type]}
-            </span>
+            <button
+              key={type}
+              type="button"
+              aria-pressed={isSelected}
+              className={cn(
+                "inline-flex items-center gap-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current",
+                isSelected ? "text-gold font-semibold" : "text-muted hover:text-gold",
+              )}
+              onClick={() => toggleTypeFilter(type)}
+            >
+              <EventIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+              <span>{labels[type]}</span>
+            </button>
           );
         })}
       </footer>

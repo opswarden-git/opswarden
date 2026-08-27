@@ -46,6 +46,10 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
+ * `Teams` moves by two words on 2026-08-27: the invitation code gained the
+ * label it never had, so the value a manager is asked to share is now named
+ * like every other field in the product instead of floating unlabelled.
+ *
  * Four ceilings come down on 2026-08-27, to the weight left after deleting the
  * dialog subtitles that only restated their title. A subtitle earns its place by
  * carrying what the title cannot — the named resource, the consequence, the
@@ -85,7 +89,7 @@ function messages(locale: string): Record<string, unknown> {
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 312,
+    Teams: 314,
     Incidents: 277,
     errors: 335,
     Automations: 280,
@@ -102,7 +106,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Index: 3,
   },
   fr: {
-    Teams: 379,
+    Teams: 381,
     Incidents: 380,
     errors: 417,
     Automations: 398,

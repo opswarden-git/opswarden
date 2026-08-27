@@ -1,5 +1,4 @@
 import React, { useRef, useState } from "react";
-import { Plus } from "lucide-react";
 import { useCreateTeam } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -41,11 +40,6 @@ export function CreateTeamDialog() {
       closeLabel={t("close")}
       initialFocus={nameRef}
       size="sm"
-      icon={
-        <div className="bg-gold/15 text-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <Plus className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
       footer={
         <>
           <DialogClose>

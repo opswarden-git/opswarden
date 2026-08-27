@@ -73,7 +73,7 @@ export function IncidentContextPanel({
       aria-label={t("incidentContext")}
       data-war-room-context="true"
     >
-      <div className={cn("divide-border divide-y text-sm", inDialog ? "" : "p-2")}>
+      <div className={cn("divide-border-muted divide-y text-sm", inDialog ? "" : "p-2")}>
         <PaneSection title={t("details")} defaultOpen={false}>
           <div className="space-y-3 px-2">
             <div className="flex items-center justify-between gap-3">
@@ -87,21 +87,23 @@ export function IncidentContextPanel({
           </div>
         </PaneSection>
 
-        <PaneSection
-          defaultOpen={false}
-          title={
-            <SectionTitle
-              label={t("moreActions")}
-              attention={actionRequired}
-              attentionLabel={t("actionRequired")}
-            />
-          }
-        >
-          <div className="space-y-3 px-2">
-            {commands}
-            {dangerCommands}
-          </div>
-        </PaneSection>
+        {commands || dangerCommands ? (
+          <PaneSection
+            defaultOpen={false}
+            title={
+              <SectionTitle
+                label={t("moreActions")}
+                attention={actionRequired}
+                attentionLabel={t("actionRequired")}
+              />
+            }
+          >
+            <div className="space-y-3 px-2">
+              {commands}
+              {dangerCommands}
+            </div>
+          </PaneSection>
+        ) : null}
 
         <PaneSection
           defaultOpen={false}

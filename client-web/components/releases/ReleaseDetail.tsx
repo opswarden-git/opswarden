@@ -183,7 +183,7 @@ export function ReleaseDetail({
           </h2>
 
           {linkedIncidents.length > 0 ? (
-            <ul className="divide-border mt-2 divide-y">
+            <ul className="divide-border-muted mt-2 divide-y">
               {release.linked_incident_ids.map((id) => {
                 const incident = incidentById(id);
                 return (

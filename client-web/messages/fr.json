@@ -323,7 +323,8 @@
     "openWorkspace": "Ouvrir les membres et les paramètres de l’équipe",
     "teamUnavailable": "Cette équipe est indisponible ou vous n’en êtes plus membre.",
     "changeTeamImage": "Modifier l’image",
-    "removeTeamImage": "Supprimer l’image"
+    "removeTeamImage": "Supprimer l’image",
+    "invitationCodeLabel": "Code d’invitation"
   },
   "Automations": {
     "filtersLabel": "Filtres",
