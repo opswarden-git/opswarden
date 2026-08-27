@@ -1,4 +1,5 @@
 // --- server/src/app/team/mod.rs ---
+pub mod add_member;
 pub mod ban_member;
 pub mod create_team;
 pub mod delete_team;
@@ -13,6 +14,7 @@ pub mod set_member_role;
 pub mod transfer_manager;
 pub mod unban_member;
 
+pub use add_member::{AddMemberCommand, AddMemberUseCase};
 pub use ban_member::{BanMemberCommand, BanMemberResult, BanMemberUseCase, BanRequest};
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};

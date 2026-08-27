@@ -15,7 +15,7 @@ use crate::app::incident::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
     GetIncidentCommand, GetIncidentUseCase, IncidentAssigneeFilter, IncidentCounts,
     IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase,
-    ToggleReactionCommand, ToggleReactionUseCase,
+    MarkIncidentReadCommand, MarkIncidentReadUseCase, ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
@@ -84,6 +84,7 @@ pub struct IncidentListItemView {
     pub created_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
     pub updated_at: DateTime<Utc>,
+    pub unread: bool,
 }
 
 impl From<IncidentListItem> for IncidentListItemView {
@@ -102,6 +103,7 @@ impl From<IncidentListItem> for IncidentListItemView {
             created_at: item.incident.created_at,
             created_by: item.incident.created_by,
             updated_at: item.incident.updated_at,
+            unread: item.unread,
         }
     }
 }
@@ -193,6 +195,27 @@ pub async fn get_incident(
         .await?;
 
     Ok(Json(IncidentView::from(result.incident)))
+}
+
+#[derive(Deserialize)]
+pub struct MarkIncidentReadPayload {
+    pub read_through: DateTime<Utc>,
+}
+
+pub async fn mark_incident_read(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(incident_id): Path<Uuid>,
+    Json(payload): Json<MarkIncidentReadPayload>,
+) -> Result<StatusCode, DomainError> {
+    MarkIncidentReadUseCase::new(state.teams.clone(), state.incidents.clone())
+        .mark(MarkIncidentReadCommand {
+            incident_id,
+            requester_id: session.user_id,
+            read_through: payload.read_through,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]

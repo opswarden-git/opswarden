@@ -284,6 +284,14 @@ impl IncidentRepo for DummyIncidentRepo {
         Ok(())
     }
 
+    async fn record_events(
+        &self,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError> {
+        self.events.lock().unwrap().extend(events.iter().cloned());
+        Ok(())
+    }
+
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,

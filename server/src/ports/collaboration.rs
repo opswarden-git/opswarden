@@ -111,6 +111,12 @@ pub trait IncidentRepo: Send + Sync {
         incident: &Incident,
         event: &IncidentEvent,
     ) -> Result<(), DomainError>;
+    /// Append audit events describing something that happened *outside* the
+    /// incidents themselves — a release they block moving a step forward. This
+    /// is the one writer that does not pair an event with a change to
+    /// `incidents`; all of them land together or not at all, so a war room
+    /// never shows a release advancing on one incident but not its sibling.
+    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError>;
     /// Newest first. `before` is a `(created_at, id)` keyset cursor: only rows
     /// strictly older than it are returned, so a war room can walk back through
     /// a long incident without the page boundary shifting under it.
@@ -121,6 +127,28 @@ pub trait IncidentRepo: Send + Sync {
         limit: u32,
     ) -> Result<Vec<IncidentEvent>, DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
+    /// Incident channels containing activity newer than this user's durable
+    /// read position. Activity authored by the requester does not make their
+    /// own channel unread.
+    async fn list_unread_incident_ids(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Vec<Uuid>, DomainError> {
+        let _ = (team_id, user_id);
+        Ok(Vec::new())
+    }
+    /// Advance one user's read position monotonically to content the client
+    /// has actually loaded.
+    async fn mark_incident_read(
+        &self,
+        incident_id: Uuid,
+        user_id: Uuid,
+        read_through: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError> {
+        let _ = (incident_id, user_id, read_through);
+        Ok(())
+    }
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError>;
     /// Clear the assignee on every incident of `team_id` currently assigned to
     /// `user_id`. Called when a member is kicked/banned so no incident stays

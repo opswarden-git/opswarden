@@ -66,6 +66,7 @@ fn event_kind_from_str(value: &str) -> Option<IncidentEventKind> {
         "status_changed" => Some(IncidentEventKind::StatusChanged),
         "assigned" => Some(IncidentEventKind::Assigned),
         "severity_changed" => Some(IncidentEventKind::SeverityChanged),
+        "release_step_validated" => Some(IncidentEventKind::ReleaseStepValidated),
         _ => None,
     }
 }
@@ -270,6 +271,31 @@ impl IncidentRepo for PgIncidentRepo {
         tx.commit().await.map_err(|_| DomainError::Storage)
     }
 
+    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError> {
+        if events.is_empty() {
+            return Ok(());
+        }
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        for event in events {
+            sqlx::query(
+                r#"
+                INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                "#,
+            )
+            .bind(event.id)
+            .bind(event.incident_id)
+            .bind(event.kind.to_string())
+            .bind(event.actor_id)
+            .bind(&event.data)
+            .bind(event.created_at)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        }
+        tx.commit().await.map_err(|_| DomainError::Storage)
+    }
+
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,
@@ -326,6 +352,70 @@ impl IncidentRepo for PgIncidentRepo {
         .map_err(|_| DomainError::Storage)?;
 
         Ok(records.into_iter().map(Incident::from).collect())
+    }
+
+    async fn list_unread_incident_ids(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Vec<Uuid>, DomainError> {
+        sqlx::query_scalar(
+            r#"
+            SELECT incident.id
+            FROM incidents incident
+            LEFT JOIN incident_channel_reads channel_read
+              ON channel_read.incident_id = incident.id
+             AND channel_read.user_id = $2
+            WHERE incident.team_id = $1
+              AND (
+                EXISTS (
+                  SELECT 1
+                  FROM timeline_entries entry
+                  WHERE entry.incident_id = incident.id
+                    AND entry.author_id IS DISTINCT FROM $2
+                    AND entry.created_at > COALESCE(channel_read.read_through, '-infinity')
+                )
+                OR EXISTS (
+                  SELECT 1
+                  FROM incident_events event
+                  WHERE event.incident_id = incident.id
+                    AND event.actor_id IS DISTINCT FROM $2
+                    AND event.created_at > COALESCE(channel_read.read_through, '-infinity')
+                )
+              )
+            "#,
+        )
+        .bind(team_id)
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)
+    }
+
+    async fn mark_incident_read(
+        &self,
+        incident_id: Uuid,
+        user_id: Uuid,
+        read_through: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        sqlx::query(
+            r#"
+            INSERT INTO incident_channel_reads (incident_id, user_id, read_through)
+            VALUES ($1, $2, LEAST($3, now()))
+            ON CONFLICT (incident_id, user_id) DO UPDATE
+            SET read_through = GREATEST(
+              incident_channel_reads.read_through,
+              EXCLUDED.read_through
+            )
+            "#,
+        )
+        .bind(incident_id)
+        .bind(user_id)
+        .bind(read_through)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        Ok(())
     }
 
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {

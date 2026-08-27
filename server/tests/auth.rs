@@ -234,6 +234,7 @@ async fn me_exposes_and_updates_the_persisted_supported_locale() {
         .unwrap();
     let profile: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(profile["locale"], "fr");
+    assert!(profile["created_at"].is_string());
 
     let me = ctx
         .app
@@ -253,6 +254,7 @@ async fn me_exposes_and_updates_the_persisted_supported_locale() {
         .unwrap();
     let profile: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(profile["locale"], "fr");
+    assert!(profile["created_at"].is_string());
     assert_eq!(
         ctx.users
             .find_by_id(uuid::Uuid::nil())

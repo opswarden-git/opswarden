@@ -8,6 +8,7 @@ pub mod get_incident;
 pub mod get_timeline_attachment;
 pub mod list_activity;
 pub mod list_incidents;
+pub mod mark_incident_read;
 pub mod toggle_timeline_reaction;
 
 pub use add_timeline_entry::{
@@ -32,6 +33,7 @@ pub use list_incidents::{
     IncidentAssigneeFilter, IncidentCounts, IncidentListItem, IncidentSort, ListIncidentsCommand,
     ListIncidentsResult, ListIncidentsUseCase,
 };
+pub use mark_incident_read::{MarkIncidentReadCommand, MarkIncidentReadUseCase};
 pub use toggle_timeline_reaction::{
     ToggleReactionCommand, ToggleReactionResult, ToggleReactionUseCase,
 };
@@ -296,6 +298,12 @@ pub(crate) mod tests {
         ) -> Result<(), DomainError> {
             self.updated.lock().unwrap().push(incident.clone());
             self.incident_events.lock().unwrap().push(event.clone());
+            Ok(())
+        }
+
+        async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError> {
+            let mut recorded = self.incident_events.lock().unwrap();
+            recorded.extend(events.iter().cloned());
             Ok(())
         }
 

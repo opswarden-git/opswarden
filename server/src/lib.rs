@@ -119,7 +119,7 @@ pub fn build_app(state: AppState) -> Router {
         .route("/api/teams/join", post(handlers::team::join_team))
         .route(
             "/api/teams/{team_id}/members",
-            get(handlers::team::list_members),
+            post(handlers::team::add_member).get(handlers::team::list_members),
         )
         .route(
             "/api/teams/{team_id}/members/{user_id}/role",
@@ -215,6 +215,10 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/incidents/{incident_id}/activity",
             get(handlers::incident::list_incident_activity),
+        )
+        .route(
+            "/api/incidents/{incident_id}/read",
+            put(handlers::incident::mark_incident_read),
         )
         .route(
             "/reactions/available",

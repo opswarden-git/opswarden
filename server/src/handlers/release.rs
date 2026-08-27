@@ -254,6 +254,7 @@ pub async fn validate_release_step(
     let use_case = ValidateReleaseStepUseCase::new(
         state.teams.clone(),
         state.releases.clone(),
+        state.incidents.clone(),
         state.events.clone(),
     );
     let detail = use_case

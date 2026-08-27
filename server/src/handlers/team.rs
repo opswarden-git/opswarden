@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::team::{
-    BanMemberCommand, BanMemberUseCase, BanRequest, CreateTeamCommand, CreateTeamUseCase,
-    GetInvitationCodeCommand, GetInvitationCodeUseCase, JoinTeamCommand, JoinTeamUseCase,
-    KickMemberCommand, KickMemberUseCase, ListBansCommand, ListBansUseCase, ListTeamMembersCommand,
-    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, SetMemberRoleCommand,
-    SetMemberRoleUseCase, TransferManagerCommand, TransferManagerUseCase, UnbanMemberCommand,
-    UnbanMemberUseCase,
+    AddMemberCommand, AddMemberUseCase, BanMemberCommand, BanMemberUseCase, BanRequest,
+    CreateTeamCommand, CreateTeamUseCase, GetInvitationCodeCommand, GetInvitationCodeUseCase,
+    JoinTeamCommand, JoinTeamUseCase, KickMemberCommand, KickMemberUseCase, ListBansCommand,
+    ListBansUseCase, ListTeamMembersCommand, ListTeamMembersUseCase, ListTeamsCommand,
+    ListTeamsUseCase, SetMemberRoleCommand, SetMemberRoleUseCase, TransferManagerCommand,
+    TransferManagerUseCase, UnbanMemberCommand, UnbanMemberUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::team::{BanKind, Role};
@@ -94,6 +94,27 @@ pub async fn list_members(
             })
             .collect(),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct AddMemberPayload {
+    pub user_id: Uuid,
+}
+
+pub async fn add_member(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+    Json(payload): Json<AddMemberPayload>,
+) -> Result<StatusCode, DomainError> {
+    AddMemberUseCase::new(state.teams.clone(), state.users.clone())
+        .add_member(AddMemberCommand {
+            team_id,
+            requester_id: session.user_id,
+            target_user_id: payload.user_id,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Serialize)]
