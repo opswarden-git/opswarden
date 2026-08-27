@@ -43,18 +43,51 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
         const user = await meRes.json();
         useAuthStore.getState().setUser(user);
 
-        let createdTeamId = "";
-        if (data.teamName) {
+        let targetTeamId = "";
+        const mode = data.mode || "create";
+
+        if (mode === "create" && data.teamName) {
           const teamRes = await apiFetch("/api/teams", {
             method: "POST",
             body: JSON.stringify({ name: data.teamName }),
           });
-          if (teamRes.ok) createdTeamId = await teamRes.text();
+          if (teamRes.ok) {
+            const text = await teamRes.text();
+            try {
+              const body = JSON.parse(text);
+              targetTeamId = body?.team_id || text;
+            } catch {
+              targetTeamId = text;
+            }
+          } else {
+            throw new Error("create_team_failed");
+          }
+        } else if (mode === "join" && data.invitationCode) {
+          const joinRes = await apiFetch("/api/teams/join", {
+            method: "POST",
+            body: JSON.stringify({ invitation_code: data.invitationCode }),
+          });
+          if (joinRes.ok) {
+            const text = await joinRes.text();
+            try {
+              const body = JSON.parse(text);
+              targetTeamId = body?.team_id || text;
+            } catch {
+              targetTeamId = text;
+            }
+          } else {
+            throw new Error("join_team_failed");
+          }
         }
 
         if (!isCancelled) {
+          try {
+            sessionStorage.removeItem("opswarden_onboarding_draft");
+          } catch {
+            // Ignore storage cleanup error
+          }
           redirectTimer = setTimeout(() => {
-            router.push(createdTeamId ? teamPath(createdTeamId) : "/", {
+            router.push(targetTeamId ? teamPath(targetTeamId) : "/", {
               locale: user.locale,
             });
           }, 300);
@@ -73,6 +106,9 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
     };
   }, [data, router, t]);
 
+  const mode = data.mode || "create";
+  const loadingText = mode === "join" ? t("joiningWorkspace") : t("creatingWorkspace");
+
   return (
     <div className="mx-auto w-full space-y-4">
       {error ? (
@@ -85,7 +121,7 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
       ) : (
         <div className="surface flex min-h-40 flex-col items-center justify-center gap-3 rounded-md p-6 text-center">
           <LoaderCircle className="text-gold h-6 w-6 animate-spin" aria-hidden="true" />
-          <p className="text-text font-medium">{t("creatingWorkspace")}</p>
+          <p className="text-text font-medium">{loadingText}</p>
         </div>
       )}
     </div>
