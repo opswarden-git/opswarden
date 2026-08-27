@@ -2,12 +2,18 @@
 
 use crate::domain::error::DomainError;
 use crate::domain::team::{
-    InvitationCode, Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
+    InvitationCode, Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamImage, TeamMemberView,
 };
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
+
+#[path = "team_directory.rs"]
+mod team_directory;
+
+#[path = "team_image.rs"]
+mod team_image;
 
 #[path = "team_mapping.rs"]
 mod team_mapping;
@@ -202,57 +208,7 @@ impl TeamRepo for PgTeamRepo {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<TeamDirectoryItem>, DomainError> {
-        let records = sqlx::query!(
-            r#"
-            SELECT
-                t.id,
-                t.name,
-                t.invitation_code,
-                t.created_at,
-                membership.role,
-                (SELECT COUNT(*) FROM team_members members WHERE members.team_id = t.id) AS "member_count!",
-                (SELECT COUNT(*) FROM incidents incidents
-                    WHERE incidents.team_id = t.id AND incidents.status <> 'resolved') AS "active_incident_count!",
-                (SELECT COUNT(*) FROM releases releases
-                    WHERE releases.team_id = t.id
-                      AND releases.base_state IN ('created', 'in_progress')) AS "active_release_count!",
-                (SELECT COUNT(*) FROM releases releases
-                    WHERE releases.team_id = t.id
-                      AND releases.base_state = 'in_progress'
-                      AND EXISTS (
-                          SELECT 1
-                          FROM release_incidents links
-                          JOIN incidents incidents ON incidents.id = links.incident_id
-                          WHERE links.release_id = releases.id
-                            AND incidents.status <> 'resolved'
-                      )) AS "blocked_release_count!"
-            FROM team_members membership
-            JOIN teams t ON t.id = membership.team_id
-            WHERE membership.user_id = $1
-            ORDER BY membership.joined_at
-            "#,
-            user_id,
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        Ok(records
-            .into_iter()
-            .map(|row| TeamDirectoryItem {
-                team: Team {
-                    id: row.id,
-                    name: row.name,
-                    invitation_code: InvitationCode::from_existing(row.invitation_code),
-                    created_at: row.created_at,
-                },
-                role: role_from_str(&row.role),
-                member_count: row.member_count as u64,
-                active_incident_count: row.active_incident_count as u64,
-                active_release_count: row.active_release_count as u64,
-                blocked_release_count: row.blocked_release_count as u64,
-            })
-            .collect())
+        team_directory::list_for_user(&self.pool, user_id).await
     }
 
     async fn find_team_by_id(&self, team_id: Uuid) -> Result<Option<Team>, DomainError> {
@@ -474,6 +430,22 @@ impl TeamRepo for PgTeamRepo {
         .map_err(|_| DomainError::Storage)?;
 
         Ok(())
+    }
+
+    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError> {
+        team_image::save(&self.pool, team_id, image).await
+    }
+
+    async fn find_team_image_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<TeamImage>, DomainError> {
+        team_image::find_for_member(&self.pool, team_id, user_id).await
+    }
+
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
+        team_image::delete(&self.pool, team_id).await
     }
 }
 

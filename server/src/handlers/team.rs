@@ -30,6 +30,7 @@ pub struct TeamSummaryResponse {
     pub active_incident_count: u64,
     pub active_release_count: u64,
     pub blocked_release_count: u64,
+    pub image_updated_at: Option<DateTime<Utc>>,
 }
 
 pub async fn list_teams(
@@ -56,6 +57,7 @@ pub async fn list_teams(
                 active_incident_count: team.active_incident_count,
                 active_release_count: team.active_release_count,
                 blocked_release_count: team.blocked_release_count,
+                image_updated_at: team.image_updated_at,
             })
             .collect(),
     ))
@@ -467,3 +469,10 @@ pub async fn unban_member(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+mod team_image;
+
+pub use team_image::{
+    delete_team_image, get_team_image, update_team_image, UpdateTeamImagePayload,
+    UpdateTeamImageResponse,
+};
