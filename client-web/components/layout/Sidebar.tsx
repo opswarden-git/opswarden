@@ -210,10 +210,10 @@ export function Sidebar({
             <MemberAvatar
               email={user?.email || t("operator")}
               role={activeTeam?.role}
-              className="h-10 w-10 text-xs"
+              className="h-8 w-8 text-[11px]"
             />
           }
-          bodyClassName="space-y-8"
+          bodyClassName="space-y-4"
           trigger={
             <button
               type="button"

@@ -102,7 +102,8 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
       onSuccess: () => router.push(teamPath(incident.team_id, "incidents")),
     });
 
-  const commands = (
+  const hasTransitions = Boolean(headerActions.secondary || headerActions.primary);
+  const commands = hasTransitions ? (
     <div className="space-y-2">
       {headerActions.secondary ? transitionButton(headerActions.secondary, false) : null}
       {headerActions.primary ? transitionButton(headerActions.primary, true) : null}
@@ -112,7 +113,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
         </p>
       ) : null}
     </div>
-  );
+  ) : null;
   const dangerCommands = actions.canDelete ? (
     <Button
       variant="danger"

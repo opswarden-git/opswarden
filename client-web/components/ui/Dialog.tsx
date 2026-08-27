@@ -99,26 +99,28 @@ export function Dialog({
           />
           <header
             className={cn(
-              "relative flex shrink-0 items-start gap-3 px-4 pt-4",
-              closeLabel && "pr-14",
+              "border-border/60 relative flex shrink-0 items-center justify-between border-b px-4 py-3",
+              closeLabel && "pr-12",
               titleHidden && "sr-only",
             )}
           >
-            {icon}
-            <div className="min-w-0">
-              <RadixDialog.Title className="text-text text-lg font-semibold">
-                {title}
-              </RadixDialog.Title>
-              {description ? (
-                <RadixDialog.Description className="text-muted mt-1 text-sm">
-                  {description}
-                </RadixDialog.Description>
-              ) : null}
+            <div className="flex min-w-0 items-center gap-2">
+              {icon}
+              <div className="min-w-0">
+                <RadixDialog.Title className="text-text text-sm leading-5 font-semibold">
+                  {title}
+                </RadixDialog.Title>
+                {description ? (
+                  <RadixDialog.Description className="text-muted mt-0.5 text-xs leading-4">
+                    {description}
+                  </RadixDialog.Description>
+                ) : null}
+              </div>
             </div>
             {closeLabel ? (
               <RadixDialog.Close asChild>
                 <IconButton
-                  className="absolute top-4 right-4"
+                  className="absolute top-2.5 right-3"
                   label={closeLabel}
                   size="sm"
                   variant="ghost"
@@ -143,7 +145,10 @@ export function Dialog({
           </div>
 
           {footer ? (
-            <footer data-dialog-part="footer" className="flex shrink-0 justify-end gap-2 px-4 pb-4">
+            <footer
+              data-dialog-part="footer"
+              className="border-border/60 bg-panel/30 flex shrink-0 items-center justify-end gap-2 border-t px-4 py-2"
+            >
               {footer}
             </footer>
           ) : null}

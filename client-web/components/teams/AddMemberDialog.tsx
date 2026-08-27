@@ -6,7 +6,7 @@ import { useAddTeamMember } from "@/lib/queries/teams";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
-import { Dialog } from "@/components/ui/Dialog";
+import { Dialog, DialogClose } from "@/components/ui/Dialog";
 
 const USER_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,9 +36,29 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
       description={t("addMemberDescription")}
       closeLabel={tSidebar("close")}
       size="sm"
+      footer={
+        <>
+          <DialogClose>
+            <Button size="md" onClick={close}>
+              {t("cancel")}
+            </Button>
+          </DialogClose>
+          <Button
+            type="submit"
+            form="add-member-form"
+            variant="primary"
+            size="md"
+            loading={addMember.isPending}
+            disabled={!valid}
+          >
+            {t("addMember")}
+          </Button>
+        </>
+      }
     >
       <form
-        className="space-y-4"
+        id="add-member-form"
+        className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault();
           if (!valid) return;
@@ -54,7 +74,7 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
               addMember.reset();
             }}
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="ow-input h-10 w-full rounded-md px-3 font-mono text-sm"
+            className="ow-input flex h-9 w-full rounded-md px-3 font-mono text-sm"
             aria-invalid={normalizedId.length > 0 && !valid}
           />
         </FormField>
@@ -65,11 +85,6 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
               : t("addMemberFailed")}
           </Alert>
         ) : null}
-        <div className="flex justify-end">
-          <Button type="submit" variant="primary" loading={addMember.isPending} disabled={!valid}>
-            {t("addMember")}
-          </Button>
-        </div>
       </form>
     </Dialog>
   );

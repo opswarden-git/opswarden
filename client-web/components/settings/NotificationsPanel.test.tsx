@@ -31,6 +31,7 @@ function withPermission(
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.clearAllMocks();
 });
 
@@ -41,7 +42,7 @@ describe("NotificationsPanel", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "notificationsEnable" })).toBeInTheDocument(),
     );
-    expect(screen.getByText("notificationsOff")).toBeInTheDocument();
+    expect(screen.getAllByText("notificationsOff")).toHaveLength(2);
   });
 
   it("asks the browser from the click and reflects the answer", async () => {
@@ -66,7 +67,7 @@ describe("NotificationsPanel", () => {
     });
     render(<NotificationsPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "notificationsEnable" }));
-    await waitFor(() => expect(screen.getByText("notificationsOff")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("notificationsOff")).toHaveLength(2));
   });
 
   it("names the two states it cannot act on", async () => {
@@ -79,5 +80,17 @@ describe("NotificationsPanel", () => {
     withPermission(null);
     render(<NotificationsPanel />);
     await waitFor(() => expect(screen.getByText("notificationsUnsupported")).toBeInTheDocument());
+  });
+
+  it("persists the sound opt-in and can turn it off again", async () => {
+    withPermission("granted");
+    render(<NotificationsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "soundsEnable" }));
+    expect(window.localStorage.getItem("opswarden.notification-sounds")).toBe("true");
+    expect(screen.getByRole("button", { name: "soundsDisable" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "soundsDisable" }));
+    expect(window.localStorage.getItem("opswarden.notification-sounds")).toBe("false");
   });
 });

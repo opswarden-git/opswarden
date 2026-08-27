@@ -75,10 +75,13 @@ vi.mock("@/lib/queries/incidents", () => ({
   useToggleTimelineReaction: () => toggleReaction,
 }));
 
+let teamRole: "manager" | "responder" | "observer" = "manager";
 const team = {
   team_id: "team-1",
   name: "Operations",
-  role: "manager" as const,
+  get role() {
+    return teamRole;
+  },
   created_at: "2026-07-25T09:00:00Z",
   member_count: 2,
   active_incident_count: 1,
@@ -94,6 +97,10 @@ const members = [
     joined_at: "",
   },
 ];
+
+vi.mock("@/lib/queries/privateMessages", () => ({
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+}));
 
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({ data: [team] }),
@@ -119,6 +126,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   incidentQuery = { data: incident, isLoading: false, error: null };
+  teamRole = "manager";
   useWsStore.setState({
     watchersByRoom: {
       [`incident:${incident.id}`]: ["manager-1", "responder-1", "unknown"],
@@ -219,10 +227,24 @@ describe("IncidentDetailPage", () => {
     expect(document.querySelector('[data-context-rail-open="true"]')).toBeInTheDocument();
   });
 
+  it("does not render an empty Actions section for an Observer", () => {
+    teamRole = "observer";
+    render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+
+    const context = within(document.querySelector('[data-war-room-context="true"]') as HTMLElement);
+    expect(context.queryByRole("button", { name: /moreActions/ })).not.toBeInTheDocument();
+    expect(context.getByRole("button", { name: /colAssignee/ })).toBeInTheDocument();
+    expect(context.getByRole("button", { name: "members" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
   it("renders deterministic loading and error states", () => {
     incidentQuery = { data: undefined, isLoading: true, error: null };
     const view = render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
     expect(screen.getByTestId("conversation-room-skeleton")).toBeInTheDocument();
+    expect(screen.getByTestId("incident-context-skeleton")).toBeInTheDocument();
 
     view.unmount();
     incidentQuery = { data: undefined, isLoading: false, error: new Error("load_failed") };

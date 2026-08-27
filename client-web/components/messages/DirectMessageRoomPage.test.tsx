@@ -136,6 +136,8 @@ vi.mock("@/lib/queries/privateMessages", () => ({
   useSendPrivateMessage: () => send,
   useEditPrivateMessage: () => ({ error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() }),
   useTogglePrivateMessageReaction: () => ({ isPending: false, mutate: vi.fn() }),
+  useMarkPrivateMessageRead: () => ({ mutate: vi.fn() }),
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
   downloadPrivateMessageAttachment: vi.fn(),
 }));
 
@@ -206,9 +208,14 @@ describe("DirectMessageRoomPage", () => {
     messagesQuery = { ...messagesQuery, hasNextPage: true };
     render(<DirectMessageRoomPage teamId="team-1" peerId="peer-1" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "loadEarlier" }));
+    const transcript = document.querySelector(
+      '[data-direct-message-transcript="true"]',
+    ) as HTMLDivElement;
+    Object.defineProperty(transcript, "scrollTop", { value: 0, writable: true });
+    fireEvent.scroll(transcript);
 
     await waitFor(() => expect(messagesQuery.fetchNextPage).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: "loadEarlier" })).not.toBeInTheDocument();
     expect(screen.getByText("My update")).toBeVisible();
   });
 

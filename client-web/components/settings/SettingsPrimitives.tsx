@@ -19,20 +19,22 @@ export function IdentityHeader({
   return (
     <header
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-4",
-        bordered && "border-border border-b pb-6",
+        "flex min-w-0 flex-wrap items-center gap-3",
+        bordered && "border-border/40 mb-3 border-b pb-3",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <span
-          className="surface-subtle text-text border-border flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-sm font-semibold tracking-wide"
+          className="surface-subtle text-text border-border/60 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tracking-wide"
           aria-hidden={markInteractive ? undefined : "true"}
         >
           {mark}
         </span>
         <div className="min-w-0">
-          <h2 className="text-text truncate text-lg font-semibold tracking-tight">{title}</h2>
-          {subtitle ? <div className="text-muted mt-1 text-sm">{subtitle}</div> : null}
+          <h2 className="text-text truncate text-sm leading-5 font-semibold tracking-tight">
+            {title}
+          </h2>
+          {subtitle ? <div className="text-muted mt-0.5 text-xs">{subtitle}</div> : null}
         </div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -56,9 +58,16 @@ export function SettingsSection({
     // rows below a heading are the same subject — an identity, a preference —
     // so they group by proximity; the sections themselves are what a reader
     // needs help telling apart.
-    <section className={cn("border-border-muted space-y-3 border-t pt-8", className)}>
-      <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
-        <h2 className="text-text font-semibold">{title}</h2>
+    <section
+      className={cn(
+        "[&:not(:first-child)]:border-border/40 space-y-1 [&:not(:first-child)]:mt-3 [&:not(:first-child)]:border-t [&:not(:first-child)]:pt-3",
+        className,
+      )}
+    >
+      <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+        <h2 className="text-text text-xs leading-5 font-semibold tracking-wider uppercase">
+          {title}
+        </h2>
         {action}
       </div>
       <div>{children}</div>
@@ -80,11 +89,11 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        "grid min-h-16 gap-2 py-4 sm:grid-cols-[minmax(10rem,0.55fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-5",
+        "grid min-h-9 gap-2 py-1.5 sm:grid-cols-[minmax(8rem,0.35fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-4",
         className,
       )}
     >
-      <div className="text-muted text-sm font-medium">{label}</div>
+      <div className="text-muted text-xs font-medium">{label}</div>
       <div className="text-text min-w-0 text-sm">{children}</div>
       {action ? <div className="justify-self-start sm:justify-self-end">{action}</div> : null}
     </div>

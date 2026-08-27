@@ -84,7 +84,7 @@ function TeamPage({ team }: { team: Team }) {
   const leaveOrDeleteDone = () => router.replace("/teams");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <IdentityHeader
         action={
           capabilities.canManageMembers ? (
@@ -112,7 +112,7 @@ function TeamPage({ team }: { team: Team }) {
 
       <TeamRoster team={team} />
 
-      <div className="border-border border-t pt-8">
+      <div className="border-border/40 border-t pt-3">
         <section
           aria-labelledby="team-danger"
           className="surface border-sev-critical/40 rounded-md p-4"

@@ -3,6 +3,7 @@ import { useJoinTeam } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 
 export function JoinTeamDialog() {
   const [open, setOpen] = useState(false);
@@ -43,14 +44,14 @@ export function JoinTeamDialog() {
       footer={
         <>
           <DialogClose>
-            <Button size="lg">{t("cancel")}</Button>
+            <Button size="md">{t("cancel")}</Button>
           </DialogClose>
           <Button
             type="submit"
             form="join-team-form"
             disabled={joinTeam.isPending || !code.trim()}
             loading={joinTeam.isPending}
-            size="lg"
+            size="md"
             variant="primary"
           >
             {joinTeam.isPending ? t("joining") : t("join")}
@@ -58,21 +59,19 @@ export function JoinTeamDialog() {
         </>
       }
     >
-      <form id="join-team-form" onSubmit={handleSubmit}>
-        <label htmlFor="join-code" className="text-muted mb-1 block font-sans text-xs">
-          {t("colInvitationCode")}
-        </label>
-        <input
-          ref={codeRef}
-          id="join-code"
-          type="text"
-          value={code}
-          onChange={(event) => setCode(event.target.value.toUpperCase())}
-          className="ow-input flex h-10 w-full rounded-md px-3 py-2 font-mono text-sm tracking-widest uppercase transition-colors"
-          placeholder={t("invitationCodePlaceholder")}
-        />
+      <form id="join-team-form" onSubmit={handleSubmit} className="space-y-3">
+        <FormField label={t("colInvitationCode")}>
+          <input
+            ref={codeRef}
+            type="text"
+            value={code}
+            onChange={(event) => setCode(event.target.value.toUpperCase())}
+            className="ow-input flex h-9 w-full rounded-md px-3 font-mono text-sm tracking-widest uppercase transition-colors"
+            placeholder={t("invitationCodePlaceholder")}
+          />
+        </FormField>
         {joinTeam.isError ? (
-          <p className="text-sev-critical mt-3 text-sm" role="alert">
+          <p className="text-sev-critical text-xs" role="alert">
             {tErr.has(joinTeam.error.message) ? tErr(joinTeam.error.message) : t("actionFailed")}
           </p>
         ) : null}

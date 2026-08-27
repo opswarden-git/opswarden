@@ -3,6 +3,12 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import {
+  notificationSoundsEnabled,
+  playNotificationSound,
+  setNotificationSoundsEnabled,
+  subscribeToNotificationSounds,
+} from "@/lib/notificationSounds";
 import { SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
 type PermissionState = "unsupported" | "default" | "granted" | "denied";
@@ -42,6 +48,11 @@ export function NotificationsPanel() {
     // The server has no `Notification`; the client corrects on hydration.
     () => "default" as PermissionState,
   );
+  const soundsEnabled = React.useSyncExternalStore(
+    subscribeToNotificationSounds,
+    notificationSoundsEnabled,
+    () => false,
+  );
 
   const request = async () => {
     try {
@@ -61,6 +72,12 @@ export function NotificationsPanel() {
           ? t("notificationsUnsupported")
           : t("notificationsOff");
 
+  const toggleSounds = () => {
+    const enabled = !soundsEnabled;
+    setNotificationSoundsEnabled(enabled);
+    if (enabled) void playNotificationSound("message");
+  };
+
   return (
     <SettingsSection title={t("notifications")}>
       <SettingsRow
@@ -74,6 +91,22 @@ export function NotificationsPanel() {
         }
       >
         <span className="text-muted">{label}</span>
+      </SettingsRow>
+      <SettingsRow
+        label={t("notificationSounds")}
+        action={
+          <Button
+            size="sm"
+            variant={soundsEnabled ? "secondary" : "primary"}
+            onClick={toggleSounds}
+          >
+            {soundsEnabled ? t("soundsDisable") : t("soundsEnable")}
+          </Button>
+        }
+      >
+        <span className="text-muted">
+          {soundsEnabled ? t("notificationsOn") : t("notificationsOff")}
+        </span>
       </SettingsRow>
     </SettingsSection>
   );

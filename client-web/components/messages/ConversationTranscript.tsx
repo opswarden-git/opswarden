@@ -1,7 +1,6 @@
 "use client";
 
 import React, { type ReactNode, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
 
 interface ConversationTranscriptProps<Item> {
   empty: ReactNode;
@@ -46,6 +45,8 @@ export function ConversationTranscript<Item>({
   const transcriptRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
   const hasPositioned = useRef(false);
+  const loadingPrevious = useRef(false);
+  const touchStartY = useRef<number | null>(null);
   const newestId = items.at(-1) ? getId(items.at(-1) as Item) : undefined;
 
   useEffect(() => {
@@ -58,16 +59,26 @@ export function ConversationTranscript<Item>({
   }, [newestId]);
 
   const loadPreviousPage = async () => {
-    if (!loadEarlier) return;
+    if (!loadEarlier || loadingEarlier || loadingPrevious.current) return;
+    loadingPrevious.current = true;
     const transcript = transcriptRef.current;
     const previousHeight = transcript?.scrollHeight ?? 0;
     const previousTop = transcript?.scrollTop ?? 0;
-    await loadEarlier();
-    requestAnimationFrame(() => {
-      if (transcript) {
-        transcript.scrollTop = previousTop + transcript.scrollHeight - previousHeight;
-      }
-    });
+    try {
+      await loadEarlier();
+      requestAnimationFrame(() => {
+        if (transcript) {
+          transcript.scrollTop = previousTop + transcript.scrollHeight - previousHeight;
+        }
+        loadingPrevious.current = false;
+      });
+    } catch {
+      loadingPrevious.current = false;
+    }
+  };
+
+  const loadAtTop = (transcript: HTMLDivElement) => {
+    if (transcript.scrollTop <= 32) void loadPreviousPage();
   };
 
   const surfaceData =
@@ -84,17 +95,39 @@ export function ConversationTranscript<Item>({
         const transcript = event.currentTarget;
         isNearBottom.current =
           transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight <= 80;
+        loadAtTop(transcript);
+      }}
+      onWheel={(event) => {
+        if (event.deltaY < 0) loadAtTop(event.currentTarget);
+      }}
+      onTouchStart={(event) => {
+        touchStartY.current = event.touches[0]?.clientY ?? null;
+      }}
+      onTouchMove={(event) => {
+        const currentY = event.touches[0]?.clientY;
+        if (
+          currentY !== undefined &&
+          touchStartY.current !== null &&
+          Math.abs(currentY - touchStartY.current) >= 16
+        ) {
+          loadAtTop(event.currentTarget);
+        }
+      }}
+      onTouchEnd={() => {
+        touchStartY.current = null;
       }}
     >
-      <div
-        className="flex min-h-full flex-col justify-end"
-        data-conversation-content="true"
-      >
-        {loadEarlier ? (
-          <div className="flex justify-center px-4 pt-3 pb-2">
-            <Button size="sm" loading={loadingEarlier} onClick={() => void loadPreviousPage()}>
-              {loadEarlierLabel}
-            </Button>
+      <div className="flex min-h-full flex-col justify-end" data-conversation-content="true">
+        {loadingEarlier ? (
+          <div
+            className="flex h-8 items-center justify-center"
+            role="status"
+            aria-label={loadEarlierLabel}
+          >
+            <span
+              className="ow-progress-spinner text-muted h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+              aria-hidden="true"
+            />
           </div>
         ) : null}
         {isLoading ? (

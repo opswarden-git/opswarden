@@ -229,6 +229,7 @@ const sameTextAllowed = new Set([
   "Settings.notifications",
   "Onboarding.operatorNamePlaceholder",
   "Onboarding.teamNamePlaceholder",
+  "Onboarding.invitationCodePlaceholder",
   "Teams.namePlaceholder",
   "Onboarding.timezoneParis",
   "Releases.colAction",

@@ -86,7 +86,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       size="md"
       initialFocus={titleRef}
       title={t("newRelease")}
-      titleHidden
+      closeLabel={t("cancel")}
       trigger={
         <Button disabled={!teamId} variant="primary">
           {t("newRelease")}
@@ -95,14 +95,14 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       footer={
         <>
           <DialogClose>
-            <Button size="lg">{t("cancel")}</Button>
+            <Button size="md">{t("cancel")}</Button>
           </DialogClose>
           <Button
             type="submit"
             form="create-release-form"
             disabled={!formValid}
             loading={createRelease.isPending}
-            size="lg"
+            size="md"
             variant="primary"
           >
             {createRelease.isPending ? t("creating") : t("create")}
@@ -110,25 +110,28 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         </>
       }
     >
-      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0 space-y-4">
-        <label className="text-text block text-sm font-medium">
-          <span>{t("releaseTitle")}</span>
+      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0 space-y-3">
+        <div>
+          <label htmlFor="release-title-input" className="text-text mb-1 block text-xs font-medium">
+            {t("releaseTitle")}
+          </label>
           <input
+            id="release-title-input"
             ref={titleRef}
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+            className="ow-input flex h-9 w-full rounded-md px-3 text-sm"
           />
-        </label>
+        </div>
 
         <fieldset>
-          <legend className="text-text text-sm font-medium">{t("steps")}</legend>
+          <legend className="text-text text-xs font-medium">{t("steps")}</legend>
 
-          <ol className="mt-2 space-y-2">
+          <ol className="mt-1.5 space-y-1.5">
             {steps.map((step, index) => (
-              <li key={step.id} className="flex items-center gap-2">
-                <span className="text-muted w-6 shrink-0 text-center text-xs tabular-nums">
+              <li key={step.id} className="flex items-center gap-1.5">
+                <span className="text-muted w-5 shrink-0 text-center text-xs tabular-nums">
                   {index + 1}
                 </span>
                 <label className="min-w-0 flex-1">
@@ -193,7 +196,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           </ol>
 
           <IconButton
-            className="mt-2"
+            className="mt-1.5"
             label={t("addStep")}
             size="sm"
             variant="ghost"
@@ -207,17 +210,17 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           {announcement}
         </p>
         {steps.length === 0 ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {t("atLeastOneStep")}
           </p>
         ) : null}
         {hasDuplicates ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {t("duplicateSteps")}
           </p>
         ) : null}
         {createRelease.error ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {errorText(createRelease.error.message)}
           </p>
         ) : null}

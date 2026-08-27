@@ -3,6 +3,7 @@ import { useCreateTeam } from "@/lib/queries/teams";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 
 export function CreateTeamDialog() {
   const [open, setOpen] = useState(false);
@@ -43,14 +44,14 @@ export function CreateTeamDialog() {
       footer={
         <>
           <DialogClose>
-            <Button size="lg">{t("cancel")}</Button>
+            <Button size="md">{t("cancel")}</Button>
           </DialogClose>
           <Button
             type="submit"
             form="create-team-form"
             disabled={createTeam.isPending || !name.trim()}
             loading={createTeam.isPending}
-            size="lg"
+            size="md"
             variant="primary"
           >
             {createTeam.isPending ? t("creating") : t("create")}
@@ -58,21 +59,19 @@ export function CreateTeamDialog() {
         </>
       }
     >
-      <form id="create-team-form" onSubmit={handleSubmit}>
-        <label htmlFor="team-name" className="text-muted mb-1 block font-sans text-xs">
-          {t("name")}
-        </label>
-        <input
-          ref={nameRef}
-          id="team-name"
-          type="text"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
-          placeholder={t("namePlaceholder")}
-        />
+      <form id="create-team-form" onSubmit={handleSubmit} className="space-y-3">
+        <FormField label={t("name")}>
+          <input
+            ref={nameRef}
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="ow-input flex h-9 w-full rounded-md px-3 text-sm transition-colors"
+            placeholder={t("namePlaceholder")}
+          />
+        </FormField>
         {createTeam.isError ? (
-          <p className="text-sev-critical mt-3 text-sm" role="alert">
+          <p className="text-sev-critical text-xs" role="alert">
             {tErr.has(createTeam.error.message)
               ? tErr(createTeam.error.message)
               : t("actionFailed")}

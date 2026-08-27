@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar";
 import { RoleChip } from "@/components/teams/RoleChip";
@@ -8,6 +9,7 @@ import type { TeamMember } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { cn } from "@/lib/utils";
 import { useTeamOnline } from "@/lib/ws";
+import { useUnreadPrivateMessages } from "@/lib/queries/privateMessages";
 import { PaneSection } from "@/components/ui/PaneSection";
 import { useAuthStore } from "@/store/auth";
 
@@ -29,6 +31,11 @@ export function TeamPresenceList({
   const currentUserId = useAuthStore((state) => state.user?.id);
   const onlineIds = useTeamOnline(teamId);
   const activeIds = new Set([...onlineIds, ...presentUserIds]);
+  const { data: unreadData } = useUnreadPrivateMessages(true);
+  const unreadPeerSet = useMemo(
+    () => new Set(unreadData?.unread_peer_ids ?? []),
+    [unreadData?.unread_peer_ids],
+  );
   const orderedMembers = [...members].sort((left, right) => {
     if (left.user_id === currentUserId) return -1;
     if (right.user_id === currentUserId) return 1;
@@ -42,6 +49,7 @@ export function TeamPresenceList({
           const self = member.user_id === currentUserId;
           const active = self || activeIds.has(member.user_id);
           const current = member.user_id === activePeerId;
+          const hasUnread = unreadPeerSet.has(member.user_id);
           const itemClassName = cn(
             "flex min-w-0 items-center gap-2 rounded-md px-2 py-2 transition-[background-color,color,opacity]",
             current ? "bg-panel-2 text-text" : "text-muted",
@@ -67,7 +75,18 @@ export function TeamPresenceList({
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-px">
                 <span className="text-text flex min-w-0 items-center gap-2 text-sm leading-4">
-                  <span className="min-w-0 flex-1 truncate">{memberDisplayName(member.email)}</span>
+                  <span
+                    className={cn("min-w-0 flex-1 truncate", hasUnread && "text-text font-bold")}
+                  >
+                    {memberDisplayName(member.email)}
+                  </span>
+                  {hasUnread && !current ? (
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-white"
+                      title={tMessages("newMessages")}
+                      aria-hidden="true"
+                    />
+                  ) : null}
                   {self ? (
                     <span className="border-border bg-panel-2 text-muted ml-auto shrink-0 rounded border px-1 py-0.5 text-[9px] leading-none font-medium">
                       {t("currentUserLabel")}

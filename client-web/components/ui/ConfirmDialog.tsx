@@ -69,16 +69,16 @@ function ConfirmDialogBody({
           <AlertTriangle className="text-sev-critical mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         ) : undefined
       }
-      bodyClassName="space-y-5"
+      bodyClassName="space-y-4"
       footer={
         <>
           <DialogClose>
-            <Button ref={cancelRef} size="lg">
+            <Button ref={cancelRef} size="md">
               {cancelLabel}
             </Button>
           </DialogClose>
           <Button
-            size="lg"
+            size="md"
             variant={intent === "destructive" ? "danger" : "primary"}
             onClick={onConfirm}
             disabled={confirmDisabled}
@@ -92,14 +92,14 @@ function ConfirmDialogBody({
       {children}
 
       {requireType ? (
-        <label className="text-text block text-sm font-medium">
+        <label className="text-text block text-xs font-medium">
           {/* The description already says which word to type; repeating it as a
               label is the third time the same word appears. */}
           <span className="sr-only">{requireTypeLabel ?? requireType}</span>
           <input
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
-            className="ow-input focus-visible:ring-sev-critical/50 mt-2 flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
+            className="ow-input focus-visible:ring-sev-critical/50 mt-1.5 flex h-9 w-full rounded-md px-3 text-sm transition-colors"
             autoComplete="off"
             spellCheck={false}
           />

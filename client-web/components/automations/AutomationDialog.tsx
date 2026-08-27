@@ -32,7 +32,6 @@ export function AutomationDialog({
       closeLabel={t("close")}
       initialFocus={initialFocus}
       size="lg"
-      bodyClassName="p-0"
       footer={footer}
     >
       {children}
