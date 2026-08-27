@@ -15,7 +15,7 @@ async function loginAsManager(page: Page) {
 async function openCreateIncident(page: Page) {
   const trigger = page.getByRole("button", { name: "New incident", exact: true });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Declare New Incident" });
+  const dialog = page.getByRole("dialog", { name: "Declare new incident" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeFocused();
   return { dialog, trigger };

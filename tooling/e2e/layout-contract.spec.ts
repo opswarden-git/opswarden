@@ -214,7 +214,7 @@ test("desktop shell exposes Operations, Settings and one current destination", a
     await expect(accountDialog).toBeVisible();
     await expect(accountDialog.getByRole("heading", { name: "Profile" })).toBeVisible();
     await expect(accountDialog.getByRole("heading", { name: "Preferences" })).toBeVisible();
-    await expect(accountDialog.getByRole("heading", { name: "Account Actions" })).toBeVisible();
+    await expect(accountDialog.getByRole("heading", { name: "Account actions" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(accountDialog).toBeHidden();
 

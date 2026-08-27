@@ -35,13 +35,13 @@ async function createJoinableTeam(request: APIRequestContext) {
   };
 }
 
-test("Create Team owns focus, Escape, restoration and fresh state", async ({ page }) => {
+test("Create team owns focus, Escape, restoration and fresh state", async ({ page }) => {
   await login(page, "manager@opswarden.local");
-  const trigger = page.getByRole("button", { name: "Create Team", exact: true });
+  const trigger = page.getByRole("button", { name: "Create team", exact: true });
   await trigger.click();
 
-  const dialog = page.getByRole("dialog", { name: "Create New Team" });
-  const name = dialog.getByLabel("Organization Name");
+  const dialog = page.getByRole("dialog", { name: "Create new team" });
+  const name = dialog.getByLabel("Team name");
   await expect(dialog).toBeVisible();
   await expect(name).toBeFocused();
   await name.fill("Draft workspace");
@@ -50,16 +50,16 @@ test("Create Team owns focus, Escape, restoration and fresh state", async ({ pag
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await expect(dialog.getByLabel("Organization Name")).toHaveValue("");
+  await expect(dialog.getByLabel("Team name")).toHaveValue("");
 });
 
-test("Manager creates a Team through the shared footer", async ({ page }) => {
+test("Manager creates a Team from the Workspace controls", async ({ page }) => {
   await login(page, "manager@opswarden.local");
   const name = `E2E team dialog create ${Date.now()}`;
-  await page.getByRole("button", { name: "Create Team", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Create New Team" });
+  await page.getByRole("button", { name: "Create team", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create new team" });
 
-  await dialog.getByLabel("Organization Name").fill(name);
+  await dialog.getByLabel("Team name").fill(name);
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
@@ -69,12 +69,12 @@ test("Manager creates a Team through the shared footer", async ({ page }) => {
 test("Responder joins a Team with a real invitation code", async ({ page, request }) => {
   const team = await createJoinableTeam(request);
   await login(page, "responder@opswarden.local");
-  await page.getByRole("button", { name: "Join Team", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Join Existing Team" });
+  await page.getByRole("button", { name: "Join team", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Join existing team" });
 
-  await expect(dialog.getByLabel("Invitation Code")).toBeFocused();
-  await dialog.getByLabel("Invitation Code").fill(team.invitation_code.toLowerCase());
-  await expect(dialog.getByLabel("Invitation Code")).toHaveValue(team.invitation_code);
+  await expect(dialog.getByLabel("Invitation code")).toBeFocused();
+  await dialog.getByLabel("Invitation code").fill(team.invitation_code.toLowerCase());
+  await expect(dialog.getByLabel("Invitation code")).toHaveValue(team.invitation_code);
   await dialog.getByRole("button", { name: "Join", exact: true }).click();
 
   await expect(dialog).toHaveCount(0);
@@ -85,11 +85,11 @@ test("Responder joins a Team with a real invitation code", async ({ page, reques
 
 test("Join Team announces errors and clears them on a new open", async ({ page }) => {
   await login(page, "observer@opswarden.local");
-  const trigger = page.getByRole("button", { name: "Join Team", exact: true });
+  const trigger = page.getByRole("button", { name: "Join team", exact: true });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Join Existing Team" });
+  const dialog = page.getByRole("dialog", { name: "Join existing team" });
 
-  await dialog.getByLabel("Invitation Code").fill("OPS-NOPE00");
+  await dialog.getByLabel("Invitation code").fill("OPS-NOPE00");
   await dialog.getByRole("button", { name: "Join", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText(
     "The invitation code is invalid or the team could not be joined.",
@@ -98,6 +98,6 @@ test("Join Team announces errors and clears them on a new open", async ({ page }
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await expect(dialog.getByLabel("Invitation Code")).toHaveValue("");
+  await expect(dialog.getByLabel("Invitation code")).toHaveValue("");
   await expect(dialog.getByRole("alert")).toHaveCount(0);
 });

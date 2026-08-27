@@ -22,6 +22,7 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(OPEN_INCIDENT_ID));
 
     await expect(page.locator('[data-system-event="created"]')).toBeVisible();
+    await page.getByRole("button", { name: /^Actions/ }).click();
     await page.getByRole("button", { name: "Acknowledge", exact: true }).click();
     await expect(page.getByText("Acknowledged", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Escalate", exact: true })).toBeVisible();
@@ -68,7 +69,7 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     const rooms = page.getByRole("complementary", { name: "War room navigation" });
-    await expect(rooms.getByRole("link", { name: /^Incidents \(\d+\)$/ })).toBeVisible();
+    await expect(rooms.getByRole("link", { name: /^Incidents\s*\(\d+\)$/ })).toBeVisible();
     await expect(rooms.getByRole("link", { name: /Releases/ })).toHaveCount(0);
     const sectionLabels = await rooms
       .locator("section")
@@ -76,9 +77,19 @@ test.describe("Incident detail", () => {
         sections.map((section) => section.querySelector("h2, a")?.textContent?.trim()),
       );
     expect(sectionLabels).toHaveLength(1);
-    expect(sectionLabels[0]).toMatch(/^Incidents \(\d+\)$/);
+    expect(sectionLabels[0]).toMatch(/^Incidents\s*\(\d+\)$/);
 
     const context = page.getByRole("complementary", { name: "Incident details" });
+    for (const section of [/^Details$/, /^Actions/, /^Assignee/, /^Release$/]) {
+      await expect(context.getByRole("button", { name: section })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    }
+    await expect(context.getByRole("button", { name: "Members" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     await context.getByRole("link", { name: "Chat with responder@opswarden.local" }).click();
     await expect(page).toHaveURL(new RegExp(`/messages/[0-9a-f-]+$`));
     await expect(page.getByRole("region", { name: "responder@opswarden.local" })).toBeVisible();
@@ -91,19 +102,22 @@ test.describe("Incident detail", () => {
     await login(page, "manager@opswarden.local");
     await page.goto(incidentUrl(UNASSIGNED_INCIDENT_ID));
 
+    await page.getByRole("button", { name: /^Assignee/ }).click();
     await page.getByLabel("Change assignee").selectOption({ label: "responder@opswarden.local" });
     await page.getByRole("button", { name: "Assign", exact: true }).click();
     await expect(page.getByLabel("Change assignee").locator("option:checked")).toHaveText(
       "responder@opswarden.local",
     );
 
-    await page.getByRole("button", { name: "Delete Incident" }).click();
-    await expect(page.getByRole("dialog", { name: "Delete Incident" })).toBeVisible();
+    await page.getByRole("button", { name: /^Actions/ }).click();
+    await page.getByRole("button", { name: "Delete incident" }).click();
+    await expect(page.getByRole("dialog", { name: "Delete incident" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Delete Incident" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Delete incident" })).toHaveCount(0);
 
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
+    await page.getByRole("button", { name: "Release" }).click();
     await page
       .locator('aside[data-war-room-context="true"]')
       .getByRole("link", { name: /v2\.8\.0 — Payment resilience/ })
@@ -131,7 +145,7 @@ test.describe("Incident detail", () => {
       // Below lg the context is an on-demand sheet rather than a stacked panel.
       // The room keeps a fixed frame (D9), so a panel placed under a scrolling
       // transcript would sit behind the entire conversation.
-      const contextTrigger = page.getByRole("button", { name: "Details" });
+      const contextTrigger = page.getByRole("button", { name: "Incident details", exact: true });
       const contextPanel = page.locator('aside[data-war-room-context="true"]');
 
       if (width < 1024) {

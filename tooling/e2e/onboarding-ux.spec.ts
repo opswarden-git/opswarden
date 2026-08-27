@@ -11,10 +11,10 @@ test("signup collects only persisted data and recovers from creation failure", a
 
   await page.getByLabel("Email").fill("new-operator@example.com");
   await page.getByLabel(/^Password/).fill("correct-horse");
-  await page.getByRole("button", { name: "Sign Up", exact: true }).click();
+  await page.getByRole("button", { name: "Sign up", exact: true }).click();
 
   await expect(page.getByText("Step 2 of 3", { exact: true })).toBeVisible();
-  await page.getByLabel("Organization").fill("Platform Operations");
+  await page.getByLabel("Team").fill("Platform Operations");
   await expect(page.getByLabel("Timezone")).toHaveCount(0);
   await page.getByRole("button", { name: "Next", exact: true }).click();
 
@@ -24,5 +24,5 @@ test("signup collects only persisted data and recovers from creation failure", a
 
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByText("Step 2 of 3", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Organization")).toHaveValue("Platform Operations");
+  await expect(page.getByLabel("Team")).toHaveValue("Platform Operations");
 });

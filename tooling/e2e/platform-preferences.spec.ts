@@ -116,7 +116,7 @@ test("forced colors preserve focus, selection and action-menu geometry", async (
   ).toBe("2px");
 
   await page.goto(`/en/teams/${TEAM_ID}/team#members`);
-  await page.getByRole("button", { name: "Team Actions" }).first().click();
+  await page.getByRole("button", { name: "Team actions" }).first().click();
   const menuItem = page.getByRole("menuitem").first();
   await menuItem.hover();
   expect(await menuItem.evaluate((element) => getComputedStyle(element).outlineWidth)).toBe("2px");
