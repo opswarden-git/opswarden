@@ -84,6 +84,14 @@ pub fn build_app(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(14 * 1024 * 1024)),
         )
         .route(
+            "/api/private-messages/read",
+            post(handlers::private_message::mark_private_messages_read),
+        )
+        .route(
+            "/api/private-messages/unread",
+            get(handlers::private_message::list_unread_private_messages),
+        )
+        .route(
             "/api/private-messages/{id}",
             patch(handlers::private_message::edit_private_message),
         )
@@ -140,6 +148,12 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/teams/{team_id}/invitation",
             get(handlers::team::get_invitation_code),
+        )
+        .route(
+            "/api/teams/{team_id}/image",
+            get(handlers::team::get_team_image)
+                .put(handlers::team::update_team_image)
+                .delete(handlers::team::delete_team_image),
         )
         .route("/api/teams/{team_id}", delete(handlers::team::delete_team))
         .route(

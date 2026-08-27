@@ -35,9 +35,10 @@ impl JoinTeamUseCase {
     /// Join a team from its invitation code as an `Observer`. Unknown codes are
     /// rejected (404) and double-joining is refused (409).
     pub async fn join_team(&self, cmd: JoinTeamCommand) -> Result<JoinTeamResult, DomainError> {
+        let normalized_code = cmd.invitation_code.trim().to_uppercase();
         let team = self
             .teams
-            .find_by_invitation_code(&cmd.invitation_code)
+            .find_by_invitation_code(&normalized_code)
             .await?
             .ok_or(DomainError::TeamNotFound)?;
 
@@ -185,5 +186,26 @@ mod tests {
             repo.added.lock().unwrap().as_slice(),
             &[(team.id, user, Role::Observer)]
         );
+    }
+
+    #[tokio::test]
+    async fn join_team_normalizes_code_whitespace_and_case() {
+        let team = Team::new("SRE Core").unwrap();
+        let raw_code = team.invitation_code.as_str().to_string();
+        let dirty_code = format!("  {}  ", raw_code.to_lowercase());
+        let repo = Arc::new(MockTeamRepo::with_team(team.clone()));
+        let user = Uuid::new_v4();
+        let use_case = JoinTeamUseCase::new(repo.clone());
+
+        let result = use_case
+            .join_team(JoinTeamCommand {
+                invitation_code: dirty_code,
+                user_id: user,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.role, Role::Observer);
+        assert_eq!(result.team_id, team.id);
     }
 }

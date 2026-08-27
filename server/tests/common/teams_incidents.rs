@@ -118,6 +118,7 @@ impl TeamRepo for DummyTeamRepo {
                 active_incident_count: 0,
                 active_release_count: 0,
                 blocked_release_count: 0,
+                image_updated_at: None,
             })
             .collect())
     }

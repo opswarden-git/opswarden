@@ -3,6 +3,7 @@
 pub struct DummyPrivateMessageRepo {
     messages: Mutex<Vec<PrivateMessage>>,
     reactions: Mutex<HashSet<(Uuid, Uuid, String)>>,
+    reads: Mutex<HashMap<(Uuid, Uuid), DateTime<Utc>>>,
 }
 
 #[allow(dead_code)]
@@ -126,6 +127,36 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
             .flat_map(|message| message.attachments.iter())
             .find(|attachment| attachment.id == attachment_id)
             .cloned())
+    }
+
+    async fn mark_read(
+        &self,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        read_through: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        let mut reads = self.reads.lock().unwrap();
+        let entry = reads.entry((viewer_id, peer_id)).or_insert(read_through);
+        if read_through > *entry {
+            *entry = read_through;
+        }
+        Ok(())
+    }
+
+    async fn list_unread_peer_ids(&self, viewer_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+        let messages = self.messages.lock().unwrap();
+        let reads = self.reads.lock().unwrap();
+        let mut unread_senders = HashSet::new();
+
+        for msg in messages.iter() {
+            if msg.recipient_id == viewer_id {
+                let read_through = reads.get(&(viewer_id, msg.sender_id));
+                if read_through.is_none() || msg.created_at > *read_through.unwrap() {
+                    unread_senders.insert(msg.sender_id);
+                }
+            }
+        }
+        Ok(unread_senders.into_iter().collect())
     }
 }
 

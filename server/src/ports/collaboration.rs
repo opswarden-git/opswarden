@@ -7,7 +7,9 @@ use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
 use crate::domain::release::{Release, ReleaseState};
-use crate::domain::team::{Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView};
+use crate::domain::team::{
+    Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamImage, TeamMemberView,
+};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::{Locale, User};
 
@@ -91,6 +93,24 @@ pub trait TeamRepo: Send + Sync {
     /// Explicitly lift a ban. Expired rows may also be removed to keep the
     /// moderation history intentional rather than silently reactivatable.
     async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
+    /// Replace the single bounded identity image attached to a Team.
+    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError> {
+        let _ = (team_id, image);
+        Err(DomainError::Storage)
+    }
+    /// Load image bytes only for a current member of the Team.
+    async fn find_team_image_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<TeamImage>, DomainError> {
+        let _ = (team_id, user_id);
+        Err(DomainError::Storage)
+    }
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
+        let _ = team_id;
+        Err(DomainError::Storage)
+    }
 }
 
 #[async_trait]
@@ -240,6 +260,15 @@ pub trait PrivateMessageRepo: Send + Sync {
         attachment_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<PrivateMessageAttachment>, DomainError>;
+    /// Persist (UPSERT) a viewer's read position for conversation with a peer.
+    async fn mark_read(
+        &self,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        read_through: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
+    /// List all peer_ids with unread messages for viewer_id.
+    async fn list_unread_peer_ids(&self, viewer_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
 }
 
 #[async_trait]

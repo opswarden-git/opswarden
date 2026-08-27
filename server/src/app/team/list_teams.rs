@@ -27,6 +27,7 @@ pub struct TeamSummary {
     pub active_incident_count: u64,
     pub active_release_count: u64,
     pub blocked_release_count: u64,
+    pub image_updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -57,6 +58,7 @@ impl ListTeamsUseCase {
                     active_incident_count: item.active_incident_count,
                     active_release_count: item.active_release_count,
                     blocked_release_count: item.blocked_release_count,
+                    image_updated_at: item.image_updated_at,
                 })
                 .collect(),
         })

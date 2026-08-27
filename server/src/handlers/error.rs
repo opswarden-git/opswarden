@@ -26,6 +26,13 @@ impl IntoResponse for DomainError {
             ),
             DomainError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
             DomainError::InvalidTeamName => (StatusCode::BAD_REQUEST, "Team name cannot be empty"),
+            DomainError::InvalidTeamImage => (
+                StatusCode::BAD_REQUEST,
+                "Team image must be a JPEG, PNG, or WebP file no larger than 1 MiB",
+            ),
+            DomainError::TeamImageNotFound => {
+                (StatusCode::NOT_FOUND, "Team image was not found")
+            }
             DomainError::InvalidIncidentTitle => {
                 (StatusCode::BAD_REQUEST, "Incident title cannot be empty")
             }
