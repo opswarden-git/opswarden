@@ -117,7 +117,6 @@ export function MobileCollectionFilters({
   children,
   clearLabel,
   closeLabel,
-  description,
   doneLabel,
   label,
   onClear,
@@ -127,7 +126,6 @@ export function MobileCollectionFilters({
   children: ReactNode;
   clearLabel: string;
   closeLabel: string;
-  description: string;
   doneLabel: string;
   label: string;
   onClear: () => void;
@@ -142,7 +140,6 @@ export function MobileCollectionFilters({
       onOpenChange={setOpen}
       variant="sheet"
       title={title}
-      description={description}
       closeLabel={closeLabel}
       trigger={
         <Button size="sm" className="uppercase lg:hidden">

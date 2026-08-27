@@ -38,7 +38,6 @@ export function CreateTeamDialog() {
       onOpenChange={handleOpenChange}
       trigger={<Button variant="primary">{t("createTeam")}</Button>}
       title={t("createTitle")}
-      description={t("createDesc")}
       closeLabel={t("close")}
       initialFocus={nameRef}
       size="sm"

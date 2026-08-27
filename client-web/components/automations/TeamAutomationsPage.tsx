@@ -304,7 +304,6 @@ export function TeamAutomationsPage({
                   }
                   label={t("filtersLabel")}
                   title={t("filtersLabel")}
-                  description={t("filtersDescription")}
                   clearLabel={t("clearFilters")}
                   closeLabel={t("filtersClose")}
                   doneLabel={t("done")}
@@ -326,7 +325,6 @@ export function TeamAutomationsPage({
                   }
                   label={t("filtersLabel")}
                   title={t("filtersLabel")}
-                  description={t("filtersDescription")}
                   clearLabel={t("clearFilters")}
                   closeLabel={t("filtersClose")}
                   doneLabel={t("done")}

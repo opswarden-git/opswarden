@@ -38,7 +38,6 @@ export function JoinTeamDialog() {
       onOpenChange={handleOpenChange}
       trigger={<Button>{t("joinTeam")}</Button>}
       title={t("joinTitle")}
-      description={t("joinDesc")}
       closeLabel={t("close")}
       initialFocus={codeRef}
       size="sm"

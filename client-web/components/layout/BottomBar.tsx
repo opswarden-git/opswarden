@@ -80,7 +80,6 @@ export function BottomBar({ className }: { className?: string }) {
         onOpenChange={setIsMoreOpen}
         variant="sheet"
         title={t("more")}
-        description={t("mobileNavigation")}
         closeLabel={t("close")}
         bodyClassName="p-3 pb-4"
         trigger={

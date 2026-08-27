@@ -46,12 +46,21 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
+ * Four ceilings come down on 2026-08-27, to the weight left after deleting the
+ * dialog subtitles that only restated their title. A subtitle earns its place by
+ * carrying what the title cannot — the named resource, the consequence, the
+ * count — and six of them carried nothing: "Filters / Filter and sort this
+ * table." The two that survived say what happens next, not what the button
+ * already said.
+ *
  * `Settings` rises on purpose on 2026-08-27, from 100/127, for the desktop
  * notification permission control. Browsers only honour a permission request
  * that follows a click, so the interface has to own that click and then say
  * which of four answers it got back — on, off, blocked in the browser, or
  * unavailable here. The blocked state is the one the app cannot recover from
  * alone, so it names where to undo it rather than leaving a dead toggle.
+ * The same section adds six words per locale for the explicit,
+ * persistent notification-sound opt-in. Its on/off values reuse existing copy.
  *
  * `Notifications` rises on purpose on 2026-08-27, from 23/38 to the measured
  * weight of the desktop notification vocabulary. The namespace grew from a
@@ -70,16 +79,19 @@ function messages(locale: string): Record<string, unknown> {
  * entry. The interface carries three fewer English words and four fewer French
  * ones than before the move — a raise on one namespace, not on the budget.
  * `Teams` adds the explicit self label used in the actionable presence list.
+ * It rises by four English and six French words on 2026-08-27 for the two
+ * accessible Team-image actions. These labels make an otherwise icon-only
+ * upload and removal control understandable to assistive technology.
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 329,
-    Incidents: 293,
+    Teams: 312,
+    Incidents: 277,
     errors: 335,
-    Automations: 294,
-    Releases: 219,
+    Automations: 280,
+    Releases: 180,
     Onboarding: 48,
-    Settings: 114,
+    Settings: 120,
     Auth: 31,
     DirectMessages: 56,
     Notifications: 45,
@@ -90,13 +102,13 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Index: 3,
   },
   fr: {
-    Teams: 401,
-    Incidents: 402,
+    Teams: 379,
+    Incidents: 380,
     errors: 417,
-    Automations: 417,
-    Releases: 280,
+    Automations: 398,
+    Releases: 222,
     Onboarding: 66,
-    Settings: 145,
+    Settings: 151,
     Auth: 39,
     DirectMessages: 71,
     Notifications: 71,
