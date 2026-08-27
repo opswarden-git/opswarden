@@ -2,7 +2,7 @@
 
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import type { ReactElement, ReactNode, RefObject } from "react";
+import { Children, type ReactElement, type ReactNode, type RefObject } from "react";
 import { cn } from "@/lib/utils";
 import { IconButton } from "./Button";
 
@@ -62,6 +62,8 @@ export function Dialog({
   trigger,
   variant = "modal",
 }: DialogProps) {
+  const bodyChildren = Children.toArray(children);
+
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
@@ -131,18 +133,23 @@ export function Dialog({
             ) : null}
           </header>
 
-          <div
-            data-dialog-part="body"
-            className={cn(
-              "min-h-0 flex-1 overflow-y-auto p-4",
-              // The rule below the body appears only when there is a footer to
-              // separate it from, and only while the body can actually scroll.
-              footer && "scroll-divider",
-              bodyClassName,
-            )}
-          >
-            {children}
-          </div>
+          {/* A confirmation whose whole content is its description has nothing
+              to put here, and an empty body still drew its padding and the rule
+              above the footer — a band of nothing between two lines. */}
+          {bodyChildren.length > 0 ? (
+            <div
+              data-dialog-part="body"
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto p-4",
+                // The rule below the body appears only when there is a footer to
+                // separate it from, and only while the body can actually scroll.
+                footer && "scroll-divider",
+                bodyClassName,
+              )}
+            >
+              {children}
+            </div>
+          ) : null}
 
           {footer ? (
             <footer
