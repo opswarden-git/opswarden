@@ -75,7 +75,12 @@
     "close": "Fermer",
     "collapseNavigation": "Réduire la navigation",
     "expandNavigation": "Déployer la navigation",
-    "firstStepHere": "Première étape ici"
+    "firstStepHere": "Première étape ici",
+    "firstStepIncidents": "Déclarez un premier incident pour ouvrir une war room.",
+    "firstStepReleases": "Créez une release pour coordonner un déploiement.",
+    "firstStepIntegrations": "Connectez un service pour donner de quoi écouter aux règles.",
+    "firstStepRules": "Ajoutez une règle pour transformer un évènement en action.",
+    "firstStepDone": "Compris"
   },
   "TeamSwitcher": {
     "label": "Équipe active",

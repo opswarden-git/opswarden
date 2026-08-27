@@ -75,7 +75,12 @@
     "close": "Close",
     "collapseNavigation": "Collapse navigation",
     "expandNavigation": "Expand navigation",
-    "firstStepHere": "First step here"
+    "firstStepHere": "First step here",
+    "firstStepIncidents": "Declare your first incident to open a war room.",
+    "firstStepReleases": "Create a release to coordinate a deployment.",
+    "firstStepIntegrations": "Connect a service so rules have something to listen to.",
+    "firstStepRules": "Add a rule to turn an incoming event into an action.",
+    "firstStepDone": "Got it"
   },
   "TeamSwitcher": {
     "label": "Current team",

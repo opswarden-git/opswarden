@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, usePathname } from "@/i18n/routing";
-import { Settings } from "lucide-react";
+import { CircleHelp, Settings } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -19,6 +19,7 @@ import { useTeamScope } from "@/components/teams/TeamScope";
 import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { RailToggle } from "./RailToggle";
+import { FirstStepHint } from "./FirstStepHint";
 import { useFirstRunGuidance, type GuidedSection } from "@/lib/firstRunGuidance";
 import { Dialog } from "@/components/ui/Dialog";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
@@ -67,11 +68,13 @@ function NavLeaf({
       ) : null}
       {guided && !count ? (
         <span
-          className="bg-gold/70 h-1.5 w-1.5 shrink-0 rounded-full"
-          title={t("firstStepHere")}
-          aria-label={t("firstStepHere")}
+          className="shrink-0"
           role="img"
-        />
+          aria-label={t("firstStepHere")}
+          title={t("firstStepHere")}
+        >
+          <CircleHelp className="text-gold/80 h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        </span>
       ) : null}
     </Link>
   );
@@ -214,6 +217,12 @@ export function Sidebar({
           ),
         )}
       </nav>
+
+      {!collapsed ? (
+        <div className="shrink-0 px-3 pb-3">
+          <FirstStepHint />
+        </div>
+      ) : null}
 
       <div className={cn("mt-auto shrink-0", collapsed ? "p-2" : "p-4")}>
         <Dialog
