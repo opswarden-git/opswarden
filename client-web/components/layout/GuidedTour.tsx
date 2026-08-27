@@ -107,33 +107,35 @@ export function GuidedTour() {
     <div
       role="dialog"
       aria-label={t("tourLabel")}
-      className="bg-gold text-gold-ink fixed z-50 flex w-60 -translate-y-1/2 flex-col gap-2 rounded-md px-3 py-2 text-sm shadow-lg"
+      className="surface elevated border-gold text-text fixed z-50 flex w-56 -translate-y-1/2 flex-col gap-2 rounded-md px-3 py-2 text-sm"
       style={{ top: spot.top, left: spot.left }}
     >
-      {/* The tail, pointing back at the entry this bubble is about. */}
+      {/* The tail, pointing back at the entry this bubble is about. It borrows
+          the panel fill and two of the border's edges, so it reads as a corner
+          of the bubble rather than a lozenge stuck to its side. */}
       <span
         aria-hidden="true"
-        className="bg-gold absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45"
+        className="bg-panel border-gold absolute top-1/2 -left-[5px] h-2 w-2 -translate-y-1/2 rotate-45 border-b border-l"
       />
       <p>{stepText(t, section)}</p>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-gold-ink/70 text-xs tabular-nums">
+        <span className="text-muted-2 text-xs tabular-nums">
           {t("tourProgress", { step: index + 1, total: steps.length })}
         </span>
         <div className="flex items-center gap-1">
-          {/* Buttons on a gold surface: the shared variants are drawn for the
-              dark plane, where their greys would sink into this one. */}
+          {/* Text, not chrome: two words in a bubble this size do not need a
+              box each to be found. */}
           <button
             type="button"
             onClick={finish}
-            className="text-gold-ink/70 hover:text-gold-ink rounded px-2 py-1 text-xs underline-offset-2 hover:underline"
+            className="text-muted hover:text-gold px-1 text-xs transition-colors"
           >
             {t("tourSkip")}
           </button>
           <button
             type="button"
             onClick={() => (last ? finish() : setIndex(index + 1))}
-            className="bg-gold-ink text-gold hover:bg-gold-ink/90 rounded px-2 py-1 text-xs font-semibold"
+            className="text-muted hover:text-gold px-1 text-xs font-semibold transition-colors"
           >
             {last ? t("tourDone") : t("tourNext")}
           </button>
