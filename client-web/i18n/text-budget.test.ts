@@ -57,6 +57,10 @@ function messages(locale: string): Record<string, unknown> {
  * table." The two that survived say what happens next, not what the button
  * already said.
  *
+ * `Sidebar` gains one label on 2026-08-27: the first-run marker needs a name a
+ * screen reader can read, since a coloured dot says nothing on its own. Three
+ * words for the one affordance that tells a brand-new workspace where to start.
+ *
  * `Settings` rises on purpose on 2026-08-27, from 100/127, for the desktop
  * notification permission control. Browsers only honour a permission request
  * that follows a click, so the interface has to own that click and then say
@@ -99,7 +103,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Auth: 31,
     DirectMessages: 56,
     Notifications: 45,
-    Sidebar: 26,
+    Sidebar: 29,
     TeamSwitcher: 11,
     Metadata: 7,
     Common: 29,
@@ -116,7 +120,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Auth: 39,
     DirectMessages: 71,
     Notifications: 71,
-    Sidebar: 38,
+    Sidebar: 42,
     TeamSwitcher: 16,
     Metadata: 11,
     Common: 43,

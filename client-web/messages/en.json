@@ -74,7 +74,8 @@
     "more": "More",
     "close": "Close",
     "collapseNavigation": "Collapse navigation",
-    "expandNavigation": "Expand navigation"
+    "expandNavigation": "Expand navigation",
+    "firstStepHere": "First step here"
   },
   "TeamSwitcher": {
     "label": "Current team",

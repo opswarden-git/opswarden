@@ -74,7 +74,8 @@
     "more": "Plus",
     "close": "Fermer",
     "collapseNavigation": "Réduire la navigation",
-    "expandNavigation": "Déployer la navigation"
+    "expandNavigation": "Déployer la navigation",
+    "firstStepHere": "Première étape ici"
   },
   "TeamSwitcher": {
     "label": "Équipe active",

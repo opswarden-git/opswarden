@@ -19,6 +19,7 @@ import { useTeamScope } from "@/components/teams/TeamScope";
 import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { RailToggle } from "./RailToggle";
+import { useFirstRunGuidance, type GuidedSection } from "@/lib/firstRunGuidance";
 import { Dialog } from "@/components/ui/Dialog";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
 import { LanguagePanel } from "@/components/settings/LanguagePanel";
@@ -29,12 +30,14 @@ type ScopedTeam = ReturnType<typeof useTeamScope>["activeTeam"];
 
 function NavLeaf({
   collapsed,
+  guided,
   leaf,
   pathname,
   searchParams,
   team,
 }: {
   collapsed: boolean;
+  guided?: boolean;
   leaf: NavigationLeaf;
   pathname: string;
   searchParams: Pick<URLSearchParams, "get">;
@@ -62,18 +65,28 @@ function NavLeaf({
       {count && !collapsed ? (
         <span className="shrink-0 text-sm tabular-nums opacity-60">{count}</span>
       ) : null}
+      {guided && !count ? (
+        <span
+          className="bg-gold/70 h-1.5 w-1.5 shrink-0 rounded-full"
+          title={t("firstStepHere")}
+          aria-label={t("firstStepHere")}
+          role="img"
+        />
+      ) : null}
     </Link>
   );
 }
 
 function NavGroup({
   collapsed,
+  guided,
   node,
   pathname,
   searchParams,
   team,
 }: {
   collapsed: boolean;
+  guided: Set<GuidedSection>;
   node: Extract<NavigationNode, { kind: "branch" }>;
   pathname: string;
   searchParams: Pick<URLSearchParams, "get">;
@@ -96,6 +109,7 @@ function NavGroup({
         <NavLeaf
           key={child.labelKey}
           collapsed={collapsed}
+          guided={guided.has(child.labelKey as GuidedSection)}
           leaf={child}
           pathname={pathname}
           searchParams={searchParams}
@@ -125,6 +139,7 @@ export function Sidebar({
     ? deriveCapabilities(activeTeam.role).canManageAutomations
     : false;
   const tree = navigationTree(activeTeam?.team_id, canManageTeam);
+  const guided = useFirstRunGuidance(activeTeam ?? undefined);
   const isSettingsActive = isNavigationItemActive(pathname, settingsNavigationItem, searchParams);
 
   return (
@@ -180,6 +195,7 @@ export function Sidebar({
             <NavGroup
               key={node.labelKey}
               collapsed={collapsed}
+              guided={guided}
               node={node}
               pathname={pathname}
               searchParams={searchParams}
@@ -189,6 +205,7 @@ export function Sidebar({
             <NavLeaf
               key={node.labelKey}
               collapsed={collapsed}
+              guided={guided.has(node.labelKey as GuidedSection)}
               leaf={node}
               pathname={pathname}
               searchParams={searchParams}
