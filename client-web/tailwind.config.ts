@@ -18,6 +18,20 @@ const config = {
       },
     },
     extend: {
+      /**
+       * The documented radius vocabulary, so a utility cannot mean something
+       * the contract does not. `DEFAULT` points at `md` the way Primer's does:
+       * a nameless radius is the ordinary one, not a fifth value. `xl` and
+       * `2xl` stay on Tailwind's own scale — they exist only for the
+       * conversation bubble, which the design system names as its exception.
+       */
+      borderRadius: {
+        sm: "var(--ow-radius-sm)",
+        DEFAULT: "var(--ow-radius-md)",
+        md: "var(--ow-radius-md)",
+        lg: "var(--ow-radius-lg)",
+        full: "var(--ow-radius-full)",
+      },
       colors: {
         bg: {
           DEFAULT: "var(--bg)",

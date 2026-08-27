@@ -67,6 +67,10 @@ interchangeable. Values follow Primer's radius scale.
 | `--ow-radius-lg`   | 12px   | Dialogs and sheets                   | Row-level elements |
 | `--ow-radius-full` | 9999px | Avatars, pills, presence dots        | Rectangular boxes  |
 
+The Tailwind radius utilities read these tokens, so `rounded-md` and
+`var(--ow-radius-md)` cannot drift apart, and `rounded` with no suffix resolves
+to the default rather than to a fifth value.
+
 Conversation bubbles are the single documented exception: they keep a larger
 radius with one squared corner, because that asymmetry is what makes a bubble
 read as speech rather than as a card.

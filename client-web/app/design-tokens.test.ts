@@ -201,6 +201,21 @@ describe("shape and border contract", () => {
     expect(stylesheet).toContain("calc(var(--ow-border-width) * var(--ow-can-scroll))");
   });
 
+  /**
+   * The utilities have to read the tokens, or the contract describes something
+   * the interface does not use: 92 `rounded-md` consuming Tailwind's own 6px
+   * would look identical today and drift the first time a token moves.
+   */
+  it("makes the radius utilities consume the tokens", () => {
+    const config = readFileSync(resolve(process.cwd(), "tailwind.config.ts"), "utf8");
+    const scale = config.match(/borderRadius: \{[^}]+\}/)?.[0] ?? "";
+    expect(scale).toContain('sm: "var(--ow-radius-sm)"');
+    expect(scale).toContain('DEFAULT: "var(--ow-radius-md)"');
+    expect(scale).toContain('md: "var(--ow-radius-md)"');
+    expect(scale).toContain('lg: "var(--ow-radius-lg)"');
+    expect(scale).toContain('full: "var(--ow-radius-full)"');
+  });
+
   it("documents the shape vocabulary in the design system contract", () => {
     expect(designSystem).toContain("## Shape and borders");
     for (const token of Object.keys(radii)) expect(designSystem).toContain(token);
