@@ -20,7 +20,7 @@ export function JoinCodeDialog({ teamId }: { teamId: string }) {
     <Dialog
       open={open}
       onOpenChange={setOpen}
-      trigger={<Button variant="secondary">{t("shareJoinCode")}</Button>}
+      trigger={<Button variant="primary">{t("shareJoinCode")}</Button>}
       title={t("shareJoinCode")}
       description={t("shareJoinCodeDescription")}
       closeLabel={tSidebar("close")}

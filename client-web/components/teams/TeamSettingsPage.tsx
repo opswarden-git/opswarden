@@ -89,8 +89,8 @@ function TeamPage({ team }: { team: Team }) {
         action={
           capabilities.canManageMembers ? (
             <div className="flex items-center gap-2">
-              <AddMemberDialog teamId={team.team_id} />
               <JoinCodeDialog teamId={team.team_id} />
+              <AddMemberDialog teamId={team.team_id} />
             </div>
           ) : null
         }

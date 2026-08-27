@@ -242,7 +242,7 @@
     "shareJoinCode": "Share join code",
     "shareJoinCodeDescription": "Share this code with someone you trust.",
     "addMember": "Add member",
-    "addMemberDescription": "They join as an Observer.",
+    "addMemberDescription": "Ask for the User ID on their profile. They join right away as an Observer.",
     "addMemberFailed": "The member could not be added.",
     "userId": "User ID",
     "members": "Members",

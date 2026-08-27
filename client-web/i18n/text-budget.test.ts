@@ -46,7 +46,14 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
- * `Teams` moves by two words on 2026-08-27: the invitation code gained the
+ * `Teams` moves again on 2026-08-27, for the sentence that makes adding a
+ * member by identifier make sense: it says where that identifier is found — on
+ * the other person's profile, with a copy button already beside it — and that
+ * the join is immediate rather than an invitation awaiting an answer. The
+ * server adds directly; the copy now says so instead of leaving the reader to
+ * find out.
+ *
+ * `Teams` moved by two words earlier on 2026-08-27: the invitation code gained the
  * label it never had, so the value a manager is asked to share is now named
  * like every other field in the product instead of floating unlabelled.
  *
@@ -102,7 +109,7 @@ function messages(locale: string): Record<string, unknown> {
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 314,
+    Teams: 324,
     Incidents: 277,
     errors: 335,
     Automations: 280,
@@ -119,7 +126,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Index: 3,
   },
   fr: {
-    Teams: 381,
+    Teams: 388,
     Incidents: 380,
     errors: 417,
     Automations: 398,
