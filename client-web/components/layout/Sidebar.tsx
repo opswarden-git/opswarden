@@ -19,7 +19,7 @@ import { useTeamScope } from "@/components/teams/TeamScope";
 import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { RailToggle } from "./RailToggle";
-import { FirstStepHint } from "./FirstStepHint";
+import { GuidedTour } from "./GuidedTour";
 import { useFirstRunGuidance, type GuidedSection } from "@/lib/firstRunGuidance";
 import { Dialog } from "@/components/ui/Dialog";
 import { ProfilePanel } from "@/components/settings/ProfilePanel";
@@ -55,18 +55,28 @@ function NavLeaf({
       title={collapsed ? label : undefined}
       aria-current={isActive ? "page" : undefined}
       data-app-navigation-item="true"
+      data-guide-target={guided ? leaf.labelKey : undefined}
       className={cn(
         "group flex h-11 items-center gap-3 px-3 text-base transition-colors",
         collapsed && "justify-center px-0",
         isActive ? "text-gold font-medium" : "text-muted hover:text-gold",
       )}
     >
-      <leaf.icon className="h-5 w-5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+      <span className="relative shrink-0">
+        <leaf.icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+        {guided && collapsed ? (
+          <CircleHelp
+            className="text-gold bg-panel absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full"
+            strokeWidth={2.5}
+            aria-hidden="true"
+          />
+        ) : null}
+      </span>
       <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{label}</span>
       {count && !collapsed ? (
         <span className="shrink-0 text-sm tabular-nums opacity-60">{count}</span>
       ) : null}
-      {guided && !count ? (
+      {guided && !collapsed ? (
         <span
           className="shrink-0"
           role="img"
@@ -146,141 +156,138 @@ export function Sidebar({
   const isSettingsActive = isNavigationItemActive(pathname, settingsNavigationItem, searchParams);
 
   return (
-    <aside
-      className={cn(
-        "border-border bg-panel relative flex shrink-0 flex-col border-r transition-[width] duration-200",
-        collapsed ? "w-16" : "w-64",
-        className,
-      )}
-      data-sidebar-collapsed={collapsed ? "true" : "false"}
-    >
-      <RailToggle
-        side="right"
-        label={t(collapsed ? "expandNavigation" : "collapseNavigation")}
-        onClick={() => onCollapsedChange(!collapsed)}
-      />
-      <Link
-        href={activeTeam ? hrefFor("overview") : "/teams"}
-        title={collapsed ? t("logoWordmarkAlt") : undefined}
+    <>
+      <GuidedTour />
+      <aside
         className={cn(
-          "flex h-16 w-full shrink-0 items-center gap-3 transition-opacity hover:opacity-80",
-          collapsed ? "justify-center px-0" : "px-6",
+          "border-border bg-panel relative flex shrink-0 flex-col border-r transition-[width] duration-200",
+          collapsed ? "w-16" : "w-64",
+          className,
         )}
+        data-sidebar-collapsed={collapsed ? "true" : "false"}
       >
-        <Image
-          src="/assets/logo-icon.png"
-          alt=""
-          width={34}
-          height={28}
-          className="object-contain"
-          priority
+        <RailToggle
+          side="right"
+          label={t(collapsed ? "expandNavigation" : "collapseNavigation")}
+          onClick={() => onCollapsedChange(!collapsed)}
         />
-        {!collapsed ? (
+        <Link
+          href={activeTeam ? hrefFor("overview") : "/teams"}
+          title={collapsed ? t("logoWordmarkAlt") : undefined}
+          className={cn(
+            "flex h-16 w-full shrink-0 items-center gap-3 transition-opacity hover:opacity-80",
+            collapsed ? "justify-center px-0" : "px-6",
+          )}
+        >
           <Image
-            src="/assets/logo-text-light.png"
-            alt={t("logoWordmarkAlt")}
-            width={154}
-            height={24}
-            className="object-contain object-left"
+            src="/assets/logo-icon.png"
+            alt=""
+            width={34}
+            height={28}
+            className="object-contain"
             priority
           />
-        ) : (
-          <span className="sr-only">{t("logoWordmarkAlt")}</span>
-        )}
-      </Link>
-
-      <nav
-        aria-label={t("primaryNavigation")}
-        className={cn("flex-1 space-y-4 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}
-      >
-        {tree.map((node) =>
-          node.kind === "branch" ? (
-            <NavGroup
-              key={node.labelKey}
-              collapsed={collapsed}
-              guided={guided}
-              node={node}
-              pathname={pathname}
-              searchParams={searchParams}
-              team={activeTeam}
+          {!collapsed ? (
+            <Image
+              src="/assets/logo-text-light.png"
+              alt={t("logoWordmarkAlt")}
+              width={154}
+              height={24}
+              className="object-contain object-left"
+              priority
             />
           ) : (
-            <NavLeaf
-              key={node.labelKey}
-              collapsed={collapsed}
-              guided={guided.has(node.labelKey as GuidedSection)}
-              leaf={node}
-              pathname={pathname}
-              searchParams={searchParams}
-              team={activeTeam}
-            />
-          ),
-        )}
-      </nav>
+            <span className="sr-only">{t("logoWordmarkAlt")}</span>
+          )}
+        </Link>
 
-      {!collapsed ? (
-        <div className="shrink-0 px-3 pb-3">
-          <FirstStepHint />
-        </div>
-      ) : null}
-
-      <div className={cn("mt-auto shrink-0", collapsed ? "p-2" : "p-4")}>
-        <Dialog
-          open={isAccountOpen}
-          onOpenChange={setIsAccountOpen}
-          size="lg"
-          title={t("account")}
-          description={user?.email ?? t("operator")}
-          closeLabel={t("close")}
-          icon={
-            <MemberAvatar
-              email={user?.email || t("operator")}
-              role={activeTeam?.role}
-              className="h-8 w-8 text-[11px]"
-            />
-          }
-          bodyClassName="space-y-4"
-          trigger={
-            <button
-              type="button"
-              title={t("account")}
-              aria-label={t("account")}
-              aria-current={isSettingsActive ? "page" : undefined}
-              data-app-navigation-item="true"
-              className={cn(
-                "group flex h-12 w-full min-w-0 items-center gap-2 rounded-md px-2 transition-colors",
-                collapsed && "justify-center px-0",
-                isSettingsActive ? "bg-panel text-text" : "text-text hover:bg-panel/60",
-              )}
-            >
-              {!collapsed ? (
-                <>
-                  <MemberAvatar
-                    email={user?.email || t("operator")}
-                    role={activeTeam?.role}
-                    className="h-8 w-8 text-[11px]"
-                  />
-                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <span className="truncate text-sm leading-5 font-medium">
-                      {user?.email ? memberDisplayName(user.email) : t("operator")}
-                    </span>
-                  </div>
-                </>
-              ) : null}
-              <Settings
-                className="text-muted group-hover:text-gold h-5 w-5 shrink-0 transition-colors"
-                strokeWidth={1.8}
-                aria-hidden="true"
-              />
-            </button>
-          }
+        <nav
+          aria-label={t("primaryNavigation")}
+          className={cn("flex-1 space-y-4 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")}
         >
-          <ProfilePanel showIdentityHeader={false} showTeamSetup={false} />
-          <LanguagePanel />
-          <NotificationsPanel />
-          <AccountDangerZone />
-        </Dialog>
-      </div>
-    </aside>
+          {tree.map((node) =>
+            node.kind === "branch" ? (
+              <NavGroup
+                key={node.labelKey}
+                collapsed={collapsed}
+                guided={guided}
+                node={node}
+                pathname={pathname}
+                searchParams={searchParams}
+                team={activeTeam}
+              />
+            ) : (
+              <NavLeaf
+                key={node.labelKey}
+                collapsed={collapsed}
+                guided={guided.has(node.labelKey as GuidedSection)}
+                leaf={node}
+                pathname={pathname}
+                searchParams={searchParams}
+                team={activeTeam}
+              />
+            ),
+          )}
+        </nav>
+
+        <div className={cn("mt-auto shrink-0", collapsed ? "p-2" : "p-4")}>
+          <Dialog
+            open={isAccountOpen}
+            onOpenChange={setIsAccountOpen}
+            size="lg"
+            title={t("account")}
+            description={user?.email ?? t("operator")}
+            closeLabel={t("close")}
+            icon={
+              <MemberAvatar
+                email={user?.email || t("operator")}
+                role={activeTeam?.role}
+                className="h-8 w-8 text-[11px]"
+              />
+            }
+            bodyClassName="space-y-4"
+            trigger={
+              <button
+                type="button"
+                title={t("account")}
+                aria-label={t("account")}
+                aria-current={isSettingsActive ? "page" : undefined}
+                data-app-navigation-item="true"
+                className={cn(
+                  "group flex h-12 w-full min-w-0 items-center gap-2 rounded-md px-2 transition-colors",
+                  collapsed && "justify-center px-0",
+                  isSettingsActive ? "bg-panel text-text" : "text-text hover:bg-panel/60",
+                )}
+              >
+                {!collapsed ? (
+                  <>
+                    <MemberAvatar
+                      email={user?.email || t("operator")}
+                      role={activeTeam?.role}
+                      className="h-8 w-8 text-[11px]"
+                    />
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="truncate text-sm leading-5 font-medium">
+                        {user?.email ? memberDisplayName(user.email) : t("operator")}
+                      </span>
+                    </div>
+                  </>
+                ) : null}
+                <Settings
+                  className="text-muted group-hover:text-gold h-5 w-5 shrink-0 transition-colors"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
+              </button>
+            }
+          >
+            <ProfilePanel showIdentityHeader={false} showTeamSetup={false} />
+            <LanguagePanel />
+            <NotificationsPanel />
+            <AccountDangerZone />
+          </Dialog>
+        </div>
+      </aside>
+    </>
   );
 }

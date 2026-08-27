@@ -10,7 +10,7 @@ import {
 import type { Team } from "@/lib/queries/teams";
 
 /** Navigation entries that can carry a first-run marker, in the order they are done. */
-export type GuidedSection = "incidents" | "releases" | "integrations" | "rules";
+export type GuidedSection = "incidents" | "releases" | "rules" | "integrations" | "teamSettings";
 
 /**
  * Which parts of a new workspace still have nothing in them.
@@ -24,8 +24,9 @@ export type GuidedSection = "incidents" | "releases" | "integrations" | "rules";
  * a Responder or an Observer: pointing someone at four doors they cannot open
  * is worse than staying quiet.
  *
- * `rules` waits for a connection. A rule needs one for its Action, so offering
- * it first sends the reader to a form they cannot submit.
+ * A rule needs a connection for its Action, so the dependency is carried by the
+ * order rather than by hiding the step: integrations comes first, and by the
+ * time rules is reached the previous bubble has already asked for a service.
  */
 export function useFirstRunGuidance(team: Team | undefined): Set<GuidedSection> {
   const teamId = team?.team_id ?? "";
@@ -46,6 +47,11 @@ export function useFirstRunGuidance(team: Team | undefined): Set<GuidedSection> 
   if (capabilities.canCreateRelease && team.active_release_count === 0) {
     pending.add("releases");
   }
+  // A war room with one person in it is a notebook. Only offered to someone who
+  // can actually bring the second person in.
+  if (capabilities.canManageMembers && team.member_count <= 1) {
+    pending.add("teamSettings");
+  }
 
   // Every team is born with the internal services already connected, so a raw
   // count is never zero. What "set up an integration" means is a connection to
@@ -61,7 +67,7 @@ export function useFirstRunGuidance(team: Team | undefined): Set<GuidedSection> 
       : undefined;
   const ruleCount = rules.data?.length;
   if (connected === 0) pending.add("integrations");
-  if (ruleCount === 0 && (connected ?? 0) > 0) pending.add("rules");
+  if (ruleCount === 0) pending.add("rules");
 
   return pending;
 }

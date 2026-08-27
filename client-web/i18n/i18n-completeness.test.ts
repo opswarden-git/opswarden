@@ -227,6 +227,8 @@ const sameTextAllowed = new Set([
   "Notifications.directMessageBody",
   // Same word in both languages.
   "Settings.notifications",
+  // Two numbers and a slash: there is nothing to translate.
+  "Sidebar.tourProgress",
   "Onboarding.operatorNamePlaceholder",
   "Onboarding.teamNamePlaceholder",
   "Onboarding.invitationCodePlaceholder",

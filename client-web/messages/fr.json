@@ -76,11 +76,16 @@
     "collapseNavigation": "Réduire la navigation",
     "expandNavigation": "Déployer la navigation",
     "firstStepHere": "Première étape ici",
-    "firstStepIncidents": "Déclarez un premier incident pour ouvrir une war room.",
-    "firstStepReleases": "Créez une release pour coordonner un déploiement.",
-    "firstStepIntegrations": "Connectez un service pour donner de quoi écouter aux règles.",
-    "firstStepRules": "Ajoutez une règle pour transformer un évènement en action.",
-    "firstStepDone": "Compris"
+    "tourLabel": "Prise en main",
+    "tourIncidents": "Déclarez un premier incident pour ouvrir une war room.",
+    "tourReleases": "Créez une release pour coordonner un déploiement.",
+    "tourRules": "Ajoutez une règle pour transformer un évènement en action.",
+    "tourIntegrations": "Connectez un service que les règles écouteront.",
+    "tourTeam": "Invitez un coéquipier pour que la war room ait du monde.",
+    "tourProgress": "{step}/{total}",
+    "tourNext": "Suivant",
+    "tourDone": "Terminer",
+    "tourSkip": "Passer"
   },
   "TeamSwitcher": {
     "label": "Équipe active",

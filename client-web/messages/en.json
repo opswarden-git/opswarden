@@ -76,11 +76,16 @@
     "collapseNavigation": "Collapse navigation",
     "expandNavigation": "Expand navigation",
     "firstStepHere": "First step here",
-    "firstStepIncidents": "Declare your first incident to open a war room.",
-    "firstStepReleases": "Create a release to coordinate a deployment.",
-    "firstStepIntegrations": "Connect a service so rules have something to listen to.",
-    "firstStepRules": "Add a rule to turn an incoming event into an action.",
-    "firstStepDone": "Got it"
+    "tourLabel": "Getting started",
+    "tourIncidents": "Declare your first incident to open a war room.",
+    "tourReleases": "Create a release to coordinate a deployment.",
+    "tourRules": "Add a rule to turn an incoming event into an action.",
+    "tourIntegrations": "Connect a service for rules to listen to.",
+    "tourTeam": "Invite a teammate so the war room has someone in it.",
+    "tourProgress": "{step}/{total}",
+    "tourNext": "Next",
+    "tourDone": "Done",
+    "tourSkip": "Skip"
   },
   "TeamSwitcher": {
     "label": "Current team",

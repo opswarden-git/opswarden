@@ -57,8 +57,9 @@ function messages(locale: string): Record<string, unknown> {
  * table." The two that survived say what happens next, not what the button
  * already said.
  *
- * `Sidebar` carries the first-run guidance from 2026-08-27: four sentences, one
- * per empty section, plus the marker's accessible name and the acknowledgement.
+ * `Sidebar` carries the first-run tour from 2026-08-27: five sentences, one per
+ * empty section, plus the marker's name and the three controls that move
+ * through them.
  * It is the largest single rise in this table and it is deliberate — this prose
  * exists only in a workspace with nothing in it, and disappears for good on the
  * first incident, release, connection or rule. A reader who has used the
@@ -111,7 +112,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Auth: 31,
     DirectMessages: 56,
     Notifications: 45,
-    Sidebar: 68,
+    Sidebar: 80,
     TeamSwitcher: 11,
     Metadata: 7,
     Common: 29,
@@ -128,7 +129,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Auth: 39,
     DirectMessages: 71,
     Notifications: 71,
-    Sidebar: 84,
+    Sidebar: 98,
     TeamSwitcher: 16,
     Metadata: 11,
     Common: 43,
