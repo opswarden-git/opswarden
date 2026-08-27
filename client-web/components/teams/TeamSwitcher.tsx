@@ -6,6 +6,11 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { buttonClassNames } from "@/components/ui/Button";
+import {
+  MENU_SIDE_OFFSET,
+  menuItemClassNames,
+  menuSurfaceClassNames,
+} from "@/components/ui/ActionMenu";
 import { useTeamScope } from "./TeamScope";
 
 export function TeamSwitcher({
@@ -40,8 +45,8 @@ export function TeamSwitcher({
         <DropdownMenu.Portal>
           <DropdownMenu.Content
             align="start"
-            sideOffset={8}
-            className="ow-action-menu surface z-50 min-w-64 rounded-md p-1 shadow-xl outline-none"
+            sideOffset={MENU_SIDE_OFFSET}
+            className={cn(menuSurfaceClassNames, "min-w-64")}
           >
             {teams.map((team) => {
               const current = team.team_id === activeTeam?.team_id;
@@ -50,7 +55,7 @@ export function TeamSwitcher({
                   key={team.team_id}
                   checked={current}
                   onCheckedChange={() => !current && switchTeam(team.team_id)}
-                  className="ow-action-menu-item data-[highlighted]:bg-panel-2 text-text flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none"
+                  className={cn(menuItemClassNames, "text-text")}
                 >
                   <span className="min-w-0 flex-1 truncate">{team.name}</span>
                   <Check
@@ -62,10 +67,7 @@ export function TeamSwitcher({
             })}
             <DropdownMenu.Separator className="bg-border my-1 h-px" />
             <DropdownMenu.Item asChild>
-              <Link
-                href="/teams"
-                className="ow-action-menu-item data-[highlighted]:bg-panel-2 text-text flex cursor-default items-center rounded px-2 py-2 text-sm outline-none select-none"
-              >
+              <Link href="/teams" className={cn(menuItemClassNames, "text-text")}>
                 {t("allTeams")}
               </Link>
             </DropdownMenu.Item>
