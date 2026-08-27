@@ -73,9 +73,12 @@ export function Dialog({
           {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
             "surface fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden shadow-2xl outline-none",
-            variant === "modal"
-              ? "surface-floating inset-x-4 top-4 bottom-4 w-auto sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
-              : "surface-floating-top data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full",
+            // Both variants are the same surface anchored to the bottom edge; a
+            // modal simply lifts off it and centres from `sm` up. A phone has no
+            // room for a floating card, and a sheet is where a thumb already is.
+            "data-[state=closed]:animate-sheet-content-hide data-[state=open]:animate-sheet-content-show right-0 bottom-0 left-0 mt-auto w-full rounded-t-[var(--ow-radius-lg)] rounded-b-none",
+            variant === "modal" &&
+              "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:mt-0 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:animate-none sm:rounded-[var(--ow-radius-lg)]",
             variant === "modal" && sizeClasses[size],
             contentClassName,
           )}
@@ -85,12 +88,15 @@ export function Dialog({
             initialFocus.current.focus();
           }}
         >
-          {variant === "sheet" ? (
-            <div
-              className="bg-border mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full"
-              aria-hidden="true"
-            />
-          ) : null}
+          <div
+            className={cn(
+              "bg-border mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full",
+              // The grip means "this came from the bottom edge"; a centred
+              // dialog did not.
+              variant === "modal" && "sm:hidden",
+            )}
+            aria-hidden="true"
+          />
           <header
             className={cn(
               "relative flex shrink-0 items-start gap-3 px-4 pt-4",
