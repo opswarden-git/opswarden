@@ -111,6 +111,12 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       }
     >
       <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0 space-y-3">
+        {/* Announced on mutation, not by position. Left after the last
+            field its static position stretched the scrollable body by
+            twelve pixels nobody could see. */}
+        <p className="sr-only" aria-live="polite">
+          {announcement}
+        </p>
         <div>
           <label htmlFor="release-title-input" className="text-text mb-1 block text-xs font-medium">
             {t("releaseTitle")}
@@ -206,9 +212,6 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
           </IconButton>
         </fieldset>
 
-        <p className="sr-only" aria-live="polite">
-          {announcement}
-        </p>
         {steps.length === 0 ? (
           <p className="text-sev-critical mt-2 text-xs" role="alert">
             {t("atLeastOneStep")}

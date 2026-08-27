@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
@@ -11,10 +11,22 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
   const router = useRouter();
   const t = useTranslations("Onboarding");
   const [error, setError] = useState<string | null>(null);
+  /**
+   * This step signs up, signs in and creates or joins a team — none of it
+   * idempotent. React invokes an effect twice on mount in development, which
+   * is exactly how this surfaced: the first pass created the account and the
+   * workspace, the second got a 409 on the same email, and its failure landed
+   * last. The user was told account creation failed while both had succeeded.
+   */
+  const started = useRef(false);
 
   useEffect(() => {
-    let isCancelled = false;
-    let redirectTimer: ReturnType<typeof setTimeout> | undefined;
+    if (started.current) return;
+    started.current = true;
+    // No cancellation: by the time this runs an account is being created, and
+    // abandoning halfway leaves it orphaned. The `started` ref above is what
+    // keeps it to one run; the cleanup used to cancel the first pass's own
+    // redirect and leave the spinner turning forever.
 
     const createWorkspace = async () => {
       try {
@@ -53,11 +65,12 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
           });
           if (teamRes.ok) {
             const text = await teamRes.text();
+            // Only an id can be an id: falling back to the response body put
+            // the whole JSON object in the address bar, invitation code and all.
             try {
-              const body = JSON.parse(text);
-              targetTeamId = body?.team_id || text;
+              targetTeamId = String(JSON.parse(text)?.team_id ?? "");
             } catch {
-              targetTeamId = text;
+              targetTeamId = "";
             }
           } else {
             throw new Error("create_team_failed");
@@ -69,41 +82,37 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
           });
           if (joinRes.ok) {
             const text = await joinRes.text();
+            // Only an id can be an id: falling back to the response body put
+            // the whole JSON object in the address bar, invitation code and all.
             try {
-              const body = JSON.parse(text);
-              targetTeamId = body?.team_id || text;
+              targetTeamId = String(JSON.parse(text)?.team_id ?? "");
             } catch {
-              targetTeamId = text;
+              targetTeamId = "";
             }
           } else {
             throw new Error("join_team_failed");
           }
         }
 
-        if (!isCancelled) {
+        {
           try {
             sessionStorage.removeItem("opswarden_onboarding_draft");
           } catch {
             // Ignore storage cleanup error
           }
-          redirectTimer = setTimeout(() => {
+          setTimeout(() => {
             router.push(targetTeamId ? teamPath(targetTeamId) : "/", {
               locale: user.locale,
             });
           }, 300);
         }
       } catch (caught: unknown) {
-        if (isCancelled) return;
         const code = caught instanceof Error && caught.message ? caught.message : "unknown";
         setError(t.has(code) ? t(code) : t("unknownError"));
       }
     };
 
     createWorkspace();
-    return () => {
-      isCancelled = true;
-      if (redirectTimer) clearTimeout(redirectTimer);
-    };
   }, [data, router, t]);
 
   const mode = data.mode || "create";

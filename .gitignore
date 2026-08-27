@@ -12,6 +12,7 @@ out
 next-env.d.ts
 *.tsbuildinfo
 /test-results/
+test-results/
 /playwright-report/
 /client-web/coverage/
 # Env / secrets
