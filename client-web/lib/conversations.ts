@@ -32,7 +32,7 @@ export function hasConversationFeature(
   return features?.includes(feature) ?? false;
 }
 
-function fileAsBase64(file: File): Promise<string> {
+export function fileAsBase64(file: File): Promise<string> {
   return file.arrayBuffer().then((buffer) => {
     const bytes = new Uint8Array(buffer);
     let binary = "";

@@ -13,6 +13,12 @@ function isTauri(): boolean {
   );
 }
 
+/** Notifications are useful only while the application is outside the user's attention. */
+export function shouldShowDesktopNotification(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.visibilityState === "hidden" || !document.hasFocus();
+}
+
 /**
  * Show a native OS notification when running in the desktop shell; otherwise do
  * nothing. Never throws: any failure (permission denied, plugin missing, IPC
@@ -20,6 +26,10 @@ function isTauri(): boolean {
  */
 export async function notifyDesktop(title: string, body: string): Promise<void> {
   try {
+    // Check again here as focus may have returned after the realtime event was
+    // dispatched but before a permission prompt or lazy import completed.
+    if (!shouldShowDesktopNotification()) return;
+
     if (isTauri()) {
       const { isPermissionGranted, requestPermission, sendNotification } =
         await import("@tauri-apps/plugin-notification");
@@ -30,14 +40,20 @@ export async function notifyDesktop(title: string, body: string): Promise<void> 
       }
       if (!granted) return;
 
-      sendNotification({ title, body });
+      sendNotification({ title, body, silent: true });
       return;
     }
 
     if (typeof window === "undefined" || !("Notification" in window)) return;
     let permission = window.Notification.permission;
     if (permission === "default") permission = await window.Notification.requestPermission();
-    if (permission === "granted") new window.Notification(title, { body });
+    if (permission === "granted") {
+      new window.Notification(title, {
+        body,
+        icon: "/assets/icon-192.png",
+        silent: true,
+      });
+    }
   } catch (err) {
     console.warn("[desktop] notification failed:", err);
   }

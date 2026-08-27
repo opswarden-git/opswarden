@@ -38,6 +38,7 @@ describe("desktop notification bridge", () => {
     expect(notificationPlugin.sendNotification).toHaveBeenCalledWith({
       title: "Critical incident",
       body: "Incident #abcd1234",
+      silent: true,
     });
   });
 
@@ -58,7 +59,24 @@ describe("desktop notification bridge", () => {
 
     await notifyDesktop("New message", "Investigating");
 
-    expect(shown).toHaveBeenCalledWith("New message", { body: "Investigating" });
+    expect(shown).toHaveBeenCalledWith("New message", {
+      body: "Investigating",
+      icon: "/assets/icon-192.png",
+      silent: true,
+    });
     Reflect.deleteProperty(window, "Notification");
+  });
+
+  it("stays silent while the application has the user's attention", async () => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+
+    await notifyDesktop("New message", "Already visible");
+
+    expect(notificationPlugin.sendNotification).not.toHaveBeenCalled();
+    focus.mockRestore();
   });
 });

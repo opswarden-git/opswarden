@@ -26,6 +26,7 @@ export {
   createDesktopNotificationGate,
   desktopNotificationForEvent,
   dispatchDesktopNotification,
+  notificationSoundForEvent,
 } from "@/lib/wsNotifications";
 
 export function webSocketUrl() {
@@ -170,6 +171,7 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
       if (!me) break;
       const peer = event.from === me ? event.to : event.from;
       queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
+      queryClient.invalidateQueries({ queryKey: ["private-messages-unread"] });
       break;
     }
     case "rule_triggered":

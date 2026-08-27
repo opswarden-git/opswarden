@@ -6,6 +6,7 @@ import {
   desktopNotificationForEvent,
   dispatchDesktopNotification,
   handleWsContractEvent,
+  notificationSoundForEvent,
   useWsStore,
   webSocketUrl,
 } from "./ws";
@@ -146,9 +147,11 @@ describe("WebSocket contract consumers", () => {
       queryClient,
     );
 
-    expect(invalidate).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ["private-messages", "peer"],
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["private-messages-unread"],
     });
   });
 
@@ -224,6 +227,33 @@ describe("WebSocket contract consumers", () => {
 describe("desktop notification policy", () => {
   const translate: Parameters<typeof desktopNotificationForEvent>[2] = (key, values) =>
     values ? `${key}:${Object.values(values).join(":")}` : key;
+
+  it("stays silent while the application is visible and focused", () => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const notify = vi.fn();
+
+    expect(
+      dispatchDesktopNotification(
+        {
+          type: "private_message_received",
+          from: "peer",
+          to: "me",
+          content: "Already visible",
+          at: 1,
+        },
+        "me",
+        translate,
+        createDesktopNotificationGate(),
+        notify,
+      ),
+    ).toBe(false);
+    expect(notify).not.toHaveBeenCalled();
+    focus.mockRestore();
+  });
 
   it("dispatches all three required notifications while the main window is hidden", () => {
     Object.defineProperty(document, "visibilityState", {
@@ -343,6 +373,33 @@ describe("desktop notification policy", () => {
         "me",
         translate,
       ),
+    ).toBeNull();
+  });
+
+  it("sounds only for incoming messages and a completed release", () => {
+    expect(
+      notificationSoundForEvent({
+        type: "private_message_received",
+        from: "peer",
+        to: "me",
+        content: "Ready",
+        at: 1,
+      }),
+    ).toBe("message");
+    expect(
+      notificationSoundForEvent({
+        type: "release_state_changed",
+        release_id: "release-1",
+        new_state: "completed",
+      }),
+    ).toBe("release-completed");
+    expect(
+      notificationSoundForEvent({
+        type: "release_step_validated",
+        release_id: "release-1",
+        step: "Deploy",
+        by: "peer",
+      }),
     ).toBeNull();
   });
 

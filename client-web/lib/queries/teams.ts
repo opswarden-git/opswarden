@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { useWsStore } from "../ws";
 import type { TeamRole } from "../capabilities";
+import { fileAsBase64 } from "../conversations";
 
 /** Tell the server to re-resolve this connection's team scope after the current
  *  user's membership changed (create/join/leave/delete), so team presence and
@@ -20,6 +21,7 @@ export interface Team {
   active_incident_count: number;
   active_release_count: number;
   blocked_release_count: number;
+  image_updated_at?: string | null;
 }
 
 export interface TeamMember {
@@ -87,6 +89,38 @@ export function useTeamBans(teamId: string | undefined, enabled: boolean) {
   });
 }
 
+export function useUpdateTeamImage(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const res = await apiFetch(`/api/teams/${teamId}/image`, {
+        method: "PUT",
+        body: JSON.stringify({ media_type: file.type, data_base64: await fileAsBase64(file) }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "update_team_image_failed");
+      }
+      return res.json() as Promise<{ updated_at: string }>;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["teams"] }),
+  });
+}
+
+export function useDeleteTeamImage(teamId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch(`/api/teams/${teamId}/image`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "delete_team_image_failed");
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["teams"] }),
+  });
+}
+
 export function useCreateTeam() {
   const queryClient = useQueryClient();
 
@@ -97,7 +131,13 @@ export function useCreateTeam() {
         body: JSON.stringify({ name }),
       });
       if (!res.ok) throw new Error("create_team_failed");
-      return res.text(); // returns ID or empty
+      const text = await res.text();
+      try {
+        const body = JSON.parse(text);
+        return (body?.team_id as string) || text;
+      } catch {
+        return text;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
@@ -116,7 +156,13 @@ export function useJoinTeam() {
         body: JSON.stringify({ invitation_code }),
       });
       if (!res.ok) throw new Error("join_team_failed");
-      return res.text();
+      const text = await res.text();
+      try {
+        const body = JSON.parse(text);
+        return (body?.team_id as string) || text;
+      } catch {
+        return text;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });

@@ -1,4 +1,5 @@
-import { notifyDesktop } from "@/lib/desktopNotify";
+import { notifyDesktop, shouldShowDesktopNotification } from "@/lib/desktopNotify";
+import { playNotificationSound, type NotificationSound } from "@/lib/notificationSounds";
 import type { WsServerEvent } from "@/lib/ws";
 
 type NotificationEvent = Extract<
@@ -40,6 +41,16 @@ export type DesktopNotification = {
   title: string;
 };
 
+export function notificationSoundForEvent(event: NotificationEvent): NotificationSound | null {
+  if (event.type === "timeline_entry_added" || event.type === "private_message_received") {
+    return "message";
+  }
+  if (event.type === "release_state_changed" && event.new_state === "completed") {
+    return "release-completed";
+  }
+  return null;
+}
+
 export function desktopNotificationForEvent(
   event: NotificationEvent,
   currentUserId: string | undefined,
@@ -69,7 +80,7 @@ export function desktopNotificationForEvent(
     if (!currentUserId || event.by === currentUserId) return null;
     return {
       fingerprint: `incident-state:${event.incident_id}:${event.new_state}:${event.by}`,
-      title: translate("incidentStateTitle"),
+      title: translate("incidentStateTitle", { state: event.new_state }),
       body: translate("incidentStateBody", {
         id: event.incident_id.slice(0, 8),
         state: event.new_state,
@@ -136,7 +147,7 @@ export function desktopNotificationForEvent(
       }
     : {
         fingerprint: `release-state:${event.release_id}:${event.new_state}`,
-        title: translate("releaseStateTitle"),
+        title: translate("releaseStateTitle", { state: event.new_state }),
         body: translate("releaseStateBody", {
           id: event.release_id.slice(0, 8),
           state: event.new_state,
@@ -175,9 +186,13 @@ export function dispatchDesktopNotification(
   translate: NotificationTranslator,
   shouldDeliver: DesktopNotificationGate,
   notify: (title: string, body: string) => void | Promise<void> = notifyDesktop,
+  playSound: (sound: NotificationSound) => void | Promise<unknown> = playNotificationSound,
 ): boolean {
+  if (!shouldShowDesktopNotification()) return false;
   const notification = desktopNotificationForEvent(event, currentUserId, translate);
   if (!notification || !shouldDeliver(event, notification.fingerprint)) return false;
   void notify(notification.title, notification.body);
+  const sound = notificationSoundForEvent(event);
+  if (sound) void playSound(sound);
   return true;
 }
