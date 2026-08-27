@@ -1,3 +1,4 @@
+-- opswarden: migration-phase=expand
 -- Per-user read position for incident War Room channels. The position belongs
 -- to the server so unread state survives refreshes and follows the user across
 -- browsers and desktop clients.

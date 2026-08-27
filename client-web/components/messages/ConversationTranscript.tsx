@@ -86,52 +86,57 @@ export function ConversationTranscript<Item>({
           transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight <= 80;
       }}
     >
-      {loadEarlier ? (
-        <div className="flex justify-center px-4 pt-3 pb-2">
-          <Button size="sm" loading={loadingEarlier} onClick={() => void loadPreviousPage()}>
-            {loadEarlierLabel}
-          </Button>
-        </div>
-      ) : null}
-      {isLoading ? (
-        loading
-      ) : hasError ? (
-        error
-      ) : items.length === 0 ? (
-        empty
-      ) : (
-        <ol className="relative py-4">
-          {items.map((item, index) => {
-            const previous = items[index - 1];
-            const createdAt = getCreatedAt(item);
-            const showDay =
-              !previous || localDayKey(getCreatedAt(previous)) !== localDayKey(createdAt);
-            return (
-              <React.Fragment key={getId(item)}>
-                {showDay ? (
-                  <li className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
-                    <span className="bg-border h-px flex-1" />
-                    <time
-                      className="text-muted-2 text-[10px] font-medium tracking-wide uppercase"
-                      dateTime={createdAt}
-                    >
-                      {new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
-                        new Date(createdAt),
-                      )}
-                    </time>
-                    <span className="bg-border h-px flex-1" />
-                  </li>
-                ) : null}
-                {renderItem(
-                  item,
-                  index,
-                  !showDay && (continuesFromPrevious?.(item, previous) ?? false),
-                )}
-              </React.Fragment>
-            );
-          })}
-        </ol>
-      )}
+      <div
+        className="flex min-h-full flex-col justify-end"
+        data-conversation-content="true"
+      >
+        {loadEarlier ? (
+          <div className="flex justify-center px-4 pt-3 pb-2">
+            <Button size="sm" loading={loadingEarlier} onClick={() => void loadPreviousPage()}>
+              {loadEarlierLabel}
+            </Button>
+          </div>
+        ) : null}
+        {isLoading ? (
+          loading
+        ) : hasError ? (
+          error
+        ) : items.length === 0 ? (
+          empty
+        ) : (
+          <ol className="relative py-4">
+            {items.map((item, index) => {
+              const previous = items[index - 1];
+              const createdAt = getCreatedAt(item);
+              const showDay =
+                !previous || localDayKey(getCreatedAt(previous)) !== localDayKey(createdAt);
+              return (
+                <React.Fragment key={getId(item)}>
+                  {showDay ? (
+                    <li className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
+                      <span className="bg-border h-px flex-1" />
+                      <time
+                        className="text-muted-2 text-[10px] font-medium tracking-wide uppercase"
+                        dateTime={createdAt}
+                      >
+                        {new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
+                          new Date(createdAt),
+                        )}
+                      </time>
+                      <span className="bg-border h-px flex-1" />
+                    </li>
+                  ) : null}
+                  {renderItem(
+                    item,
+                    index,
+                    !showDay && (continuesFromPrevious?.(item, previous) ?? false),
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }

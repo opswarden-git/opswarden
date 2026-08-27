@@ -170,9 +170,7 @@ describe("IncidentDetailPage", () => {
 
   it("signals acknowledgement and assignment independently", () => {
     const first = render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
-    const context = within(
-      document.querySelector('[data-war-room-context="true"]') as HTMLElement,
-    );
+    const context = within(document.querySelector('[data-war-room-context="true"]') as HTMLElement);
     expect(context.getByRole("button", { name: "details" })).toHaveAttribute(
       "aria-expanded",
       "false",

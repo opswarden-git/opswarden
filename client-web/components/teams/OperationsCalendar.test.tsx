@@ -57,10 +57,7 @@ describe("OperationsCalendar", () => {
     expect(screen.getByRole("heading", { name: "August 2026" })).toBeInTheDocument();
     expect(screen.getAllByRole("gridcell")).toHaveLength(42);
     const incident = screen.getByRole("link", { name: "Incident: Database outage" });
-    expect(incident).toHaveAttribute(
-      "href",
-      "/teams/team-1/incidents/incident-1",
-    );
+    expect(incident).toHaveAttribute("href", "/teams/team-1/incidents/incident-1");
     expect(incident).toHaveClass("bg-panel-2", "text-text", "border");
     expect(incident).not.toHaveClass("bg-status-danger", "bg-status-info", "bg-status-neutral");
     const today = view.container.querySelector('time[datetime="2026-08-14"]');

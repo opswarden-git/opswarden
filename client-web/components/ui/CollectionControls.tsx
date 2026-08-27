@@ -66,7 +66,7 @@ export function TableFilterControl({
   return (
     <label
       className={cn(
-        "text-muted hover:text-text focus-within:ring-gold/50 relative inline-flex cursor-pointer items-center gap-1 rounded-sm uppercase transition-colors focus-within:ring-2 focus-within:outline-none",
+        "text-muted hover:text-text focus-within:ring-gold/50 relative inline-flex cursor-pointer items-center gap-1 rounded-sm text-xs font-medium uppercase transition-colors focus-within:ring-2 focus-within:outline-none",
         className,
       )}
       title={activeLabel ? `${label}: ${activeLabel}` : label}

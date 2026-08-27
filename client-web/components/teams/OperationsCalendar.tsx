@@ -346,9 +346,7 @@ export function OperationsCalendar({
                     dateTime={dayKey(date)}
                     className={cn(
                       "mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-sm tabular-nums",
-                      dayKey(date) === todayKey
-                        ? "text-gold font-semibold"
-                        : "text-text",
+                      dayKey(date) === todayKey ? "text-gold font-semibold" : "text-text",
                     )}
                   >
                     {date.getDate()}

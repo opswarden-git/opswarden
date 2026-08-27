@@ -31,12 +31,7 @@ export function AddMemberDialog({ teamId }: { teamId: string }) {
     <Dialog
       open={open}
       onOpenChange={(next) => (next ? setOpen(true) : close())}
-      trigger={
-        <Button variant="primary">
-          <UserPlus className="h-4 w-4" aria-hidden="true" />
-          {t("addMember")}
-        </Button>
-      }
+      trigger={<Button variant="primary">{t("addMember")}</Button>}
       title={t("addMember")}
       description={t("addMemberDescription")}
       closeLabel={tSidebar("close")}

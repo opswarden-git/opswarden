@@ -15,7 +15,6 @@ use crate::app::incident::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
     GetIncidentCommand, GetIncidentUseCase, IncidentAssigneeFilter, IncidentCounts,
     IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase,
-    MarkIncidentReadCommand, MarkIncidentReadUseCase, ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
@@ -195,27 +194,6 @@ pub async fn get_incident(
         .await?;
 
     Ok(Json(IncidentView::from(result.incident)))
-}
-
-#[derive(Deserialize)]
-pub struct MarkIncidentReadPayload {
-    pub read_through: DateTime<Utc>,
-}
-
-pub async fn mark_incident_read(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path(incident_id): Path<Uuid>,
-    Json(payload): Json<MarkIncidentReadPayload>,
-) -> Result<StatusCode, DomainError> {
-    MarkIncidentReadUseCase::new(state.teams.clone(), state.incidents.clone())
-        .mark(MarkIncidentReadCommand {
-            incident_id,
-            requester_id: session.user_id,
-            read_through: payload.read_through,
-        })
-        .await?;
-    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
@@ -473,50 +451,14 @@ pub async fn edit_timeline_entry(
     Ok(Json(result.into()))
 }
 
-#[derive(Deserialize)]
-pub struct ToggleReactionPayload {
-    pub emoji: String,
-}
-
-#[derive(Serialize)]
-pub struct ToggleReactionResponse {
-    pub emoji: String,
-    pub reacted: bool,
-    pub count: u64,
-}
-
-pub async fn toggle_reaction(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path((incident_id, entry_id)): Path<(Uuid, Uuid)>,
-    Json(payload): Json<ToggleReactionPayload>,
-) -> Result<Json<ToggleReactionResponse>, DomainError> {
-    let use_case = ToggleReactionUseCase::new(
-        state.teams.clone(),
-        state.incidents.clone(),
-        state.timeline.clone(),
-        state.events.clone(),
-    );
-    let result = use_case
-        .toggle(ToggleReactionCommand {
-            incident_id,
-            entry_id,
-            user_id: session.user_id,
-            emoji: payload.emoji,
-        })
-        .await?;
-
-    Ok(Json(ToggleReactionResponse {
-        emoji: result.emoji,
-        reacted: result.reacted,
-        count: result.count,
-    }))
-}
-
 mod incident_activity;
+mod incident_reactions;
+mod incident_read;
 
 pub use incident_activity::{
     available_reactions, delete_incident, download_timeline_attachment, list_incident_activity,
     UserSummaryResponse,
 };
 use incident_activity::{parse_incident_status, parse_severity};
+pub use incident_reactions::toggle_reaction;
+pub use incident_read::mark_incident_read;

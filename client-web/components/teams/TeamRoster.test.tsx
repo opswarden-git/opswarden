@@ -116,7 +116,9 @@ describe("TeamRoster", () => {
       screen.queryByRole("link", { name: "openConversation:manager@example.com" }),
     ).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole("heading", { name: "activeMembers:2" }).parentElement!).getByText("2"),
+      within(screen.getByRole("heading", { name: "activeMembers:2" }).parentElement!).getByText(
+        "2",
+      ),
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole("heading", { name: "inactiveMembers:1" }).parentElement!).getByText(

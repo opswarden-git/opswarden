@@ -23,21 +23,14 @@ export function MemberAvatar({
 }) {
   return (
     <span
-      className={cn(
-        "text-gold flex h-9 w-9 shrink-0 items-center justify-center",
-        className,
-      )}
+      className={cn("text-gold flex h-9 w-9 shrink-0 items-center justify-center", className)}
       title={email}
       aria-hidden="true"
     >
       {role ? (
         <RoleIcon role={role} className="h-2/3 w-2/3" />
       ) : (
-        <UserRound
-          className="text-gold h-2/3 w-2/3"
-          strokeWidth={1.8}
-          aria-hidden="true"
-        />
+        <UserRound className="text-gold h-2/3 w-2/3" strokeWidth={1.8} aria-hidden="true" />
       )}
     </span>
   );

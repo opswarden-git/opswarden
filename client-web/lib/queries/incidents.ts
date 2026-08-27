@@ -281,7 +281,13 @@ export function useIncidentActivity(incidentId: string) {
 export function useMarkIncidentRead() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ incidentId, readThrough }: { incidentId: string; readThrough: string }) => {
+    mutationFn: async ({
+      incidentId,
+      readThrough,
+    }: {
+      incidentId: string;
+      readThrough: string;
+    }) => {
       const response = await apiFetch(`/api/incidents/${incidentId}/read`, {
         method: "PUT",
         body: JSON.stringify({ read_through: readThrough }),

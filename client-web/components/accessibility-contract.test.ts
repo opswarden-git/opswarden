@@ -59,7 +59,8 @@ function lineOf(tree: ts.SourceFile, node: ts.Node): number {
   return tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1;
 }
 
-const labelledButtonMarks = new Set(["FcGoogle", "RefreshCw", "SlidersHorizontal"]);
+/** Brand marks and the two affordances that are standard enough to read without a label. */
+const labelledButtonMarks = new Set(["FcGoogle", "ServiceMark", "RefreshCw", "SlidersHorizontal"]);
 
 function textButtonIconViolations(file: string): string[] {
   const tree = ts.createSourceFile(

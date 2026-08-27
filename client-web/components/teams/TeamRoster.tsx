@@ -167,11 +167,7 @@ export function TeamRoster({ team }: { team: Team }) {
                 <div className="text-text truncate text-sm leading-4 font-medium">
                   {displayName}
                 </div>
-                <RoleChip
-                  role={member.role}
-                  showIcon={false}
-                  className="text-[11px] leading-3"
-                />
+                <RoleChip role={member.role} showIcon={false} className="text-[11px] leading-3" />
               </div>
               <div className="relative z-10 flex shrink-0 items-center gap-1">{rowActions}</div>
             </li>
@@ -237,9 +233,7 @@ export function TeamRoster({ team }: { team: Team }) {
       ) : null}
 
       {visibleActiveMembers.length > 0 ? (
-        <section aria-labelledby="active-members">
-          {memberList(visibleActiveMembers)}
-        </section>
+        <section aria-labelledby="active-members">{memberList(visibleActiveMembers)}</section>
       ) : null}
 
       {visibleInactiveMembers.length > 0 ? (
@@ -248,9 +242,7 @@ export function TeamRoster({ team }: { team: Team }) {
             <h2 id="inactive-members" className="text-text text-sm font-semibold">
               {t("inactiveMembers", { count: visibleInactiveMembers.length })}
             </h2>
-            <span className="text-muted text-xs tabular-nums">
-              {visibleInactiveMembers.length}
-            </span>
+            <span className="text-muted text-xs tabular-nums">{visibleInactiveMembers.length}</span>
           </div>
           {memberList(visibleInactiveMembers)}
         </section>

@@ -224,7 +224,8 @@ export function IncidentActivity({
   const newestActivityAt = items.at(-1)?.created_at ?? "";
 
   React.useEffect(() => {
-    if (isLoading || !newestActivityAt || lastMarkedReadThrough.current === newestActivityAt) return;
+    if (isLoading || !newestActivityAt || lastMarkedReadThrough.current === newestActivityAt)
+      return;
     lastMarkedReadThrough.current = newestActivityAt;
     markIncidentRead(
       { incidentId, readThrough: newestActivityAt },

@@ -136,7 +136,7 @@ export function IncidentContextPanel({
                     label={t("assign")}
                     size="sm"
                     variant="ghost"
-                    className="text-muted hover:bg-transparent hover:text-st-res focus-visible:bg-transparent focus-visible:text-st-res"
+                    className="text-muted hover:text-st-res focus-visible:text-st-res hover:bg-transparent focus-visible:bg-transparent"
                     onClick={assign}
                     loading={assignIncident.isPending}
                     disabled={!selectedAssignee || selectedAssignee === incident.assignee}

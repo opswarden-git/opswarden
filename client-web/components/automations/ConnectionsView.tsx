@@ -35,17 +35,29 @@ const providerMarks: Record<string, string> = {
   gitlab: "/assets/gitlab.webp",
 };
 
-function ServiceMark({ service }: { service: AutomationService }) {
+/**
+ * The mark of a connector: its brand asset when we ship one, a shape otherwise.
+ * `inline` is the smaller size used on the button that signs into the service,
+ * where the label sits next to it. Decorative in both cases — the surrounding
+ * row or button already names the service — and the one place that decides what
+ * a service looks like.
+ */
+function ServiceMark({ inline, service }: { inline?: boolean; service: AutomationService }) {
+  const box = inline ? "h-[18px] w-[18px]" : "h-7 w-7";
   const asset = providerMarks[service.name];
   if (asset) {
-    return <Image src={asset} alt="" width={28} height={28} className="h-7 w-7 object-contain" />;
+    const side = inline ? 18 : 28;
+    return (
+      <Image src={asset} alt="" width={side} height={side} className={`${box} object-contain`} />
+    );
   }
   if (service.name === "email") {
-    return <MdAlternateEmail className="h-7 w-7" aria-hidden="true" />;
+    return <MdAlternateEmail className={box} aria-hidden="true" />;
   }
-  if (service.name === "http") return <MdHttp className="h-8 w-8" aria-hidden="true" />;
-  if (service.name === "generic") return <Webhook className="h-7 w-7" aria-hidden="true" />;
-  return <Globe2 className="h-7 w-7" aria-hidden="true" />;
+  if (service.name === "http")
+    return <MdHttp className={inline ? box : "h-8 w-8"} aria-hidden="true" />;
+  if (service.name === "generic") return <Webhook className={box} aria-hidden="true" />;
+  return <Globe2 className={box} aria-hidden="true" />;
 }
 
 function ConnectionStatus({ connection }: { connection: TeamConnection }) {
@@ -183,13 +195,7 @@ function ConnectionForm({
                   )
                 }
               >
-                <Image
-                  src="/assets/github-patched.webp"
-                  alt=""
-                  width={18}
-                  height={18}
-                  className="h-[18px] w-[18px] object-contain"
-                />
+                <ServiceMark inline service={service} />
                 {service.connection.oauth.label}
               </Button>
             ) : null}
@@ -261,175 +267,175 @@ export function ConnectionsView({
         ]
           .filter((group) => group.id !== "active-integrations" || group.items.length > 0)
           .map((group) => (
-          <section key={group.id} aria-labelledby={group.id}>
-            <div className="mb-2 flex items-baseline gap-2 px-1">
-              <h2 id={group.id} className="text-text text-sm font-semibold">
-                {group.label}
-              </h2>
-              <span className="text-muted text-xs tabular-nums">{group.items.length}</span>
-            </div>
-            <div className="surface divide-border divide-y overflow-hidden rounded-md">
-              {group.items.length === 0 ? (
-                <p className="text-muted px-4 py-4 text-sm">{group.emptyLabel}</p>
-              ) : (
-                group.items.map(({ connection, service }) => {
-                  const panelId = `integration-panel-${service.name}`;
-                  const isExpanded = editing === service.name;
-                  const usedBy = connection
-                    ? rules.filter(
-                        (rule) =>
-                          rule.trigger_connection_id === connection.id ||
-                          rule.reaction_connection_id === connection.id,
-                      ).length
-                    : 0;
+            <section key={group.id} aria-labelledby={group.id}>
+              <div className="mb-2 flex items-baseline gap-2 px-1">
+                <h2 id={group.id} className="text-text text-sm font-semibold">
+                  {group.label}
+                </h2>
+                <span className="text-muted text-xs tabular-nums">{group.items.length}</span>
+              </div>
+              <div className="surface divide-border divide-y overflow-hidden rounded-md">
+                {group.items.length === 0 ? (
+                  <p className="text-muted px-4 py-4 text-sm">{group.emptyLabel}</p>
+                ) : (
+                  group.items.map(({ connection, service }) => {
+                    const panelId = `integration-panel-${service.name}`;
+                    const isExpanded = editing === service.name;
+                    const usedBy = connection
+                      ? rules.filter(
+                          (rule) =>
+                            rule.trigger_connection_id === connection.id ||
+                            rule.reaction_connection_id === connection.id,
+                        ).length
+                      : 0;
 
-                  return (
-                    <div key={service.name}>
-                      <div className="flex min-h-16 items-center gap-4 px-4 py-3">
-                        <div className="text-text flex h-8 w-8 shrink-0 items-center justify-center">
-                          <ServiceMark service={service} />
+                    return (
+                      <div key={service.name}>
+                        <div className="flex min-h-16 items-center gap-4 px-4 py-3">
+                          <div className="text-text flex h-8 w-8 shrink-0 items-center justify-center">
+                            <ServiceMark service={service} />
+                          </div>
+                          <h3 className="text-text min-w-0 flex-1 truncate text-sm font-medium">
+                            {service.label}
+                          </h3>
+                          {connection ? <ConnectionStatus connection={connection} /> : null}
+                          <button
+                            type="button"
+                            className="text-muted hover:text-text focus-visible:ring-gold/50 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                            aria-label={
+                              connection
+                                ? t("reconfigureService", { service: service.label })
+                                : t("connectService", { service: service.label })
+                            }
+                            aria-expanded={isExpanded}
+                            aria-controls={panelId}
+                            onClick={() => setEditing(isExpanded ? null : service.name)}
+                          >
+                            <ChevronRight
+                              className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              aria-hidden="true"
+                            />
+                          </button>
                         </div>
-                        <h3 className="text-text min-w-0 flex-1 truncate text-sm font-medium">
-                          {service.label}
-                        </h3>
-                        {connection ? <ConnectionStatus connection={connection} /> : null}
-                        <button
-                          type="button"
-                          className="text-muted hover:text-text focus-visible:ring-gold/50 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                          aria-label={
-                            connection
-                              ? t("reconfigureService", { service: service.label })
-                              : t("connectService", { service: service.label })
-                          }
-                          aria-expanded={isExpanded}
-                          aria-controls={panelId}
-                          onClick={() => setEditing(isExpanded ? null : service.name)}
-                        >
-                          <ChevronRight
-                            className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                            aria-hidden="true"
-                          />
-                        </button>
-                      </div>
 
-                      {isExpanded ? (
-                        <div id={panelId}>
-                          {connection ? (
-                            <div className="space-y-4 px-4 py-4 md:px-5">
-                              {connection.webhook_path ? (
-                                <div className="flex items-center gap-2">
-                                  <code className="text-muted min-w-0 flex-1 truncate text-xs">
-                                    {webhookUrls[connection.id] ?? connection.webhook_path}
-                                  </code>
-                                  <CopyButton
-                                    value={webhookUrls[connection.id] ?? connection.webhook_path}
-                                    label={t("copyWebhookUrl")}
-                                    copiedLabel={t("copied")}
-                                    size="sm"
-                                    variant="ghost"
-                                  />
-                                </div>
-                              ) : null}
-                              <div className="flex flex-wrap items-end justify-between gap-4">
-                                <dl className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
-                                  <div>
-                                    <dt className="text-muted">{t("lastActivity")}</dt>
-                                    <dd className="text-text mt-1">
-                                      {connection.last_delivery_at || connection.verified_at
-                                        ? new Intl.DateTimeFormat(locale, {
-                                            dateStyle: "medium",
-                                            timeStyle: "short",
-                                          }).format(
-                                            new Date(
-                                              connection.last_delivery_at ??
-                                                connection.verified_at!,
-                                            ),
-                                          )
-                                        : t("never")}
-                                    </dd>
+                        {isExpanded ? (
+                          <div id={panelId}>
+                            {connection ? (
+                              <div className="space-y-4 px-4 py-4 md:px-5">
+                                {connection.webhook_path ? (
+                                  <div className="flex items-center gap-2">
+                                    <code className="text-muted min-w-0 flex-1 truncate text-xs">
+                                      {webhookUrls[connection.id] ?? connection.webhook_path}
+                                    </code>
+                                    <CopyButton
+                                      value={webhookUrls[connection.id] ?? connection.webhook_path}
+                                      label={t("copyWebhookUrl")}
+                                      copiedLabel={t("copied")}
+                                      size="sm"
+                                      variant="ghost"
+                                    />
                                   </div>
-                                  <div>
-                                    <dt className="text-muted">{t("usedByRules")}</dt>
-                                    <dd className="text-text mt-1 tabular-nums">{usedBy}</dd>
-                                  </div>
-                                </dl>
-                                <div className="flex flex-wrap gap-2">
-                                  {service.connection?.testable ? (
+                                ) : null}
+                                <div className="flex flex-wrap items-end justify-between gap-4">
+                                  <dl className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
+                                    <div>
+                                      <dt className="text-muted">{t("lastActivity")}</dt>
+                                      <dd className="text-text mt-1">
+                                        {connection.last_delivery_at || connection.verified_at
+                                          ? new Intl.DateTimeFormat(locale, {
+                                              dateStyle: "medium",
+                                              timeStyle: "short",
+                                            }).format(
+                                              new Date(
+                                                connection.last_delivery_at ??
+                                                  connection.verified_at!,
+                                              ),
+                                            )
+                                          : t("never")}
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt className="text-muted">{t("usedByRules")}</dt>
+                                      <dd className="text-text mt-1 tabular-nums">{usedBy}</dd>
+                                    </div>
+                                  </dl>
+                                  <div className="flex flex-wrap gap-2">
+                                    {service.connection?.testable ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => testConnection.mutate(connection.id)}
+                                        loading={
+                                          testConnection.isPending &&
+                                          testConnection.variables === connection.id
+                                        }
+                                      >
+                                        {t("test")}
+                                      </Button>
+                                    ) : null}
+                                    {connection.oauth_refresh_configured &&
+                                    service.connection?.oauth ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => refreshOAuth.mutate(connection.id)}
+                                        loading={
+                                          refreshOAuth.isPending &&
+                                          refreshOAuth.variables === connection.id
+                                        }
+                                      >
+                                        {t("refreshOAuthToken")}
+                                      </Button>
+                                    ) : null}
                                     <Button
                                       size="sm"
-                                      onClick={() => testConnection.mutate(connection.id)}
-                                      loading={
-                                        testConnection.isPending &&
-                                        testConnection.variables === connection.id
+                                      onClick={() => setDeleting(connection)}
+                                      disabled={usedBy > 0}
+                                      title={
+                                        usedBy > 0
+                                          ? t("connectionInUse", { count: usedBy })
+                                          : undefined
                                       }
                                     >
-                                      {t("test")}
+                                      {t("disconnect")}
                                     </Button>
-                                  ) : null}
-                                  {connection.oauth_refresh_configured &&
-                                  service.connection?.oauth ? (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => refreshOAuth.mutate(connection.id)}
-                                      loading={
-                                        refreshOAuth.isPending &&
-                                        refreshOAuth.variables === connection.id
-                                      }
-                                    >
-                                      {t("refreshOAuthToken")}
-                                    </Button>
-                                  ) : null}
-                                  <Button
-                                    size="sm"
-                                    onClick={() => setDeleting(connection)}
-                                    disabled={usedBy > 0}
-                                    title={
-                                      usedBy > 0
-                                        ? t("connectionInUse", { count: usedBy })
-                                        : undefined
-                                    }
-                                  >
-                                    {t("disconnect")}
-                                  </Button>
+                                  </div>
                                 </div>
+                                {connection.last_error_code ? (
+                                  <Alert tone="danger">
+                                    {t("lastError", { code: connection.last_error_code })}
+                                  </Alert>
+                                ) : null}
+                                {testConnection.error &&
+                                testConnection.variables === connection.id ? (
+                                  <Alert tone="danger">
+                                    {t("requestFailed", { code: testConnection.error.message })}
+                                  </Alert>
+                                ) : null}
+                                {testConnection.isSuccess &&
+                                testConnection.variables === connection.id ? (
+                                  <Alert tone="success">{t("testSucceeded")}</Alert>
+                                ) : null}
+                                {refreshOAuth.error && refreshOAuth.variables === connection.id ? (
+                                  <Alert tone="danger">
+                                    {t("requestFailed", { code: refreshOAuth.error.message })}
+                                  </Alert>
+                                ) : null}
                               </div>
-                              {connection.last_error_code ? (
-                                <Alert tone="danger">
-                                  {t("lastError", { code: connection.last_error_code })}
-                                </Alert>
-                              ) : null}
-                              {testConnection.error &&
-                              testConnection.variables === connection.id ? (
-                                <Alert tone="danger">
-                                  {t("requestFailed", { code: testConnection.error.message })}
-                                </Alert>
-                              ) : null}
-                              {testConnection.isSuccess &&
-                              testConnection.variables === connection.id ? (
-                                <Alert tone="success">{t("testSucceeded")}</Alert>
-                              ) : null}
-                              {refreshOAuth.error && refreshOAuth.variables === connection.id ? (
-                                <Alert tone="danger">
-                                  {t("requestFailed", { code: refreshOAuth.error.message })}
-                                </Alert>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <ConnectionForm
-                            id={`${panelId}-form`}
-                            teamId={teamId}
-                            service={service}
-                            connection={connection}
-                            onClose={() => setEditing(null)}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </section>
+                            ) : null}
+                            <ConnectionForm
+                              id={`${panelId}-form`}
+                              teamId={teamId}
+                              service={service}
+                              connection={connection}
+                              onClose={() => setEditing(null)}
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
           ))}
       </div>
       <ConfirmDialog

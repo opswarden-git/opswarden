@@ -4,18 +4,10 @@ import { useTranslations } from "next-intl";
 import type { TeamRole } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
 
-export function RoleIcon({
-  className,
-  role,
-}: {
-  className?: string;
-  role: TeamRole;
-}) {
+export function RoleIcon({ className, role }: { className?: string; role: TeamRole }) {
   const Icon = role === "manager" ? ShieldAlert : role === "responder" ? ShieldCheck : Shield;
 
-  return (
-    <Icon className={cn("text-gold", className)} strokeWidth={1.8} aria-hidden="true" />
-  );
+  return <Icon className={cn("text-gold", className)} strokeWidth={1.8} aria-hidden="true" />;
 }
 
 /**

@@ -74,11 +74,7 @@ export function TeamPresenceList({
                     </span>
                   ) : null}
                 </span>
-                <RoleChip
-                  role={member.role}
-                  showIcon={false}
-                  className="text-[11px] leading-3"
-                />
+                <RoleChip role={member.role} showIcon={false} className="text-[11px] leading-3" />
               </span>
             </>
           );
