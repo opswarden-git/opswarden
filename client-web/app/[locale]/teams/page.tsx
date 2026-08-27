@@ -94,7 +94,7 @@ export default function TeamsPage() {
         }
       >
         {visibleTeams.length === 0 ? (
-          <div className="surface text-muted rounded-md p-10 text-center text-sm">
+          <div className="surface text-muted rounded-md p-12 text-center text-sm">
             {t("noMatchingTeams")}
           </div>
         ) : (

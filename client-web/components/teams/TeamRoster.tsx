@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Search, ShieldOff } from "lucide-react";
+import { HelpCircle, Search, ShieldOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import {
@@ -17,9 +17,11 @@ import {
   useUnbanMember,
 } from "@/lib/queries/teams";
 import { useTeamOnline } from "@/lib/ws";
+import { useUnreadPrivateMessages } from "@/lib/queries/privateMessages";
 import { useAuthStore } from "@/store/auth";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { teamPath } from "@/lib/team-routing";
+import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/Button";
@@ -70,6 +72,11 @@ export function TeamRoster({ team }: { team: Team }) {
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
   const capabilities = deriveCapabilities(team.role);
+  const { data: unreadData } = useUnreadPrivateMessages(capabilities.canSendPrivateMessage);
+  const unreadPeerSet = useMemo(
+    () => new Set(unreadData?.unread_peer_ids ?? []),
+    [unreadData?.unread_peer_ids],
+  );
 
   const setRole = useSetMemberRole(team.team_id);
   const transfer = useTransferManager(team.team_id);
@@ -123,6 +130,7 @@ export function TeamRoster({ team }: { team: Team }) {
       <ul className="divide-border divide-y">
         {items.map((member) => {
           const active = member.user_id === currentUserId || onlineSet.has(member.user_id);
+          const hasUnread = unreadPeerSet.has(member.user_id);
           const displayName = memberDisplayName(member.email);
           const conversationHref =
             member.user_id !== currentUserId && capabilities.canSendPrivateMessage
@@ -164,8 +172,21 @@ export function TeamRoster({ team }: { team: Team }) {
                 />
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-1" title={member.email}>
-                <div className="text-text truncate text-sm leading-4 font-medium">
-                  {displayName}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-text truncate text-sm leading-4",
+                      hasUnread ? "font-bold" : "font-medium",
+                    )}
+                  >
+                    {displayName}
+                  </span>
+                  {hasUnread ? (
+                    <span className="text-muted inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold tracking-wider uppercase">
+                      <span>{tDm("newMessages")}</span>
+                      <HelpCircle className="h-3 w-3 opacity-70" aria-hidden="true" />
+                    </span>
+                  ) : null}
                 </div>
                 <RoleChip role={member.role} showIcon={false} className="text-[11px] leading-3" />
               </div>

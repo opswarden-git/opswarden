@@ -50,7 +50,7 @@ export function ProfilePanel({
   return (
     <>
       {needsTeamSetup && (
-        <div className="surface border-gold/30 rounded-md p-6">
+        <div className="surface border-gold/30 rounded-md p-4 sm:p-6">
           <div className="mb-4 flex items-start gap-3">
             <ShieldAlert className="text-gold mt-0.5 h-5 w-5 shrink-0" />
             <div>
