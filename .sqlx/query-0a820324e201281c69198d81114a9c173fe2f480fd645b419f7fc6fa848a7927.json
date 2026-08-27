@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT image.media_type, image.content, image.updated_at\n            FROM team_images image\n            WHERE image.team_id = $1\n              AND EXISTS (\n                  SELECT 1 FROM team_members member\n                  WHERE member.team_id = image.team_id AND member.user_id = $2\n              )\n            ",
+  "query": "\n        SELECT image.media_type, image.content, image.updated_at\n        FROM team_images image\n        WHERE image.team_id = $1\n          AND EXISTS (\n              SELECT 1 FROM team_members member\n              WHERE member.team_id = image.team_id AND member.user_id = $2\n          )\n        ",
   "describe": {
     "columns": [
       {
@@ -49,5 +49,5 @@
       false
     ]
   },
-  "hash": "08b06a4fbd888bfbef41bf251c80b0d3cdce49221e8869ebb97de1875395d4d3"
+  "hash": "0a820324e201281c69198d81114a9c173fe2f480fd645b419f7fc6fa848a7927"
 }
