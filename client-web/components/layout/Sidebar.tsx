@@ -17,7 +17,6 @@ import {
 } from "./navigation";
 import { useTeamScope } from "@/components/teams/TeamScope";
 import { MemberAvatar, memberDisplayName } from "@/components/teams/MemberAvatar";
-import { RoleChip } from "@/components/teams/RoleChip";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { RailToggle } from "./RailToggle";
 import { Dialog } from "@/components/ui/Dialog";
@@ -137,11 +136,7 @@ export function Sidebar({
       data-sidebar-collapsed={collapsed ? "true" : "false"}
     >
       <RailToggle
-        className={cn(
-          "top-1/2 -translate-y-1/2",
-          collapsed ? "left-1/2 -translate-x-1/2" : "right-0",
-        )}
-        direction={collapsed ? "right" : "left"}
+        side="right"
         label={t(collapsed ? "expandNavigation" : "collapseNavigation")}
         onClick={() => onCollapsedChange(!collapsed)}
       />
@@ -210,7 +205,13 @@ export function Sidebar({
           title={t("account")}
           description={user?.email ?? t("operator")}
           closeLabel={t("close")}
-          icon={<MemberAvatar email={user?.email || t("operator")} className="h-10 w-10 text-xs" />}
+          icon={
+            <MemberAvatar
+              email={user?.email || t("operator")}
+              role={activeTeam?.role}
+              className="h-10 w-10 text-xs"
+            />
+          }
           bodyClassName="space-y-8"
           trigger={
             <button
@@ -229,13 +230,13 @@ export function Sidebar({
                 <>
                   <MemberAvatar
                     email={user?.email || t("operator")}
+                    role={activeTeam?.role}
                     className="h-8 w-8 text-[11px]"
                   />
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <span className="truncate text-sm leading-5 font-medium">
                       {user?.email ? memberDisplayName(user.email) : t("operator")}
                     </span>
-                    {activeTeam ? <RoleChip role={activeTeam.role} iconOnly /> : null}
                   </div>
                 </>
               ) : null}
@@ -247,7 +248,7 @@ export function Sidebar({
             </button>
           }
         >
-          <ProfilePanel showIdentityHeader={false} showStationSetup={false} />
+          <ProfilePanel showIdentityHeader={false} showTeamSetup={false} />
           <LanguagePanel />
           <AccountDangerZone />
         </Dialog>

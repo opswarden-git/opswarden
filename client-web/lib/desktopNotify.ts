@@ -19,19 +19,25 @@ function isTauri(): boolean {
  * blocked) is logged and swallowed so realtime handling is never interrupted.
  */
 export async function notifyDesktop(title: string, body: string): Promise<void> {
-  if (!isTauri()) return;
-
   try {
-    const { isPermissionGranted, requestPermission, sendNotification } =
-      await import("@tauri-apps/plugin-notification");
+    if (isTauri()) {
+      const { isPermissionGranted, requestPermission, sendNotification } =
+        await import("@tauri-apps/plugin-notification");
 
-    let granted = await isPermissionGranted();
-    if (!granted) {
-      granted = (await requestPermission()) === "granted";
+      let granted = await isPermissionGranted();
+      if (!granted) {
+        granted = (await requestPermission()) === "granted";
+      }
+      if (!granted) return;
+
+      sendNotification({ title, body });
+      return;
     }
-    if (!granted) return;
 
-    sendNotification({ title, body });
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    let permission = window.Notification.permission;
+    if (permission === "default") permission = await window.Notification.requestPermission();
+    if (permission === "granted") new window.Notification(title, { body });
   } catch (err) {
     console.warn("[desktop] notification failed:", err);
   }

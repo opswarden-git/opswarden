@@ -153,8 +153,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
               <WarRoomNavigation activeIncidentId={incident.id} teamId={incident.team_id} />
             ) : null}
             <RailToggle
-              className="top-1/2 right-0 -translate-y-1/2"
-              direction={isRoomsRailOpen ? "left" : "right"}
+              side="right"
               label={t(isRoomsRailOpen ? "collapseRooms" : "expandRooms")}
               onClick={() => setIsRoomsRailOpen((open) => !open)}
             />
@@ -174,7 +173,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
               </IconButton>
               <IconButton
                 className="lg:hidden"
-                label={t("details")}
+                label={t("incidentContext")}
                 size="sm"
                 variant="ghost"
                 onClick={() => setIsContextOpen(true)}
@@ -198,8 +197,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
             data-context-rail-open={isContextRailOpen ? "true" : "false"}
           >
             <RailToggle
-              className="top-1/2 left-0 -translate-y-1/2"
-              direction={isContextRailOpen ? "right" : "left"}
+              side="left"
               label={t(isContextRailOpen ? "collapseContext" : "expandContext")}
               onClick={() => setIsContextRailOpen((open) => !open)}
             />

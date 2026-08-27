@@ -2,26 +2,38 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function IdentityHeader({
+  action,
+  bordered = true,
   mark,
   title,
   subtitle,
 }: {
-  mark: string;
+  action?: ReactNode;
+  bordered?: boolean;
+  mark: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
 }) {
   return (
-    <header className="border-border flex min-w-0 items-center gap-4 border-b pb-6">
-      <span
-        className="surface-subtle text-text border-border flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-sm font-semibold tracking-wide"
-        aria-hidden="true"
-      >
-        {mark}
-      </span>
-      <div className="min-w-0">
-        <h2 className="text-text truncate text-lg font-semibold tracking-tight">{title}</h2>
-        {subtitle ? <div className="text-muted mt-1 text-sm">{subtitle}</div> : null}
+    <header
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-4",
+        bordered && "border-border border-b pb-6",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span
+          className="surface-subtle text-text border-border flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-sm font-semibold tracking-wide"
+          aria-hidden="true"
+        >
+          {mark}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-text truncate text-lg font-semibold tracking-tight">{title}</h2>
+          {subtitle ? <div className="text-muted mt-1 text-sm">{subtitle}</div> : null}
+        </div>
       </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </header>
   );
 }

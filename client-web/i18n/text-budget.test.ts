@@ -46,6 +46,17 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
+ * `Notifications` rises on purpose on 2026-08-27, from 23/38 to the measured
+ * weight of the desktop notification vocabulary. The namespace grew from a
+ * handful of strings to sixteen, covering every event the OS is allowed to
+ * surface: incident assigned, critical, escalated, state changed, War Room
+ * message, direct message, release step validated, release state changed and
+ * release blocked. Each one is a title and a body of an OS notification, where
+ * the text is the entire interface — there is no surrounding screen to carry
+ * meaning. The prose is already at its floor: `Release #{id} is now {state}`
+ * cannot be shortened without losing which release or which state. This is a
+ * larger vocabulary, not looser writing.
+ *
  * `Common` rises once here, on purpose: the nine GIPHY picker strings moved out
  * of `Incidents` into the shared namespace they are actually rendered from, and
  * the two that had been copied into `DirectMessages` collapsed back into one
@@ -64,7 +75,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Settings: 100,
     Auth: 31,
     DirectMessages: 56,
-    Notifications: 23,
+    Notifications: 45,
     Sidebar: 26,
     TeamSwitcher: 11,
     Metadata: 7,
@@ -81,7 +92,7 @@ const CEILINGS: Record<string, Record<string, number>> = {
     Settings: 127,
     Auth: 39,
     DirectMessages: 71,
-    Notifications: 38,
+    Notifications: 71,
     Sidebar: 38,
     TeamSwitcher: 16,
     Metadata: 11,

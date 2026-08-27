@@ -30,6 +30,7 @@ export interface IncidentAssignee {
 
 export interface IncidentListItem extends Omit<Incident, "assignee"> {
   assignee: IncidentAssignee | null;
+  unread: boolean;
 }
 
 export interface IncidentCounts {
@@ -68,6 +69,7 @@ interface IncidentViewResponse {
 
 interface IncidentListItemResponse extends Omit<IncidentViewResponse, "assignee_id"> {
   assignee: IncidentAssignee | null;
+  unread?: boolean;
 }
 
 interface IncidentListResponse {
@@ -90,7 +92,8 @@ export type IncidentActivityItem =
   | {
       type: "system_event";
       id: string;
-      kind: "created" | "status_changed" | "assigned" | "severity_changed";
+      kind:
+        "created" | "status_changed" | "assigned" | "severity_changed" | "release_step_validated";
       actor: UserSummary | null;
       subject: UserSummary | null;
       data: Record<string, unknown>;
@@ -134,6 +137,7 @@ function normalizeIncidentListItem(incident: IncidentListItemResponse): Incident
     created_at: incident.created_at,
     created_by: incident.created_by,
     updated_at: incident.updated_at,
+    unread: incident.unread ?? false,
   };
 }
 
@@ -272,6 +276,20 @@ export function useIncidentActivity(incidentId: string) {
     // Capabilities are a property of the surface, not of a page.
     features: query.data?.pages[0]?.features ?? [],
   };
+}
+
+export function useMarkIncidentRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ incidentId, readThrough }: { incidentId: string; readThrough: string }) => {
+      const response = await apiFetch(`/api/incidents/${incidentId}/read`, {
+        method: "PUT",
+        body: JSON.stringify({ read_through: readThrough }),
+      });
+      if (!response.ok) throw new Error("incident_read_failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["incidents"] }),
+  });
 }
 
 export function useAddTimelineEntry() {

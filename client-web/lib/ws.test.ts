@@ -299,6 +299,53 @@ describe("desktop notification policy", () => {
     ).toBeNull();
   });
 
+  it("notifies peer messages and Incident/Release events without echoing the author", () => {
+    const notify = vi.fn();
+    const gate = createDesktopNotificationGate();
+    const events = [
+      {
+        type: "timeline_entry_added" as const,
+        incident_id: "incident-1",
+        entry: { entry_id: "entry-1", content: "Investigating", author: "peer", at: 1 },
+      },
+      {
+        type: "private_message_received" as const,
+        from: "peer",
+        to: "me",
+        content: "Can you review this?",
+        at: 2,
+      },
+      {
+        type: "incident_state_changed" as const,
+        incident_id: "incident-1",
+        new_state: "acknowledged",
+        by: "peer",
+      },
+      {
+        type: "release_step_validated" as const,
+        release_id: "release-1",
+        step: "Quality",
+        by: "peer",
+      },
+    ];
+
+    for (const event of events) {
+      expect(dispatchDesktopNotification(event, "me", translate, gate, notify)).toBe(true);
+    }
+    expect(notify).toHaveBeenCalledTimes(4);
+    expect(
+      desktopNotificationForEvent(
+        {
+          type: "timeline_entry_added",
+          incident_id: "incident-1",
+          entry: { entry_id: "entry-self", content: "Mine", author: "me", at: 3 },
+        },
+        "me",
+        translate,
+      ),
+    ).toBeNull();
+  });
+
   it("deduplicates the same frame and a replayed frame across a reconnect window", () => {
     const gate = createDesktopNotificationGate();
     const event = {

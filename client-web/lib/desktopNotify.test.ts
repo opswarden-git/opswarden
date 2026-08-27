@@ -40,4 +40,25 @@ describe("desktop notification bridge", () => {
       body: "Incident #abcd1234",
     });
   });
+
+  it("uses the browser Notification API outside Tauri", async () => {
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+    const shown = vi.fn();
+    class BrowserNotification {
+      static permission: NotificationPermission = "granted";
+      static requestPermission = vi.fn(async () => "granted" as NotificationPermission);
+      constructor(title: string, options?: NotificationOptions) {
+        shown(title, options);
+      }
+    }
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      value: BrowserNotification,
+    });
+
+    await notifyDesktop("New message", "Investigating");
+
+    expect(shown).toHaveBeenCalledWith("New message", { body: "Investigating" });
+    Reflect.deleteProperty(window, "Notification");
+  });
 });

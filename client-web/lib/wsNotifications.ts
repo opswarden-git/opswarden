@@ -4,8 +4,12 @@ import type { WsServerEvent } from "@/lib/ws";
 type NotificationEvent = Extract<
   WsServerEvent,
   | { type: "incident_created" }
+  | { type: "incident_state_changed" }
   | { type: "incident_escalated" }
   | { type: "incident_assigned" }
+  | { type: "timeline_entry_added" }
+  | { type: "private_message_received" }
+  | { type: "release_step_validated" }
   | { type: "release_state_changed" }
 >;
 
@@ -15,6 +19,16 @@ type NotificationTranslator = (
     | "incidentCriticalTitle"
     | "incidentEscalatedTitle"
     | "incidentReference"
+    | "incidentStateTitle"
+    | "incidentStateBody"
+    | "warRoomMessageTitle"
+    | "warRoomMessageBody"
+    | "directMessageTitle"
+    | "directMessageBody"
+    | "releaseStepTitle"
+    | "releaseStepBody"
+    | "releaseStateTitle"
+    | "releaseStateBody"
     | "releaseBlockedTitle"
     | "releaseBlockedBody",
   values?: Record<string, string>,
@@ -51,6 +65,18 @@ export function desktopNotificationForEvent(
     };
   }
 
+  if (event.type === "incident_state_changed") {
+    if (!currentUserId || event.by === currentUserId) return null;
+    return {
+      fingerprint: `incident-state:${event.incident_id}:${event.new_state}:${event.by}`,
+      title: translate("incidentStateTitle"),
+      body: translate("incidentStateBody", {
+        id: event.incident_id.slice(0, 8),
+        state: event.new_state,
+      }),
+    };
+  }
+
   if (event.type === "incident_escalated") {
     if (
       !currentUserId ||
@@ -69,12 +95,53 @@ export function desktopNotificationForEvent(
     };
   }
 
-  if (event.new_state !== "blocked") return null;
-  return {
-    fingerprint: `release-blocked:${event.release_id}`,
-    title: translate("releaseBlockedTitle"),
-    body: translate("releaseBlockedBody", { id: event.release_id.slice(0, 8) }),
-  };
+  if (event.type === "timeline_entry_added") {
+    if (!currentUserId || event.entry.author === currentUserId) return null;
+    return {
+      fingerprint: `incident-message:${event.incident_id}:${event.entry.entry_id}`,
+      title: translate("warRoomMessageTitle"),
+      body: translate("warRoomMessageBody", {
+        id: event.incident_id.slice(0, 8),
+        preview: event.entry.content.slice(0, 120),
+      }),
+    };
+  }
+
+  if (event.type === "private_message_received") {
+    if (!currentUserId || event.to !== currentUserId || event.from === currentUserId) return null;
+    return {
+      fingerprint: `direct-message:${event.from}:${event.at}`,
+      title: translate("directMessageTitle"),
+      body: translate("directMessageBody", { preview: event.content.slice(0, 120) }),
+    };
+  }
+
+  if (event.type === "release_step_validated") {
+    if (!currentUserId || event.by === currentUserId) return null;
+    return {
+      fingerprint: `release-step:${event.release_id}:${event.step}:${event.by}`,
+      title: translate("releaseStepTitle"),
+      body: translate("releaseStepBody", {
+        id: event.release_id.slice(0, 8),
+        step: event.step,
+      }),
+    };
+  }
+
+  return event.new_state === "blocked"
+    ? {
+        fingerprint: `release-blocked:${event.release_id}`,
+        title: translate("releaseBlockedTitle"),
+        body: translate("releaseBlockedBody", { id: event.release_id.slice(0, 8) }),
+      }
+    : {
+        fingerprint: `release-state:${event.release_id}:${event.new_state}`,
+        title: translate("releaseStateTitle"),
+        body: translate("releaseStateBody", {
+          id: event.release_id.slice(0, 8),
+          state: event.new_state,
+        }),
+      };
 }
 
 const NOTIFICATION_DEDUP_WINDOW_MS = 30_000;

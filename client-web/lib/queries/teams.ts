@@ -125,6 +125,24 @@ export function useJoinTeam() {
   });
 }
 
+export function useAddTeamMember(teamId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiFetch(`/api/teams/${teamId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "add_member_failed");
+      }
+    },
+    onSuccess: () => invalidateTeamScope(queryClient, teamId),
+  });
+}
+
 /**
  * Team membership/ownership mutations. On error the thrown message is the
  * backend's stable error `code` (e.g. `manager_cannot_leave`, `not_manager`) so

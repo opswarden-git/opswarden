@@ -10,6 +10,7 @@ import {
   useAddTimelineEntry,
   useAvailableReactions,
   useIncidentActivity,
+  useMarkIncidentRead,
 } from "@/lib/queries/incidents";
 import { useAuthStore } from "@/store/auth";
 import { useCollaboratorCursors, useTypingUsers, useWsStore } from "@/lib/ws";
@@ -54,6 +55,8 @@ function SystemEventItem({
   const toStatus = incidentStatus(toValue);
   const fromSeverity = incidentSeverity(fromValue);
   const toSeverity = incidentSeverity(toValue);
+  const releaseStep = valueAsString(item.data, "step");
+  const releaseTitle = valueAsString(item.data, "release_title");
   const initialStatus = incidentStatus(valueAsString(item.data, "status"));
   const initialSeverity = incidentSeverity(valueAsString(item.data, "severity"));
   const timestamp = new Intl.DateTimeFormat(locale, {
@@ -86,6 +89,10 @@ function SystemEventItem({
           assignee: item.subject?.email ?? t("deletedUser"),
         })}
       </span>
+    ) : item.kind === "release_step_validated" && releaseStep && releaseTitle ? (
+      <span>
+        {t("activityReleaseStepValidated", { actor, release: releaseTitle, step: releaseStep })}
+      </span>
     ) : item.kind === "created" ? (
       <>
         <span>{t("activityCreated", { actor })}</span>
@@ -96,7 +103,9 @@ function SystemEventItem({
       <span>
         {item.kind === "status_changed"
           ? t("activityStatusChanged", { actor })
-          : t("activitySeverityChanged", { actor })}
+          : item.kind === "severity_changed"
+            ? t("activitySeverityChanged", { actor })
+            : t("activityReleaseProgressed", { actor })}
       </span>
     );
 
@@ -197,6 +206,8 @@ export function IncidentActivity({
     isLoading,
   } = useIncidentActivity(incidentId);
   const { data: availableReactions = [] } = useAvailableReactions();
+  const { mutate: markIncidentRead } = useMarkIncidentRead();
+  const lastMarkedReadThrough = React.useRef("");
   const cursorMap = useCollaboratorCursors(incidentId);
   const cursors = React.useMemo(() => Object.values(cursorMap), [cursorMap]);
   const sendJson = useWsStore((state) => state.sendJson);
@@ -210,6 +221,20 @@ export function IncidentActivity({
       ),
     [data],
   );
+  const newestActivityAt = items.at(-1)?.created_at ?? "";
+
+  React.useEffect(() => {
+    if (isLoading || !newestActivityAt || lastMarkedReadThrough.current === newestActivityAt) return;
+    lastMarkedReadThrough.current = newestActivityAt;
+    markIncidentRead(
+      { incidentId, readThrough: newestActivityAt },
+      {
+        onError: () => {
+          lastMarkedReadThrough.current = "";
+        },
+      },
+    );
+  }, [incidentId, isLoading, markIncidentRead, newestActivityAt]);
   return (
     <section
       aria-label={t("warRoomConversation")}

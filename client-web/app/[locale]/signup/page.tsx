@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { StepCredentials } from "@/components/onboarding/StepCredentials";
-import { StepStation } from "@/components/onboarding/StepStation";
+import { StepTeam } from "@/components/onboarding/StepTeam";
 import { StepVerification } from "@/components/onboarding/StepVerification";
 import type { OnboardingData, UpdateOnboardingData } from "@/components/onboarding/types";
 import { useTranslations } from "next-intl";
@@ -16,7 +16,7 @@ export default function SignupPage() {
   const [data, setData] = useState<OnboardingData>({
     email: "",
     password: "",
-    stationName: "",
+    teamName: "",
   });
 
   const updateData: UpdateOnboardingData = (fields) => {
@@ -54,9 +54,7 @@ export default function SignupPage() {
 
         <div className="flex w-full flex-col gap-4">
           {step === 1 && <StepCredentials data={data} updateData={updateData} next={next} />}
-          {step === 2 && (
-            <StepStation data={data} updateData={updateData} next={next} back={back} />
-          )}
+          {step === 2 && <StepTeam data={data} updateData={updateData} next={next} back={back} />}
           {step === 3 && <StepVerification data={data} back={back} />}
         </div>
 

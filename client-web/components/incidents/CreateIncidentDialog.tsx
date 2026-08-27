@@ -1,5 +1,4 @@
 import React, { useRef, useState } from "react";
-import { AlertCircle } from "lucide-react";
 import { useCreateIncident, IncidentSeverity } from "@/lib/queries/incidents";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -41,14 +40,8 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
         </Button>
       }
       title={t("declareTitle")}
-      description={t("declareWarning")}
-      closeLabel={t("close")}
+      titleHidden
       initialFocus={titleRef}
-      icon={
-        <div className="bg-sev-critical/15 text-sev-critical flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <AlertCircle className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
       footer={
         <>
           <DialogClose>
@@ -79,7 +72,6 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
-            placeholder={t("titlePlaceholder")}
           />
         </div>
 

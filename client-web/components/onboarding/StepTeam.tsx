@@ -11,12 +11,12 @@ interface StepProps {
   back: () => void;
 }
 
-export function StepStation({ data, updateData, next, back }: StepProps) {
+export function StepTeam({ data, updateData, next, back }: StepProps) {
   const t = useTranslations("Onboarding");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!data.stationName) return;
+    if (!data.teamName) return;
     next();
   };
 
@@ -24,18 +24,18 @@ export function StepStation({ data, updateData, next, back }: StepProps) {
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <label htmlFor="station-name" className="text-muted text-xs font-medium">
-            {t("organization")}
+          <label htmlFor="team-name" className="text-muted text-xs font-medium">
+            {t("teamName")}
           </label>
           <div className="relative">
             <Building2 className="text-muted pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <input
-              id="station-name"
+              id="team-name"
               type="text"
               required
-              placeholder={t("organizationPlaceholder")}
-              value={data.stationName || ""}
-              onChange={(e) => updateData({ stationName: e.target.value })}
+              placeholder={t("teamNamePlaceholder")}
+              value={data.teamName || ""}
+              onChange={(e) => updateData({ teamName: e.target.value })}
               className="ow-input flex h-10 w-full rounded-md py-2 pr-3 pl-10 text-sm transition-colors"
             />
           </div>

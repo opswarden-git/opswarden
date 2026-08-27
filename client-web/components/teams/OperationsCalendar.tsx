@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, History, Rocket, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
@@ -46,11 +46,13 @@ function calendarDays(month: Date) {
   return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
 }
 
-const eventClasses: Record<OperationsCalendarEvent["type"], string> = {
-  incident: "bg-status-danger text-white hover:bg-status-danger/90",
-  release: "bg-status-info text-white hover:bg-status-info/90",
-  run: "bg-status-neutral text-white hover:bg-status-neutral/90",
+const eventIcons = {
+  incident: ShieldAlert,
+  release: Rocket,
+  run: History,
 };
+
+const eventClassName = "border-border bg-panel-2 text-text hover:bg-panel border";
 
 const visibleEventLimit = 2;
 const hourHeight = 60;
@@ -84,6 +86,7 @@ function CalendarEventLink({
 }) {
   const eventDate = new Date(event.occurredAt);
   const typeLabel = labels[event.type];
+  const EventIcon = eventIcons[event.type];
 
   return (
     <Link
@@ -93,9 +96,14 @@ function CalendarEventLink({
       className={cn(
         "min-w-0 rounded px-1.5 text-[11px] leading-4 font-medium transition-colors",
         week ? "absolute right-1 left-1 z-10 overflow-hidden py-1" : "flex items-center gap-1 py-1",
-        eventClasses[event.type],
+        eventClassName,
       )}
     >
+      <EventIcon
+        className="inline-block h-3 w-3 shrink-0 align-[-1px]"
+        strokeWidth={1.8}
+        aria-hidden="true"
+      />
       <time className="shrink-0 tabular-nums" dateTime={event.occurredAt}>
         {timeFormatter.format(eventDate)}
       </time>
@@ -285,7 +293,7 @@ export function OperationsCalendar({
                         className={cn(
                           "text-muted inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs tabular-nums",
                           !belongsToMonth && "opacity-45",
-                          key === todayKey && "bg-gold text-gold-ink font-semibold opacity-100",
+                          key === todayKey && "text-gold font-semibold opacity-100",
                         )}
                       >
                         {date.getDate()}
@@ -339,7 +347,7 @@ export function OperationsCalendar({
                     className={cn(
                       "mt-1 inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-sm tabular-nums",
                       dayKey(date) === todayKey
-                        ? "bg-gold text-gold-ink font-semibold"
+                        ? "text-gold font-semibold"
                         : "text-text",
                     )}
                   >
@@ -427,12 +435,15 @@ export function OperationsCalendar({
       )}
 
       <footer className="border-border flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-2">
-        {(["incident", "release", "run"] as const).map((type) => (
-          <span key={type} className="text-muted inline-flex items-center gap-1.5 text-xs">
-            <span className={cn("h-2 w-2 rounded-sm", eventClasses[type].split(" ")[0])} />
-            {labels[type]}
-          </span>
-        ))}
+        {(["incident", "release", "run"] as const).map((type) => {
+          const EventIcon = eventIcons[type];
+          return (
+            <span key={type} className="text-muted inline-flex items-center gap-1.5 text-xs">
+              <EventIcon className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+              {labels[type]}
+            </span>
+          );
+        })}
       </footer>
     </section>
   );

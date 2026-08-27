@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ConversationMessage } from "@/components/messages/ConversationMessage";
+import { memberDisplayName } from "@/components/teams/MemberAvatar";
 import {
   downloadPrivateMessageAttachment,
   type PrivateMessage,
@@ -36,7 +37,7 @@ export function DirectMessageItem({
         fileName: attachment.file_name,
         sizeBytes: attachment.size_bytes,
       }))}
-      authorLabel={peerEmail}
+      authorLabel={memberDisplayName(peerEmail)}
       availableReactions={availableReactions}
       content={message.content}
       continuesAbove={continuesAbove}

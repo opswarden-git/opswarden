@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, Globe2, Unplug, Webhook } from "lucide-react";
+import { CheckCircle2, ChevronRight, Clock3, Globe2, Unplug, Webhook } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import React, { useState, useSyncExternalStore } from "react";
@@ -100,7 +100,7 @@ function ConnectionForm({
           ? t("reconfigureService", { service: service.label })
           : t("connectService", { service: service.label })
       }
-      className="border-border bg-panel-2/20 border-t px-4 py-5 md:px-5"
+      className="px-4 py-4 md:px-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (!valid) return;
@@ -113,94 +113,94 @@ function ConnectionForm({
         );
       }}
     >
-      <div className="max-w-2xl space-y-5">
-        {service.connection?.oauth ? (
-          <div className="surface-subtle border-border space-y-3 rounded-md border p-4">
-            <div>
-              <p className="text-text text-sm font-medium">{service.connection.oauth.label}</p>
-              <p className="text-muted mt-1 text-xs">{service.connection.oauth.description}</p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              loading={startOAuth.isPending}
-              onClick={() =>
-                startOAuth.mutate(
-                  { locale, service: service.name },
-                  {
-                    onSuccess: ({ authorization_url }) => window.location.assign(authorization_url),
-                  },
-                )
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start gap-3">
+          {fields.map((field) => (
+            <FormField
+              key={field.name}
+              className="min-w-56 flex-1"
+              label={field.label}
+              caption={
+                connection && field.input_type === "password"
+                  ? t("blankPreservesExisting")
+                  : field.name === "endpoint_url"
+                    ? field.description
+                    : undefined
               }
+              required={field.required && !connection}
             >
-              {service.connection.oauth.label}
+              {field.input_type === "select" ? (
+                <select
+                  value={values[field.name] ?? ""}
+                  onChange={(event) =>
+                    setValues((current) => ({ ...current, [field.name]: event.target.value }))
+                  }
+                  className="ow-input h-10 w-full rounded-md px-3 text-sm"
+                >
+                  {field.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.input_type}
+                  value={values[field.name] ?? ""}
+                  onChange={(event) =>
+                    setValues((current) => ({ ...current, [field.name]: event.target.value }))
+                  }
+                  className="ow-input h-10 w-full rounded-md px-3 text-sm"
+                  autoComplete={field.input_type === "password" ? "new-password" : undefined}
+                />
+              )}
+            </FormField>
+          ))}
+          <div className={`flex items-center gap-2 ${fields.length > 0 ? "mt-7" : ""}`}>
+            <Button
+              type="submit"
+              size="lg"
+              variant="primary"
+              disabled={!valid}
+              loading={configure.isPending}
+            >
+              {t("connect")}
             </Button>
-            {startOAuth.error ? (
-              <Alert tone="danger">{t("requestFailed", { code: startOAuth.error.message })}</Alert>
+            {service.connection?.oauth ? (
+              <Button
+                type="button"
+                size="lg"
+                variant="secondary"
+                className="border-0 bg-[#0d1117] text-white hover:bg-[#161b22]"
+                loading={startOAuth.isPending}
+                onClick={() =>
+                  startOAuth.mutate(
+                    { locale, service: service.name },
+                    {
+                      onSuccess: ({ authorization_url }) =>
+                        window.location.assign(authorization_url),
+                    },
+                  )
+                }
+              >
+                <Image
+                  src="/assets/github-patched.webp"
+                  alt=""
+                  width={18}
+                  height={18}
+                  className="h-[18px] w-[18px] object-contain"
+                />
+                {service.connection.oauth.label}
+              </Button>
             ) : null}
           </div>
+        </div>
+        {startOAuth.error ? (
+          <Alert tone="danger">{t("requestFailed", { code: startOAuth.error.message })}</Alert>
         ) : null}
-        {service.connection?.oauth && fields.length > 0 ? (
-          <div className="border-border border-t pt-5">
-            <p className="text-muted text-xs">{t("manualConnectionAlternative")}</p>
-          </div>
-        ) : null}
-        {fields.map((field) => (
-          <FormField
-            key={field.name}
-            label={field.label}
-            caption={
-              connection && field.required
-                ? `${field.description} ${t("blankPreservesExisting")}`
-                : field.description
-            }
-            required={field.required && !connection}
-          >
-            {field.input_type === "select" ? (
-              <select
-                value={values[field.name] ?? ""}
-                onChange={(event) =>
-                  setValues((current) => ({ ...current, [field.name]: event.target.value }))
-                }
-                className="ow-input h-10 w-full rounded-md px-3 text-sm"
-              >
-                {field.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={field.input_type}
-                value={values[field.name] ?? ""}
-                onChange={(event) =>
-                  setValues((current) => ({ ...current, [field.name]: event.target.value }))
-                }
-                className="ow-input h-10 w-full rounded-md px-3 text-sm"
-                autoComplete={field.input_type === "password" ? "new-password" : undefined}
-              />
-            )}
-          </FormField>
-        ))}
         {configure.error ? (
           <Alert tone="danger">{t("requestFailed", { code: configure.error.message })}</Alert>
         ) : null}
-        <div className="flex justify-end gap-2 pt-1">
-          <Button size="lg" onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button
-            type="submit"
-            size="lg"
-            variant="primary"
-            disabled={!valid}
-            loading={configure.isPending}
-          >
-            {t("saveConnection")}
-          </Button>
-        </div>
       </div>
     </form>
   );
@@ -258,7 +258,9 @@ export function ConnectionsView({
             emptyLabel: t("noInactiveIntegrations"),
             items: integrations.filter(({ connection }) => !connection),
           },
-        ].map((group) => (
+        ]
+          .filter((group) => group.id !== "active-integrations" || group.items.length > 0)
+          .map((group) => (
           <section key={group.id} aria-labelledby={group.id}>
             <div className="mb-2 flex items-baseline gap-2 px-1">
               <h2 id={group.id} className="text-text text-sm font-semibold">
@@ -291,21 +293,29 @@ export function ConnectionsView({
                           {service.label}
                         </h3>
                         {connection ? <ConnectionStatus connection={connection} /> : null}
-                        <Button
-                          size="sm"
-                          variant={connection ? "secondary" : "primary"}
+                        <button
+                          type="button"
+                          className="text-muted hover:text-text focus-visible:ring-gold/50 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                          aria-label={
+                            connection
+                              ? t("reconfigureService", { service: service.label })
+                              : t("connectService", { service: service.label })
+                          }
                           aria-expanded={isExpanded}
                           aria-controls={panelId}
                           onClick={() => setEditing(isExpanded ? null : service.name)}
                         >
-                          {connection ? t("configure") : t("connect")}
-                        </Button>
+                          <ChevronRight
+                            className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                            aria-hidden="true"
+                          />
+                        </button>
                       </div>
 
                       {isExpanded ? (
                         <div id={panelId}>
                           {connection ? (
-                            <div className="border-border space-y-4 border-t px-4 py-4 md:px-5">
+                            <div className="space-y-4 px-4 py-4 md:px-5">
                               {connection.webhook_path ? (
                                 <div className="flex items-center gap-2">
                                   <code className="text-muted min-w-0 flex-1 truncate text-xs">
@@ -420,7 +430,7 @@ export function ConnectionsView({
               )}
             </div>
           </section>
-        ))}
+          ))}
       </div>
       <ConfirmDialog
         open={!!deleting}

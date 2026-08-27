@@ -219,10 +219,15 @@ const sameTextAllowed = new Set([
   "Incidents.fieldDescription",
   "Incidents.colIncident",
   "Incidents.incidentBreadcrumb",
+  "Incidents.linkedReleases",
   "Incidents.moreActions",
   "Incidents.title",
+  // Pure interpolation: the body of a direct-message notification is the
+  // message itself, so there is no prose to translate.
+  "Notifications.directMessageBody",
   "Onboarding.operatorNamePlaceholder",
-  "Onboarding.organizationPlaceholder",
+  "Onboarding.teamNamePlaceholder",
+  "Teams.namePlaceholder",
   "Onboarding.timezoneParis",
   "Releases.colAction",
   "Releases.colRelease",

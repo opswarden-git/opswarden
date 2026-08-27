@@ -21,6 +21,7 @@ function readsDesktopRail() {
 export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   context?: ReactNode;
   title?: ReactNode;
+  titleAside?: ReactNode;
   description?: ReactNode;
   metadata?: ReactNode;
   actions?: ReactNode;
@@ -34,9 +35,10 @@ export function PageHeader({
   description,
   metadata,
   title,
+  titleAside,
   ...props
 }: PageHeaderProps) {
-  const hasSummary = context || title || description || metadata;
+  const hasSummary = context || title || titleAside || description || metadata;
   const actionsHost = usePageActionsHost();
   const usesDesktopRail = useSyncExternalStore(
     subscribeToDesktopRail,
@@ -64,14 +66,21 @@ export function PageHeader({
         {...props}
       >
         {hasSummary ? (
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             {context ? (
               <div className="text-gold text-xs font-semibold tracking-wide uppercase">
                 {context}
               </div>
             ) : null}
-            {title ? (
-              <h1 className="text-text text-3xl font-semibold tracking-[-0.025em]">{title}</h1>
+            {title || titleAside ? (
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                {title ? (
+                  <h1 className="text-text min-w-0 text-3xl font-semibold tracking-[-0.025em]">
+                    {title}
+                  </h1>
+                ) : null}
+                {titleAside ? <div className="shrink-0">{titleAside}</div> : null}
+              </div>
             ) : null}
             {description ? (
               <p className="text-muted max-w-3xl text-sm leading-6">{description}</p>

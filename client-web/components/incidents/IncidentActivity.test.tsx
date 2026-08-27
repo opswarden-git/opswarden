@@ -65,6 +65,24 @@ const activity = [
     created_at: "2026-07-25T10:03:30Z",
   },
   {
+    type: "system_event" as const,
+    id: "event-release-step",
+    kind: "release_step_validated" as const,
+    actor: { user_id: "manager-1", email: "manager@example.com" },
+    subject: null,
+    data: { release_id: "release-1", release_title: "v2.4.0", step: "Deploy globally" },
+    created_at: "2026-07-25T10:03:45Z",
+  },
+  {
+    type: "system_event" as const,
+    id: "event-release-step-partial",
+    kind: "release_step_validated" as const,
+    actor: { user_id: "manager-1", email: "manager@example.com" },
+    subject: null,
+    data: {},
+    created_at: "2026-07-25T10:03:50Z",
+  },
+  {
     type: "human_note" as const,
     entry_id: "entry-1",
     author: { user_id: "user-1", email: "responder@example.com" },
@@ -93,6 +111,7 @@ vi.mock("@/lib/queries/incidents", () => ({
     features: ["send_text", "attach_files", "collaborative_cursors"],
     isLoading: false,
   }),
+  useMarkIncidentRead: () => ({ mutate: vi.fn() }),
   useAvailableReactions: () => ({ data: ["👍", "✅"] }),
   useAddTimelineEntry: () => addEntry,
   useEditTimelineEntry: () => editEntry,
@@ -118,6 +137,12 @@ describe("IncidentActivity", () => {
     expect(screen.getAllByText("activityTransitionFrom")).toHaveLength(3);
     expect(screen.getAllByText("activityTransitionTo")).toHaveLength(3);
     expect(screen.queryByText(/activityEventCount/)).not.toBeInTheDocument();
+    // Une release qui avance est de l'histoire de l'incident qu'elle bloque.
+    expect(
+      screen.getByText("activityReleaseStepValidated:manager@example.com:v2.4.0:Deploy globally"),
+    ).toBeInTheDocument();
+    // Sans titre ni étape lisibles, la ligne reste vraie plutôt que trouée.
+    expect(screen.getByText("activityReleaseProgressed:manager@example.com")).toBeInTheDocument();
     expect(screen.getAllByText("statusOpen")).toHaveLength(3);
     expect(screen.getAllByText("statusAcknowledged")).toHaveLength(2);
     expect(screen.getAllByText("severityHigh")).toHaveLength(2);

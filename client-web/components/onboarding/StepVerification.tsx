@@ -44,10 +44,10 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
         useAuthStore.getState().setUser(user);
 
         let createdTeamId = "";
-        if (data.stationName) {
+        if (data.teamName) {
           const teamRes = await apiFetch("/api/teams", {
             method: "POST",
-            body: JSON.stringify({ name: data.stationName }),
+            body: JSON.stringify({ name: data.teamName }),
           });
           if (teamRes.ok) createdTeamId = await teamRes.text();
         }

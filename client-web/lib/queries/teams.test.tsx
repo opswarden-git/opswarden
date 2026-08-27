@@ -4,6 +4,7 @@ import { createTestQueryClient, queryClientWrapper } from "../../test/reactQuery
 import { apiFetch } from "../api";
 import { useWsStore } from "../ws";
 import {
+  useAddTeamMember,
   useBanMember,
   useCreateTeam,
   useDeleteTeam,
@@ -89,6 +90,25 @@ describe("team queries", () => {
 });
 
 describe("team membership mutations", () => {
+  it("adds an existing account to the Team by user ID", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    mockedApiFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const addMember = renderHook(() => useAddTeamMember("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await addMember.result.current.mutateAsync("71343518-1187-4b90-927c-bd44b4b22dd5");
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/teams/team-1/members", {
+      method: "POST",
+      body: JSON.stringify({ user_id: "71343518-1187-4b90-927c-bd44b4b22dd5" }),
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-members", "team-1"] });
+  });
+
   it("creates and joins teams, refreshes the list and resyncs the socket scope", async () => {
     const queryClient = createTestQueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");

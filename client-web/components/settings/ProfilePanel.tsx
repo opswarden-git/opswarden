@@ -2,45 +2,46 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, UserRound } from "lucide-react";
 import { useCreateTeam, useTeams } from "@/lib/queries/teams";
 import { useAuthStore } from "@/store/auth";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { memberDisplayName, memberInitials } from "@/components/teams/MemberAvatar";
+import { memberDisplayName } from "@/components/teams/MemberAvatar";
 import { IdentityHeader, SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
-/** Station setup (when the user has no team yet) + read-only user identity card. */
+/** Team setup (when the user has no team yet) + read-only user identity card. */
 export function ProfilePanel({
   showIdentityHeader = true,
-  showStationSetup = true,
+  showTeamSetup = true,
 }: {
   showIdentityHeader?: boolean;
-  showStationSetup?: boolean;
+  showTeamSetup?: boolean;
 }) {
   const t = useTranslations("Settings");
+  const locale = useLocale();
   const tErr = useTranslations("errors");
   const router = useRouter();
   const params = useParams();
   const currentLocale = params.locale as string;
   const searchParams = useSearchParams();
-  const [stationName, setStationName] = useState("");
+  const [teamName, setTeamName] = useState("");
   const user = useAuthStore((state) => state.user);
   const email = user?.email ?? t("unknown");
   const { data: teams } = useTeams();
   const createTeam = useCreateTeam();
-  const needsStationSetup =
-    showStationSetup && (searchParams.get("setup") === "station" || teams?.length === 0);
+  const needsTeamSetup =
+    showTeamSetup && (searchParams.get("setup") === "team" || teams?.length === 0);
 
-  const handleCreateStation = (e: React.FormEvent) => {
+  const handleCreateTeam = (e: React.FormEvent) => {
     e.preventDefault();
-    const name = stationName.trim();
+    const name = teamName.trim();
     if (!name) return;
 
     createTeam.mutate(name, {
       onSuccess: () => {
-        setStationName("");
+        setTeamName("");
         router.replace(`/${currentLocale}/settings`);
       },
     });
@@ -48,7 +49,7 @@ export function ProfilePanel({
 
   return (
     <>
-      {needsStationSetup && (
+      {needsTeamSetup && (
         <div className="surface border-gold/30 rounded-md p-6">
           <div className="mb-4 flex items-start gap-3">
             <ShieldAlert className="text-gold mt-0.5 h-5 w-5 shrink-0" />
@@ -57,14 +58,13 @@ export function ProfilePanel({
               <p className="text-gold/70 mt-1 text-sm">{t("setupDesc")}</p>
             </div>
           </div>
-          <form onSubmit={handleCreateStation} className="flex flex-col gap-3 sm:flex-row">
+          <form onSubmit={handleCreateTeam} className="flex flex-col gap-3 sm:flex-row">
             <label className="min-w-0 flex-1">
-              <span className="sr-only">{t("organization")}</span>
+              <span className="text-text mb-2 block text-sm font-medium">{t("teamName")}</span>
               <input
                 type="text"
-                value={stationName}
-                onChange={(e) => setStationName(e.target.value)}
-                placeholder={t("organization")}
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
                 className="ow-input flex h-10 w-full min-w-0 rounded-md px-3 py-2 text-sm transition-colors"
               />
             </label>
@@ -73,9 +73,9 @@ export function ProfilePanel({
               variant="primary"
               size="lg"
               loading={createTeam.isPending}
-              disabled={!stationName.trim()}
+              disabled={!teamName.trim()}
             >
-              {createTeam.isPending ? t("creating") : t("createOrganization")}
+              {createTeam.isPending ? t("creating") : t("createTeam")}
             </Button>
           </form>
           {createTeam.isError && (
@@ -90,7 +90,7 @@ export function ProfilePanel({
 
       {showIdentityHeader ? (
         <IdentityHeader
-          mark={memberInitials(email)}
+          mark={<UserRound className="text-gold h-7 w-7" aria-hidden="true" />}
           title={user?.email ? memberDisplayName(user.email) : t("user")}
         />
       ) : null}
@@ -114,6 +114,15 @@ export function ProfilePanel({
         >
           <span className="text-muted font-mono text-xs break-all">{user?.id ?? t("unknown")}</span>
         </SettingsRow>
+        {user?.created_at ? (
+          <SettingsRow label={t("memberSince")}>
+            <time dateTime={user.created_at}>
+              {new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
+                new Date(user.created_at),
+              )}
+            </time>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
     </>
   );

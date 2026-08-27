@@ -112,6 +112,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
       className="bg-panel/25 border-border h-full overflow-y-auto border-l"
     >
       <TeamPresenceList
+        className="p-2"
         activePeerId={peer.user_id}
         members={members}
         presentUserIds={watchers}
@@ -143,8 +144,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
           >
             {isRoomsRailOpen ? roomNavigation : null}
             <RailToggle
-              className="top-1/2 right-0 -translate-y-1/2"
-              direction={isRoomsRailOpen ? "left" : "right"}
+              side="right"
               label={t(isRoomsRailOpen ? "collapseRooms" : "expandRooms")}
               onClick={() => setIsRoomsRailOpen((open) => !open)}
             />
@@ -272,8 +272,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
             data-people-rail-open={isPeopleRailOpen ? "true" : "false"}
           >
             <RailToggle
-              className="top-1/2 left-0 -translate-y-1/2"
-              direction={isPeopleRailOpen ? "right" : "left"}
+              side="left"
               label={t(isPeopleRailOpen ? "collapseMembers" : "expandMembers")}
               onClick={() => setIsPeopleRailOpen((open) => !open)}
             />

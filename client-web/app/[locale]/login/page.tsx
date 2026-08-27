@@ -44,7 +44,7 @@ export default function LoginPage() {
       const teamsRes = await apiFetch("/api/teams");
       if (teamsRes.ok) {
         const teams = (await teamsRes.json()) as Team[];
-        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=station", {
+        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=team", {
           locale: user.locale,
         });
         return;
@@ -135,6 +135,7 @@ export default function LoginPage() {
                 <input
                   id="login-email"
                   type="email"
+                  autoComplete="email"
                   placeholder={t("emailPlaceholder")}
                   required
                   value={email}
@@ -150,7 +151,7 @@ export default function LoginPage() {
                   <input
                     id="login-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    autoComplete="current-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -181,6 +182,10 @@ export default function LoginPage() {
                   fullWidth
                   onClick={() => {
                     const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
+                    // Not a Next.js page: `/api/*` is rewritten to the Rust server,
+                    // which answers with a redirect to Google's consent screen. A
+                    // client-side navigation cannot leave the origin.
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                     window.location.href = `/api/auth/google/start?locale=${locale}`;
                   }}
                 >

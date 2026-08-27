@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Team } from "@/lib/queries/teams";
 import { useAuthStore } from "@/store/auth";
@@ -22,13 +22,24 @@ vi.mock("@/i18n/routing", () => ({
   ),
 }));
 
-vi.mock("@/lib/ws", () => ({ useTeamOnline: () => ["manager-1", "responder-1"] }));
+let onlineMembers = ["manager-1", "responder-1"];
+vi.mock("@/lib/ws", () => ({ useTeamOnline: () => onlineMembers }));
 
 const setRole = { error: null, isPending: false, mutate: vi.fn() };
 const transfer = { error: null, isPending: false, mutate: vi.fn() };
 const kick = { error: null, isPending: false, mutate: vi.fn() };
 const ban = { error: null, isPending: false, mutate: vi.fn() };
 const unban = { error: null, isPending: false, variables: undefined, mutate: vi.fn() };
+const bannedMember = {
+  user: { user_id: "banned-1", email: "banned@example.com" },
+  kind: "permanent",
+  expires_at: null,
+  reason: null,
+  moderator: null,
+  created_at: "2026-07-23T10:00:00Z",
+  active: true,
+};
+let teamBans = [bannedMember];
 const members = [
   {
     user_id: "manager-1",
@@ -56,21 +67,7 @@ vi.mock("@/lib/queries/teams", () => ({
   useTransferManager: () => transfer,
   useKickMember: () => kick,
   useBanMember: () => ban,
-  useTeamBans: () => ({
-    data: [
-      {
-        user: { user_id: "banned-1", email: "banned@example.com" },
-        kind: "permanent",
-        expires_at: null,
-        reason: null,
-        moderator: null,
-        created_at: "2026-07-23T10:00:00Z",
-        active: true,
-      },
-    ],
-    isLoading: false,
-    error: null,
-  }),
+  useTeamBans: () => ({ data: teamBans, isLoading: false, error: null }),
   useUnbanMember: () => unban,
 }));
 const team: Team = {
@@ -88,18 +85,17 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   useAuthStore.getState().logout();
+  teamBans = [bannedMember];
+  onlineMembers = ["manager-1", "responder-1"];
 });
 
 describe("TeamRoster", () => {
-  it("keeps the loading rows on the same responsive four-column grid", () => {
+  it("keeps loading rows aligned with the compact identity layout", () => {
     render(<TeamRosterRowsSkeleton />);
 
     const skeleton = screen.getByTestId("team-roster-skeleton");
     expect(skeleton.children).toHaveLength(3);
-    expect(skeleton.firstElementChild).toHaveClass(
-      "md:grid",
-      "md:grid-cols-[auto_minmax(0,1fr)_auto_auto]",
-    );
+    expect(skeleton.firstElementChild).toHaveClass("flex", "items-center");
   });
 
   it("makes each peer row a direct link to its conversation", () => {
@@ -108,8 +104,8 @@ describe("TeamRoster", () => {
       .setUser({ id: "manager-1", email: "manager@example.com", locale: "en" });
     render(<TeamRoster team={team} />);
 
-    expect(screen.getAllByText("first.responder@example.com").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("observer@example.com").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("First Responder").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Observer").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("link", { name: "openConversation:first.responder@example.com" }),
     ).toHaveAttribute("href", "/teams/team-1/messages/responder-1");
@@ -119,30 +115,52 @@ describe("TeamRoster", () => {
     expect(
       screen.queryByRole("link", { name: "openConversation:manager@example.com" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("onlineCount:2")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("heading", { name: "activeMembers:2" }).parentElement!).getByText("2"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("heading", { name: "inactiveMembers:1" }).parentElement!).getByText(
+        "1",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("filters members by email and role", () => {
     render(<TeamRoster team={team} />);
     const search = screen.getByRole("textbox", { name: "searchMembers" });
     fireEvent.change(search, { target: { value: "observer" } });
-    expect(screen.getAllByText("observer@example.com").length).toBeGreaterThan(0);
-    expect(screen.queryByText("first.responder@example.com")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Observer").length).toBeGreaterThan(0);
+    expect(screen.queryByText("First Responder")).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "nobody" } });
     expect(screen.getByText("noMatchingMembers")).toBeInTheDocument();
-    expect(screen.getByText("noMatchingBans")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^bannedMembers/ })).not.toBeInTheDocument();
   });
 
-  it("keeps active and banned accounts in two distinct rosters", () => {
+  it("keeps members flat and separates banned accounts when present", () => {
     render(<TeamRoster team={team} />);
 
-    expect(screen.getByRole("heading", { name: "activeMembers" })).toBeInTheDocument();
-    expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "bannedMembers" })).toBeInTheDocument();
-    expect(screen.getByText("banned@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "activeMembers:2" })).toBeInTheDocument();
+    expect(screen.getAllByText("Manager").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "bannedMembers:1" })).toBeInTheDocument();
+    expect(screen.getByText("Banned")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "unban" }));
     expect(unban.mutate).toHaveBeenCalledWith("banned-1");
+  });
+
+  it("omits the banned section when the Team has no bans", () => {
+    teamBans = [];
+    render(<TeamRoster team={team} />);
+
+    expect(screen.queryByRole("heading", { name: /^bannedMembers/ })).not.toBeInTheDocument();
+  });
+
+  it("omits the inactive section when every member is present", () => {
+    onlineMembers = members.map((member) => member.user_id);
+    render(<TeamRoster team={team} />);
+
+    expect(screen.getByRole("heading", { name: "activeMembers:3" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^inactiveMembers/ })).not.toBeInTheDocument();
   });
 
   it("changes a peer role through its row action menu", async () => {

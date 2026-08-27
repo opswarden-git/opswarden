@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe("OperationsCalendar", () => {
   it("renders a complete month grid with linked operational events", () => {
-    render(
+    const view = render(
       <OperationsCalendar
         locale="en"
         labels={labels}
@@ -56,10 +56,16 @@ describe("OperationsCalendar", () => {
 
     expect(screen.getByRole("heading", { name: "August 2026" })).toBeInTheDocument();
     expect(screen.getAllByRole("gridcell")).toHaveLength(42);
-    expect(screen.getByRole("link", { name: "Incident: Database outage" })).toHaveAttribute(
+    const incident = screen.getByRole("link", { name: "Incident: Database outage" });
+    expect(incident).toHaveAttribute(
       "href",
       "/teams/team-1/incidents/incident-1",
     );
+    expect(incident).toHaveClass("bg-panel-2", "text-text", "border");
+    expect(incident).not.toHaveClass("bg-status-danger", "bg-status-info", "bg-status-neutral");
+    const today = view.container.querySelector('time[datetime="2026-08-14"]');
+    expect(today).toHaveClass("text-gold");
+    expect(today).not.toHaveClass("bg-gold", "text-gold-ink", "border");
   });
 
   it("derives distant month boundaries from the Gregorian calendar", () => {

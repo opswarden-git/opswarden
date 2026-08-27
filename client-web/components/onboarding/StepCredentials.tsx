@@ -39,6 +39,7 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
         <FormField label={tAuth("email")} error={errors.email} required>
           <input
             type="email"
+            autoComplete="email"
             placeholder={tAuth("emailPlaceholder")}
             value={data.email || ""}
             onChange={(e) => updateData({ email: e.target.value })}
@@ -57,7 +58,8 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
             <input
               id="signup-password"
               type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
+              autoComplete="new-password"
+              minLength={6}
               value={data.password || ""}
               onChange={(e) => updateData({ password: e.target.value })}
               aria-required="true"
@@ -92,6 +94,10 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
           fullWidth
           onClick={() => {
             const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
+            // Not a Next.js page: `/api/*` is rewritten to the Rust server, which
+            // answers with a redirect to Google's consent screen. A client-side
+            // navigation cannot leave the origin.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = `/api/auth/google/start?locale=${locale}`;
           }}
         >

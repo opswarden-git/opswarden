@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowDown, ArrowUp, Rocket, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
@@ -86,14 +86,8 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       size="md"
       contentClassName="!max-w-xl"
       initialFocus={titleRef}
-      closeLabel={t("close")}
       title={t("newRelease")}
-      description={t("newReleaseDesc")}
-      icon={
-        <div className="bg-gold/15 text-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <Rocket className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
+      titleHidden
       trigger={
         <Button disabled={!teamId} variant="primary">
           {t("newRelease")}
@@ -126,13 +120,11 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
-            placeholder={t("titlePlaceholder")}
           />
         </label>
 
         <fieldset className="mt-6">
           <legend className="text-text text-sm font-medium">{t("steps")}</legend>
-          <p className="text-muted mt-1 text-xs">{t("stepsEditorHint")}</p>
 
           <ol className="mt-3 space-y-2">
             {steps.map((step, index) => (
@@ -169,7 +161,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
                       }
                     }}
                     className="ow-input h-9 w-full rounded-md px-3 text-sm"
-                    placeholder={t("stepPlaceholder", { position: index + 1 })}
+                    placeholder={t("stepPlaceholder")}
                   />
                 </label>
                 <IconButton
@@ -195,6 +187,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
                   size="sm"
                   variant="ghost"
                   tone="danger"
+                  disabled={steps.length === 1}
                   onClick={() => removeStep(index)}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -203,9 +196,15 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
             ))}
           </ol>
 
-          <Button className="mt-3" size="sm" onClick={addStep}>
-            {t("addStep")}
-          </Button>
+          <IconButton
+            className="mt-2"
+            label={t("addStep")}
+            size="sm"
+            variant="ghost"
+            onClick={addStep}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+          </IconButton>
         </fieldset>
 
         <p className="sr-only" aria-live="polite">
