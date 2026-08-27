@@ -210,8 +210,10 @@ export function RuleForm({
           />
         </label>
 
-        <fieldset className="surface-subtle border-border space-y-4 rounded-md border p-4">
-          <legend className="text-text px-1 text-sm font-semibold">{t("action")}</legend>
+        <fieldset className="space-y-4 pt-2">
+          <legend className="text-muted-2 text-[11px] font-semibold tracking-wider uppercase">
+            {t("action")}
+          </legend>
           <label className="text-text block text-sm font-medium">
             <span>{t("event")}</span>
             <select
@@ -314,8 +316,10 @@ export function RuleForm({
           ) : null}
         </fieldset>
 
-        <fieldset className="surface-subtle border-border space-y-4 rounded-md border p-4">
-          <legend className="text-text px-1 text-sm font-semibold">{t("reaction")}</legend>
+        <fieldset className="space-y-4 pt-2">
+          <legend className="text-muted-2 text-[11px] font-semibold tracking-wider uppercase">
+            {t("reaction")}
+          </legend>
           <label className="text-text block text-sm font-medium">
             <span>{t("outcome")}</span>
             <select

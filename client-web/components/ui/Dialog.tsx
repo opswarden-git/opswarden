@@ -8,10 +8,16 @@ import { IconButton } from "./Button";
 
 type DialogSize = "sm" | "md" | "lg";
 
+/**
+ * Three widths, chosen by how much a form actually needs rather than by how
+ * much room is available. A dialog wide enough to hold anything invites being
+ * filled: the previous smallest was 448px, which is more than a single field
+ * and a sentence ever require.
+ */
 const sizeClasses: Record<DialogSize, string> = {
-  sm: "max-w-md",
-  md: "max-w-lg",
-  lg: "max-w-2xl",
+  sm: "max-w-sm", // 384px — one field, or one question
+  md: "max-w-lg", // 512px — a handful of fields
+  lg: "max-w-[40rem]", // 640px — grouped forms with side-by-side fields
 };
 
 interface DialogProps {
@@ -87,7 +93,7 @@ export function Dialog({
           ) : null}
           <header
             className={cn(
-              "relative flex shrink-0 items-start gap-3 px-6 pt-6",
+              "relative flex shrink-0 items-start gap-3 px-4 pt-4",
               closeLabel && "pr-14",
               titleHidden && "sr-only",
             )}
@@ -120,7 +126,7 @@ export function Dialog({
           <div
             data-dialog-part="body"
             className={cn(
-              "min-h-0 flex-1 overflow-y-auto p-6",
+              "min-h-0 flex-1 overflow-y-auto p-4",
               // The rule below the body appears only when there is a footer to
               // separate it from, and only while the body can actually scroll.
               footer && "scroll-divider",
@@ -131,7 +137,7 @@ export function Dialog({
           </div>
 
           {footer ? (
-            <footer data-dialog-part="footer" className="flex shrink-0 justify-end gap-2 px-6 pb-6">
+            <footer data-dialog-part="footer" className="flex shrink-0 justify-end gap-2 px-4 pb-4">
               {footer}
             </footer>
           ) : null}

@@ -84,7 +84,6 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         if (nextOpen) createRelease.reset();
       }}
       size="md"
-      contentClassName="!max-w-xl"
       initialFocus={titleRef}
       title={t("newRelease")}
       titleHidden
@@ -126,12 +125,9 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         <fieldset className="mt-6">
           <legend className="text-text text-sm font-medium">{t("steps")}</legend>
 
-          <ol className="mt-3 space-y-2">
+          <ol className="mt-2 space-y-2">
             {steps.map((step, index) => (
-              <li
-                key={step.id}
-                className="surface-subtle border-border flex items-center gap-2 rounded-md border p-2"
-              >
+              <li key={step.id} className="flex items-center gap-2">
                 <span className="text-muted w-6 shrink-0 text-center text-xs tabular-nums">
                   {index + 1}
                 </span>
