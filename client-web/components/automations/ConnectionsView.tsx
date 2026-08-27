@@ -112,7 +112,7 @@ function ConnectionForm({
           ? t("reconfigureService", { service: service.label })
           : t("connectService", { service: service.label })
       }
-      className="px-4 py-4 md:px-5"
+      className="px-4 py-4"
       onSubmit={(event) => {
         event.preventDefault();
         if (!valid) return;
@@ -321,7 +321,7 @@ export function ConnectionsView({
                         {isExpanded ? (
                           <div id={panelId}>
                             {connection ? (
-                              <div className="space-y-4 px-4 py-4 md:px-5">
+                              <div className="space-y-4 px-4 py-4">
                                 {connection.webhook_path ? (
                                   <div className="flex items-center gap-2">
                                     <code className="text-muted min-w-0 flex-1 truncate text-xs">

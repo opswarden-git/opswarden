@@ -94,7 +94,7 @@ export function ReleaseDetail({
     <div className="space-y-6">
       {lastError ? <Alert tone="danger">{errorText(lastError.message)}</Alert> : null}
 
-      <section className="surface rounded-md p-5 sm:p-6" aria-labelledby="release-steps-title">
+      <section className="surface rounded-md p-4 sm:p-6" aria-labelledby="release-steps-title">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h2 id="release-steps-title" className="text-text text-lg font-semibold">
             {t("deploymentSteps")}
@@ -175,7 +175,7 @@ export function ReleaseDetail({
       {showLinked ? (
         <section
           id="linked-incidents"
-          className="surface scroll-mt-24 rounded-md p-5 sm:p-6"
+          className="surface scroll-mt-24 rounded-md p-4 sm:p-6"
           aria-labelledby="linked-incidents-title"
         >
           <h2 id="linked-incidents-title" className="text-text text-lg font-semibold">

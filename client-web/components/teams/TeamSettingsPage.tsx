@@ -15,6 +15,7 @@ import { IdentityHeader } from "@/components/settings/SettingsPrimitives";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { JoinCodeDialog } from "./JoinCodeDialog";
 import { TeamRoster, TeamRosterRowsSkeleton } from "./TeamRoster";
+import { TeamImageEditor } from "./TeamImageEditor";
 
 type Dialog = "leave" | "delete" | null;
 
@@ -45,7 +46,7 @@ function TeamSettingsSkeleton({ label }: { label: string }) {
         </div>
       </section>
       <div className="border-border border-t pt-8">
-        <section className="surface border-sev-critical/40 rounded-md p-5">
+        <section className="surface border-sev-critical/40 rounded-md p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-2">
               <Skeleton className="h-4 w-20" />
@@ -93,7 +94,14 @@ function TeamPage({ team }: { team: Team }) {
             </div>
           ) : null
         }
-        mark={teamMark(team.name)}
+        mark={
+          <TeamImageEditor
+            team={team}
+            fallback={teamMark(team.name)}
+            canEdit={capabilities.canManageMembers}
+          />
+        }
+        markInteractive={capabilities.canManageMembers}
         title={team.name}
         subtitle={t("createdOn", {
           date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
@@ -107,7 +115,7 @@ function TeamPage({ team }: { team: Team }) {
       <div className="border-border border-t pt-8">
         <section
           aria-labelledby="team-danger"
-          className="surface border-sev-critical/40 rounded-md p-5"
+          className="surface border-sev-critical/40 rounded-md p-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>

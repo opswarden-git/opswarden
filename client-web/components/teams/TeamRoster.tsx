@@ -37,11 +37,11 @@ export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="divide-border divide-y" aria-busy="true" data-testid="team-roster-skeleton">
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="flex items-center gap-3 px-5 py-4">
+        <div key={index} className="flex items-center gap-3 px-4 py-4">
           <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Skeleton className="h-4 w-48 max-w-full" />
-            <Skeleton className="mt-px h-2.5 w-20" />
+            <Skeleton className="h-2.5 w-20" />
           </div>
           <Skeleton className="h-8 w-16 shrink-0" />
         </div>
@@ -142,7 +142,7 @@ export function TeamRoster({ team }: { team: Team }) {
           return (
             <li
               key={member.user_id}
-              className="relative flex items-center gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03]"
+              className="relative flex items-center gap-3 px-4 py-4 transition-colors hover:bg-white/[0.03]"
             >
               {conversationHref ? (
                 <Link
@@ -163,7 +163,7 @@ export function TeamRoster({ team }: { team: Team }) {
                   }`}
                 />
               </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-px" title={member.email}>
+              <div className="flex min-w-0 flex-1 flex-col gap-1" title={member.email}>
                 <div className="text-text truncate text-sm leading-4 font-medium">
                   {displayName}
                 </div>
@@ -227,7 +227,7 @@ export function TeamRoster({ team }: { team: Team }) {
       {isLoading ? <TeamRosterRowsSkeleton /> : null}
       {error ? <Alert tone="danger">{t("membersFailed")}</Alert> : null}
       {!isLoading && !error && visibleMembers.length === 0 && visibleBans.length === 0 ? (
-        <div className="text-muted border-border border-y px-1 py-3 text-sm">
+        <div className="text-muted border-border border-y px-4 py-3 text-sm">
           {query || roleFilter !== "all" ? t("noMatchingMembers") : t("noMembers")}
         </div>
       ) : null}
@@ -276,7 +276,7 @@ export function TeamRoster({ team }: { team: Team }) {
                 {visibleBans.map((entry) => (
                   <li
                     key={`ban:${entry.user.user_id}:${entry.created_at}`}
-                    className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+                    className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
                   >
                     <MemberAvatar email={entry.user.email} />
                     <div className="min-w-0">

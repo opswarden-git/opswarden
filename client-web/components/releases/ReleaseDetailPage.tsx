@@ -27,7 +27,7 @@ function ReleaseDetailSkeleton({ label }: { label: string }) {
       aria-label={label}
       data-testid="release-detail-skeleton"
     >
-      <section className="surface rounded-md p-5 sm:p-6">
+      <section className="surface rounded-md p-4 sm:p-6">
         <Skeleton className="h-5 w-40" />
         <div className="mt-4 space-y-4">
           {[0, 1, 2, 3].map((step) => (
@@ -43,7 +43,7 @@ function ReleaseDetailSkeleton({ label }: { label: string }) {
         </div>
       </section>
 
-      <section className="surface rounded-md p-5 sm:p-6">
+      <section className="surface rounded-md p-4 sm:p-6">
         <Skeleton className="h-5 w-32" />
         <div className="mt-4 space-y-3">
           {[0, 1].map((row) => (

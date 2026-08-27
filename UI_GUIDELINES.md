@@ -194,6 +194,12 @@ Three rules follow from the grammar:
 - **A horizontal line answers an overflow.** Use `.scroll-divider`, which shows
   its rule only while content can scroll under it. Do not draw a line to
   decorate the seam between two parts that both fit on screen.
+- **A record is inset the same everywhere.** Sixteen pixels on the horizontal,
+  in a table cell and in a list row alike, so a record starts at the same place
+  whichever surface renders it. Only the vertical varies, and only with density:
+  8px in a compact table, 12px in a normal one, 16px in a list row. Reach for
+  the shared component before choosing a number — seven different insets once
+  coexisted here, and every one of them was individually defensible.
 - **The subtitle is not the title again.** A subtitle carries what the title
   cannot: the named resource, the consequence, the count. If it restates the
   title in a longer form, delete it and use `titleHidden` when the trigger

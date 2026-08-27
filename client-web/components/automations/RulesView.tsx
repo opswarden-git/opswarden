@@ -210,7 +210,7 @@ export function RulesView({
                   }
                 />
               </OperationalTableHeaderCell>
-              <th className="px-5 py-3">
+              <th className="px-4 py-3">
                 <span className="sr-only">{t("actionsMenu")}</span>
               </th>
             </tr>
