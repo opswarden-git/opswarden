@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { RunStatus } from "@/components/automations/RunsView";
+import { useErrorText } from "@/lib/useErrorText";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
@@ -146,6 +147,7 @@ function OverviewSection({
 export function TeamOverviewPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
   const ta = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const teams = useTeams();
   const incidents = useIncidentQueue(teamId, { sort: "severity" });
@@ -350,8 +352,11 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                               {ta("openIncident")}
                             </Link>
                           ) : run.error_code ? (
-                            <span className="text-sev-critical truncate" title={run.error_code}>
-                              {run.error_code}
+                            <span
+                              className="text-sev-critical truncate"
+                              title={errorText(run.error_code)}
+                            >
+                              {errorText(run.error_code)}
                             </span>
                           ) : null}
                         </div>

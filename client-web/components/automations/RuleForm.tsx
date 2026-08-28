@@ -14,6 +14,7 @@ import {
   useUpdateAutomationRule,
 } from "@/lib/queries/automations";
 import { AutomationDialog } from "./AutomationDialog";
+import { useErrorText } from "@/lib/useErrorText";
 
 export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
 
@@ -79,6 +80,7 @@ export function RuleForm({
   teamId: string;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(rule?.name ?? "");
   const [actionValue, setActionValue] = useState(() =>
@@ -434,7 +436,9 @@ export function RuleForm({
 
         <Alert tone="info">{t("savedDisabledHint")}</Alert>
         {mutation.error ? (
-          <Alert tone="danger">{t("requestFailed", { code: mutation.error.message })}</Alert>
+          <Alert tone="danger">
+            {t("requestFailed", { code: errorText(mutation.error.message) })}
+          </Alert>
         ) : null}
       </form>
     </AutomationDialog>

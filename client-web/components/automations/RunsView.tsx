@@ -16,6 +16,18 @@ import { Link } from "@/i18n/routing";
 import type { AutomationRule, AutomationRun } from "@/lib/queries/automations";
 import { teamPath } from "@/lib/team-routing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useErrorText } from "@/lib/useErrorText";
+
+const RUN_STATUS_KEYS = {
+  running: "runStatusRunning",
+  succeeded: "runStatusSucceeded",
+  failed: "runStatusFailed",
+  skipped: "runStatusSkipped",
+} as const;
+
+export function runStatusKey(status: string) {
+  return RUN_STATUS_KEYS[status as keyof typeof RUN_STATUS_KEYS] ?? "runStatusUnknown";
+}
 
 export function RunStatus({ status }: { status: string }) {
   const t = useTranslations("Automations");
@@ -48,7 +60,7 @@ export function RunStatus({ status }: { status: string }) {
     default:
       return (
         <StatusBadge tone="neutral" icon={<CircleHelp />}>
-          {status}
+          {t("runStatusUnknown")}
         </StatusBadge>
       );
   }
@@ -78,6 +90,7 @@ export function RunsView({
   onStatusFilterChange?: (status: string) => void;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const ruleNames = new Map(rules.map((rule) => [rule.id, rule.name]));
   const statuses = Array.from(new Set(runs.map((run) => run.status))).sort();
@@ -120,11 +133,14 @@ export function RunsView({
               <TableFilterControl
                 label={t("colStatus")}
                 value={statusFilter === "all" ? "" : statusFilter}
-                activeLabel={statusFilter === "all" ? undefined : statusFilter}
+                activeLabel={statusFilter === "all" ? undefined : t(runStatusKey(statusFilter))}
                 onChange={(value) => onStatusFilterChange(value || "all")}
                 options={[
                   { value: "", label: t("allStatuses") },
-                  ...statuses.map((status) => ({ value: status, label: status })),
+                  ...statuses.map((status) => ({
+                    value: status,
+                    label: t(runStatusKey(status)),
+                  })),
                 ]}
               />
             ) : (
@@ -229,8 +245,8 @@ export function RunsView({
                     {t("openIncident")}
                   </Link>
                 ) : run.error_code ? (
-                  <span className="text-sev-critical" title={run.error_code}>
-                    {run.error_code}
+                  <span className="text-sev-critical" title={errorText(run.error_code)}>
+                    {errorText(run.error_code)}
                   </span>
                 ) : (
                   <span className="text-muted">—</span>

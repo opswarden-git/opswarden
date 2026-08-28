@@ -106,13 +106,20 @@ function messages(locale: string): Record<string, unknown> {
  * It rises by four English and six French words on 2026-08-27 for the two
  * accessible Team-image actions. These labels make an otherwise icon-only
  * upload and removal control understandable to assistive technology.
+ *
+ * `errors` rises on 2026-08-27 to cover every stable `DomainError` emitted by
+ * the server. The previous catalogue omitted 23 real failures—Team images,
+ * Automation validation, outbound HTTP safety and SMTP delivery—and silently
+ * collapsed them into one generic sentence. This is exhaustive error copy,
+ * not prose added to a surface. `Automations` gains one word for the localized
+ * fallback used when a future run status is unknown.
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
     Teams: 324,
     Incidents: 277,
-    errors: 335,
-    Automations: 280,
+    errors: 477,
+    Automations: 281,
     Releases: 180,
     Onboarding: 90,
     Settings: 120,
@@ -128,8 +135,8 @@ const CEILINGS: Record<string, Record<string, number>> = {
   fr: {
     Teams: 388,
     Incidents: 380,
-    errors: 417,
-    Automations: 398,
+    errors: 613,
+    Automations: 399,
     Releases: 222,
     Onboarding: 110,
     Settings: 151,

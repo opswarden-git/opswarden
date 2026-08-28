@@ -32,7 +32,7 @@ import { teamPath } from "@/lib/team-routing";
 import { cn } from "@/lib/utils";
 import { ConnectionsView } from "./ConnectionsView";
 import { RulesView } from "./RulesView";
-import { RunsView } from "./RunsView";
+import { runStatusKey, RunsView } from "./RunsView";
 
 function AutomationTableLoading({
   columns,
@@ -253,7 +253,7 @@ export function TeamAutomationsPage({
           <option value="all">{t("allStatuses")}</option>
           {runStatuses.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {t(runStatusKey(status))}
             </option>
           ))}
         </select>

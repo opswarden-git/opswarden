@@ -26,6 +26,7 @@ import {
   OperationalTableRowHeader,
 } from "@/components/ui/OperationalTable";
 import { RuleForm, type CapabilityWithService } from "./RuleForm";
+import { useErrorText } from "@/lib/useErrorText";
 
 function capabilities(catalog: AutomationService[], type: "actions" | "reactions") {
   return catalog.flatMap((service) =>
@@ -90,6 +91,7 @@ export function RulesView({
   onStatusFilterChange?: (status: "all" | "enabled" | "disabled") => void;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const [editing, setEditing] = useState<AutomationRule | null>(null);
   const [deleting, setDeleting] = useState<AutomationRule | null>(null);
@@ -138,7 +140,7 @@ export function RulesView({
     <>
       {updateRule.error ? (
         <Alert tone="danger" className="mb-4">
-          {t("requestFailed", { code: updateRule.error.message })}
+          {t("requestFailed", { code: errorText(updateRule.error.message) })}
         </Alert>
       ) : null}
 
@@ -377,7 +379,11 @@ export function RulesView({
         cancelLabel={t("cancel")}
         intent="destructive"
         pending={deleteRule.isPending}
-        error={deleteRule.error ? t("requestFailed", { code: deleteRule.error.message }) : null}
+        error={
+          deleteRule.error
+            ? t("requestFailed", { code: errorText(deleteRule.error.message) })
+            : null
+        }
         onClose={() => setDeleting(null)}
         onConfirm={() =>
           deleting && deleteRule.mutate(deleting.id, { onSuccess: () => setDeleting(null) })

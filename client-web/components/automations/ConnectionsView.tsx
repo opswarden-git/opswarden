@@ -28,6 +28,7 @@ import {
 } from "@/lib/queries/automations";
 import { FormField } from "@/components/ui/FormField";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useErrorText } from "@/lib/useErrorText";
 
 const providerMarks: Record<string, string> = {
   alertmanager: "/assets/alertmanager.svg",
@@ -97,6 +98,7 @@ function ConnectionForm({
   teamId: string;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const fields = service.connection?.fields ?? [];
   const [values, setValues] = useState(() => catalogValues(fields));
@@ -202,10 +204,14 @@ function ConnectionForm({
           </div>
         </div>
         {startOAuth.error ? (
-          <Alert tone="danger">{t("requestFailed", { code: startOAuth.error.message })}</Alert>
+          <Alert tone="danger">
+            {t("requestFailed", { code: errorText(startOAuth.error.message) })}
+          </Alert>
         ) : null}
         {configure.error ? (
-          <Alert tone="danger">{t("requestFailed", { code: configure.error.message })}</Alert>
+          <Alert tone="danger">
+            {t("requestFailed", { code: errorText(configure.error.message) })}
+          </Alert>
         ) : null}
       </div>
     </form>
@@ -224,6 +230,7 @@ export function ConnectionsView({
   teamId: string;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TeamConnection | null>(null);
@@ -401,13 +408,17 @@ export function ConnectionsView({
                                 </div>
                                 {connection.last_error_code ? (
                                   <Alert tone="danger">
-                                    {t("lastError", { code: connection.last_error_code })}
+                                    {t("lastError", {
+                                      code: errorText(connection.last_error_code),
+                                    })}
                                   </Alert>
                                 ) : null}
                                 {testConnection.error &&
                                 testConnection.variables === connection.id ? (
                                   <Alert tone="danger">
-                                    {t("requestFailed", { code: testConnection.error.message })}
+                                    {t("requestFailed", {
+                                      code: errorText(testConnection.error.message),
+                                    })}
                                   </Alert>
                                 ) : null}
                                 {testConnection.isSuccess &&
@@ -416,7 +427,9 @@ export function ConnectionsView({
                                 ) : null}
                                 {refreshOAuth.error && refreshOAuth.variables === connection.id ? (
                                   <Alert tone="danger">
-                                    {t("requestFailed", { code: refreshOAuth.error.message })}
+                                    {t("requestFailed", {
+                                      code: errorText(refreshOAuth.error.message),
+                                    })}
                                   </Alert>
                                 ) : null}
                               </div>
@@ -448,7 +461,7 @@ export function ConnectionsView({
         pending={deleteConnection.isPending}
         error={
           deleteConnection.error
-            ? t("requestFailed", { code: deleteConnection.error.message })
+            ? t("requestFailed", { code: errorText(deleteConnection.error.message) })
             : null
         }
         onClose={() => setDeleting(null)}

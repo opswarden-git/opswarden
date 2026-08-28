@@ -96,21 +96,42 @@ test("canonical English and French pages emit no missing-message errors", async 
   test.setTimeout(90_000);
   const missingMessages: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error" && message.text().includes("MISSING_MESSAGE")) {
+    if (
+      message.type() === "error" &&
+      (message.text().includes("MISSING_MESSAGE") || message.text().includes("FORMATTING_ERROR"))
+    ) {
       missingMessages.push(message.text());
     }
   });
   page.on("pageerror", (error) => {
-    if (error.message.includes("MISSING_MESSAGE")) missingMessages.push(error.message);
+    if (error.message.includes("MISSING_MESSAGE") || error.message.includes("FORMATTING_ERROR")) {
+      missingMessages.push(error.message);
+    }
   });
 
   await login(page);
-  for (const locale of ["en", "fr"]) {
-    for (const route of routes) {
-      await test.step(`${route.name} has complete ${locale.toUpperCase()} messages`, async () => {
-        await page.goto(route.path.replace(/^\/en/, `/${locale}`));
-        await expect(page.locator('[data-page-layout="true"]')).toBeVisible();
-      });
+  try {
+    for (const locale of ["en", "fr"] as const) {
+      if (locale === "fr") {
+        await page.goto("/en/settings");
+        await page.getByRole("button", { name: "French", exact: true }).click();
+        await expect(page).toHaveURL(/\/fr\/settings$/);
+      }
+
+      for (const route of routes) {
+        await test.step(`${route.name} has complete ${locale.toUpperCase()} messages`, async () => {
+          await page.goto(route.path.replace(/^\/en/, `/${locale}`));
+          await expect(page).toHaveURL(new RegExp(`/${locale}(?:/|$)`));
+          await expect(page.locator("html")).toHaveAttribute("lang", locale);
+          await expect(page.locator('[data-page-layout="true"]')).toBeVisible();
+        });
+      }
+    }
+  } finally {
+    if (new URL(page.url()).pathname.startsWith("/fr/")) {
+      await page.goto("/fr/settings");
+      await page.getByRole("button", { name: "Anglais", exact: true }).click();
+      await expect(page).toHaveURL(/\/en\/settings$/);
     }
   }
 

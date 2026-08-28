@@ -5,7 +5,11 @@ import { RunsView } from "./RunsView";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
-  useTranslations: () => (key: string) => key,
+  useTranslations: (namespace: string) => {
+    const translate = (key: string) => (namespace === "errors" ? `error:${key}` : key);
+    translate.has = () => true;
+    return translate;
+  },
 }));
 
 vi.mock("@/i18n/routing", () => ({
@@ -60,5 +64,32 @@ describe("RunsView", () => {
       "scope",
       "row",
     );
+  });
+
+  it("localizes status filters and stable error codes", () => {
+    const failedRun = {
+      ...run,
+      id: "run-failed-1234",
+      status: "failed",
+      error_code: "reaction_timeout",
+    };
+    render(
+      <RunsView
+        rules={[rule]}
+        runs={[run, failedRun]}
+        teamId="team-1"
+        showControls
+        statusFilter="failed"
+      />,
+    );
+
+    const statusFilter = screen.getByRole("combobox", { name: "colStatus" });
+    expect(
+      within(statusFilter)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["allStatuses", "runStatusFailed", "runStatusSucceeded"]);
+    expect(screen.getByText("error:reaction_timeout")).toBeInTheDocument();
+    expect(screen.queryByText("reaction_timeout")).not.toBeInTheDocument();
   });
 });
