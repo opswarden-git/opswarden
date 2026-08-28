@@ -77,12 +77,7 @@ function NavLeaf({
         <span className="shrink-0 text-sm tabular-nums opacity-60">{count}</span>
       ) : null}
       {guided && !collapsed ? (
-        <span
-          className="shrink-0"
-          role="img"
-          aria-label={t("firstStepHere")}
-          title={t("firstStepHere")}
-        >
+        <span className="shrink-0" aria-hidden="true" title={t("firstStepHere")}>
           <CircleHelp className="text-gold/80 h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         </span>
       ) : null}

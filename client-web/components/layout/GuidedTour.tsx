@@ -9,6 +9,25 @@ import { useFirstRunGuidance, type GuidedSection } from "@/lib/firstRunGuidance"
 const ORDER: GuidedSection[] = ["incidents", "releases", "integrations", "rules", "teamSettings"];
 
 const STORAGE_PREFIX = "opswarden-tour";
+const STORAGE_CHANGE_EVENT = "opswarden-tour-change";
+
+function subscribeToTourStorage(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(STORAGE_CHANGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(STORAGE_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function tourIsFinished(teamId: string) {
+  if (!teamId) return true;
+  try {
+    return window.localStorage.getItem(`${STORAGE_PREFIX}:${teamId}`) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Each key is written out rather than built from the section name: the
@@ -49,28 +68,15 @@ export function GuidedTour() {
   const guided = useFirstRunGuidance(activeTeam ?? undefined);
   const teamId = activeTeam?.team_id ?? "";
 
-  const steps = React.useMemo(
-    () => ORDER.filter((section) => guided.has(section)),
-    // A Set is a new object on every render; its contents are what matter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ORDER.map((section) => (guided.has(section) ? "1" : "0")).join("")],
-  );
+  const steps = ORDER.filter((section) => guided.has(section));
 
   const [index, setIndex] = React.useState(0);
-  const [finished, setFinished] = React.useState(true);
+  const finished = React.useSyncExternalStore(
+    subscribeToTourStorage,
+    () => tourIsFinished(teamId),
+    () => true,
+  );
   const [spot, setSpot] = React.useState<{ top: number; left: number } | null>(null);
-
-  // `true` until mounted: the server cannot read storage, and a tour that
-  // flashes for someone who already finished it is worse than one that starts a
-  // moment late.
-  React.useEffect(() => {
-    if (!teamId) return;
-    try {
-      setFinished(window.localStorage.getItem(`${STORAGE_PREFIX}:${teamId}`) === "1");
-    } catch {
-      setFinished(false);
-    }
-  }, [teamId]);
 
   const section = finished ? undefined : steps[index];
 
@@ -95,9 +101,9 @@ export function GuidedTour() {
 
   const last = index === steps.length - 1;
   const finish = () => {
-    setFinished(true);
     try {
       window.localStorage.setItem(`${STORAGE_PREFIX}:${teamId}`, "1");
+      window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
     } catch {
       // A reader who blocks storage takes the tour again next time.
     }

@@ -8,6 +8,7 @@
     --bg-2: #121317;
     --panel: #1c1d22;
     --panel-2: #25262d;
+
     /*
      * Three neutral border weights, because one weight cannot rank anything.
      * `muted` separates rows inside a surface; the default draws the edge of
@@ -19,6 +20,7 @@
     --ow-border: rgb(255 255 255 / 8%);
     --ow-border-emphasis: rgb(255 255 255 / 12%);
     --ow-border-width: 1px;
+
     /* Reserved for focus rings. Never a divider: 2px reads as a state. */
     --ow-border-width-thick: 2px;
 
@@ -114,8 +116,7 @@
 /* Conversation actions stay reachable on touch. Fine pointers may reveal them
    on hover/focus without making the transcript permanently noisy. */
 @media (hover: hover) and (pointer: fine) {
-  [data-conversation-message="true"]:not(:hover):not(:focus-within)
-    [data-conversation-actions="true"] {
+  [data-conversation-message="true"]:not(:hover, :focus-within) [data-conversation-actions="true"] {
     opacity: 0;
   }
 }
