@@ -55,7 +55,11 @@ afterEach(() => {
 describe("settings panels", () => {
   it("persists a language change before replacing the localized route", () => {
     render(<LanguagePanel />);
-    expect(screen.getByRole("button", { name: "english" })).toHaveAttribute("aria-pressed", "true");
+    const english = screen.getByRole("button", { name: "english" });
+    expect(english).toHaveAttribute("aria-pressed", "true");
+    expect(english).toHaveClass("text-gold");
+    expect(english).not.toHaveClass("border");
+    expect(english).not.toHaveClass("bg-gold/10");
     fireEvent.click(screen.getByRole("button", { name: "french" }));
     expect(updateLocale.mutate).toHaveBeenCalledWith(
       "fr",

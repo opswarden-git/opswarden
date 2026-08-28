@@ -61,8 +61,9 @@ const members = [
   },
 ];
 
+let unreadPeerIds: string[] = [];
 vi.mock("@/lib/queries/privateMessages", () => ({
-  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: unreadPeerIds } }),
 }));
 
 vi.mock("@/lib/queries/teams", () => ({
@@ -91,6 +92,7 @@ afterEach(() => {
   useAuthStore.getState().logout();
   teamBans = [bannedMember];
   onlineMembers = ["manager-1", "responder-1"];
+  unreadPeerIds = [];
 });
 
 describe("TeamRoster", () => {
@@ -167,6 +169,16 @@ describe("TeamRoster", () => {
 
     expect(screen.getByRole("heading", { name: "activeMembers:3" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^inactiveMembers/ })).not.toBeInTheDocument();
+  });
+
+  it("collapses the unread label to a dot before the member name is truncated", () => {
+    unreadPeerIds = ["observer-1"];
+    render(<TeamRoster team={team} />);
+
+    const unread = screen.getByLabelText("newMessages");
+    expect(within(unread).getByText("newMessages")).toHaveClass("hidden", "sm:inline");
+    expect(unread.querySelector(".sm\\:hidden")).toBeInTheDocument();
+    expect(screen.getAllByText("Observer").length).toBeGreaterThan(0);
   });
 
   it("changes a peer role through its row action menu", async () => {

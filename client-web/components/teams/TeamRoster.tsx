@@ -186,9 +186,16 @@ export function TeamRoster({ team }: { team: Team }) {
                     {displayName}
                   </span>
                   {hasUnread ? (
-                    <span className="text-muted inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold tracking-wider uppercase">
-                      <span>{tDm("newMessages")}</span>
-                      <HelpCircle className="h-3 w-3 opacity-70" aria-hidden="true" />
+                    <span
+                      className="text-muted inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold tracking-wider uppercase"
+                      aria-label={tDm("newMessages")}
+                    >
+                      <span className="bg-text h-1.5 w-1.5 rounded-full sm:hidden" />
+                      <span className="hidden sm:inline">{tDm("newMessages")}</span>
+                      <HelpCircle
+                        className="hidden h-3 w-3 opacity-70 sm:block"
+                        aria-hidden="true"
+                      />
                     </span>
                   ) : null}
                 </div>

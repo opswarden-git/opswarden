@@ -7,7 +7,7 @@ import { useRouter as useIntlRouter, usePathname } from "@/i18n/routing";
 import { type AppLocale, isAppLocale } from "@/i18n/locales";
 import { useUpdateLocale } from "@/lib/queries/profile";
 import { useTranslations } from "next-intl";
-import { ToggleButton } from "@/components/ui/ToggleButton";
+import { cn } from "@/lib/utils";
 import { SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
 /** Interface language switch (FR/EN). */
@@ -31,13 +31,17 @@ export function LanguagePanel() {
       <SettingsRow
         label={t("interfaceLanguage")}
         action={
-          <div className="flex shrink-0 gap-2">
-            <ToggleButton
-              pressed={currentLocale === "en"}
-              size="sm"
+          <div className="flex shrink-0 items-center gap-4">
+            <button
+              type="button"
+              aria-pressed={currentLocale === "en"}
               onClick={() => switchLocale("en")}
               disabled={updateLocale.isPending}
               aria-label={t("english")}
+              className={cn(
+                "text-muted hover:text-text inline-flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+                currentLocale === "en" && "text-gold hover:text-gold",
+              )}
             >
               <Image
                 src="/assets/en.webp"
@@ -47,13 +51,17 @@ export function LanguagePanel() {
                 className="block object-cover"
               />
               {t("englishShort")}
-            </ToggleButton>
-            <ToggleButton
-              pressed={currentLocale === "fr"}
-              size="sm"
+            </button>
+            <button
+              type="button"
+              aria-pressed={currentLocale === "fr"}
               onClick={() => switchLocale("fr")}
               disabled={updateLocale.isPending}
               aria-label={t("french")}
+              className={cn(
+                "text-muted hover:text-text inline-flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+                currentLocale === "fr" && "text-gold hover:text-gold",
+              )}
             >
               <Image
                 src="/assets/fr.webp"
@@ -63,7 +71,7 @@ export function LanguagePanel() {
                 className="block object-cover"
               />
               {t("frenchShort")}
-            </ToggleButton>
+            </button>
           </div>
         }
       >
