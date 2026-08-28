@@ -153,3 +153,69 @@ async fn a_failed_event_rolls_back_the_incident_update(pool: PgPool) {
         IncidentStatus::Open
     );
 }
+
+#[sqlx::test]
+async fn incident_read_position_clears_unread_and_never_moves_backwards(pool: PgPool) {
+    let incidents = PgIncidentRepo::new(pool.clone());
+    let users = PgUserRepo::new(pool.clone());
+    let teams = PgTeamRepo::new(pool.clone());
+    let viewer_email = Email::new(format!("viewer_{}@opswarden.com", Uuid::new_v4())).unwrap();
+    let viewer = User::new(viewer_email, "hash");
+    users.save(&viewer).await.unwrap();
+    let actor_email = Email::new(format!("actor_{}@opswarden.com", Uuid::new_v4())).unwrap();
+    let actor = User::new(actor_email, "hash");
+    users.save(&actor).await.unwrap();
+    let team = Team::new("Unread Team").unwrap();
+    teams.save_team(&team).await.unwrap();
+    teams
+        .add_member(team.id, viewer.id, Role::Observer)
+        .await
+        .unwrap();
+    teams
+        .add_member(team.id, actor.id, Role::Responder)
+        .await
+        .unwrap();
+
+    let incident = Incident::new(team.id, "Unread incident", Severity::High).unwrap();
+    let event = IncidentEvent::created(&incident, Some(actor.id));
+    incidents
+        .save_incident_with_event(&incident, &event)
+        .await
+        .unwrap();
+    assert_eq!(
+        incidents
+            .list_unread_incident_ids(team.id, viewer.id)
+            .await
+            .unwrap(),
+        vec![incident.id]
+    );
+
+    let read_through = Utc::now();
+    incidents
+        .mark_incident_read(incident.id, viewer.id, read_through)
+        .await
+        .unwrap();
+    incidents
+        .mark_incident_read(
+            incident.id,
+            viewer.id,
+            read_through - chrono::Duration::hours(1),
+        )
+        .await
+        .unwrap();
+    let stored: DateTime<Utc> = sqlx::query_scalar(
+        "SELECT read_through FROM incident_channel_reads WHERE incident_id = $1 AND user_id = $2",
+    )
+    .bind(incident.id)
+    .bind(viewer.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    // PostgreSQL stores microseconds while chrono can carry nanoseconds.
+    assert_eq!(stored.timestamp_micros(), read_through.timestamp_micros());
+    assert!(incidents
+        .list_unread_incident_ids(team.id, viewer.id)
+        .await
+        .unwrap()
+        .is_empty());
+}

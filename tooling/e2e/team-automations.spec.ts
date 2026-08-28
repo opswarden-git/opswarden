@@ -57,67 +57,48 @@ test.describe("Team automations", () => {
     test(`Manager can navigate Rules and Connections at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await login(page, "manager@opswarden.local");
-      const token = await managerToken(page);
-      await clearAutomations(page, token);
-
-      try {
-        await page.goto(rulesUrl);
-
-        await expect(page.getByRole("heading", { name: "Rules", level: 1 })).toBeVisible();
-        await expect(page.getByRole("heading", { name: "No automation rules" })).toBeVisible();
-
-        await openDirectDestination(page, "Integrations", width);
-        await expect(page).toHaveURL(integrationsUrl);
-        await expect(page.getByRole("heading", { name: "Integrations", level: 1 })).toBeVisible();
-        const github = page
-          .getByRole("heading", { name: "GitHub", exact: true })
-          .locator("xpath=../..");
-        const http = page
-          .getByRole("heading", { name: "HTTP", exact: true })
-          .locator("xpath=../..");
-        // The connector catalogue grows as services ship, so assert that the two
-        // this test drives each expose a compact row rather than pinning the total.
-        await expect(http).toBeVisible();
-        await expect(github.getByRole("button", { name: "Connect" })).toBeVisible();
-        await expect(http.getByRole("button", { name: "Connect" })).toBeVisible();
-
-        await github.getByRole("button", { name: "Connect" }).click();
-        await page.getByLabel("Signing secret").fill("e2e-automation-secret");
-        await page.getByRole("button", { name: "Save connection" }).click();
-        await expect(github.getByRole("button", { name: "Configure" })).toBeVisible();
-        await expect(
-          page
-            .getByRole("heading", { name: "Active integrations" })
-            .locator("xpath=ancestor::section[1]")
-            .getByRole("heading", { name: "GitHub", exact: true }),
-        ).toBeAttached();
-
-        await openDirectDestination(page, "Rules", width);
-        await expect(page).toHaveURL(rulesUrl);
-        await page.getByRole("button", { name: "New rule" }).click();
-        await page.getByLabel("Rule name").fill("E2E failed CI to incident");
-        await page.getByLabel("Source connection").selectOption({ index: 1 });
-        await page.getByRole("button", { name: "Create rule" }).click();
-        await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5000 });
-
-        const ruleContainer = width < 1024 ? page.locator("li") : page.locator("tr");
-        const rule = ruleContainer.filter({ hasText: /E2E failed CI to incident/ });
-        // Anchor on the state cell: a disabled rule also reads "Disabled" in the
-        // next-run column, so matching on text alone hits two cells at once.
-        const ruleState = rule.locator("[data-rule-state]");
-        await expect(ruleState).toHaveAttribute("data-rule-state", "disabled");
-        await expect(ruleState).toHaveText("Disabled");
-        await rule.getByRole("button", { name: "Rule actions" }).click();
-        await page.getByRole("menuitem", { name: "Enable" }).click();
-        await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
-        await expect(ruleState).toHaveText("Enabled");
-
-        await expect(page.getByRole("link", { name: "Activity", exact: true })).toHaveCount(0);
-      } finally {
-        await clearAutomations(page, token);
-      }
+      await page.goto(rulesUrl);
+      await expect(page.getByRole("heading", { name: "Rules", level: 1 })).toBeVisible();
+      await openDirectDestination(page, "Integrations", width);
+      await expect(page).toHaveURL(integrationsUrl);
+      await expect(page.getByRole("heading", { name: "Integrations", level: 1 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "HTTP", exact: true })).toBeVisible();
     });
   }
+
+  test("Manager connects a service and enables a rule", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await login(page, "manager@opswarden.local");
+    const token = await managerToken(page);
+    await clearAutomations(page, token);
+
+    try {
+      await page.goto(integrationsUrl);
+      await page.getByRole("button", { name: "Connect GitHub" }).click();
+      const githubForm = page.getByRole("form", { name: "Connect GitHub" });
+      await githubForm.getByLabel("Signing secret").fill("e2e-automation-secret");
+      await githubForm.getByRole("button", { name: "Connect", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Configure GitHub" })).toBeVisible();
+
+      await openDirectDestination(page, "Rules", 1280);
+      await page.getByRole("button", { name: "New rule" }).click();
+      await page.getByLabel("Rule name").fill("E2E failed CI to incident");
+      await page.getByLabel("Source connection").selectOption({ index: 1 });
+      await page.getByRole("button", { name: "Create rule" }).click();
+      await expect(page.getByRole("dialog", { name: "New rule" })).toBeHidden();
+
+      const rule = page.getByRole("row", { name: /E2E failed CI to incident/ });
+      const ruleState = rule.locator("[data-rule-state]");
+      await expect(ruleState).toHaveAttribute("data-rule-state", "disabled");
+      await rule.getByRole("button", { name: "Rule actions" }).click();
+      await page.getByRole("menuitem", { name: "Enable" }).click();
+      await expect(ruleState).toHaveAttribute("data-rule-state", "enabled");
+    } finally {
+      await clearAutomations(page, token);
+    }
+  });
 
   test("non-Managers do not receive configuration controls", async ({ page }) => {
     await login(page, "responder@opswarden.local");

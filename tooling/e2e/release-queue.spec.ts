@@ -35,7 +35,7 @@ test.describe("Release queue", () => {
       if (width >= 1024) {
         await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("active");
       }
-      const rowContainer = width < 1024 ? page.locator("li") : page.locator("tr");
+      const rowContainer = page.getByRole(width < 1024 ? "listitem" : "row");
       await expect(
         rowContainer.getByText("v2.9.0 — Observability foundations", { exact: true }),
       ).toBeVisible();
@@ -43,7 +43,8 @@ test.describe("Release queue", () => {
       await selectReleaseView(page, width, "blocked");
       await expect(page).toHaveURL(/view=blocked/);
 
-      const container = (width < 1024 ? page.locator("li") : page.locator("tr"))
+      const container = page
+        .getByRole(width < 1024 ? "listitem" : "row")
         .filter({
           hasText: "v2.8.0",
         })

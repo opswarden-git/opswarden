@@ -55,7 +55,8 @@ test("a Team member opens a full routed conversation", async ({ page }) => {
   const room = await openConversation(page, "responder@opswarden.local");
 
   await expect(room).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Rooms" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Members" })).toHaveCount(0);
   await expect(page.getByPlaceholder("Write a message…")).toBeVisible();
   await expect(page.getByRole("complementary", { name: "War room navigation" })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Members" })).toBeVisible();

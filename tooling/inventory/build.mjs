@@ -88,9 +88,7 @@ async function main() {
         subFr: catalog.available
           ? "Lu depuis le serveur en fonctionnement."
           : "Serveur injoignable.",
-        subEn: catalog.available
-          ? "Read from the running server."
-          : "Server unreachable.",
+        subEn: catalog.available ? "Read from the running server." : "Server unreachable.",
       },
     ]),
   );
