@@ -4,27 +4,59 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { StepCredentials } from "@/components/onboarding/StepCredentials";
-import { StepStation } from "@/components/onboarding/StepStation";
+import { StepTeam } from "@/components/onboarding/StepTeam";
 import { StepVerification } from "@/components/onboarding/StepVerification";
 import type { OnboardingData, UpdateOnboardingData } from "@/components/onboarding/types";
 import { useTranslations } from "next-intl";
 
+const STORAGE_KEY = "opswarden_onboarding_draft";
+
+function getInitialOnboardingState(): { step: number; data: OnboardingData } {
+  const defaultData: OnboardingData = {
+    email: "",
+    password: "",
+    mode: "create",
+    teamName: "",
+    invitationCode: "",
+  };
+  if (typeof window === "undefined") return { step: 1, data: defaultData };
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        step:
+          typeof parsed.step === "number" && parsed.step >= 1 && parsed.step <= 3 ? parsed.step : 1,
+        data: { ...defaultData, ...(parsed.data || {}) },
+      };
+    }
+  } catch {
+    // Ignore storage read error
+  }
+  return { step: 1, data: defaultData };
+}
+
 export default function SignupPage() {
   const t = useTranslations("Auth");
   const tOnboarding = useTranslations("Onboarding");
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState<OnboardingData>({
-    email: "",
-    password: "",
-    stationName: "",
-  });
+  const [initialState] = useState(getInitialOnboardingState);
+  const [step, setStep] = useState(initialState.step);
+  const [data, setData] = useState<OnboardingData>(initialState.data);
+
+  React.useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, data }));
+    } catch {
+      // Ignore storage write error
+    }
+  }, [step, data]);
 
   const updateData: UpdateOnboardingData = (fields) => {
     setData((prev) => ({ ...prev, ...fields }));
   };
 
-  const next = () => setStep((prev) => prev + 1);
-  const back = () => setStep((prev) => prev - 1);
+  const next = () => setStep((prev) => Math.min(3, prev + 1));
+  const back = () => setStep((prev) => Math.max(1, prev - 1));
 
   return (
     <section className="flex min-h-screen items-center justify-center p-4">
@@ -54,9 +86,7 @@ export default function SignupPage() {
 
         <div className="flex w-full flex-col gap-4">
           {step === 1 && <StepCredentials data={data} updateData={updateData} next={next} />}
-          {step === 2 && (
-            <StepStation data={data} updateData={updateData} next={next} back={back} />
-          )}
+          {step === 2 && <StepTeam data={data} updateData={updateData} next={next} back={back} />}
           {step === 3 && <StepVerification data={data} back={back} />}
         </div>
 

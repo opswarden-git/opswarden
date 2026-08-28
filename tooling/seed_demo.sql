@@ -263,7 +263,7 @@ insert into releases (id, team_id, title, base_state, created_at, updated_at) va
   ('30000000-0000-4000-8000-000000000004', '39aa8884-22cc-4764-a9e7-7df7c7619ba6', 'v2.6.1 — Legacy queue cleanup', 'cancelled', now() - interval '12 days', now() - interval '11 days'),
   ('30000000-0000-4000-8000-000000000005', '6d1e8c20-b622-4d21-9b1b-111111111111', 'eu-edge-2026.07.18', 'in_progress', now() - interval '8 hours', now() - interval '7 hours'),
   ('30000000-0000-4000-8000-000000000006', '6d1e8c20-b622-4d21-9b1b-111111111111', 'billing-workers-4.12.2', 'completed', now() - interval '3 days', now() - interval '67 hours'),
-  ('30000000-0000-4000-8000-000000000007', '8b2f9d30-c733-4e32-8c2c-222222222222', 'iam-policy-hardening', 'in_progress', now() - interval '5 hours', now() - interval '4 hours'),
+  ('30000000-0000-4000-8000-000000000007', '8b2f9d30-c733-4e32-8c2c-222222222222', 'iam-policy-hardening', 'in_progress', now() - interval '5 hours', now() - interval '2 hours'),
   ('30000000-0000-4000-8000-000000000008', '8b2f9d30-c733-4e32-8c2c-222222222222', 'waf-ruleset-31', 'created', now() - interval '10 hours', now() - interval '10 hours')
 on conflict (id) do update set
   team_id = excluded.team_id, title = excluded.title,
@@ -289,7 +289,7 @@ insert into release_steps (release_id, position, name, validated_by, validated_a
   ('30000000-0000-4000-8000-000000000006', 0, 'Build worker image', :'manager_id', now() - interval '70 hours'),
   ('30000000-0000-4000-8000-000000000006', 1, 'Replay billing sample', :'manager_id', now() - interval '69 hours'),
   ('30000000-0000-4000-8000-000000000006', 2, 'Deploy workers', :'responder_id', now() - interval '67 hours'),
-  ('30000000-0000-4000-8000-000000000007', 0, 'Review IAM diff', :'observer_id', now() - interval '4 hours'),
+  ('30000000-0000-4000-8000-000000000007', 0, 'Review IAM diff', :'observer_id', now() - interval '2 hours'),
   ('30000000-0000-4000-8000-000000000007', 1, 'Apply staging policy', null, null),
   ('30000000-0000-4000-8000-000000000007', 2, 'Apply production policy', null, null),
   ('30000000-0000-4000-8000-000000000008', 0, 'Run rule simulation', null, null),
@@ -306,8 +306,36 @@ insert into release_incidents (release_id, incident_id) values
   ('30000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000032')
 on conflict (release_id, incident_id) do nothing;
 
+-- A release step moving forward is history for the incidents that gate it, so
+-- each war room reads one timeline instead of sending the operator to the
+-- release board. Derived from the persisted steps and links rather than
+-- hand-written, so the feed cannot drift from the board it describes. Scoped to
+-- the seeded incident IDs because only those are cleared by the reset above.
+insert into incident_events (id, incident_id, kind, actor_id, data, created_at)
+select
+  md5('demo-release-step:' || s.release_id::text || ':' || s.position::text
+      || ':' || ri.incident_id::text)::uuid,
+  ri.incident_id,
+  'release_step_validated',
+  s.validated_by,
+  jsonb_build_object('release_id', r.id, 'release_title', r.title, 'step', s.name),
+  s.validated_at
+from release_steps s
+join releases r on r.id = s.release_id
+join release_incidents ri on ri.release_id = s.release_id
+join incidents i on i.id = ri.incident_id
+where s.validated_at is not null
+  and ri.incident_id::text like '10000000-0000-4000-8000-0000000000__'
+  -- Un incident ne peut pas porter d'historique antérieur à sa propre
+  -- déclaration : l'évènement n'existe que si le lien existait déjà au moment
+  -- de la validation. Les étapes validées avant que l'incident soit ouvert
+  -- décrivent une release que cet incident n'a rejointe qu'ensuite.
+  and s.validated_at >= i.created_at;
+
 -- Private-message browser tests exercise both HTTP directions and realtime
 -- delivery. Keep only the stable conversation after each run.
+delete from private_message_reads;
+
 delete from private_messages
 where content like 'E2E direct message %'
    or content like 'DM parity %'
@@ -316,9 +344,9 @@ where content like 'E2E direct message %'
 
 insert into private_messages (id, sender_id, recipient_id, content, created_at) values
   ('40000000-0000-4000-8000-000000000001', :'manager_id', :'responder_id', 'Can you take the checkout latency investigation?', now() - interval '50 minutes'),
-  ('40000000-0000-4000-8000-000000000002', :'responder_id', :'manager_id', 'On it. I am checking the promotion lookup path first.', now() - interval '48 minutes'),
-  ('40000000-0000-4000-8000-000000000003', :'observer_id', :'manager_id', 'Support has linked twelve customer reports to the payment incident.', now() - interval '16 minutes'),
+  ('40000000-0000-4000-8000-000000000002', :'responder_id', :'manager_id', 'On it. I am checking the promotion lookup path first.', now() - interval '1 minute'),
   ('40000000-0000-4000-8000-000000000004', :'manager_id', :'observer_id', 'Thanks. Keep the incident channel updated with new regions.', now() - interval '14 minutes'),
+  ('40000000-0000-4000-8000-000000000003', :'observer_id', :'manager_id', 'Support has linked twelve customer reports to the payment incident.', now() - interval '30 seconds'),
   ('40000000-0000-4000-8000-000000000005', :'responder_id', :'observer_id', 'Could you validate whether the Android reports are all version 8.4.1?', now() - interval '6 hours'),
   ('40000000-0000-4000-8000-000000000006', :'observer_id', :'responder_id', 'Confirmed: 87% are 8.4.1, mostly Android 14.', now() - interval '350 minutes')
 on conflict (id) do update set
@@ -343,5 +371,7 @@ select
   (select count(*) from releases) as releases,
   (select count(*) from release_steps) as release_steps,
   (select count(*) from release_incidents) as release_links,
+  (select count(*) from incident_events where kind = 'release_step_validated')
+    as release_step_events,
   (select count(*) from private_messages) as private_messages,
   (select count(*) from team_bans) as bans;

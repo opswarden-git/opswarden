@@ -51,8 +51,8 @@ export function FormField({
     : children;
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <label htmlFor={controlId} className="text-text text-sm font-medium">
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <label htmlFor={controlId} className="text-text text-xs font-medium">
         {label}
         {required && (
           <span className="text-sev-critical ml-0.5" aria-hidden="true">

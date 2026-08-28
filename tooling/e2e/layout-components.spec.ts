@@ -185,7 +185,7 @@ test("Incident details display as a bottom sheet on mobile", async ({ page }) =>
     await page.goto(`/en/teams/${TEAM_ID}/incidents/${INCIDENT_ID}`);
 
     if (viewportWidth < 1024) {
-      const contextButton = page.getByRole("button", { name: "Details" });
+      const contextButton = page.getByRole("button", { name: "Incident details", exact: true });
       await expect(contextButton).toBeVisible();
 
       // Open the sheet
@@ -201,7 +201,9 @@ test("Incident details display as a bottom sheet on mobile", async ({ page }) =>
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
     } else {
-      await expect(page.getByRole("button", { name: "Details" })).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "Incident details", exact: true }),
+      ).toBeHidden();
 
       const contextPanel = page.getByRole("complementary", { name: "Incident details" });
       await expect(contextPanel).toBeVisible();

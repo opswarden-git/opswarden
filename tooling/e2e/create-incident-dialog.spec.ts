@@ -15,7 +15,7 @@ async function loginAsManager(page: Page) {
 async function openCreateIncident(page: Page) {
   const trigger = page.getByRole("button", { name: "New incident", exact: true });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Declare New Incident" });
+  const dialog = page.getByRole("dialog", { name: "Declare new incident" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Title", { exact: true })).toBeFocused();
   return { dialog, trigger };
@@ -75,6 +75,11 @@ test("small viewport scrolls the body while keeping the footer visible and focus
   const { dialog } = await openCreateIncident(page);
   const body = dialog.locator('[data-dialog-part="body"]');
   const footer = dialog.locator('[data-dialog-part="footer"]');
+
+  // Below `sm` the dialog rises from the bottom edge, so its geometry is only
+  // meaningful once the slide has finished: mid-animation it is still offset
+  // below the viewport.
+  await expect(dialog).toHaveCSS("transform", "none");
 
   const geometry = await dialog.evaluate((element) => {
     const body = element.querySelector<HTMLElement>('[data-dialog-part="body"]')!;

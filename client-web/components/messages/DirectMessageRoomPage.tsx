@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAvailableReactions } from "@/lib/queries/incidents";
-import { usePrivateMessages, useSendPrivateMessage } from "@/lib/queries/privateMessages";
+import {
+  useMarkPrivateMessageRead,
+  usePrivateMessages,
+  useSendPrivateMessage,
+} from "@/lib/queries/privateMessages";
 import { useTeamMembers } from "@/lib/queries/teams";
 import { usePrivateMessageTypingUsers, usePrivateMessageWatchers } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
@@ -43,6 +47,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
     !!peer && !!currentUserId && peer.user_id !== currentUserId,
   );
   const send = useSendPrivateMessage();
+  const markRead = useMarkPrivateMessageRead();
   const { data: availableReactions = [] } = useAvailableReactions();
   const watchers = usePrivateMessageWatchers(peerId);
   const typingUsers = usePrivateMessageTypingUsers(peerId);
@@ -70,6 +75,16 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
     [messages],
   );
   const errorText = (code: string, fallback: string) => (tErr.has(code) ? tErr(code) : fallback);
+
+  const latestMessageDate = ordered[ordered.length - 1]?.created_at;
+  // `mutate` is stable across renders; the mutation object around it is not, so
+  // depending on the object would re-run this on every render.
+  const markReadThrough = markRead.mutate;
+  useEffect(() => {
+    if (peerId && latestMessageDate) {
+      markReadThrough({ peerId, readThrough: latestMessageDate });
+    }
+  }, [markReadThrough, peerId, latestMessageDate]);
 
   useEffect(() => {
     if (!messages.length || (!hasMessageBaseline.current && conversation.isFetching)) return;
@@ -112,6 +127,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
       className="bg-panel/25 border-border h-full overflow-y-auto border-l"
     >
       <TeamPresenceList
+        className="p-2"
         activePeerId={peer.user_id}
         members={members}
         presentUserIds={watchers}
@@ -143,8 +159,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
           >
             {isRoomsRailOpen ? roomNavigation : null}
             <RailToggle
-              className="top-1/2 right-0 -translate-y-1/2"
-              direction={isRoomsRailOpen ? "left" : "right"}
+              side="right"
               label={t(isRoomsRailOpen ? "collapseRooms" : "expandRooms")}
               onClick={() => setIsRoomsRailOpen((open) => !open)}
             />
@@ -272,8 +287,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
             data-people-rail-open={isPeopleRailOpen ? "true" : "false"}
           >
             <RailToggle
-              className="top-1/2 left-0 -translate-y-1/2"
-              direction={isPeopleRailOpen ? "right" : "left"}
+              side="left"
               label={t(isPeopleRailOpen ? "collapseMembers" : "expandMembers")}
               onClick={() => setIsPeopleRailOpen((open) => !open)}
             />

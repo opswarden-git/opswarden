@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { RunStatus } from "@/components/automations/RunsView";
+import { useErrorText } from "@/lib/useErrorText";
 import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
@@ -146,6 +147,7 @@ function OverviewSection({
 export function TeamOverviewPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
   const ta = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const teams = useTeams();
   const incidents = useIncidentQueue(teamId, { sort: "severity" });
@@ -244,7 +246,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
               seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeIncidents.length ? (
-                <ul className="divide-border divide-y">
+                <ul className="divide-border-muted divide-y">
                   {activeIncidents.slice(0, previewLimit).map((incident) => (
                     <li key={incident.id}>
                       <Link
@@ -284,7 +286,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
               seeAllLabel={t("overviewViews.seeAll")}
             >
               {activeReleases.length ? (
-                <ul className="divide-border divide-y">
+                <ul className="divide-border-muted divide-y">
                   {activeReleases.slice(0, previewLimit).map((release) => (
                     <li key={release.release_id}>
                       <Link
@@ -327,7 +329,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                 seeAllLabel={t("overviewViews.seeAll")}
               >
                 {runs.data?.length ? (
-                  <ul className="divide-border divide-y">
+                  <ul className="divide-border-muted divide-y">
                     {runs.data.slice(0, previewLimit).map((run) => (
                       <li key={run.id} className="px-4 py-2">
                         <div className="flex min-w-0 items-start justify-between gap-3">
@@ -350,8 +352,11 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
                               {ta("openIncident")}
                             </Link>
                           ) : run.error_code ? (
-                            <span className="text-sev-critical truncate" title={run.error_code}>
-                              {run.error_code}
+                            <span
+                              className="text-sev-critical truncate"
+                              title={errorText(run.error_code)}
+                            >
+                              {errorText(run.error_code)}
                             </span>
                           ) : null}
                         </div>

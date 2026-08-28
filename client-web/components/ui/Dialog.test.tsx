@@ -55,12 +55,16 @@ describe("Dialog", () => {
     render(<DialogHarness />);
     fireEvent.click(screen.getByRole("button", { name: "Open dialog" }));
 
+    // A modal rises from the bottom edge on a phone and centres from `sm` up:
+    // the same surface, anchored differently, not two components.
     expect(document.querySelector('[data-dialog-part="content"]')).toHaveClass(
       "max-h-[calc(100dvh-2rem)]",
       "flex-col",
-      "top-4",
-      "bottom-4",
+      "bottom-0",
+      "mt-auto",
       "sm:top-1/2",
+      "sm:bottom-auto",
+      "sm:mt-0",
     );
     expect(document.querySelector('[data-dialog-part="body"]')).toHaveClass(
       "min-h-0",

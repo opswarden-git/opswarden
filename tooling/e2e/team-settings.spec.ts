@@ -12,16 +12,17 @@ async function login(page: Page, email: string) {
 }
 
 test.describe("Team", () => {
-  test("Manager sees team identity, invitation, two member rosters and danger actions", async ({
-    page,
-  }) => {
+  test("Manager sees Team identity, a flat member roster and danger actions", async ({ page }) => {
     await login(page, "manager@opswarden.local");
     await page.goto(teamUrl);
 
     await expect(page.getByRole("heading", { name: "OpsWarden Demo", level: 2 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add member" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Share join code" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Active members", level: 3 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Banned members", level: 3 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Active members", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Inactive members" })).toBeVisible();
+    await expect(page.getByLabel("Roles")).toBeAttached();
+    await expect(page.getByRole("heading", { name: "Banned members" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Danger", level: 2 })).toBeVisible();
   });
 
@@ -30,6 +31,7 @@ test.describe("Team", () => {
     await page.goto(teamUrl);
 
     await expect(page.getByRole("heading", { name: "OpsWarden Demo", level: 2 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add member" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Share join code" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Banned members" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Leave team" })).toBeVisible();

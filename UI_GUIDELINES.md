@@ -162,10 +162,51 @@ makes two screens performing similar actions look alike.
 `56px` is the single allowed exception — a page-level value whose neighbours are
 far enough away that the step is not perceptible.
 
+Within that cadence, compose from a short vocabulary rather than the whole
+ramp. Primer exposes six functional steps — `2 · 4 · 8 · 12 · 16 · 24` — and
+reserves the rest of the scale for layout values that are chosen deliberately.
+Nineteen legal steps is not a cadence, it is a permission: two panels doing the
+same job end up 20px and 24px apart for no reason a reader can recover.
+
 Scope is spacing: padding, margin and gap. Sizing is excluded, because
 `h-3.5 w-3.5` is the 14px inline icon size used across the product and that is a
 deliberate choice, not a spacing decision. Arbitrary values such as `p-[13px]`
 are rejected outright.
+
+## Surfaces
+
+Every surface that holds content — a card, a dialog, a sheet, a side panel —
+uses the same three parts, and only the first and last are optional:
+
+`header?` · `body` · `footer?`
+
+A card is a dialog that does not float. Keeping one grammar means a decision
+about where a title sits, or where a line belongs, is taken once instead of
+once per surface. `Dialog` marks these parts with `data-dialog-part`, so a test
+can assert against them without a screenshot.
+
+Three rules follow from the grammar:
+
+- **A surface does not contain a bordered surface.** Depth comes from the
+  background plane and from spacing, not from stacking outlines. When a form
+  needs groups, separate them with space and a label, not with a boxed
+  `fieldset` inside a boxed dialog.
+- **A horizontal line answers an overflow.** Use `.scroll-divider`, which shows
+  its rule only while content can scroll under it. Do not draw a line to
+  decorate the seam between two parts that both fit on screen.
+- **A record is inset the same everywhere.** Sixteen pixels on the horizontal,
+  in a table cell and in a list row alike, so a record starts at the same place
+  whichever surface renders it. Only the vertical varies, and only with density:
+  8px in a compact table, 12px in a normal one, 16px in a list row. Reach for
+  the shared component before choosing a number — seven different insets once
+  coexisted here, and every one of them was individually defensible.
+- **The subtitle is not the title again.** A subtitle carries what the title
+  cannot: the named resource, the consequence, the count. If it restates the
+  title in a longer form, delete it and use `titleHidden` when the trigger
+  already named the action.
+
+The narrow-viewport presentation of a dialog is a position, not a different
+component: the same surface, the same parts, anchored to the bottom edge.
 
 ## Components
 
@@ -285,15 +326,17 @@ the user chooses it.
 Most of this document is a contract, not advice. These rules fail the build
 rather than a review:
 
-| Rule                                                | Contract                                 |
-| --------------------------------------------------- | ---------------------------------------- |
-| Token families exist and clear 4.5:1 contrast       | `app/design-tokens.test.ts`              |
-| A release state never wears an incident token       | `app/design-tokens.test.ts`              |
-| Every state renders color **and** icon **and** text | `components/state-encoding.test.ts`      |
-| Status panels stay opaque, compact and accessible   | `components/ui/StatusBadge.test.tsx`     |
-| Spacing stays on the shared cadence                 | `components/spacing-scale.test.ts`       |
-| Interface prose stays within its per-locale budget  | `i18n/text-budget.test.ts`               |
-| Destructive flows name resource and consequence     | `components/destructive-actions.test.ts` |
+| Rule                                                   | Contract                                 |
+| ------------------------------------------------------ | ---------------------------------------- |
+| Token families exist and clear 4.5:1 contrast          | `app/design-tokens.test.ts`              |
+| A release state never wears an incident token          | `app/design-tokens.test.ts`              |
+| Every state renders color **and** icon **and** text    | `components/state-encoding.test.ts`      |
+| Status panels stay opaque, compact and accessible      | `components/ui/StatusBadge.test.tsx`     |
+| Spacing stays on the shared cadence                    | `components/spacing-scale.test.ts`       |
+| Radius and border weights keep their documented values | `app/design-tokens.test.ts`              |
+| Dialog dividers appear only over scrollable content    | `app/design-tokens.test.ts`              |
+| Interface prose stays within its per-locale budget     | `i18n/text-budget.test.ts`               |
+| Destructive flows name resource and consequence        | `components/destructive-actions.test.ts` |
 
 They read the source rather than a rendered screen, so they hold whatever a
 component looks like. A visual review supplements them; it does not replace
@@ -309,6 +352,8 @@ Before merging an interface change, verify:
 - [ ] Keyboard focus, names and live errors work without a mouse.
 - [ ] EN and FR copy is complete and natural, and fits the text budget — or the
       ceiling is raised deliberately, with the reason recorded.
+- [ ] No bordered surface sits inside another bordered surface.
+- [ ] Every horizontal line separates something that can actually scroll.
 - [ ] Destructive consequences are named; reversible actions stay lightweight.
 - [ ] Component, integration or E2E coverage protects the new behavior.
 

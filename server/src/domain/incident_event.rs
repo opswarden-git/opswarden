@@ -12,6 +12,7 @@ pub enum IncidentEventKind {
     StatusChanged,
     Assigned,
     SeverityChanged,
+    ReleaseStepValidated,
 }
 
 impl fmt::Display for IncidentEventKind {
@@ -21,6 +22,7 @@ impl fmt::Display for IncidentEventKind {
             Self::StatusChanged => "status_changed",
             Self::Assigned => "assigned",
             Self::SeverityChanged => "severity_changed",
+            Self::ReleaseStepValidated => "release_step_validated",
         })
     }
 }
@@ -84,6 +86,28 @@ impl IncidentEvent {
             IncidentEventKind::SeverityChanged,
             actor_id,
             json!({ "from": from.to_string(), "to": to.to_string() }),
+        )
+    }
+
+    /// A release this incident blocks moved a step forward. Recorded on the
+    /// incident so its war room reads one history, not two: the release title
+    /// is snapshotted because an audit line must not change when it is renamed.
+    pub fn release_step_validated(
+        incident_id: Uuid,
+        actor_id: Uuid,
+        release_id: Uuid,
+        release_title: &str,
+        step: &str,
+    ) -> Self {
+        Self::new(
+            incident_id,
+            IncidentEventKind::ReleaseStepValidated,
+            actor_id,
+            json!({
+                "release_id": release_id,
+                "release_title": release_title,
+                "step": step,
+            }),
         )
     }
 

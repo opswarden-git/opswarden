@@ -15,67 +15,45 @@ import { useCancelRelease, useRelease } from "@/lib/queries/releases";
 import { useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { ReleaseDetail } from "./ReleaseDetail";
+import { ReleaseStateChip } from "./ReleaseStateChip";
+import { actionButtonClassNames, Button } from "@/components/ui/Button";
 import { normalizeReleaseView } from "./release-views";
 
 function ReleaseDetailSkeleton({ label }: { label: string }) {
   return (
     <div
-      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"
+      className="space-y-6"
       aria-busy="true"
       aria-label={label}
       data-testid="release-detail-skeleton"
     >
-      <section className="surface rounded-md p-5 sm:p-6">
+      <section className="surface rounded-md p-4 sm:p-6">
         <Skeleton className="h-5 w-40" />
-        <Skeleton className="mt-2 h-4 w-64 max-w-full" />
-
-        <div className="mt-7 space-y-6">
+        <div className="mt-4 space-y-4">
           {[0, 1, 2, 3].map((step) => (
-            <div key={step} className="flex gap-4">
-              <div className="relative flex w-8 shrink-0 justify-center">
-                {step < 3 ? (
-                  <span
-                    className="bg-border absolute top-8 -bottom-6 left-1/2 w-px -translate-x-1/2"
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <Skeleton className="relative z-10 h-8 w-8 rounded-full" />
-              </div>
-              <div className="min-w-0 flex-1 pt-1">
+            <div key={step} className="flex items-start gap-3">
+              <Skeleton className="mt-0.5 h-4 w-4 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1">
                 <Skeleton className="h-4 w-36" />
-                <Skeleton className="mt-2 h-3 w-52 max-w-full" />
+                <Skeleton className="mt-1 h-3 w-24" />
               </div>
+              <Skeleton className="h-3 w-32 shrink-0" />
             </div>
           ))}
         </div>
       </section>
 
-      <aside className="surface h-fit overflow-hidden rounded-md">
-        <div className="border-border border-b px-4 py-3">
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <div className="divide-border divide-y">
-          <div className="space-y-4 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <Skeleton className="h-3 w-14" />
-              <Skeleton className="h-6 w-20 rounded-full" />
+      <section className="surface rounded-md p-4 sm:p-6">
+        <Skeleton className="h-5 w-32" />
+        <div className="mt-4 space-y-3">
+          {[0, 1].map((row) => (
+            <div key={row} className="flex items-center gap-3">
+              <Skeleton className="h-4 min-w-0 flex-1" />
+              <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-10" />
-            </div>
-          </div>
-          <div className="space-y-3 p-4">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-9 w-full rounded-md" />
-          </div>
-          <div className="space-y-3 p-4">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-9 w-full rounded-md" />
-          </div>
+          ))}
         </div>
-      </aside>
+      </section>
     </div>
   );
 }
@@ -111,10 +89,15 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
   return (
     <PageLayout>
       <PageHeader
-        title={release?.title ?? t("releaseDetail")}
-        metadata={
+        title={
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="min-w-0 truncate">{release?.title ?? t("deploymentSteps")}</span>
+            {release ? <ReleaseStateChip state={release.state} /> : null}
+          </span>
+        }
+        titleAside={
           release ? (
-            <time dateTime={release.created_at}>
+            <time dateTime={release.created_at} className="text-muted text-sm font-normal">
               {t("createdOn", {
                 date: new Intl.DateTimeFormat(locale, {
                   dateStyle: "medium",
@@ -122,6 +105,21 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
                 }).format(new Date(release.created_at)),
               })}
             </time>
+          ) : null
+        }
+        actions={
+          release && capabilities.canCancelRelease && !terminal ? (
+            <Button
+              className={actionButtonClassNames()}
+              variant="danger"
+              loading={cancelRelease.isPending}
+              onClick={() => {
+                cancelRelease.reset();
+                setConfirmCancel(true);
+              }}
+            >
+              {t("cancelRelease")}
+            </Button>
           ) : null
         }
       />
@@ -138,20 +136,7 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
         }
       >
         {release ? (
-          <ReleaseDetail
-            release={release}
-            teamId={teamId}
-            role={team?.role ?? "observer"}
-            cancelPending={cancelRelease.isPending}
-            onCancel={
-              capabilities.canCancelRelease && !terminal
-                ? () => {
-                    cancelRelease.reset();
-                    setConfirmCancel(true);
-                  }
-                : undefined
-            }
-          />
+          <ReleaseDetail release={release} teamId={teamId} role={team?.role ?? "observer"} />
         ) : null}
       </PageContent>
 

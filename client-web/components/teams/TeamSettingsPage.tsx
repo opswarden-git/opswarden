@@ -12,9 +12,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { IdentityHeader } from "@/components/settings/SettingsPrimitives";
+import { AddMemberDialog } from "./AddMemberDialog";
 import { JoinCodeDialog } from "./JoinCodeDialog";
-import { RoleChip } from "./RoleChip";
 import { TeamRoster, TeamRosterRowsSkeleton } from "./TeamRoster";
+import { TeamImageEditor } from "./TeamImageEditor";
 
 type Dialog = "leave" | "delete" | null;
 
@@ -23,41 +24,38 @@ function TeamSettingsSkeleton({ label }: { label: string }) {
     <div className="space-y-8" aria-label={label} aria-busy="true">
       <div className="border-border flex items-center gap-4 border-b pb-6">
         <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
-        <div className="space-y-2">
+        <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-56" />
         </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-24 shrink-0" />
+          <Skeleton className="h-9 w-28 shrink-0" />
+        </div>
       </div>
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-9 w-24" />
-        </div>
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Skeleton className="h-10 min-w-0 flex-1" />
-            <Skeleton className="h-4 w-20" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-56" />
+            <Skeleton className="h-9 w-20" />
           </div>
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-            <div className="surface overflow-hidden rounded-md">
-              <TeamRosterRowsSkeleton />
-            </div>
-          </section>
+        </div>
+        <div className="surface overflow-hidden rounded-md">
+          <TeamRosterRowsSkeleton />
         </div>
       </section>
-      <section className="surface border-sev-critical/40 rounded-md p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-3 w-64 max-w-full" />
+      <div className="border-border border-t pt-8">
+        <section className="surface border-sev-critical/40 rounded-md p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-64 max-w-full" />
+            </div>
+            <Skeleton className="h-9 w-24 shrink-0" />
           </div>
-          <Skeleton className="h-9 w-24 shrink-0" />
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
@@ -86,70 +84,71 @@ function TeamPage({ team }: { team: Team }) {
   const leaveOrDeleteDone = () => router.replace("/teams");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <IdentityHeader
-        mark={teamMark(team.name)}
-        title={team.name}
-        subtitle={
-          <div className="flex flex-wrap items-center gap-2">
-            <RoleChip role={team.role} />
-            <span aria-hidden="true">·</span>
-            <span>
-              {t("createdOn", {
-                date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                  new Date(team.created_at),
-                ),
-              })}
-            </span>
-          </div>
+        action={
+          capabilities.canManageMembers ? (
+            <div className="flex items-center gap-2">
+              <JoinCodeDialog teamId={team.team_id} />
+              <AddMemberDialog teamId={team.team_id} />
+            </div>
+          ) : null
         }
+        mark={
+          <TeamImageEditor
+            team={team}
+            fallback={teamMark(team.name)}
+            canEdit={capabilities.canManageMembers}
+          />
+        }
+        markInteractive={capabilities.canManageMembers}
+        title={team.name}
+        subtitle={t("createdOn", {
+          date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+            new Date(team.created_at),
+          ),
+        })}
       />
 
-      <section id="members" aria-labelledby="team-members" className="scroll-mt-24 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="team-members" className="text-text font-semibold">
-            {t("membersWithCount", { count: team.member_count })}
-          </h2>
-          {capabilities.canViewInvitationCode ? <JoinCodeDialog teamId={team.team_id} /> : null}
-        </div>
-        <TeamRoster team={team} />
-      </section>
+      <TeamRoster team={team} />
 
-      <section
-        aria-labelledby="team-danger"
-        className="surface border-sev-critical/40 rounded-md p-5"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 id="team-danger" className="text-sev-critical font-semibold">
-              {t("danger")}
-            </h2>
-            <p className="text-muted mt-1 text-sm">
-              {capabilities.canDeleteTeam ? t("deleteTeamWarning") : t("leaveTeamWarning")}
-            </p>
+      <div className="border-border/40 border-t pt-3">
+        <section
+          aria-labelledby="team-danger"
+          className="surface border-sev-critical/40 rounded-md p-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 id="team-danger" className="text-sev-critical font-semibold">
+                {t("danger")}
+              </h2>
+              <p className="text-muted mt-1 text-sm">
+                {capabilities.canDeleteTeam ? t("deleteTeamWarning") : t("leaveTeamWarning")}
+              </p>
+            </div>
+            {capabilities.canDeleteTeam ? (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  remove.reset();
+                  setDialog("delete");
+                }}
+              >
+                {t("deleteTeam")}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  leave.reset();
+                  setDialog("leave");
+                }}
+              >
+                {t("leaveTeam")}
+              </Button>
+            )}
           </div>
-          {capabilities.canDeleteTeam ? (
-            <Button
-              variant="danger"
-              onClick={() => {
-                remove.reset();
-                setDialog("delete");
-              }}
-            >
-              {t("deleteTeam")}
-            </Button>
-          ) : (
-            <Button
-              onClick={() => {
-                leave.reset();
-                setDialog("leave");
-              }}
-            >
-              {t("leaveTeam")}
-            </Button>
-          )}
-        </div>
-      </section>
+        </section>
+      </div>
 
       <ConfirmDialog
         open={dialog === "leave"}

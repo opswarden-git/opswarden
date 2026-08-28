@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Ban, Clock3, Search, ShieldCheck } from "lucide-react";
+import { HelpCircle, Search, ShieldOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import {
@@ -17,16 +17,17 @@ import {
   useUnbanMember,
 } from "@/lib/queries/teams";
 import { useTeamOnline } from "@/lib/ws";
+import { useUnreadPrivateMessages } from "@/lib/queries/privateMessages";
 import { useAuthStore } from "@/store/auth";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { teamPath } from "@/lib/team-routing";
+import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconButton } from "@/components/ui/Button";
 import { TableFilterControl } from "@/components/ui/CollectionControls";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { MemberAvatar } from "./MemberAvatar";
+import { MemberAvatar, memberDisplayName } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
 
@@ -36,36 +37,19 @@ type RoleFilter = "all" | "manager" | "responder" | "observer";
 
 export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="divide-border divide-y" aria-busy="true" data-testid="team-roster-skeleton">
+    <div
+      className="divide-border-muted divide-y"
+      aria-busy="true"
+      data-testid="team-roster-skeleton"
+    >
       {Array.from({ length: rows }, (_, index) => (
-        <div
-          key={index}
-          className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
-        >
-          <div className="flex items-start justify-between gap-3 md:contents">
-            <div className="flex items-center gap-3 md:contents">
-              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-              <div className="min-w-0 md:hidden">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="mt-1 h-3 w-16" />
-              </div>
-            </div>
-            <Skeleton className="h-8 w-16 shrink-0 md:hidden" />
+        <div key={index} className="flex items-center gap-3 px-4 py-4">
+          <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            <Skeleton className="h-2.5 w-20" />
           </div>
-
-          <div className="hidden min-w-0 md:block">
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="mt-1 h-3 w-32" />
-          </div>
-
-          <div className="flex items-center justify-between gap-3 md:contents">
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <Skeleton className="h-4 w-24 md:hidden" />
-          </div>
-
-          <div className="hidden items-center gap-1 md:flex">
-            <Skeleton className="h-8 w-16" />
-          </div>
+          <Skeleton className="h-8 w-16 shrink-0" />
         </div>
       ))}
     </div>
@@ -92,6 +76,11 @@ export function TeamRoster({ team }: { team: Team }) {
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
   const capabilities = deriveCapabilities(team.role);
+  const { data: unreadData } = useUnreadPrivateMessages(capabilities.canSendPrivateMessage);
+  const unreadPeerSet = useMemo(
+    () => new Set(unreadData?.unread_peer_ids ?? []),
+    [unreadData?.unread_peer_ids],
+  );
 
   const setRole = useSetMemberRole(team.team_id);
   const transfer = useTransferManager(team.team_id);
@@ -116,14 +105,21 @@ export function TeamRoster({ team }: { team: Team }) {
           member.role.toLocaleLowerCase().includes(normalized)),
     );
   }, [members, query, roleFilter]);
+  const visibleActiveMembers = visibleMembers.filter(
+    (member) => member.user_id === currentUserId || onlineSet.has(member.user_id),
+  );
+  const visibleInactiveMembers = visibleMembers.filter(
+    (member) => member.user_id !== currentUserId && !onlineSet.has(member.user_id),
+  );
   const visibleBans = useMemo(() => {
     if (!capabilities.canManageMembers) return [];
     const normalized = query.trim().toLocaleLowerCase();
     return (bans.data ?? []).filter(
-      (entry) => !normalized || entry.user.email.toLocaleLowerCase().includes(normalized),
+      (entry) =>
+        entry.active && (!normalized || entry.user.email.toLocaleLowerCase().includes(normalized)),
     );
   }, [bans.data, capabilities.canManageMembers, query]);
-  const onlineCount = (members ?? []).filter((member) => onlineSet.has(member.user_id)).length;
+  const hasBans = (bans.data ?? []).some((entry) => entry.active);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
   const close = () => setDialog(null);
 
@@ -133,35 +129,113 @@ export function TeamRoster({ team }: { team: Team }) {
     setDialog(next);
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("searchMembers")}</span>
-          <Search
-            className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-            aria-hidden="true"
-          />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("searchMembers")}
-            className="ow-input h-10 w-full rounded-md pr-3 pl-10 text-sm"
-          />
-        </label>
-        <div className="text-muted flex items-center gap-3 px-1 text-sm">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="bg-st-res h-1.5 w-1.5 rounded-full" />
-            {t("onlineCount", { count: onlineCount })}
-          </span>
-        </div>
-      </div>
+  const memberList = (items: TeamMember[]) => (
+    <div className="surface overflow-hidden rounded-md">
+      <ul className="divide-border-muted divide-y">
+        {items.map((member) => {
+          const active = member.user_id === currentUserId || onlineSet.has(member.user_id);
+          const hasUnread = unreadPeerSet.has(member.user_id);
+          const displayName = memberDisplayName(member.email);
+          const conversationHref =
+            member.user_id !== currentUserId && capabilities.canSendPrivateMessage
+              ? teamPath(team.team_id, "messages", member.user_id)
+              : null;
+          const rowActions = capabilities.canManageMembers ? (
+            <MemberRowActions
+              member={member}
+              pending={setRole.isPending || transfer.isPending || kick.isPending || ban.isPending}
+              onSetRole={(role) => setRole.mutate({ userId: member.user_id, role })}
+              onMakeManager={() => openDialog("makeManager", member)}
+              onKick={() => openDialog("kick", member)}
+              onBan={() => openDialog("ban", member)}
+            />
+          ) : null;
 
-      <section aria-labelledby="active-members" className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <h3 id="active-members" className="text-muted text-sm font-medium">
-            {t("activeMembers")}
-          </h3>
+          return (
+            <li
+              key={member.user_id}
+              className="relative flex items-center gap-3 px-4 py-4 transition-colors hover:bg-white/[0.03]"
+            >
+              {conversationHref ? (
+                <Link
+                  href={conversationHref}
+                  className="focus-visible:ring-gold/50 absolute inset-0 rounded-md focus-visible:ring-2 focus-visible:outline-none"
+                >
+                  <span className="sr-only">
+                    {tDm("openConversation", { email: member.email })}
+                  </span>
+                </Link>
+              ) : null}
+              <span className="relative shrink-0">
+                <MemberAvatar email={member.email} role={member.role} />
+                <span
+                  title={active ? t("online") : t("offline")}
+                  className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
+                    active ? "bg-st-res" : "bg-muted/40"
+                  }`}
+                />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-1" title={member.email}>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "text-text truncate text-sm leading-4",
+                      hasUnread ? "font-bold" : "font-medium",
+                    )}
+                  >
+                    {displayName}
+                  </span>
+                  {hasUnread ? (
+                    <span
+                      className="text-muted inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold tracking-wider uppercase"
+                      aria-label={tDm("newMessages")}
+                    >
+                      <span className="bg-text h-1.5 w-1.5 rounded-full sm:hidden" />
+                      <span className="hidden sm:inline">{tDm("newMessages")}</span>
+                      <HelpCircle
+                        className="hidden h-3 w-3 opacity-70 sm:block"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  ) : null}
+                </div>
+                <RoleChip role={member.role} showIcon={false} className="text-[11px] leading-3" />
+              </div>
+              <div className="relative z-10 flex shrink-0 items-center gap-1">{rowActions}</div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  return (
+    <section id="members" aria-label={t("members")} className="scroll-mt-24 space-y-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+        {visibleActiveMembers.length > 0 ? (
+          <div className="flex items-baseline gap-2 px-1">
+            <h2 id="active-members" className="text-text text-sm font-semibold">
+              {t("activeMembers", { count: visibleActiveMembers.length })}
+            </h2>
+            <span className="text-muted text-xs tabular-nums">{visibleActiveMembers.length}</span>
+          </div>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        <div className="ml-auto flex min-w-0 items-center gap-3">
+          <label className="relative min-w-36 flex-1 sm:w-56 sm:flex-none">
+            <span className="sr-only">{t("searchMembers")}</span>
+            <Search
+              className="text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("searchMembers")}
+              className="ow-input h-9 w-full rounded-md pr-3 pl-9 text-sm"
+            />
+          </label>
           <TableFilterControl
             label={t("roleFilter")}
             value={roleFilter === "all" ? "" : roleFilter}
@@ -179,122 +253,42 @@ export function TeamRoster({ team }: { team: Team }) {
             ]}
           />
         </div>
-        <div className="surface overflow-hidden rounded-md">
-          {setRole.error ? (
-            <Alert tone="danger" className="m-4">
-              {errorText(setRole.error.message)}
-            </Alert>
-          ) : null}
+      </div>
 
-          {isLoading ? (
-            <TeamRosterRowsSkeleton />
-          ) : error ? (
-            <Alert tone="danger" className="m-4">
-              {t("membersFailed")}
-            </Alert>
-          ) : visibleMembers.length === 0 ? (
-            <div className="text-muted px-6 py-10 text-center text-sm">
-              {query ? t("noMatchingMembers") : t("noMembers")}
-            </div>
-          ) : (
-            <ul className="divide-border divide-y">
-              {visibleMembers.map((member) => {
-                const conversationHref =
-                  member.user_id !== currentUserId && capabilities.canSendPrivateMessage
-                    ? teamPath(team.team_id, "messages", member.user_id)
-                    : null;
-                const rowActions = (
-                  <>
-                    {capabilities.canManageMembers ? (
-                      <MemberRowActions
-                        member={member}
-                        pending={
-                          setRole.isPending || transfer.isPending || kick.isPending || ban.isPending
-                        }
-                        onSetRole={(role) => setRole.mutate({ userId: member.user_id, role })}
-                        onMakeManager={() => openDialog("makeManager", member)}
-                        onKick={() => openDialog("kick", member)}
-                        onBan={() => openDialog("ban", member)}
-                      />
-                    ) : null}
-                  </>
-                );
-
-                return (
-                  <li
-                    key={member.user_id}
-                    className="relative flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-white/[0.03] md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
-                  >
-                    {conversationHref ? (
-                      <Link
-                        href={conversationHref}
-                        className="focus-visible:ring-gold/50 absolute inset-0 rounded-md focus-visible:ring-2 focus-visible:outline-none"
-                      >
-                        <span className="sr-only">
-                          {tDm("openConversation", { email: member.email })}
-                        </span>
-                      </Link>
-                    ) : null}
-                    <div className="flex items-start justify-between gap-3 md:contents">
-                      <div className="flex items-center gap-3 md:contents">
-                        <span className="relative shrink-0">
-                          <MemberAvatar email={member.email} />
-                          <span
-                            title={onlineSet.has(member.user_id) ? t("online") : t("offline")}
-                            className={`border-bg absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 ${
-                              onlineSet.has(member.user_id) ? "bg-st-res" : "bg-muted/40"
-                            }`}
-                          />
-                        </span>
-                        <div className="min-w-0 md:hidden">
-                          <div className="text-text truncate font-medium">{member.email}</div>
-                          <div className="text-muted mt-0.5 text-xs">
-                            {onlineSet.has(member.user_id) ? t("online") : t("offline")}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="relative z-10 flex shrink-0 items-center gap-1 md:hidden">
-                        {rowActions}
-                      </div>
-                    </div>
-
-                    <div className="hidden min-w-0 md:block">
-                      <div className="text-text truncate font-medium">{member.email}</div>
-                      <div className="text-muted mt-0.5 text-xs">
-                        {t("joinedOn", {
-                          date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                            new Date(member.joined_at),
-                          ),
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3 md:contents">
-                      <RoleChip role={member.role} />
-                      <div className="text-muted text-sm md:hidden">
-                        {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                          new Date(member.joined_at),
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="relative z-10 hidden items-center gap-1 md:flex">
-                      {rowActions}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+      {setRole.error ? <Alert tone="danger">{errorText(setRole.error.message)}</Alert> : null}
+      {isLoading ? <TeamRosterRowsSkeleton /> : null}
+      {error ? <Alert tone="danger">{t("membersFailed")}</Alert> : null}
+      {!isLoading && !error && visibleMembers.length === 0 && visibleBans.length === 0 ? (
+        <div className="text-muted border-border border-y px-4 py-3 text-sm">
+          {query || roleFilter !== "all" ? t("noMatchingMembers") : t("noMembers")}
         </div>
-      </section>
+      ) : null}
 
-      {capabilities.canManageMembers ? (
+      {visibleActiveMembers.length > 0 ? (
+        <section aria-labelledby="active-members">{memberList(visibleActiveMembers)}</section>
+      ) : null}
+
+      {visibleInactiveMembers.length > 0 ? (
+        <section aria-labelledby="inactive-members" className="space-y-2">
+          <div className="flex items-baseline gap-2 px-1">
+            <h2 id="inactive-members" className="text-text text-sm font-semibold">
+              {t("inactiveMembers", { count: visibleInactiveMembers.length })}
+            </h2>
+            <span className="text-muted text-xs tabular-nums">{visibleInactiveMembers.length}</span>
+          </div>
+          {memberList(visibleInactiveMembers)}
+        </section>
+      ) : null}
+
+      {capabilities.canManageMembers &&
+      (bans.isLoading || bans.error || unban.error || (hasBans && visibleBans.length > 0)) ? (
         <section aria-labelledby="banned-members" className="space-y-2">
-          <h3 id="banned-members" className="text-muted text-sm font-medium">
-            {t("bannedMembers")}
-          </h3>
+          <div className="flex items-baseline gap-2 px-1">
+            <h2 id="banned-members" className="text-text text-sm font-semibold">
+              {t("bannedMembers", { count: visibleBans.length })}
+            </h2>
+            <span className="text-muted text-xs tabular-nums">{visibleBans.length}</span>
+          </div>
           <div
             className={
               bans.isLoading || bans.error || unban.error || visibleBans.length > 0
@@ -309,55 +303,39 @@ export function TeamRoster({ team }: { team: Team }) {
             ) : null}
             {bans.isLoading ? (
               <TeamRosterRowsSkeleton rows={1} />
-            ) : visibleBans.length === 0 ? (
-              <div className="text-muted px-1 py-3 text-sm">
-                {query ? t("noMatchingBans") : t("noBansInView")}
-              </div>
             ) : (
-              <ul className="divide-border divide-y">
+              <ul className="divide-border-muted divide-y">
                 {visibleBans.map((entry) => (
                   <li
                     key={`ban:${entry.user.user_id}:${entry.created_at}`}
-                    className="flex flex-col gap-3 px-5 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center"
+                    className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
                   >
                     <MemberAvatar email={entry.user.email} />
                     <div className="min-w-0">
-                      <div className="text-text truncate font-medium">{entry.user.email}</div>
+                      <div className="text-text truncate font-medium" title={entry.user.email}>
+                        {memberDisplayName(entry.user.email)}
+                      </div>
                       <div className="text-muted mt-0.5 text-xs">
-                        {entry.active
-                          ? entry.kind === "permanent"
-                            ? t("permanentBan")
-                            : t("banExpires", {
-                                date: new Intl.DateTimeFormat(locale, {
-                                  dateStyle: "medium",
-                                  timeStyle: "short",
-                                }).format(new Date(entry.expires_at!)),
-                              })
-                          : t("expiredBan")}
+                        {entry.kind === "permanent"
+                          ? t("permanentBan")
+                          : t("banExpires", {
+                              date: new Intl.DateTimeFormat(locale, {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              }).format(new Date(entry.expires_at!)),
+                            })}
                       </div>
                     </div>
-                    {entry.active ? (
-                      <StatusBadge tone="danger" icon={<Ban />}>
-                        {t("bannedStatus")}
-                      </StatusBadge>
-                    ) : (
-                      <span className="text-muted inline-flex w-fit items-center gap-1 text-xs font-medium">
-                        <Clock3 className="h-3 w-3" aria-hidden="true" />
-                        {t("expiredStatus")}
-                      </span>
-                    )}
                     <div className="flex justify-end">
-                      {entry.active ? (
-                        <IconButton
-                          label={t("unban")}
-                          size="sm"
-                          variant="ghost"
-                          loading={unban.isPending && unban.variables === entry.user.user_id}
-                          onClick={() => unban.mutate(entry.user.user_id)}
-                        >
-                          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                        </IconButton>
-                      ) : null}
+                      <IconButton
+                        label={t("unban")}
+                        size="sm"
+                        variant="ghost"
+                        loading={unban.isPending && unban.variables === entry.user.user_id}
+                        onClick={() => unban.mutate(entry.user.user_id)}
+                      >
+                        <ShieldOff className="h-4 w-4" aria-hidden="true" />
+                      </IconButton>
                     </div>
                   </li>
                 ))}
@@ -426,6 +404,6 @@ export function TeamRoster({ team }: { team: Team }) {
           </select>
         </label>
       </ConfirmDialog>
-    </div>
+    </section>
   );
 }

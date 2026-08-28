@@ -35,7 +35,7 @@ test.describe("Release queue", () => {
       if (width >= 1024) {
         await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("active");
       }
-      const rowContainer = width < 1024 ? page.locator("li") : page.locator("tr");
+      const rowContainer = page.getByRole(width < 1024 ? "listitem" : "row");
       await expect(
         rowContainer.getByText("v2.9.0 — Observability foundations", { exact: true }),
       ).toBeVisible();
@@ -43,7 +43,8 @@ test.describe("Release queue", () => {
       await selectReleaseView(page, width, "blocked");
       await expect(page).toHaveURL(/view=blocked/);
 
-      const container = (width < 1024 ? page.locator("li") : page.locator("tr"))
+      const container = page
+        .getByRole(width < 1024 ? "listitem" : "row")
         .filter({
           hasText: "v2.8.0",
         })
@@ -59,8 +60,12 @@ test.describe("Release queue", () => {
       await expect(
         page.getByRole("heading", { name: "v2.8.0 — Payment resilience" }).first(),
       ).toBeVisible();
-      const blocker = page.getByRole("alert").filter({ hasText: "Release blocked" });
-      await expect(blocker).toContainText("Payment API returning 502 in Europe");
+      await expect(page.getByRole("link", { name: "Blocked by 1 active incident" })).toBeVisible();
+      await expect(
+        page
+          .getByRole("region", { name: "Linked incidents" })
+          .getByRole("link", { name: "Payment API returning 502 in Europe" }),
+      ).toBeVisible();
 
       await page.goBack();
       await expect(page).toHaveURL(/releases\?view=blocked$/);
@@ -104,12 +109,13 @@ test.describe("Release queue", () => {
     await login(page, "observer@opswarden.local");
     await page.goto(`${releasesUrl}/${BLOCKED_RELEASE_ID}`);
 
-    const blocker = page.getByRole("alert").filter({ hasText: "Release blocked" });
-    await expect(blocker).toContainText("Release blocked");
+    await expect(page.getByRole("link", { name: "Blocked by 1 active incident" })).toBeVisible();
+    const linkedIncidents = page.getByRole("region", { name: "Linked incidents" });
     await expect(
-      blocker.getByRole("link", { name: "Payment API returning 502 in Europe" }),
+      linkedIncidents.getByRole("link", { name: "Payment API returning 502 in Europe" }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Validate next step" })).toHaveCount(0);
+    await expect(linkedIncidents.getByRole("button", { name: /^Unlink / })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Validate" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
   });
 
@@ -118,8 +124,8 @@ test.describe("Release queue", () => {
     await page.goto(`${releasesUrl}/${ACTIVE_RELEASE_ID}`);
 
     await expect(page.getByText("Publish dashboards", { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Validate next step" })).toHaveCount(1);
-    await page.getByRole("button", { name: "Validate next step" }).click();
+    await expect(page.getByRole("button", { name: "Validate" })).toHaveCount(1);
+    await page.getByRole("button", { name: "Validate" }).click();
     await expect(page.getByText("1/3", { exact: true })).toBeVisible();
     await expect(page.getByText("Enable tracing sampler", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel release" })).toHaveCount(0);
@@ -143,7 +149,7 @@ test.describe("Release queue", () => {
 
     await expect(page).toHaveURL(new RegExp(`${releasesUrl}/[0-9a-f-]+$`));
     await expect(page.getByRole("heading", { name: "E2E ordered deployment" })).toBeVisible();
-    const stepper = page.getByRole("list", { name: "Deployment steps" });
+    const stepper = page.getByRole("list", { name: "Steps" });
     const items = stepper.getByRole("listitem");
     await expect(items.nth(0)).toContainText("Verify production");
     await expect(items.nth(1)).toContainText("Build artifacts");

@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe("OperationsCalendar", () => {
   it("renders a complete month grid with linked operational events", () => {
-    render(
+    const view = render(
       <OperationsCalendar
         locale="en"
         labels={labels}
@@ -56,10 +56,13 @@ describe("OperationsCalendar", () => {
 
     expect(screen.getByRole("heading", { name: "August 2026" })).toBeInTheDocument();
     expect(screen.getAllByRole("gridcell")).toHaveLength(42);
-    expect(screen.getByRole("link", { name: "Incident: Database outage" })).toHaveAttribute(
-      "href",
-      "/teams/team-1/incidents/incident-1",
-    );
+    const incident = screen.getByRole("link", { name: "Incident: Database outage" });
+    expect(incident).toHaveAttribute("href", "/teams/team-1/incidents/incident-1");
+    expect(incident).toHaveClass("bg-panel-2", "text-text", "border");
+    expect(incident).not.toHaveClass("bg-status-danger", "bg-status-info", "bg-status-neutral");
+    const today = view.container.querySelector('time[datetime="2026-08-14"]');
+    expect(today).toHaveClass("text-gold");
+    expect(today).not.toHaveClass("bg-gold", "text-gold-ink", "border");
   });
 
   it("derives distant month boundaries from the Gregorian calendar", () => {
@@ -78,9 +81,9 @@ describe("OperationsCalendar", () => {
 
     const viewButtons = screen.getAllByRole("button", { name: /Week|Month/ });
     expect(viewButtons.map((button) => button.textContent)).toEqual(["Week", "Month"]);
-    expect(screen.getByRole("button", { name: "Month" })).toHaveClass("text-text");
+    expect(screen.getByRole("button", { name: "Month" })).toHaveClass("text-gold");
     expect(screen.getByRole("button", { name: "Month" })).not.toHaveClass("bg-panel-2");
-    expect(screen.queryByRole("button", { name: "Today" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Previous month" }));
     expect(screen.getByRole("heading", { name: "July 2026" })).toBeInTheDocument();
 
@@ -114,5 +117,56 @@ describe("OperationsCalendar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next week" }));
     expect(screen.getByRole("heading", { name: "Aug 17 – Aug 23, 2026" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();
+  });
+
+  it("filters events by type and supports cumulative multi-selection", () => {
+    const events = [
+      {
+        id: "inc-1",
+        occurredAt: "2026-08-14T10:00:00Z",
+        href: "/incidents/1",
+        title: "Major Outage",
+        type: "incident" as const,
+      },
+      {
+        id: "rel-1",
+        occurredAt: "2026-08-15T11:00:00Z",
+        href: "/releases/1",
+        title: "v1.2.0",
+        type: "release" as const,
+      },
+      {
+        id: "run-1",
+        occurredAt: "2026-08-16T12:00:00Z",
+        href: "/runs/1",
+        title: "Auto Cleanup",
+        type: "run" as const,
+      },
+    ];
+    render(<OperationsCalendar locale="en" labels={labels} events={events} />);
+
+    expect(screen.getByRole("link", { name: "Incident: Major Outage" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Release: v1.2.0" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Run: Auto Cleanup" })).toBeInTheDocument();
+
+    const releaseFilter = screen.getByRole("button", { name: "Release" });
+    const incidentFilter = screen.getByRole("button", { name: "Incident" });
+
+    // Filter by Release only
+    fireEvent.click(releaseFilter);
+    expect(screen.queryByRole("link", { name: "Incident: Major Outage" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Release: v1.2.0" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Run: Auto Cleanup" })).not.toBeInTheDocument();
+
+    // Cumulate: Add Incident to selection
+    fireEvent.click(incidentFilter);
+    expect(screen.getByRole("link", { name: "Incident: Major Outage" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Release: v1.2.0" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Run: Auto Cleanup" })).not.toBeInTheDocument();
+
+    // Deselect Release, leaving Incident
+    fireEvent.click(releaseFilter);
+    expect(screen.getByRole("link", { name: "Incident: Major Outage" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Release: v1.2.0" })).not.toBeInTheDocument();
   });
 });

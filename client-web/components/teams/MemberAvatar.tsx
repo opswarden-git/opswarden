@@ -1,11 +1,7 @@
+import { UserRound } from "lucide-react";
+import type { TeamRole } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
-
-export function memberInitials(email: string): string {
-  const local = email.split("@")[0] ?? email;
-  const parts = local.split(/[._-]+/).filter(Boolean);
-  const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : local.slice(0, 2);
-  return letters.toUpperCase();
-}
+import { RoleIcon } from "./RoleChip";
 
 export function memberDisplayName(email: string): string {
   const local = email.split("@")[0] ?? email;
@@ -16,16 +12,26 @@ export function memberDisplayName(email: string): string {
     .join(" ");
 }
 
-export function MemberAvatar({ email, className }: { email: string; className?: string }) {
+export function MemberAvatar({
+  email,
+  role,
+  className,
+}: {
+  email: string;
+  role?: TeamRole;
+  className?: string;
+}) {
   return (
     <span
-      className={cn(
-        "surface-subtle text-muted border-border flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-        className,
-      )}
+      className={cn("text-gold flex h-9 w-9 shrink-0 items-center justify-center", className)}
+      title={email}
       aria-hidden="true"
     >
-      {memberInitials(email)}
+      {role ? (
+        <RoleIcon role={role} className="h-2/3 w-2/3" />
+      ) : (
+        <UserRound className="text-gold h-2/3 w-2/3" strokeWidth={1.8} aria-hidden="true" />
+      )}
     </span>
   );
 }

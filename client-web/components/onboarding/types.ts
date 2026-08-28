@@ -4,7 +4,9 @@
 export interface OnboardingData {
   email: string;
   password: string;
-  stationName: string;
+  mode?: "create" | "join";
+  teamName?: string;
+  invitationCode?: string;
 }
 
 export type UpdateOnboardingData = (fields: Partial<OnboardingData>) => void;

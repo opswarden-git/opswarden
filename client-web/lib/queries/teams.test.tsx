@@ -4,9 +4,11 @@ import { createTestQueryClient, queryClientWrapper } from "../../test/reactQuery
 import { apiFetch } from "../api";
 import { useWsStore } from "../ws";
 import {
+  useAddTeamMember,
   useBanMember,
   useCreateTeam,
   useDeleteTeam,
+  useDeleteTeamImage,
   useInvitationCode,
   useJoinTeam,
   useKickMember,
@@ -17,6 +19,7 @@ import {
   useTeams,
   useTransferManager,
   useUnbanMember,
+  useUpdateTeamImage,
 } from "./teams";
 
 vi.mock("../api", () => ({ apiFetch: vi.fn() }));
@@ -89,6 +92,25 @@ describe("team queries", () => {
 });
 
 describe("team membership mutations", () => {
+  it("adds an existing account to the Team by user ID", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    mockedApiFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const addMember = renderHook(() => useAddTeamMember("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await addMember.result.current.mutateAsync("71343518-1187-4b90-927c-bd44b4b22dd5");
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/teams/team-1/members", {
+      method: "POST",
+      body: JSON.stringify({ user_id: "71343518-1187-4b90-927c-bd44b4b22dd5" }),
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-members", "team-1"] });
+  });
+
   it("creates and joins teams, refreshes the list and resyncs the socket scope", async () => {
     const queryClient = createTestQueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
@@ -244,5 +266,37 @@ describe("team membership mutations", () => {
 
     await expect(leave.result.current.mutateAsync()).rejects.toThrow("manager_cannot_leave");
     await expect(kick.result.current.mutateAsync("user-2")).rejects.toThrow("kick_member_failed");
+  });
+
+  it("updates and removes the persisted Team image", async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    mockedApiFetch
+      .mockResolvedValueOnce(jsonResponse({ updated_at: "2026-08-27T10:00:00Z" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], "team.jpg", {
+      type: "image/jpeg",
+    });
+    const update = renderHook(() => useUpdateTeamImage("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+    const remove = renderHook(() => useDeleteTeamImage("team-1"), {
+      wrapper: queryClientWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await update.result.current.mutateAsync(file);
+      await remove.result.current.mutateAsync();
+    });
+
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(
+      1,
+      "/api/teams/team-1/image",
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, "/api/teams/team-1/image", {
+      method: "DELETE",
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["teams"] });
   });
 });

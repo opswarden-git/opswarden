@@ -116,6 +116,7 @@ pub struct MeResponse {
     pub id: uuid::Uuid,
     pub email: String,
     pub locale: &'static str,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 pub async fn get_me(
@@ -132,6 +133,7 @@ pub async fn get_me(
         id: user.id,
         email: user.email.as_str().to_string(),
         locale: user.locale.as_str(),
+        created_at: user.created_at,
     }))
 }
 
@@ -157,6 +159,7 @@ pub async fn update_locale(
         id: user.id,
         email: user.email.as_str().to_string(),
         locale: user.locale.as_str(),
+        created_at: user.created_at,
     }))
 }
 

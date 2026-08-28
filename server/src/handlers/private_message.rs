@@ -17,7 +17,8 @@ use uuid::Uuid;
 
 use crate::app::private_message::{
     EditPrivateMessageCommand, EditPrivateMessageUseCase, GetPrivateMessageAttachmentUseCase,
-    ListPrivateMessagesCommand, ListPrivateMessagesUseCase, SendPrivateMessageCommand,
+    ListPrivateMessagesCommand, ListPrivateMessagesUseCase, ListUnreadPrivateMessagesUseCase,
+    MarkPrivateMessageReadCommand, MarkPrivateMessageReadUseCase, SendPrivateMessageCommand,
     SendPrivateMessageResult, SendPrivateMessageUseCase, TogglePrivateMessageReactionCommand,
     TogglePrivateMessageReactionUseCase,
 };
@@ -251,4 +252,40 @@ pub async fn download_private_message_attachment(
     .get(attachment_id, session.user_id)
     .await?;
     Ok(attachment_download_response(attachment))
+}
+
+#[derive(Deserialize)]
+pub struct MarkPrivateMessagesReadPayload {
+    pub peer_id: Uuid,
+    pub read_through: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+pub struct UnreadPrivateMessagesResponse {
+    pub unread_peer_ids: Vec<Uuid>,
+}
+
+pub async fn mark_private_messages_read(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Json(payload): Json<MarkPrivateMessagesReadPayload>,
+) -> Result<StatusCode, DomainError> {
+    MarkPrivateMessageReadUseCase::new(state.teams.clone(), state.private_messages.clone())
+        .execute(MarkPrivateMessageReadCommand {
+            viewer_id: session.user_id,
+            peer_id: payload.peer_id,
+            read_through: payload.read_through,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn list_unread_private_messages(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+) -> Result<Json<UnreadPrivateMessagesResponse>, DomainError> {
+    let unread_peer_ids = ListUnreadPrivateMessagesUseCase::new(state.private_messages.clone())
+        .execute(session.user_id)
+        .await?;
+    Ok(Json(UnreadPrivateMessagesResponse { unread_peer_ids }))
 }

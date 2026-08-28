@@ -85,12 +85,7 @@ ${summary([
         [...byStatus.entries()]
           .sort((a, b) => b[1] - a[1])
           .map(([status, count]) => [
-            cell(
-              tone(
-                statusTone(status),
-                escape(statusLabel(status)),
-              ),
-            ),
+            cell(tone(statusTone(status), escape(statusLabel(status)))),
             text(count),
             cell(
               `<div class="bar"><i style="width:${Math.round((count / data.rows.length) * 100)}%"></i></div>`,
@@ -115,12 +110,7 @@ ${
         [bi("Code", "Code"), bi("Statut", "Status"), bi("Intention", "Intent")],
         untranslated.map((row) => [
           key(row.code, true),
-          cell(
-            tone(
-              statusTone(row.status),
-              escape(statusLabel(row.status)),
-            ),
-          ),
+          cell(tone(statusTone(row.status), escape(statusLabel(row.status)))),
           muted(row.doc),
         ]),
         ["34%", "18%", "48%"],

@@ -66,7 +66,7 @@ export function TableFilterControl({
   return (
     <label
       className={cn(
-        "text-muted hover:text-text focus-within:ring-gold/50 relative inline-flex cursor-pointer items-center gap-1 rounded-sm uppercase transition-colors focus-within:ring-2 focus-within:outline-none",
+        "text-muted hover:text-text focus-within:ring-gold/50 relative inline-flex cursor-pointer items-center gap-1 rounded-sm text-xs font-medium uppercase transition-colors focus-within:ring-2 focus-within:outline-none",
         className,
       )}
       title={activeLabel ? `${label}: ${activeLabel}` : label}
@@ -117,7 +117,6 @@ export function MobileCollectionFilters({
   children,
   clearLabel,
   closeLabel,
-  description,
   doneLabel,
   label,
   onClear,
@@ -127,7 +126,6 @@ export function MobileCollectionFilters({
   children: ReactNode;
   clearLabel: string;
   closeLabel: string;
-  description: string;
   doneLabel: string;
   label: string;
   onClear: () => void;
@@ -142,7 +140,6 @@ export function MobileCollectionFilters({
       onOpenChange={setOpen}
       variant="sheet"
       title={title}
-      description={description}
       closeLabel={closeLabel}
       trigger={
         <Button size="sm" className="uppercase lg:hidden">

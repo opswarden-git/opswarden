@@ -104,7 +104,9 @@ describe("ReleaseDetailPage", () => {
   it("renders metadata and confirms cancellation", () => {
     render(<ReleaseDetailPage teamId="team-1" releaseId="release-1" />);
 
-    expect(screen.getByRole("heading", { name: "Production deployment" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Production deployment.*stateInProgress/ }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/createdOn:/)).toBeInTheDocument();
     expect(screen.getByText("detail:Production deployment")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "cancelRelease" }));

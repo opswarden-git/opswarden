@@ -259,6 +259,22 @@ async fn about_localizes_the_server_owned_catalog_in_french() {
         email["reactions"][0]["fields"][0]["label"],
         "Destinataire (À)"
     );
+    assert_eq!(
+        email["reactions"][0]["fields"][1]["default_value"],
+        "Événement d’automatisation sur {{repository}}"
+    );
+    assert_eq!(
+        email["reactions"][0]["fields"][2]["default_value"],
+        "Événement d’automatisation sur {{repository}}"
+    );
+    let http = services
+        .iter()
+        .find(|service| service["name"] == "http")
+        .unwrap();
+    assert_eq!(
+        http["reactions"][0]["fields"][0]["default_value"],
+        "Événement d’automatisation sur {{repository}}"
+    );
 }
 
 #[tokio::test]

@@ -4,6 +4,7 @@ import type { Release } from "@/lib/queries/releases";
 import { ReleaseDetail } from "./ReleaseDetail";
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => {
     const translate = (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${Object.values(values).join(":")}` : key;
@@ -108,8 +109,12 @@ describe("ReleaseDetail", () => {
   it("validates only the next ordered step", () => {
     render(<ReleaseDetail release={release()} teamId="team-1" role="manager" />);
 
-    expect(screen.getAllByText("Deploy")).toHaveLength(2);
-    expect(screen.getByText(/validatedBy:responder@example.com/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "progressSteps:1:3" })).toHaveAttribute(
+      "aria-valuenow",
+      "1",
+    );
+    expect(screen.getAllByText("Deploy")).toHaveLength(1);
+    expect(screen.getByText(/validatedBy:responder/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "validateNextStep" }));
     expect(validateStep.mutate).toHaveBeenCalledWith({
       releaseId: "release-1",
@@ -149,8 +154,7 @@ describe("ReleaseDetail", () => {
       />,
     );
 
-    expect(screen.getByText("blockedBannerTitle")).toBeInTheDocument();
-    expect(screen.getByText("resolveBlockersFirst")).toBeInTheDocument();
+    expect(screen.getAllByText(/blockedByCount:1/)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "validateNextStep" })).not.toBeInTheDocument();
   });
 
@@ -162,7 +166,7 @@ describe("ReleaseDetail", () => {
         role="manager"
       />,
     );
-    expect(screen.getByText("noLinkedIncidents")).toBeInTheDocument();
+    expect(screen.queryByText("linkedIncidents")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "linkIncident" })).not.toBeInTheDocument();
   });
 });

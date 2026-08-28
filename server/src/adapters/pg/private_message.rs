@@ -260,6 +260,44 @@ impl PrivateMessageRepo for PgPrivateMessageRepo {
         })
         .map_err(|_| DomainError::Storage)
     }
+
+    async fn mark_read(
+        &self,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        read_through: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        sqlx::query(
+            "INSERT INTO private_message_reads (viewer_id, peer_id, read_through) \
+             VALUES ($1, $2, $3) \
+             ON CONFLICT (viewer_id, peer_id) \
+             DO UPDATE SET read_through = GREATEST(private_message_reads.read_through, EXCLUDED.read_through)",
+        )
+        .bind(viewer_id)
+        .bind(peer_id)
+        .bind(read_through)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        Ok(())
+    }
+
+    async fn list_unread_peer_ids(&self, viewer_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+        let rows = sqlx::query(
+            "SELECT DISTINCT m.sender_id \
+             FROM private_messages m \
+             LEFT JOIN private_message_reads r \
+               ON r.viewer_id = m.recipient_id AND r.peer_id = m.sender_id \
+             WHERE m.recipient_id = $1 \
+               AND (r.read_through IS NULL OR m.created_at > r.read_through)",
+        )
+        .bind(viewer_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        Ok(rows.into_iter().map(|row| row.get("sender_id")).collect())
+    }
 }
 
 #[cfg(test)]

@@ -40,6 +40,7 @@ const incident: IncidentListItem = {
   created_at: "2026-07-20T08:00:00Z",
   created_by: null,
   updated_at: "2026-07-20T08:00:00Z",
+  unread: false,
 };
 
 afterEach(cleanup);

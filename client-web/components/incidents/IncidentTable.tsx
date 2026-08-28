@@ -48,7 +48,7 @@ export function IncidentTable({
         </OperationalTable>
       </div>
       <div data-incident-layout="mobile" className="surface overflow-hidden rounded-md lg:hidden">
-        <ul aria-label={t("tableLabel")} className="divide-border divide-y">
+        <ul aria-label={t("tableLabel")} className="divide-border-muted divide-y">
           {incidents.map((incident) => (
             <IncidentMobileRecord key={incident.id} incident={incident} />
           ))}
@@ -93,7 +93,7 @@ export function IncidentTableSkeleton() {
       </div>
       <div
         data-testid="incident-skeleton-mobile"
-        className="surface divide-border divide-y overflow-hidden rounded-md lg:hidden"
+        className="surface divide-border-muted divide-y overflow-hidden rounded-md lg:hidden"
         aria-label={t("loading")}
         aria-busy="true"
       >

@@ -160,6 +160,71 @@ describe("semantic visual contract", () => {
   });
 });
 
+describe("shape and border contract", () => {
+  const radii = {
+    "--ow-radius-sm": "3px",
+    "--ow-radius-md": "6px",
+    "--ow-radius-lg": "12px",
+    "--ow-radius-full": "9999px",
+  } as const;
+
+  it.each(Object.entries(radii))("pins %s at %s", (token, value) => {
+    expect(cssToken(token)).toBe(value);
+  });
+
+  /**
+   * Three weights exist so a separator inside a surface, the edge of that
+   * surface and a control the user can type into can be told apart. If they
+   * ever collapse to the same value the vocabulary is gone, and every line in
+   * the product reads with equal weight again.
+   */
+  it("keeps the three neutral border weights strictly ordered", () => {
+    const alpha = (token: string) => {
+      const percent = cssToken(token).match(/([\d.]+)%\s*\)/)?.[1];
+      if (!percent) throw new Error(`${token} is not an alpha border`);
+      return Number(percent);
+    };
+    expect(alpha("--ow-border-muted")).toBeLessThan(alpha("--ow-border"));
+    expect(alpha("--ow-border")).toBeLessThan(alpha("--ow-border-emphasis"));
+  });
+
+  it("reserves the thick border width for focus, not for dividers", () => {
+    expect(cssToken("--ow-border-width")).toBe("1px");
+    expect(cssToken("--ow-border-width-thick")).toBe("2px");
+    const divider = stylesheet.match(/\.scroll-divider \{[^}]+\}/)?.[0] ?? "";
+    expect(divider).toContain("var(--ow-border-width)");
+    expect(divider).not.toContain("--ow-border-width-thick");
+  });
+
+  it("draws the dialog divider only while its body can scroll", () => {
+    expect(stylesheet).toContain("animation-timeline: scroll(self)");
+    expect(stylesheet).toContain("calc(var(--ow-border-width) * var(--ow-can-scroll))");
+  });
+
+  /**
+   * The utilities have to read the tokens, or the contract describes something
+   * the interface does not use: 92 `rounded-md` consuming Tailwind's own 6px
+   * would look identical today and drift the first time a token moves.
+   */
+  it("makes the radius utilities consume the tokens", () => {
+    const config = readFileSync(resolve(process.cwd(), "tailwind.config.ts"), "utf8");
+    const scale = config.match(/borderRadius: \{[^}]+\}/)?.[0] ?? "";
+    expect(scale).toContain('sm: "var(--ow-radius-sm)"');
+    expect(scale).toContain('DEFAULT: "var(--ow-radius-md)"');
+    expect(scale).toContain('md: "var(--ow-radius-md)"');
+    expect(scale).toContain('lg: "var(--ow-radius-lg)"');
+    expect(scale).toContain('full: "var(--ow-radius-full)"');
+  });
+
+  it("documents the shape vocabulary in the design system contract", () => {
+    expect(designSystem).toContain("## Shape and borders");
+    for (const token of Object.keys(radii)) expect(designSystem).toContain(token);
+    for (const token of ["--ow-border-muted", "--ow-border", "--ow-border-emphasis"]) {
+      expect(designSystem).toContain(token);
+    }
+  });
+});
+
 describe("release lifecycle contract", () => {
   it("keeps --rel-progress readable on panels and over its 10% surface", () => {
     const text = cssToken("--rel-progress");

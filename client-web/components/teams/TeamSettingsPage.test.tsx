@@ -39,6 +39,10 @@ const invitationCode = vi.fn();
 let teamsLoading = false;
 let invitationLoading = false;
 
+vi.mock("@/lib/queries/privateMessages", () => ({
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+}));
+
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({
     data: [
@@ -111,6 +115,9 @@ vi.mock("@/lib/queries/teams", () => ({
   useLeaveTeam: () => leave,
   useDeleteTeam: () => remove,
   useUnbanMember: () => unban,
+  useAddTeamMember: () => mutation(),
+  useUpdateTeamImage: () => mutation(),
+  useDeleteTeamImage: () => mutation(),
 }));
 
 afterEach(() => {
@@ -134,31 +141,23 @@ describe("TeamSettingsPage", () => {
 
     const identity = screen.getByRole("banner");
     expect(within(identity).getByRole("heading", { name: "Operations" })).toBeInTheDocument();
-    expect(within(identity).getByText("roleManager")).toBeInTheDocument();
+    expect(within(identity).queryByText("roleManager")).not.toBeInTheDocument();
     expect(within(identity).getByText(/createdOn:/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "membersWithCount:2" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "inactiveMembers:2" })).toBeInTheDocument();
+    expect(within(identity).getByRole("button", { name: "addMember" })).toBeInTheDocument();
+    expect(within(identity).getByRole("button", { name: "shareJoinCode" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "danger" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.queryByText("invite-secret")).not.toBeInTheDocument();
   });
 
-  it("keeps active and banned accounts in two distinct rosters", () => {
+  it("keeps members flat and separates banned accounts only when present", () => {
     render(<TeamSettingsPage teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "activeMembers" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "bannedMembers" })).toBeInTheDocument();
-    expect(screen.getByText("banned@example.com")).toBeInTheDocument();
-    expect(screen.getByText("bannedStatus").parentElement).toHaveClass(
-      "bg-status-danger",
-      "rounded",
-    );
-    expect(
-      screen.getByText("bannedStatus").parentElement?.querySelector(".lucide-ban"),
-    ).not.toBeNull();
-    const expiredStatus = screen.getByText("expiredStatus");
-    expect(expiredStatus).toHaveClass("text-muted");
-    expect(expiredStatus.querySelector(".lucide-clock-3")).not.toBeNull();
-    expect(expiredStatus).not.toHaveClass("bg-status-danger");
+    expect(screen.queryByRole("heading", { name: /^activeMembers/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "bannedMembers:1" })).toBeInTheDocument();
+    expect(screen.getByText("Banned")).toBeInTheDocument();
+    expect(screen.queryByText("Expired")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "unban" }));
     expect(unban.mutate).toHaveBeenCalledWith("banned-1");
   });
@@ -180,7 +179,7 @@ describe("TeamSettingsPage", () => {
     expect(dialog).toBeInTheDocument();
   });
 
-  it("keeps the join code behind the role-gated Members action", () => {
+  it("keeps the join code behind the role-gated Team identity action", () => {
     render(<TeamSettingsPage teamId="team-1" />);
 
     expect(screen.queryByText("invite-secret")).not.toBeInTheDocument();

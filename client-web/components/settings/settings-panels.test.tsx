@@ -12,7 +12,7 @@ const nativeReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useParams: () => ({ locale: "en" }),
   useRouter: () => ({ push, replace: nativeReplace }),
-  useSearchParams: () => new URLSearchParams("setup=station"),
+  useSearchParams: () => new URLSearchParams("setup=team"),
 }));
 
 const intlReplace = vi.fn();
@@ -26,6 +26,7 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => {
     const translate = (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${Object.values(values).join(":")}` : key;
@@ -54,7 +55,11 @@ afterEach(() => {
 describe("settings panels", () => {
   it("persists a language change before replacing the localized route", () => {
     render(<LanguagePanel />);
-    expect(screen.getByRole("button", { name: "english" })).toHaveAttribute("aria-pressed", "true");
+    const english = screen.getByRole("button", { name: "english" });
+    expect(english).toHaveAttribute("aria-pressed", "true");
+    expect(english).toHaveClass("text-gold");
+    expect(english).not.toHaveClass("border");
+    expect(english).not.toHaveClass("bg-gold/10");
     fireEvent.click(screen.getByRole("button", { name: "french" }));
     expect(updateLocale.mutate).toHaveBeenCalledWith(
       "fr",
@@ -65,15 +70,21 @@ describe("settings panels", () => {
     expect(intlReplace).toHaveBeenCalledWith("/settings", { locale: "fr" });
   });
 
-  it("creates the first station and displays persisted identity", () => {
-    useAuthStore.getState().setUser({ id: "user-1", email: "operator@example.com", locale: "en" });
+  it("creates the first team and displays persisted identity", () => {
+    useAuthStore.getState().setUser({
+      id: "user-1",
+      email: "operator@example.com",
+      locale: "en",
+      created_at: "2026-05-28T10:00:00Z",
+    });
     render(<ProfilePanel />);
     expect(screen.getByText("operator@example.com")).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
+    expect(screen.getByText("memberSince")).toBeInTheDocument();
 
-    const organization = screen.getByRole("textbox", { name: "organization" });
-    fireEvent.change(organization, { target: { value: "  Operations  " } });
-    fireEvent.click(screen.getByRole("button", { name: "createOrganization" }));
+    const teamName = screen.getByRole("textbox", { name: "teamName" });
+    fireEvent.change(teamName, { target: { value: "  Operations  " } });
+    fireEvent.click(screen.getByRole("button", { name: "createTeam" }));
     expect(createTeam.mutate).toHaveBeenCalledWith(
       "Operations",
       expect.objectContaining({ onSuccess: expect.any(Function) }),

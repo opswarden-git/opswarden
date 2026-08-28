@@ -50,7 +50,7 @@ export function ReleaseTable({
         </OperationalTable>
       </div>
       <div data-release-layout="mobile" className="surface overflow-hidden rounded-md lg:hidden">
-        <ul aria-label={t("tableLabel")} className="divide-border divide-y">
+        <ul aria-label={t("tableLabel")} className="divide-border-muted divide-y">
           {releases.map((release) => (
             <ReleaseMobileRecord key={release.release_id} release={release} hrefFor={hrefFor} />
           ))}
@@ -94,7 +94,7 @@ export function ReleaseTableSkeleton() {
       </div>
       <div
         data-testid="release-skeleton-mobile"
-        className="surface divide-border divide-y overflow-hidden rounded-md lg:hidden"
+        className="surface divide-border-muted divide-y overflow-hidden rounded-md lg:hidden"
         aria-label={t("loading")}
         aria-busy="true"
       >

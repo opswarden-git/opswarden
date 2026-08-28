@@ -58,7 +58,7 @@ lifecycle invariants are central to this multi-user server.
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png">
-    <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png" alt="OpsWarden incident queue" width="900" />
+    <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/incidents.png" alt="OpsWarden incident war room" width="900" />
   </a>
 </p>
 
@@ -77,16 +77,28 @@ This keeps release state and operational risk in the same workspace.
 
 ### Team operations
 
-Teams are the security and collaboration boundary: membership, invitations,
+Teams are the security and collaboration boundary: membership, join codes,
 presence and Observer/Responder/Manager permissions govern every operation.
-Managers can transfer ownership, moderate or ban members, configure encrypted
-GitHub, GitLab, Alertmanager, Generic Webhook and HTTP integrations, and create
-Action&rarr;REAction rules; teammates can also exchange private messages without
+Managers can add members directly, share a join code, transfer ownership,
+moderate or ban members, while teammates exchange private messages without
 leaving their shared operational context.
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png">
     <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/teams.png" alt="OpsWarden team management" width="900" />
+  </a>
+</p>
+
+### Integrations and automations
+
+Team-scoped connections cover GitHub, GitLab, Alertmanager, Generic Webhook,
+HTTP and Email. Active and inactive integrations remain visibly separate while
+credentials stay server-side; connected services can then feed the durable
+Action&rarr;REAction rule engine.
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/integrations.png">
+    <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/integrations.png" alt="OpsWarden integration catalogue" width="900" />
   </a>
 </p>
 

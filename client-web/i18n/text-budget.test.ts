@@ -46,43 +46,104 @@ function messages(locale: string): Record<string, unknown> {
  * Notifications. A single coefficient would leave slack on some namespaces and
  * fail honest translations on others.
  *
+ * `Teams` moves again on 2026-08-27, for the sentence that makes adding a
+ * member by identifier make sense: it says where that identifier is found — on
+ * the other person's profile, with a copy button already beside it — and that
+ * the join is immediate rather than an invitation awaiting an answer. The
+ * server adds directly; the copy now says so instead of leaving the reader to
+ * find out.
+ *
+ * `Teams` moved by two words earlier on 2026-08-27: the invitation code gained the
+ * label it never had, so the value a manager is asked to share is now named
+ * like every other field in the product instead of floating unlabelled.
+ *
+ * Four ceilings come down on 2026-08-27, to the weight left after deleting the
+ * dialog subtitles that only restated their title. A subtitle earns its place by
+ * carrying what the title cannot — the named resource, the consequence, the
+ * count — and six of them carried nothing: "Filters / Filter and sort this
+ * table." The two that survived say what happens next, not what the button
+ * already said.
+ *
+ * `Sidebar` carries the first-run tour from 2026-08-27: five sentences, one per
+ * empty section, plus the marker's name and the three controls that move
+ * through them.
+ * It is the largest single rise in this table and it is deliberate — this prose
+ * exists only in a workspace with nothing in it, and disappears for good on the
+ * first incident, release, connection or rule. A reader who has used the
+ * product once never meets it again.
+ *
+ * The earlier note on this namespace:
+ * `Sidebar` gained one label on 2026-08-27: the first-run marker needs a name a
+ * screen reader can read, since a coloured dot says nothing on its own. Three
+ * words for the one affordance that tells a brand-new workspace where to start.
+ *
+ * `Settings` rises on purpose on 2026-08-27, from 100/127, for the desktop
+ * notification permission control. Browsers only honour a permission request
+ * that follows a click, so the interface has to own that click and then say
+ * which of four answers it got back — on, off, blocked in the browser, or
+ * unavailable here. The blocked state is the one the app cannot recover from
+ * alone, so it names where to undo it rather than leaving a dead toggle.
+ * The same section adds six words per locale for the explicit,
+ * persistent notification-sound opt-in. Its on/off values reuse existing copy.
+ *
+ * `Notifications` rises on purpose on 2026-08-27, from 23/38 to the measured
+ * weight of the desktop notification vocabulary. The namespace grew from a
+ * handful of strings to sixteen, covering every event the OS is allowed to
+ * surface: incident assigned, critical, escalated, state changed, War Room
+ * message, direct message, release step validated, release state changed and
+ * release blocked. Each one is a title and a body of an OS notification, where
+ * the text is the entire interface — there is no surrounding screen to carry
+ * meaning. The prose is already at its floor: `Release #{id} is now {state}`
+ * cannot be shortened without losing which release or which state. This is a
+ * larger vocabulary, not looser writing.
+ *
  * `Common` rises once here, on purpose: the nine GIPHY picker strings moved out
  * of `Incidents` into the shared namespace they are actually rendered from, and
  * the two that had been copied into `DirectMessages` collapsed back into one
  * entry. The interface carries three fewer English words and four fewer French
  * ones than before the move — a raise on one namespace, not on the budget.
  * `Teams` adds the explicit self label used in the actionable presence list.
+ * It rises by four English and six French words on 2026-08-27 for the two
+ * accessible Team-image actions. These labels make an otherwise icon-only
+ * upload and removal control understandable to assistive technology.
+ *
+ * `errors` rises on 2026-08-27 to cover every stable `DomainError` emitted by
+ * the server. The previous catalogue omitted 23 real failures—Team images,
+ * Automation validation, outbound HTTP safety and SMTP delivery—and silently
+ * collapsed them into one generic sentence. This is exhaustive error copy,
+ * not prose added to a surface. `Automations` gains one word for the localized
+ * fallback used when a future run status is unknown.
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
-    Teams: 329,
-    Incidents: 293,
-    errors: 335,
-    Automations: 294,
-    Releases: 219,
-    Onboarding: 48,
-    Settings: 100,
+    Teams: 324,
+    Incidents: 277,
+    errors: 477,
+    Automations: 281,
+    Releases: 180,
+    Onboarding: 90,
+    Settings: 120,
     Auth: 31,
     DirectMessages: 56,
-    Notifications: 23,
-    Sidebar: 26,
+    Notifications: 45,
+    Sidebar: 61,
     TeamSwitcher: 11,
     Metadata: 7,
     Common: 29,
     Index: 3,
   },
   fr: {
-    Teams: 401,
-    Incidents: 402,
-    errors: 417,
-    Automations: 417,
-    Releases: 280,
-    Onboarding: 66,
-    Settings: 127,
+    Teams: 388,
+    Incidents: 380,
+    errors: 613,
+    Automations: 399,
+    Releases: 222,
+    Onboarding: 110,
+    Settings: 151,
     Auth: 39,
     DirectMessages: 71,
-    Notifications: 38,
-    Sidebar: 38,
+    Notifications: 71,
+    Sidebar: 79,
     TeamSwitcher: 16,
     Metadata: 11,
     Common: 43,

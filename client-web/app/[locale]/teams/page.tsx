@@ -68,7 +68,7 @@ export default function TeamsPage() {
             {Array.from({ length: 4 }, (_, index) => (
               <div
                 key={index}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 sm:gap-4"
               >
                 <Skeleton className="h-9 w-9 rounded-md" />
                 <div className="space-y-2">
@@ -94,7 +94,7 @@ export default function TeamsPage() {
         }
       >
         {visibleTeams.length === 0 ? (
-          <div className="surface text-muted rounded-md p-10 text-center text-sm">
+          <div className="surface text-muted rounded-md p-12 text-center text-sm">
             {t("noMatchingTeams")}
           </div>
         ) : (
@@ -103,7 +103,7 @@ export default function TeamsPage() {
               <Link
                 key={team.team_id}
                 href={teamPath(team.team_id, "overview")}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition-colors hover:bg-white/[0.04] sm:gap-4 sm:px-5"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 transition-colors hover:bg-white/[0.04] sm:gap-4"
               >
                 <span className="surface-subtle border-border flex h-9 w-9 shrink-0 items-center justify-center rounded-md border">
                   <Users className="text-muted h-4 w-4" aria-hidden="true" />

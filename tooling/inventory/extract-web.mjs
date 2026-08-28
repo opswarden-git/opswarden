@@ -191,28 +191,6 @@ export function i18n() {
   };
 }
 
-/** Routed pages, from the App Router directory itself. */
-export function pages() {
-  const base = path.join(ROOT, "client-web/app");
-  const found = [];
-  const visit = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const target = path.join(current, entry.name);
-      if (entry.isDirectory()) visit(target);
-      else if (/^page\.tsx?$/.test(entry.name)) {
-        const route = path
-          .relative(base, path.dirname(target))
-          .split(path.sep)
-          .filter((segment) => !segment.startsWith("(") && segment !== ".")
-          .join("/");
-        found.push({ route: `/${route}`, file: path.relative(ROOT, target) });
-      }
-    }
-  };
-  visit(base);
-  return found.sort((a, b) => a.route.localeCompare(b.route));
-}
-
 /** The automation catalog exactly as the running server publishes it. */
 export async function automations(baseUrl) {
   try {

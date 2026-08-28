@@ -219,7 +219,9 @@ fn catalog_field(
         description: localize_field(field.name, locale, field.description, false),
         input_type: field.input_type.to_string(),
         required: field.required,
-        default_value: field.default_value.map(str::to_string),
+        default_value: field
+            .default_value
+            .map(|value| localize_default_value(field.name, locale, value)),
         options: field
             .options
             .iter()
@@ -453,6 +455,18 @@ fn localize_option(option: &str, locale: &str) -> String {
         "high" => "Haute",
         "critical" => "Critique",
         _ => option,
+    }
+    .to_string()
+}
+
+fn localize_default_value(name: &str, locale: &str, fallback: &str) -> String {
+    if locale == "fr"
+        && matches!(name, "message" | "subject" | "body")
+        && fallback == "Automation event on {{repository}}"
+    {
+        "Événement d’automatisation sur {{repository}}"
+    } else {
+        fallback
     }
     .to_string()
 }

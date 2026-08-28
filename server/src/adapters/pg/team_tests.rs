@@ -1,6 +1,6 @@
 use super::*;
 use crate::adapters::pg::user::PgUserRepo;
-use crate::domain::team::BanKind;
+use crate::domain::team::{BanKind, TeamImage};
 use crate::domain::user::{Email, User};
 use crate::ports::UserRepo;
 use chrono::Utc;
@@ -190,4 +190,50 @@ async fn deleting_the_moderator_account_keeps_the_ban_and_nulls_created_by(pool:
     let ban = repo.find_ban(team.id, target).await.unwrap().unwrap();
     assert!(ban.is_active(Utc::now()));
     assert_eq!(ban.created_by, None);
+}
+
+#[sqlx::test]
+async fn team_image_is_upserted_member_scoped_and_deleted(pool: PgPool) {
+    let repo = PgTeamRepo::new(pool.clone());
+    let member = seed_user(&pool).await;
+    let outsider = seed_user(&pool).await;
+    let team = Team::new("Image Crew").unwrap();
+    repo.save_team(&team).await.unwrap();
+    repo.add_member(team.id, member, Role::Manager)
+        .await
+        .unwrap();
+
+    let first = TeamImage::new("image/png", b"\x89PNG\r\n\x1a\nfirst".to_vec()).unwrap();
+    repo.save_team_image(team.id, &first).await.unwrap();
+    assert_eq!(
+        repo.find_team_image_for_member(team.id, member)
+            .await
+            .unwrap()
+            .unwrap()
+            .content,
+        first.content
+    );
+    assert!(repo
+        .find_team_image_for_member(team.id, outsider)
+        .await
+        .unwrap()
+        .is_none());
+
+    let second = TeamImage::new("image/jpeg", vec![0xff, 0xd8, 0xff, 0x01]).unwrap();
+    repo.save_team_image(team.id, &second).await.unwrap();
+    assert_eq!(
+        repo.find_team_image_for_member(team.id, member)
+            .await
+            .unwrap()
+            .unwrap()
+            .content,
+        second.content
+    );
+
+    repo.delete_team_image(team.id).await.unwrap();
+    assert!(repo
+        .find_team_image_for_member(team.id, member)
+        .await
+        .unwrap()
+        .is_none());
 }

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AutomationService } from "@/lib/queries/automations";
 import { ConnectionsView } from "./ConnectionsView";
 
@@ -24,6 +24,8 @@ vi.mock("@/lib/queries/automations", () => ({
   useStartServiceOAuth: () => mutation,
   useTestTeamConnection: () => mutation,
 }));
+
+afterEach(() => vi.clearAllMocks());
 
 describe("ConnectionsView", () => {
   it("uses the official marks for supported providers", () => {
@@ -81,7 +83,7 @@ describe("ConnectionsView", () => {
 
     render(<ConnectionsView catalog={[service]} connections={[]} rules={[]} teamId="team-1" />);
 
-    expect(screen.getByRole("heading", { name: "activeIntegrations" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "activeIntegrations" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "inactiveIntegrations" })).toBeInTheDocument();
     expect(screen.getByText("Generic Webhook")).toBeInTheDocument();
     expect(
@@ -91,9 +93,22 @@ describe("ConnectionsView", () => {
     expect(connect).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(connect);
     expect(connect).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByLabelText(/Shared webhook token/)).toHaveAttribute("type", "password");
+    const secret = screen.getByLabelText(/Shared webhook token/);
+    expect(secret).toHaveAttribute("type", "password");
     expect(
-      screen.getByText("Required on first connection; sent in X-OpsWarden-Token"),
-    ).toBeInTheDocument();
+      screen.queryByText("Required on first connection; sent in X-OpsWarden-Token"),
+    ).not.toBeInTheDocument();
+    const connectForm = screen.getByRole("button", { name: "connect" });
+    expect(connectForm).toBeDisabled();
+    fireEvent.change(secret, { target: { value: "shared-secret" } });
+    expect(connectForm).toBeEnabled();
+    fireEvent.click(connectForm);
+    expect(mutation.mutate).toHaveBeenCalledWith(
+      {
+        service: "generic",
+        payload: { webhook_signing_secret: "shared-secret" },
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 });

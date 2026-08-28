@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowDown, ArrowUp, Rocket, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
@@ -84,16 +84,9 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         if (nextOpen) createRelease.reset();
       }}
       size="md"
-      contentClassName="!max-w-xl"
       initialFocus={titleRef}
-      closeLabel={t("close")}
       title={t("newRelease")}
-      description={t("newReleaseDesc")}
-      icon={
-        <div className="bg-gold/15 text-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <Rocket className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
+      closeLabel={t("cancel")}
       trigger={
         <Button disabled={!teamId} variant="primary">
           {t("newRelease")}
@@ -102,14 +95,14 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
       footer={
         <>
           <DialogClose>
-            <Button size="lg">{t("cancel")}</Button>
+            <Button size="md">{t("cancel")}</Button>
           </DialogClose>
           <Button
             type="submit"
             form="create-release-form"
             disabled={!formValid}
             loading={createRelease.isPending}
-            size="lg"
+            size="md"
             variant="primary"
           >
             {createRelease.isPending ? t("creating") : t("create")}
@@ -117,30 +110,34 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
         </>
       }
     >
-      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0">
-        <label className="text-text block text-sm font-medium">
-          <span>{t("releaseTitle")}</span>
+      <form id="create-release-form" onSubmit={handleSubmit} className="min-h-0 space-y-3">
+        {/* Announced on mutation, not by position. Left after the last
+            field its static position stretched the scrollable body by
+            twelve pixels nobody could see. */}
+        <p className="sr-only" aria-live="polite">
+          {announcement}
+        </p>
+        <div>
+          <label htmlFor="release-title-input" className="text-text mb-1 block text-xs font-medium">
+            {t("releaseTitle")}
+          </label>
           <input
+            id="release-title-input"
             ref={titleRef}
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
-            placeholder={t("titlePlaceholder")}
+            className="ow-input flex h-9 w-full rounded-md px-3 text-sm"
           />
-        </label>
+        </div>
 
-        <fieldset className="mt-6">
-          <legend className="text-text text-sm font-medium">{t("steps")}</legend>
-          <p className="text-muted mt-1 text-xs">{t("stepsEditorHint")}</p>
+        <fieldset>
+          <legend className="text-text text-xs font-medium">{t("steps")}</legend>
 
-          <ol className="mt-3 space-y-2">
+          <ol className="mt-1.5 space-y-1.5">
             {steps.map((step, index) => (
-              <li
-                key={step.id}
-                className="surface-subtle border-border flex items-center gap-2 rounded-md border p-2"
-              >
-                <span className="text-muted w-6 shrink-0 text-center text-xs tabular-nums">
+              <li key={step.id} className="flex items-center gap-1.5">
+                <span className="text-muted w-5 shrink-0 text-center text-xs tabular-nums">
                   {index + 1}
                 </span>
                 <label className="min-w-0 flex-1">
@@ -169,7 +166,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
                       }
                     }}
                     className="ow-input h-9 w-full rounded-md px-3 text-sm"
-                    placeholder={t("stepPlaceholder", { position: index + 1 })}
+                    placeholder={t("stepPlaceholder")}
                   />
                 </label>
                 <IconButton
@@ -195,6 +192,7 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
                   size="sm"
                   variant="ghost"
                   tone="danger"
+                  disabled={steps.length === 1}
                   onClick={() => removeStep(index)}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -203,26 +201,29 @@ export function CreateReleaseDialog({ teamId }: { teamId: string }) {
             ))}
           </ol>
 
-          <Button className="mt-3" size="sm" onClick={addStep}>
-            {t("addStep")}
-          </Button>
+          <IconButton
+            className="mt-1.5"
+            label={t("addStep")}
+            size="sm"
+            variant="ghost"
+            onClick={addStep}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+          </IconButton>
         </fieldset>
 
-        <p className="sr-only" aria-live="polite">
-          {announcement}
-        </p>
         {steps.length === 0 ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {t("atLeastOneStep")}
           </p>
         ) : null}
         {hasDuplicates ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {t("duplicateSteps")}
           </p>
         ) : null}
         {createRelease.error ? (
-          <p className="text-feedback-danger mt-3 text-sm" role="alert">
+          <p className="text-sev-critical mt-2 text-xs" role="alert">
             {errorText(createRelease.error.message)}
           </p>
         ) : null}

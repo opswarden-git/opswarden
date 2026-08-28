@@ -3,7 +3,7 @@
 // member may read it. The projection combines incidents with the team roster,
 // then applies deterministic filters and sorting before returning the result.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use uuid::Uuid;
@@ -43,6 +43,7 @@ pub struct ListIncidentsCommand {
 pub struct IncidentListItem {
     pub incident: Incident,
     pub assignee: Option<TeamMemberView>,
+    pub unread: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -99,6 +100,12 @@ impl ListIncidentsUseCase {
             .ok_or(DomainError::Forbidden)?;
 
         let incidents = self.incidents.list_incidents_for_team(cmd.team_id).await?;
+        let unread: HashSet<_> = self
+            .incidents
+            .list_unread_incident_ids(cmd.team_id, cmd.requester_id)
+            .await?
+            .into_iter()
+            .collect();
         let counts = IncidentCounts::from_incidents(&incidents);
         let members: HashMap<_, _> = self
             .teams
@@ -119,6 +126,7 @@ impl ListIncidentsUseCase {
             .into_iter()
             .map(|incident| IncidentListItem {
                 assignee: incident.assignee.and_then(|id| members.get(&id).cloned()),
+                unread: unread.contains(&incident.id),
                 incident,
             })
             .filter(|item| {

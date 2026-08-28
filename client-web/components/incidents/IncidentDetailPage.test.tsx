@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Incident } from "@/lib/queries/incidents";
 import { useWsStore } from "@/lib/ws";
 import { IncidentDetailPage } from "./IncidentDetailPage";
 
@@ -24,13 +25,13 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-const incident = {
+const incident: Incident = {
   id: "incident-12345678",
   team_id: "team-1",
   title: "Database outage",
   description: "Primary database unavailable",
-  status: "open" as const,
-  severity: "critical" as const,
+  status: "open",
+  severity: "critical",
   assignee: "responder-1",
   created_at: "2026-07-25T10:00:00Z",
   created_by: "manager-1",
@@ -67,16 +68,20 @@ vi.mock("@/lib/queries/incidents", () => ({
     features: ["send_text", "attach_files", "collaborative_cursors"],
     isLoading: false,
   }),
+  useMarkIncidentRead: () => ({ mutate: vi.fn() }),
   useAvailableReactions: () => ({ data: ["👍"] }),
   useAddTimelineEntry: () => addEntry,
   useEditTimelineEntry: () => editEntry,
   useToggleTimelineReaction: () => toggleReaction,
 }));
 
+let teamRole: "manager" | "responder" | "observer" = "manager";
 const team = {
   team_id: "team-1",
   name: "Operations",
-  role: "manager" as const,
+  get role() {
+    return teamRole;
+  },
   created_at: "2026-07-25T09:00:00Z",
   member_count: 2,
   active_incident_count: 1,
@@ -92,6 +97,10 @@ const members = [
     joined_at: "",
   },
 ];
+
+vi.mock("@/lib/queries/privateMessages", () => ({
+  useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
+}));
 
 vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({ data: [team] }),
@@ -117,6 +126,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   incidentQuery = { data: incident, isLoading: false, error: null };
+  teamRole = "manager";
   useWsStore.setState({
     watchersByRoom: {
       [`incident:${incident.id}`]: ["manager-1", "responder-1", "unknown"],
@@ -131,12 +141,17 @@ describe("IncidentDetailPage", () => {
     render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
 
     expect(screen.getByRole("heading", { name: "Database outage" })).toBeInTheDocument();
-    expect(screen.getByText("responder@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Production deploy")).toBeInTheDocument();
+    const context = document.querySelector('[data-war-room-context="true"]') as HTMLElement;
+    fireEvent.click(within(context).getByRole("button", { name: /colAssignee/ }));
+    expect(within(context).getByText("responder@example.com")).toBeInTheDocument();
+    // Le titre apparaît aussi en tête de groupe dans la nav : on vise le panneau.
+    fireEvent.click(within(context).getByRole("button", { name: "linkedReleases" }));
+    expect(within(context).getByText("Production deploy")).toBeInTheDocument();
     expect(screen.getAllByText("manager@example.com").length).toBeGreaterThan(0);
     expect(screen.queryByText("teamLabel")).not.toBeInTheDocument();
     expect(screen.queryByText("createdAt")).not.toBeInTheDocument();
     expect(screen.queryByText("updatedAt")).not.toBeInTheDocument();
+    fireEvent.click(within(context).getByRole("button", { name: /moreActions/ }));
     fireEvent.click(screen.getByRole("button", { name: /acknowledge/ }));
     expect(updateStatus.mutate).toHaveBeenCalledWith({
       incidentId: incident.id,
@@ -146,16 +161,56 @@ describe("IncidentDetailPage", () => {
 
   it("changes assignee and opens the mobile context sheet", () => {
     render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+    fireEvent.click(screen.getByRole("button", { name: /colAssignee/ }));
     const assignee = screen.getByRole("combobox", { name: "changeAssignee" });
+    const assign = screen.getByRole("button", { name: "assign" });
+    expect(assign).toHaveClass("text-muted", "hover:text-st-res", "hover:bg-transparent");
     fireEvent.change(assignee, { target: { value: "manager-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "assign" }));
+    fireEvent.click(assign);
     expect(assignIncident.mutate).toHaveBeenCalledWith({
       incidentId: incident.id,
       assigneeId: "manager-1",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "details" }));
+    fireEvent.click(screen.getByRole("button", { name: "incidentContext" }));
     expect(screen.getByRole("dialog", { name: "incidentContext" })).toBeInTheDocument();
+  });
+
+  it("signals acknowledgement and assignment independently", () => {
+    const first = render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+    const context = within(document.querySelector('[data-war-room-context="true"]') as HTMLElement);
+    expect(context.getByRole("button", { name: "details" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(context.getByRole("button", { name: /moreActions/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(context.getByRole("button", { name: /colAssignee/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(context.getByRole("button", { name: "linkedReleases" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(context.getByRole("button", { name: "members" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByLabelText("actionRequired")).toBeInTheDocument();
+    expect(screen.queryByLabelText("assigneeRequired")).not.toBeInTheDocument();
+
+    first.unmount();
+    incidentQuery = {
+      data: { ...incident, status: "acknowledged", assignee: null },
+      isLoading: false,
+      error: null,
+    };
+    render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+    expect(screen.queryByLabelText("actionRequired")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("assigneeRequired")).toBeInTheDocument();
   });
 
   it("can fully retract and restore both desktop war-room rails", () => {
@@ -172,10 +227,24 @@ describe("IncidentDetailPage", () => {
     expect(document.querySelector('[data-context-rail-open="true"]')).toBeInTheDocument();
   });
 
+  it("does not render an empty Actions section for an Observer", () => {
+    teamRole = "observer";
+    render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
+
+    const context = within(document.querySelector('[data-war-room-context="true"]') as HTMLElement);
+    expect(context.queryByRole("button", { name: /moreActions/ })).not.toBeInTheDocument();
+    expect(context.getByRole("button", { name: /colAssignee/ })).toBeInTheDocument();
+    expect(context.getByRole("button", { name: "members" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
   it("renders deterministic loading and error states", () => {
     incidentQuery = { data: undefined, isLoading: true, error: null };
     const view = render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
     expect(screen.getByTestId("conversation-room-skeleton")).toBeInTheDocument();
+    expect(screen.getByTestId("incident-context-skeleton")).toBeInTheDocument();
 
     view.unmount();
     incidentQuery = { data: undefined, isLoading: false, error: new Error("load_failed") };

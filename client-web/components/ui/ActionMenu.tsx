@@ -16,6 +16,19 @@ export type ActionMenuItem = {
 
 export type ActionMenuEntry = ActionMenuItem | { id: string; separator: true };
 
+/**
+ * The floating panel and its rows, shared by every dropdown in the product.
+ * Two menus that look alike because they were typed alike will drift; these
+ * exist so a change to the menu surface reaches all of them at once. Width is
+ * left to the caller, since a row of actions and a list of team names do not
+ * need the same one.
+ */
+export const menuSurfaceClassNames =
+  "ow-action-menu surface elevated z-50 rounded-md p-1 outline-none";
+export const menuItemClassNames =
+  "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none";
+export const MENU_SIDE_OFFSET = 6;
+
 export function ActionMenu({
   disabled = false,
   items,
@@ -36,8 +49,8 @@ export function ActionMenu({
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
-          sideOffset={6}
-          className="ow-action-menu surface z-50 min-w-48 rounded-md p-1 shadow-xl outline-none"
+          sideOffset={MENU_SIDE_OFFSET}
+          className={cn(menuSurfaceClassNames, "min-w-48")}
         >
           {items.map((item) => {
             if ("separator" in item) {
@@ -52,7 +65,8 @@ export function ActionMenu({
                 data-tone={item.tone ?? "neutral"}
                 onSelect={item.onSelect}
                 className={cn(
-                  "ow-action-menu-item data-[highlighted]:bg-panel-2 flex cursor-default items-center gap-2 rounded px-2 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  menuItemClassNames,
+                  "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
                   item.tone === "danger"
                     ? "text-sev-critical data-[highlighted]:bg-sev-critical/10"
                     : "text-text",

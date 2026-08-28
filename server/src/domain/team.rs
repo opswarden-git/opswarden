@@ -130,6 +130,38 @@ pub struct TeamDirectoryItem {
     pub active_incident_count: u64,
     pub active_release_count: u64,
     pub blocked_release_count: u64,
+    pub image_updated_at: Option<DateTime<Utc>>,
+}
+
+pub const MAX_TEAM_IMAGE_BYTES: usize = 1024 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamImage {
+    pub media_type: String,
+    pub content: Vec<u8>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl TeamImage {
+    pub fn new(media_type: impl Into<String>, content: Vec<u8>) -> Result<Self, DomainError> {
+        let media_type = media_type.into();
+        let signature_matches = match media_type.as_str() {
+            "image/png" => content.starts_with(b"\x89PNG\r\n\x1a\n"),
+            "image/jpeg" => content.starts_with(&[0xff, 0xd8, 0xff]),
+            "image/webp" => {
+                content.len() >= 12 && &content[..4] == b"RIFF" && &content[8..12] == b"WEBP"
+            }
+            _ => false,
+        };
+        if content.is_empty() || content.len() > MAX_TEAM_IMAGE_BYTES || !signature_matches {
+            return Err(DomainError::InvalidTeamImage);
+        }
+        Ok(Self {
+            media_type,
+            content,
+            updated_at: Utc::now(),
+        })
+    }
 }
 
 /// A single role assignment to apply. A manager transfer yields exactly two of
@@ -315,174 +347,4 @@ pub fn validate_member_moderation(
 // --- TESTS ---
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn role_hierarchy_grants_lower_privileges() {
-        assert!(Role::Manager.can_act_as(Role::Responder));
-        assert!(Role::Manager.can_act_as(Role::Observer));
-        assert!(Role::Responder.can_act_as(Role::Observer));
-        assert!(Role::Observer.can_act_as(Role::Observer));
-    }
-
-    #[test]
-    fn role_hierarchy_denies_higher_privileges() {
-        assert!(!Role::Observer.can_act_as(Role::Responder));
-        assert!(!Role::Observer.can_act_as(Role::Manager));
-        assert!(!Role::Responder.can_act_as(Role::Manager));
-    }
-
-    #[test]
-    fn invitation_code_is_prefixed_and_well_formed() {
-        let code = InvitationCode::generate();
-        let value = code.as_str();
-
-        assert!(value.starts_with("OPS-"));
-        assert_eq!(value.len(), 4 + CODE_LEN);
-        assert!(value[4..].bytes().all(|b| CODE_ALPHABET.contains(&b)));
-    }
-
-    #[test]
-    fn team_creation_generates_id_and_code() {
-        let team = Team::new("SRE Core").unwrap();
-
-        assert_eq!(team.name, "SRE Core");
-        assert_eq!(team.id.to_string().len(), 36);
-        assert!(team.invitation_code.as_str().starts_with("OPS-"));
-    }
-
-    #[test]
-    fn team_creation_rejects_blank_name() {
-        let result = Team::new("   ");
-
-        assert_eq!(result.unwrap_err(), DomainError::InvalidTeamName);
-    }
-
-    #[test]
-    fn transfer_demotes_old_manager_and_promotes_new() {
-        let old = Uuid::new_v4();
-        let new = Uuid::new_v4();
-
-        let transfer = plan_manager_transfer(Role::Manager, old, new).unwrap();
-
-        assert_eq!(
-            transfer.demoted,
-            RoleChange {
-                user_id: old,
-                new_role: Role::Responder
-            }
-        );
-        assert_eq!(
-            transfer.promoted,
-            RoleChange {
-                user_id: new,
-                new_role: Role::Manager
-            }
-        );
-    }
-
-    #[test]
-    fn transfer_is_refused_to_non_manager() {
-        let requester = Uuid::new_v4();
-        let target = Uuid::new_v4();
-
-        let result = plan_manager_transfer(Role::Responder, requester, target);
-
-        assert_eq!(result.unwrap_err(), DomainError::NotManager);
-    }
-
-    #[test]
-    fn transfer_to_self_is_rejected() {
-        let manager = Uuid::new_v4();
-
-        let result = plan_manager_transfer(Role::Manager, manager, manager);
-
-        assert_eq!(result.unwrap_err(), DomainError::AlreadyManager);
-    }
-
-    #[test]
-    fn manager_may_promote_and_demote_between_observer_and_responder() {
-        assert!(
-            validate_member_role_change(Role::Manager, Role::Observer, Role::Responder).is_ok()
-        );
-        assert!(
-            validate_member_role_change(Role::Manager, Role::Responder, Role::Observer).is_ok()
-        );
-    }
-
-    #[test]
-    fn non_manager_cannot_change_roles() {
-        assert_eq!(
-            validate_member_role_change(Role::Responder, Role::Observer, Role::Responder)
-                .unwrap_err(),
-            DomainError::NotManager
-        );
-    }
-
-    #[test]
-    fn promotion_to_manager_is_not_a_role_change() {
-        assert_eq!(
-            validate_member_role_change(Role::Manager, Role::Responder, Role::Manager).unwrap_err(),
-            DomainError::InvalidRole
-        );
-    }
-
-    #[test]
-    fn the_sitting_manager_role_cannot_be_changed_here() {
-        assert_eq!(
-            validate_member_role_change(Role::Manager, Role::Manager, Role::Responder).unwrap_err(),
-            DomainError::CannotChangeManagerRole
-        );
-    }
-
-    #[test]
-    fn a_permanent_ban_is_always_active() {
-        let ban = TeamBan::permanent(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), None);
-        assert!(ban.is_active(Utc::now()));
-        assert_eq!(ban.expires_at(), None);
-    }
-
-    #[test]
-    fn a_temporary_ban_is_active_before_expiry_and_inactive_after() {
-        let expires = Utc::now() + chrono::Duration::hours(1);
-        let ban = TeamBan::temporary(
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            expires,
-            None,
-        )
-        .unwrap();
-        assert!(ban.is_active(Utc::now()));
-        assert!(!ban.is_active(expires + chrono::Duration::seconds(1)));
-        assert_eq!(ban.expires_at(), Some(expires));
-    }
-
-    #[test]
-    fn a_temporary_ban_in_the_past_is_rejected() {
-        let past = Utc::now() - chrono::Duration::hours(1);
-        let result = TeamBan::temporary(Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), past, None);
-        assert_eq!(result.unwrap_err(), DomainError::InvalidBanExpiry);
-    }
-
-    #[test]
-    fn moderation_bars_self_and_manager_targets() {
-        let manager = Uuid::new_v4();
-        let member = Uuid::new_v4();
-
-        assert!(validate_member_moderation(manager, member, Some(Role::Observer)).is_ok());
-        assert!(validate_member_moderation(manager, member, Some(Role::Responder)).is_ok());
-        // Pre-emptive ban of a non-member is allowed.
-        assert!(validate_member_moderation(manager, member, None).is_ok());
-
-        assert_eq!(
-            validate_member_moderation(manager, manager, Some(Role::Manager)).unwrap_err(),
-            DomainError::CannotModerateSelf
-        );
-        assert_eq!(
-            validate_member_moderation(manager, member, Some(Role::Manager)).unwrap_err(),
-            DomainError::CannotModerateManager
-        );
-    }
-}
+mod tests;

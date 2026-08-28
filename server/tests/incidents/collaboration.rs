@@ -32,6 +32,47 @@ async fn read_json(response: axum::http::Response<Body>) -> serde_json::Value {
 }
 
 #[tokio::test]
+async fn member_can_advance_an_incident_read_position_but_non_member_cannot() {
+    let ctx = test_context();
+    let team_id = Uuid::new_v4();
+    let incident = Incident::new(team_id, "Read state", Severity::High).unwrap();
+    ctx.incidents.seed_incident(incident.clone());
+    let payload = serde_json::json!({ "read_through": chrono::Utc::now() }).to_string();
+
+    let forbidden = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/incidents/{}/read", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(payload.clone()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+    ctx.teams.seed_member(team_id, Uuid::nil(), Role::Observer);
+    let marked = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/incidents/{}/read", incident.id))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(marked.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
 async fn author_can_edit_their_timeline_entry() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();

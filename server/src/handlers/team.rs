@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::app::team::{
-    BanMemberCommand, BanMemberUseCase, BanRequest, CreateTeamCommand, CreateTeamUseCase,
-    GetInvitationCodeCommand, GetInvitationCodeUseCase, JoinTeamCommand, JoinTeamUseCase,
-    KickMemberCommand, KickMemberUseCase, ListBansCommand, ListBansUseCase, ListTeamMembersCommand,
-    ListTeamMembersUseCase, ListTeamsCommand, ListTeamsUseCase, SetMemberRoleCommand,
-    SetMemberRoleUseCase, TransferManagerCommand, TransferManagerUseCase, UnbanMemberCommand,
-    UnbanMemberUseCase,
+    AddMemberCommand, AddMemberUseCase, BanMemberCommand, BanMemberUseCase, BanRequest,
+    CreateTeamCommand, CreateTeamUseCase, GetInvitationCodeCommand, GetInvitationCodeUseCase,
+    JoinTeamCommand, JoinTeamUseCase, KickMemberCommand, KickMemberUseCase, ListBansCommand,
+    ListBansUseCase, ListTeamMembersCommand, ListTeamMembersUseCase, ListTeamsCommand,
+    ListTeamsUseCase, SetMemberRoleCommand, SetMemberRoleUseCase, TransferManagerCommand,
+    TransferManagerUseCase, UnbanMemberCommand, UnbanMemberUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::team::{BanKind, Role};
@@ -30,6 +30,7 @@ pub struct TeamSummaryResponse {
     pub active_incident_count: u64,
     pub active_release_count: u64,
     pub blocked_release_count: u64,
+    pub image_updated_at: Option<DateTime<Utc>>,
 }
 
 pub async fn list_teams(
@@ -56,6 +57,7 @@ pub async fn list_teams(
                 active_incident_count: team.active_incident_count,
                 active_release_count: team.active_release_count,
                 blocked_release_count: team.blocked_release_count,
+                image_updated_at: team.image_updated_at,
             })
             .collect(),
     ))
@@ -94,6 +96,27 @@ pub async fn list_members(
             })
             .collect(),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct AddMemberPayload {
+    pub user_id: Uuid,
+}
+
+pub async fn add_member(
+    State(state): State<AppState>,
+    Extension(session): Extension<AuthenticatedSession>,
+    Path(team_id): Path<Uuid>,
+    Json(payload): Json<AddMemberPayload>,
+) -> Result<StatusCode, DomainError> {
+    AddMemberUseCase::new(state.teams.clone(), state.users.clone())
+        .add_member(AddMemberCommand {
+            team_id,
+            requester_id: session.user_id,
+            target_user_id: payload.user_id,
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Serialize)]
@@ -446,3 +469,10 @@ pub async fn unban_member(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+mod team_image;
+
+pub use team_image::{
+    delete_team_image, get_team_image, update_team_image, UpdateTeamImagePayload,
+    UpdateTeamImageResponse,
+};

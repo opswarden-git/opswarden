@@ -41,6 +41,11 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     // Redirect to login, preserving the user's locale
     if (typeof window !== "undefined") {
       const locale = getLocalePrefix();
+      // A full document load, on purpose: this runs outside React, where no
+      // router is reachable, and a session that just died should not leave any
+      // in-memory state behind. `getLocalePrefix` returns a leading slash, so
+      // the destination is absolute.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `${locale}/login`;
     }
   }

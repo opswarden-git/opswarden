@@ -20,10 +20,6 @@ export function readJson(relative) {
   return JSON.parse(read(relative));
 }
 
-export function exists(relative) {
-  return fs.existsSync(path.join(ROOT, relative));
-}
-
 /** Collapse Rust formatting so one match arm is one line, whatever rustfmt did. */
 export function flatten(source) {
   return source.replace(/\s+/g, " ");
@@ -59,11 +55,6 @@ export function snake(identifier) {
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
     .toLowerCase();
-}
-
-/** `can_do_thing` -> `canDoThing`, matching serde's camelCase contract. */
-export function camel(identifier) {
-  return identifier.replace(/_([a-z0-9])/g, (_, character) => character.toUpperCase());
 }
 
 /** Leading `///` doc comment for a declaration line inside an enum body. */

@@ -1,4 +1,5 @@
 // --- server/src/app/team/mod.rs ---
+pub mod add_member;
 pub mod ban_member;
 pub mod create_team;
 pub mod delete_team;
@@ -10,9 +11,11 @@ pub mod list_bans;
 pub mod list_members;
 pub mod list_teams;
 pub mod set_member_role;
+pub mod team_image;
 pub mod transfer_manager;
 pub mod unban_member;
 
+pub use add_member::{AddMemberCommand, AddMemberUseCase};
 pub use ban_member::{BanMemberCommand, BanMemberResult, BanMemberUseCase, BanRequest};
 pub use create_team::{CreateTeamCommand, CreateTeamResult, CreateTeamUseCase};
 pub use delete_team::{DeleteTeamCommand, DeleteTeamUseCase};
@@ -26,6 +29,10 @@ pub use list_bans::{ListBansCommand, ListBansResult, ListBansUseCase};
 pub use list_members::{ListTeamMembersCommand, ListTeamMembersResult, ListTeamMembersUseCase};
 pub use list_teams::{ListTeamsCommand, ListTeamsResult, ListTeamsUseCase, TeamSummary};
 pub use set_member_role::{SetMemberRoleCommand, SetMemberRoleUseCase};
+pub use team_image::{
+    DeleteTeamImageCommand, GetTeamImageCommand, GetTeamImageUseCase, UpdateTeamImageCommand,
+    UpdateTeamImageUseCase,
+};
 pub use transfer_manager::{TransferManagerCommand, TransferManagerResult, TransferManagerUseCase};
 pub use unban_member::{UnbanMemberCommand, UnbanMemberUseCase};
 
@@ -158,6 +165,7 @@ pub(crate) mod tests {
                     active_incident_count: 0,
                     active_release_count: 0,
                     blocked_release_count: 0,
+                    image_updated_at: None,
                 })
                 .collect())
         }

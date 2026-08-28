@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import type {
   ConversationAttachment,
@@ -62,6 +62,38 @@ export function usePrivateMessages(peerId: string, enabled = true) {
   });
 }
 
+export function useUnreadPrivateMessages(enabled = true) {
+  return useQuery({
+    queryKey: ["private-messages-unread"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/private-messages/unread");
+      if (!res.ok) return { unread_peer_ids: [] };
+      return (await res.json()) as { unread_peer_ids: string[] };
+    },
+    enabled,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useMarkPrivateMessageRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ peerId, readThrough }: { peerId: string; readThrough: string }) => {
+      const res = await apiFetch("/api/private-messages/read", {
+        method: "POST",
+        body: JSON.stringify({ peer_id: peerId, read_through: readThrough }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.code ?? "mark_private_message_read_failed");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["private-messages-unread"] });
+    },
+  });
+}
+
 export function useSendPrivateMessage() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -86,6 +118,7 @@ export function useSendPrivateMessage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["private-messages", variables.recipientId] });
+      queryClient.invalidateQueries({ queryKey: ["private-messages-unread"] });
     },
   });
 }

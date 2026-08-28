@@ -7,7 +7,9 @@ use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
 use crate::domain::release::{Release, ReleaseState};
-use crate::domain::team::{Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView};
+use crate::domain::team::{
+    Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamImage, TeamMemberView,
+};
 use crate::domain::timeline::{ReactionRecord, TimelineEntry};
 use crate::domain::user::{Locale, User};
 
@@ -91,6 +93,24 @@ pub trait TeamRepo: Send + Sync {
     /// Explicitly lift a ban. Expired rows may also be removed to keep the
     /// moderation history intentional rather than silently reactivatable.
     async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
+    /// Replace the single bounded identity image attached to a Team.
+    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError> {
+        let _ = (team_id, image);
+        Err(DomainError::Storage)
+    }
+    /// Load image bytes only for a current member of the Team.
+    async fn find_team_image_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<TeamImage>, DomainError> {
+        let _ = (team_id, user_id);
+        Err(DomainError::Storage)
+    }
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
+        let _ = team_id;
+        Err(DomainError::Storage)
+    }
 }
 
 #[async_trait]
@@ -111,6 +131,12 @@ pub trait IncidentRepo: Send + Sync {
         incident: &Incident,
         event: &IncidentEvent,
     ) -> Result<(), DomainError>;
+    /// Append audit events describing something that happened *outside* the
+    /// incidents themselves — a release they block moving a step forward. This
+    /// is the one writer that does not pair an event with a change to
+    /// `incidents`; all of them land together or not at all, so a war room
+    /// never shows a release advancing on one incident but not its sibling.
+    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError>;
     /// Newest first. `before` is a `(created_at, id)` keyset cursor: only rows
     /// strictly older than it are returned, so a war room can walk back through
     /// a long incident without the page boundary shifting under it.
@@ -121,6 +147,28 @@ pub trait IncidentRepo: Send + Sync {
         limit: u32,
     ) -> Result<Vec<IncidentEvent>, DomainError>;
     async fn list_incidents_for_team(&self, team_id: Uuid) -> Result<Vec<Incident>, DomainError>;
+    /// Incident channels containing activity newer than this user's durable
+    /// read position. Activity authored by the requester does not make their
+    /// own channel unread.
+    async fn list_unread_incident_ids(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Vec<Uuid>, DomainError> {
+        let _ = (team_id, user_id);
+        Ok(Vec::new())
+    }
+    /// Advance one user's read position monotonically to content the client
+    /// has actually loaded.
+    async fn mark_incident_read(
+        &self,
+        incident_id: Uuid,
+        user_id: Uuid,
+        read_through: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError> {
+        let _ = (incident_id, user_id, read_through);
+        Ok(())
+    }
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError>;
     /// Clear the assignee on every incident of `team_id` currently assigned to
     /// `user_id`. Called when a member is kicked/banned so no incident stays
@@ -212,6 +260,15 @@ pub trait PrivateMessageRepo: Send + Sync {
         attachment_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<PrivateMessageAttachment>, DomainError>;
+    /// Persist (UPSERT) a viewer's read position for conversation with a peer.
+    async fn mark_read(
+        &self,
+        viewer_id: Uuid,
+        peer_id: Uuid,
+        read_through: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
+    /// List all peer_ids with unread messages for viewer_id.
+    async fn list_unread_peer_ids(&self, viewer_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
 }
 
 #[async_trait]

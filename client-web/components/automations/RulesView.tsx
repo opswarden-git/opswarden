@@ -26,6 +26,7 @@ import {
   OperationalTableRowHeader,
 } from "@/components/ui/OperationalTable";
 import { RuleForm, type CapabilityWithService } from "./RuleForm";
+import { useErrorText } from "@/lib/useErrorText";
 
 function capabilities(catalog: AutomationService[], type: "actions" | "reactions") {
   return catalog.flatMap((service) =>
@@ -90,6 +91,7 @@ export function RulesView({
   onStatusFilterChange?: (status: "all" | "enabled" | "disabled") => void;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const locale = useLocale();
   const [editing, setEditing] = useState<AutomationRule | null>(null);
   const [deleting, setDeleting] = useState<AutomationRule | null>(null);
@@ -138,7 +140,7 @@ export function RulesView({
     <>
       {updateRule.error ? (
         <Alert tone="danger" className="mb-4">
-          {t("requestFailed", { code: updateRule.error.message })}
+          {t("requestFailed", { code: errorText(updateRule.error.message) })}
         </Alert>
       ) : null}
 
@@ -210,7 +212,7 @@ export function RulesView({
                   }
                 />
               </OperationalTableHeaderCell>
-              <th className="px-5 py-3">
+              <th className="px-4 py-3">
                 <span className="sr-only">{t("actionsMenu")}</span>
               </th>
             </tr>
@@ -277,7 +279,7 @@ export function RulesView({
 
       {/* Mobile view */}
       <div className="surface overflow-hidden rounded-md lg:hidden">
-        <ul aria-label={t("rulesList")} className="divide-border divide-y">
+        <ul aria-label={t("rulesList")} className="divide-border-muted divide-y">
           {visibleRules.map((rule) => (
             <li key={rule.id} className="flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-4">
@@ -377,7 +379,11 @@ export function RulesView({
         cancelLabel={t("cancel")}
         intent="destructive"
         pending={deleteRule.isPending}
-        error={deleteRule.error ? t("requestFailed", { code: deleteRule.error.message }) : null}
+        error={
+          deleteRule.error
+            ? t("requestFailed", { code: errorText(deleteRule.error.message) })
+            : null
+        }
         onClose={() => setDeleting(null)}
         onConfirm={() =>
           deleting && deleteRule.mutate(deleting.id, { onSuccess: () => setDeleting(null) })

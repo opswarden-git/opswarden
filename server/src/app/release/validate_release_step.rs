@@ -7,9 +7,10 @@ use uuid::Uuid;
 use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
+use crate::domain::incident_event::IncidentEvent;
 #[cfg(test)]
 use crate::domain::team::Role;
-use crate::ports::{EventPublisher, ReleaseRepo, TeamRepo};
+use crate::ports::{EventPublisher, IncidentRepo, ReleaseRepo, TeamRepo};
 
 use super::{emit_if_state_changed, ReleaseDetail};
 
@@ -22,6 +23,7 @@ pub struct ValidateReleaseStepCommand {
 pub struct ValidateReleaseStepUseCase {
     teams: Arc<dyn TeamRepo>,
     releases: Arc<dyn ReleaseRepo>,
+    incidents: Arc<dyn IncidentRepo>,
     events: Arc<dyn EventPublisher>,
 }
 
@@ -29,11 +31,13 @@ impl ValidateReleaseStepUseCase {
     pub fn new(
         teams: Arc<dyn TeamRepo>,
         releases: Arc<dyn ReleaseRepo>,
+        incidents: Arc<dyn IncidentRepo>,
         events: Arc<dyn EventPublisher>,
     ) -> Self {
         Self {
             teams,
             releases,
+            incidents,
             events,
         }
     }
@@ -88,6 +92,23 @@ impl ValidateReleaseStepUseCase {
         .await;
 
         let linked_incident_ids = self.releases.list_linked_incident_ids(release.id).await?;
+        // A war room reads one history. An incident that gates this release
+        // learns here that it moved, instead of the operator having to leave the
+        // room to find out.
+        let incident_events: Vec<IncidentEvent> = linked_incident_ids
+            .iter()
+            .map(|incident_id| {
+                IncidentEvent::release_step_validated(
+                    *incident_id,
+                    cmd.requester_id,
+                    release.id,
+                    &release.title,
+                    &cmd.step,
+                )
+            })
+            .collect();
+        self.incidents.record_events(&incident_events).await?;
+
         Ok(ReleaseDetail {
             release,
             effective_state: new_effective,
@@ -101,6 +122,7 @@ mod tests {
     use super::*;
     use crate::app::incident::tests::{MockEventPublisher, MockTeamRepo};
     use crate::app::release::tests::MockReleaseRepo;
+    use crate::domain::incident_event::IncidentEventKind;
     use crate::domain::release::{Release, ReleaseState};
 
     fn setup(
@@ -121,7 +143,9 @@ mod tests {
         let releases = Arc::new(MockReleaseRepo::default());
         releases.seed_release(release);
         let events = Arc::new(MockEventPublisher::default());
-        let uc = ValidateReleaseStepUseCase::new(teams, releases.clone(), events.clone());
+        let incidents = Arc::new(crate::app::incident::tests::MockIncidentRepo::default());
+        let uc =
+            ValidateReleaseStepUseCase::new(teams, releases.clone(), incidents, events.clone());
         (team_id, requester, release_id, releases, events, uc)
     }
 
@@ -193,6 +217,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn every_linked_incident_records_the_validated_step() {
+        let team_id = Uuid::new_v4();
+        let requester = Uuid::new_v4();
+        let release = Release::new(team_id, "v1", vec!["build".into(), "prod".into()]).unwrap();
+        let release_id = release.id;
+        let (first, second) = (Uuid::new_v4(), Uuid::new_v4());
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Responder));
+        let releases = Arc::new(MockReleaseRepo::default());
+        releases.seed_release(release);
+        releases.link_incident(release_id, first).await.unwrap();
+        releases.link_incident(release_id, second).await.unwrap();
+        let incidents = Arc::new(crate::app::incident::tests::MockIncidentRepo::default());
+        let uc = ValidateReleaseStepUseCase::new(
+            teams,
+            releases,
+            incidents.clone(),
+            Arc::new(MockEventPublisher::default()),
+        );
+
+        uc.validate(ValidateReleaseStepCommand {
+            release_id,
+            step: "build".to_string(),
+            requester_id: requester,
+        })
+        .await
+        .unwrap();
+
+        let recorded = incidents.incident_events.lock().unwrap();
+        assert_eq!(recorded.len(), 2);
+        let targets: Vec<Uuid> = recorded.iter().map(|event| event.incident_id).collect();
+        assert!(targets.contains(&first) && targets.contains(&second));
+        for event in recorded.iter() {
+            assert_eq!(event.kind, IncidentEventKind::ReleaseStepValidated);
+            assert_eq!(event.actor_id, Some(requester));
+            assert_eq!(event.data["step"], "build");
+            assert_eq!(event.data["release_title"], "v1");
+            assert_eq!(event.data["release_id"], release_id.to_string());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_release_with_no_linked_incident_records_nothing() {
+        let (_team, requester, release_id, _releases, _events, uc) = setup(Role::Responder);
+
+        uc.validate(ValidateReleaseStepCommand {
+            release_id,
+            step: "build".to_string(),
+            requester_id: requester,
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
     async fn validating_while_blocked_is_refused() {
         let team_id = Uuid::new_v4();
         let requester = Uuid::new_v4();
@@ -208,7 +287,8 @@ mod tests {
         releases.link_incident(release_id, incident).await.unwrap();
         releases.mark_active(incident); // an active linked incident -> blocked
         let events = Arc::new(MockEventPublisher::default());
-        let uc = ValidateReleaseStepUseCase::new(teams, releases, events.clone());
+        let incidents = Arc::new(crate::app::incident::tests::MockIncidentRepo::default());
+        let uc = ValidateReleaseStepUseCase::new(teams, releases, incidents, events.clone());
 
         let err = uc
             .validate(ValidateReleaseStepCommand {

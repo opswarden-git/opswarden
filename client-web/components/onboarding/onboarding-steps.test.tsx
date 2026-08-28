@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OnboardingData } from "./types";
 import { StepCredentials } from "./StepCredentials";
-import { StepStation } from "./StepStation";
+import { StepTeam } from "./StepTeam";
 import { StepVerification } from "./StepVerification";
 
 vi.mock("next-intl", () => ({
@@ -22,7 +22,9 @@ vi.mock("@/i18n/routing", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const data: OnboardingData = {
   email: "operator@example.com",
   password: "password",
-  stationName: "Operations",
+  mode: "create",
+  teamName: "Operations",
+  invitationCode: "OPS-KXP9DX",
 };
 
 afterEach(() => {
@@ -53,16 +55,42 @@ describe("onboarding steps", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("updates station metadata and supports back/next navigation", () => {
+  it("updates team metadata and supports create vs join mode navigation", () => {
     const updateData = vi.fn();
     const next = vi.fn();
     const back = vi.fn();
-    render(<StepStation data={data} updateData={updateData} next={next} back={back} />);
+    const { rerender } = render(
+      <StepTeam data={data} updateData={updateData} next={next} back={back} />,
+    );
 
-    fireEvent.change(screen.getByRole("textbox", { name: "organization" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "teamName" }), {
       target: { value: "Platform" },
     });
-    expect(updateData).toHaveBeenCalledWith({ stationName: "Platform" });
+    expect(updateData).toHaveBeenLastCalledWith({ teamName: "Platform" });
+    fireEvent.click(screen.getByRole("button", { name: "modeJoin" }));
+    expect(updateData).toHaveBeenLastCalledWith({ mode: "join" });
+
+    rerender(
+      <StepTeam
+        data={{ ...data, mode: "join", invitationCode: "" }}
+        updateData={updateData}
+        next={next}
+        back={back}
+      />,
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "invitationCode" }), {
+      target: { value: "OPS-NEW123" },
+    });
+    expect(updateData).toHaveBeenLastCalledWith({ invitationCode: "OPS-NEW123" });
+
+    rerender(
+      <StepTeam
+        data={{ ...data, mode: "join", invitationCode: "OPS-NEW123" }}
+        updateData={updateData}
+        next={next}
+        back={back}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "back" }));
     fireEvent.click(screen.getByRole("button", { name: "next" }));
     expect(back).toHaveBeenCalledOnce();

@@ -3,33 +3,7 @@ pub struct DummyTeamRepo {
     teams_by_code: Mutex<HashMap<String, Team>>,
     roles: Mutex<HashMap<(Uuid, Uuid), Role>>,
     bans: Mutex<HashMap<(Uuid, Uuid), TeamBan>>,
-}
-
-impl DummyTeamRepo {
-    pub fn seed_team(&self, team: Team) {
-        self.teams_by_code
-            .lock()
-            .unwrap()
-            .insert(team.invitation_code.as_str().to_string(), team);
-    }
-
-    pub fn seed_member(&self, team_id: Uuid, user_id: Uuid, role: Role) {
-        self.roles.lock().unwrap().insert((team_id, user_id), role);
-    }
-
-    // Only the team moderation tests use this; other integration crates share
-    // `common` but never seed a ban.
-    #[allow(dead_code)]
-    pub fn seed_ban(&self, ban: TeamBan) {
-        self.bans
-            .lock()
-            .unwrap()
-            .insert((ban.team_id, ban.user_id), ban);
-    }
-
-    pub fn role_for(&self, team_id: Uuid, user_id: Uuid) -> Option<Role> {
-        self.roles.lock().unwrap().get(&(team_id, user_id)).copied()
-    }
+    images: Mutex<HashMap<Uuid, opswarden_server::domain::team::TeamImage>>,
 }
 
 #[async_trait]
@@ -118,6 +92,7 @@ impl TeamRepo for DummyTeamRepo {
                 active_incident_count: 0,
                 active_release_count: 0,
                 blocked_release_count: 0,
+                image_updated_at: None,
             })
             .collect())
     }
@@ -214,13 +189,30 @@ impl TeamRepo for DummyTeamRepo {
         self.bans.lock().unwrap().remove(&(team_id, user_id));
         Ok(())
     }
-}
 
-pub struct DummyClock;
+    async fn save_team_image(
+        &self,
+        team_id: Uuid,
+        image: &opswarden_server::domain::team::TeamImage,
+    ) -> Result<(), DomainError> {
+        self.images.lock().unwrap().insert(team_id, image.clone());
+        Ok(())
+    }
 
-impl Clock for DummyClock {
-    fn now(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::Utc::now()
+    async fn find_team_image_for_member(
+        &self,
+        team_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<opswarden_server::domain::team::TeamImage>, DomainError> {
+        if self.role_for(team_id, user_id).is_none() {
+            return Ok(None);
+        }
+        Ok(self.images.lock().unwrap().get(&team_id).cloned())
+    }
+
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
+        self.images.lock().unwrap().remove(&team_id);
+        Ok(())
     }
 }
 
@@ -228,6 +220,7 @@ impl Clock for DummyClock {
 pub struct DummyIncidentRepo {
     incidents: Mutex<HashMap<Uuid, Incident>>,
     events: Mutex<Vec<IncidentEvent>>,
+    reads: Mutex<HashMap<(Uuid, Uuid), DateTime<Utc>>>,
 }
 
 impl DummyIncidentRepo {
@@ -284,6 +277,14 @@ impl IncidentRepo for DummyIncidentRepo {
         Ok(())
     }
 
+    async fn record_events(
+        &self,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError> {
+        self.events.lock().unwrap().extend(events.iter().cloned());
+        Ok(())
+    }
+
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,
@@ -313,6 +314,21 @@ impl IncidentRepo for DummyIncidentRepo {
             .filter(|incident| incident.team_id == team_id)
             .cloned()
             .collect())
+    }
+
+    async fn mark_incident_read(
+        &self,
+        incident_id: Uuid,
+        user_id: Uuid,
+        read_through: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        self.reads
+            .lock()
+            .unwrap()
+            .entry((incident_id, user_id))
+            .and_modify(|current| *current = (*current).max(read_through))
+            .or_insert(read_through);
+        Ok(())
     }
 
     async fn delete_incident(&self, incident_id: Uuid) -> Result<(), DomainError> {

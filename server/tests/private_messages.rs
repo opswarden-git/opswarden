@@ -343,3 +343,77 @@ async fn a_participant_cannot_edit_the_other_authors_message() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn mark_read_and_list_unread_private_messages_round_trip() {
+    let ctx = test_context();
+    let peer = Uuid::new_v4();
+    let team = Uuid::new_v4();
+    seed_user(&ctx, peer);
+    ctx.teams.seed_member(team, me(), Role::Observer);
+    ctx.teams.seed_member(team, peer, Role::Observer);
+
+    let message = PrivateMessage::new(peer, me(), "unread message").unwrap();
+    let created_at = message.created_at;
+    ctx.private_messages.seed(message);
+
+    // Initial check: peer is in unread_peer_ids
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/private-messages/unread")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["unread_peer_ids"], json!([peer.to_string()]));
+
+    // Mark read through message created_at
+    let response = ctx
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/private-messages/read")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    json!({ "peer_id": peer.to_string(), "read_through": created_at }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    // Unread list is now empty
+    let response = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/private-messages/unread")
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["unread_peer_ids"], json!([]));
+}

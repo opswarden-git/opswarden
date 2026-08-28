@@ -17,7 +17,7 @@ const DensityContext = createContext<OperationalTableDensity>("normal");
 
 const cellDensityClasses: Record<OperationalTableDensity, string> = {
   compact: "px-4 py-2",
-  normal: "px-5 py-3",
+  normal: "px-4 py-3",
 };
 
 /** Desktop-only table chrome. Data mapping, actions, destinations and mobile
@@ -67,7 +67,7 @@ export function OperationalTableBody({
   ...props
 }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={cn("divide-border divide-y", className)} {...props}>
+    <tbody className={cn("divide-border-muted divide-y", className)} {...props}>
       {children}
     </tbody>
   );

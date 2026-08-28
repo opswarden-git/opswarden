@@ -8,10 +8,7 @@ test("formats body limits as operator-readable sizes", () => {
   assert.equal(formatBytes("1024 * 1024"), "1 MiB");
   assert.equal(formatBytes("2 * 1024 * 1024"), "2 MiB");
   assert.equal(formatBytes("1_024 + 512"), "1536 B");
-  assert.equal(
-    formatBytes("crate::adapters::webhook::generic::MAX_GENERIC_BODY_BYTES"),
-    "64 KiB",
-  );
+  assert.equal(formatBytes("crate::adapters::webhook::generic::MAX_GENERIC_BODY_BYTES"), "64 KiB");
   assert.equal(formatBytes("unknown_limit()"), "unknown_limit()");
 });
 

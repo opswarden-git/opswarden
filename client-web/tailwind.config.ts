@@ -18,6 +18,20 @@ const config = {
       },
     },
     extend: {
+      /**
+       * The documented radius vocabulary, so a utility cannot mean something
+       * the contract does not. `DEFAULT` points at `md` the way Primer's does:
+       * a nameless radius is the ordinary one, not a fifth value. `xl` and
+       * `2xl` stay on Tailwind's own scale — they exist only for the
+       * conversation bubble, which the design system names as its exception.
+       */
+      borderRadius: {
+        sm: "var(--ow-radius-sm)",
+        DEFAULT: "var(--ow-radius-md)",
+        md: "var(--ow-radius-md)",
+        lg: "var(--ow-radius-lg)",
+        full: "var(--ow-radius-full)",
+      },
       colors: {
         bg: {
           DEFAULT: "var(--bg)",
@@ -29,7 +43,8 @@ const config = {
         },
         border: {
           DEFAULT: "var(--ow-border)",
-          2: "var(--ow-border-2)",
+          muted: "var(--ow-border-muted)",
+          emphasis: "var(--ow-border-emphasis)",
         },
         text: "var(--text)",
         muted: {
@@ -111,21 +126,16 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "dialog-overlay-show": {
+        // Opacity only: the centring transform belongs to the layout, and a
+        // keyframe that also drives `transform` would fight it — which is what
+        // made the previous version stutter.
+        "dialog-fade-in": {
           from: { opacity: "0" },
           to: { opacity: "1" },
         },
-        "dialog-overlay-hide": {
+        "dialog-fade-out": {
           from: { opacity: "1" },
           to: { opacity: "0" },
-        },
-        "dialog-content-show": {
-          from: { opacity: "0", transform: "translate(-50%, -48%) scale(0.96)" },
-          to: { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
-        },
-        "dialog-content-hide": {
-          from: { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
-          to: { opacity: "0", transform: "translate(-50%, -48%) scale(0.96)" },
         },
         "sheet-content-show": {
           from: { transform: "translateY(100%)" },
@@ -139,10 +149,8 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "dialog-overlay-show": "dialog-overlay-show 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-        "dialog-overlay-hide": "dialog-overlay-hide 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-        "dialog-content-show": "dialog-content-show 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-        "dialog-content-hide": "dialog-content-hide 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+        "dialog-fade-in": "dialog-fade-in 0.12s ease-out",
+        "dialog-fade-out": "dialog-fade-out 0.1s ease-in",
         "sheet-content-show": "sheet-content-show 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         "sheet-content-hide": "sheet-content-hide 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
       },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { memberDisplayName } from "@/components/teams/MemberAvatar";
 import { ConversationMessage } from "@/components/messages/ConversationMessage";
 import {
   type IncidentActivityItem,
@@ -31,7 +32,7 @@ export function HumanNoteItem({
 
   return (
     <ConversationMessage
-      authorLabel={item.author?.email ?? t("deletedUser")}
+      authorLabel={item.author ? memberDisplayName(item.author.email) : t("deletedUser")}
       availableReactions={availableReactions}
       attachments={attachments.map((attachment) => ({
         id: attachment.id,

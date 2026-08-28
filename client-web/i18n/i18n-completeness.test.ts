@@ -48,6 +48,18 @@ function hasMessage(messages: Messages, key: string): boolean {
   return typeof current === "string";
 }
 
+function serverErrorCodes(): string[] {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "..", "server", "src", "domain", "error.rs"),
+    "utf8",
+  );
+  const codeFunction = source.slice(
+    source.indexOf("pub fn code"),
+    source.indexOf("impl std::fmt::Display"),
+  );
+  return [...codeFunction.matchAll(/=>\s*"([a-z0-9_]+)"/g)].map((match) => match[1]);
+}
+
 function translationKeyViolations(file: string, messages: Messages): string[] {
   const source = fs.readFileSync(file, "utf8");
   const tree = ts.createSourceFile(
@@ -219,10 +231,20 @@ const sameTextAllowed = new Set([
   "Incidents.fieldDescription",
   "Incidents.colIncident",
   "Incidents.incidentBreadcrumb",
+  "Incidents.linkedReleases",
   "Incidents.moreActions",
   "Incidents.title",
+  // Pure interpolation: the body of a direct-message notification is the
+  // message itself, so there is no prose to translate.
+  "Notifications.directMessageBody",
+  // Same word in both languages.
+  "Settings.notifications",
+  // Two numbers and a slash: there is nothing to translate.
+  "Sidebar.tourProgress",
   "Onboarding.operatorNamePlaceholder",
-  "Onboarding.organizationPlaceholder",
+  "Onboarding.teamNamePlaceholder",
+  "Onboarding.invitationCodePlaceholder",
+  "Teams.namePlaceholder",
   "Onboarding.timezoneParis",
   "Releases.colAction",
   "Releases.colRelease",
@@ -347,5 +369,15 @@ describe("English/French translation completeness", () => {
       .flatMap((file) => translationKeyViolations(file, en));
 
     expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("translates every stable server error code in both locales", () => {
+    const codes = serverErrorCodes();
+
+    expect(codes.length).toBeGreaterThan(0);
+    for (const code of codes) {
+      expect(hasMessage(en, `errors.${code}`), `missing English error ${code}`).toBe(true);
+      expect(hasMessage(fr, `errors.${code}`), `missing French error ${code}`).toBe(true);
+    }
   });
 });

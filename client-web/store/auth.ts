@@ -6,6 +6,7 @@ export interface User {
   id: string;
   email?: string;
   locale: AppLocale;
+  created_at?: string;
 }
 
 interface AuthState {

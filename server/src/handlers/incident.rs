@@ -15,7 +15,6 @@ use crate::app::incident::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
     GetIncidentCommand, GetIncidentUseCase, IncidentAssigneeFilter, IncidentCounts,
     IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase,
-    ToggleReactionCommand, ToggleReactionUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
@@ -84,6 +83,7 @@ pub struct IncidentListItemView {
     pub created_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
     pub updated_at: DateTime<Utc>,
+    pub unread: bool,
 }
 
 impl From<IncidentListItem> for IncidentListItemView {
@@ -102,6 +102,7 @@ impl From<IncidentListItem> for IncidentListItemView {
             created_at: item.incident.created_at,
             created_by: item.incident.created_by,
             updated_at: item.incident.updated_at,
+            unread: item.unread,
         }
     }
 }
@@ -450,50 +451,14 @@ pub async fn edit_timeline_entry(
     Ok(Json(result.into()))
 }
 
-#[derive(Deserialize)]
-pub struct ToggleReactionPayload {
-    pub emoji: String,
-}
-
-#[derive(Serialize)]
-pub struct ToggleReactionResponse {
-    pub emoji: String,
-    pub reacted: bool,
-    pub count: u64,
-}
-
-pub async fn toggle_reaction(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path((incident_id, entry_id)): Path<(Uuid, Uuid)>,
-    Json(payload): Json<ToggleReactionPayload>,
-) -> Result<Json<ToggleReactionResponse>, DomainError> {
-    let use_case = ToggleReactionUseCase::new(
-        state.teams.clone(),
-        state.incidents.clone(),
-        state.timeline.clone(),
-        state.events.clone(),
-    );
-    let result = use_case
-        .toggle(ToggleReactionCommand {
-            incident_id,
-            entry_id,
-            user_id: session.user_id,
-            emoji: payload.emoji,
-        })
-        .await?;
-
-    Ok(Json(ToggleReactionResponse {
-        emoji: result.emoji,
-        reacted: result.reacted,
-        count: result.count,
-    }))
-}
-
 mod incident_activity;
+mod incident_reactions;
+mod incident_read;
 
 pub use incident_activity::{
     available_reactions, delete_incident, download_timeline_attachment, list_incident_activity,
     UserSummaryResponse,
 };
 use incident_activity::{parse_incident_status, parse_severity};
+pub use incident_reactions::toggle_reaction;
+pub use incident_read::mark_incident_read;

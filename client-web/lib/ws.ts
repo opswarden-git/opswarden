@@ -26,6 +26,7 @@ export {
   createDesktopNotificationGate,
   desktopNotificationForEvent,
   dispatchDesktopNotification,
+  notificationSoundForEvent,
 } from "@/lib/wsNotifications";
 
 export function webSocketUrl() {
@@ -170,6 +171,7 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
       if (!me) break;
       const peer = event.from === me ? event.to : event.from;
       queryClient.invalidateQueries({ queryKey: ["private-messages", peer] });
+      queryClient.invalidateQueries({ queryKey: ["private-messages-unread"] });
       break;
     }
     case "rule_triggered":
@@ -237,8 +239,12 @@ export function useRealtime() {
     const event = lastJsonMessage as WsServerEvent;
     if (
       event.type === "incident_created" ||
+      event.type === "incident_state_changed" ||
       event.type === "incident_escalated" ||
       event.type === "incident_assigned" ||
+      event.type === "timeline_entry_added" ||
+      event.type === "private_message_received" ||
+      event.type === "release_step_validated" ||
       event.type === "release_state_changed"
     ) {
       dispatchDesktopNotification(
@@ -281,6 +287,7 @@ export function useRealtime() {
       case "reaction_added":
       case "reaction_removed":
         queryClient.invalidateQueries({ queryKey: ["activity", event.incident_id] });
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
         break;
       case "presence_update":
         handleWsContractEvent(event, queryClient);
@@ -343,6 +350,7 @@ export function useRealtime() {
         // prefix match — the client only holds its own teams' lists anyway).
         queryClient.invalidateQueries({ queryKey: ["release", event.release_id] });
         queryClient.invalidateQueries({ queryKey: ["releases"] });
+        queryClient.invalidateQueries({ queryKey: ["incidents"] });
         break;
     }
   }, [lastJsonMessage, queryClient, tNotifications]);

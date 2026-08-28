@@ -253,7 +253,6 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
                 activeCount={activeFilterCount}
                 label={t("filtersLabel")}
                 title={t("filtersLabel")}
-                description={t("filtersDescription")}
                 clearLabel={t("clearFilters")}
                 closeLabel={t("close")}
                 doneLabel={t("done")}

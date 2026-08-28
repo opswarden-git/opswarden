@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
-import { AlertCircle } from "lucide-react";
 import { useCreateIncident, IncidentSeverity } from "@/lib/queries/incidents";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
 
 export function CreateIncidentDialog({ teamId }: { teamId: string }) {
   const [open, setOpen] = useState(false);
@@ -41,25 +41,19 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
         </Button>
       }
       title={t("declareTitle")}
-      description={t("declareWarning")}
-      closeLabel={t("close")}
+      closeLabel={t("cancel")}
       initialFocus={titleRef}
-      icon={
-        <div className="bg-sev-critical/15 text-sev-critical flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
-          <AlertCircle className="h-5 w-5" aria-hidden="true" />
-        </div>
-      }
       footer={
         <>
           <DialogClose>
-            <Button size="lg">{t("cancel")}</Button>
+            <Button size="md">{t("cancel")}</Button>
           </DialogClose>
           <Button
             type="submit"
             form="create-incident-form"
             disabled={createIncident.isPending || !title.trim()}
             loading={createIncident.isPending}
-            size="lg"
+            size="md"
             variant="danger"
           >
             {createIncident.isPending ? t("declaring") : t("declare")}
@@ -67,45 +61,32 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
         </>
       }
     >
-      <form id="create-incident-form" onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="inc-title" className="text-muted mb-1 block font-sans text-xs">
-            {t("colTitle")}
-          </label>
+      <form id="create-incident-form" onSubmit={handleSubmit} className="space-y-3">
+        <FormField label={t("colTitle")}>
           <input
             ref={titleRef}
-            id="inc-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
-            placeholder={t("titlePlaceholder")}
+            className="ow-input flex h-9 w-full rounded-md px-3 text-sm transition-colors"
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="inc-description" className="text-muted mb-1 block font-sans text-xs">
-            {t("fieldDescription")}
-          </label>
+        <FormField label={t("fieldDescription")}>
           <textarea
-            id="inc-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             className="ow-input flex w-full rounded-md px-3 py-2 text-sm transition-colors"
             placeholder={t("descriptionPlaceholder")}
           />
-        </div>
+        </FormField>
 
-        <div>
-          <label htmlFor="inc-sev" className="text-muted mb-1 block font-sans text-xs">
-            {t("severity")}
-          </label>
+        <FormField label={t("severity")}>
           <select
-            id="inc-sev"
             value={severity}
             onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
-            className="ow-input flex h-10 w-full rounded-md px-3 py-2 text-sm transition-colors"
+            className="ow-input flex h-9 w-full rounded-md px-3 text-sm transition-colors"
           >
             <option value="low" className="bg-bg text-text">
               {t("sevLowDesc")}
@@ -120,10 +101,10 @@ export function CreateIncidentDialog({ teamId }: { teamId: string }) {
               {t("sevCriticalDesc")}
             </option>
           </select>
-        </div>
+        </FormField>
 
         {createIncident.isError ? (
-          <p className="text-sev-critical text-sm" role="alert">
+          <p className="text-sev-critical text-xs" role="alert">
             {tErr.has(createIncident.error.message)
               ? tErr(createIncident.error.message)
               : t("actionFailed")}

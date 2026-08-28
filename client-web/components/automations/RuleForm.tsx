@@ -14,8 +14,27 @@ import {
   useUpdateAutomationRule,
 } from "@/lib/queries/automations";
 import { AutomationDialog } from "./AutomationDialog";
+import { useErrorText } from "@/lib/useErrorText";
 
 export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
+
+/**
+ * The catalogue ships a description for every field, and for a filter it is
+ * usually the label again inside a sentence: "Repository" then "Only match this
+ * repository". Printing both puts the same word twice under the reader's eye,
+ * which is most of what makes this form feel dense. The caption survives only
+ * when it says something the label does not.
+ */
+function captionFor(label: string, description?: string): string | undefined {
+  if (!description) return undefined;
+  const flatten = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const stripped = flatten(description).replace(/^only match (this|the) /, "");
+  return stripped === flatten(label) ? undefined : description;
+}
 
 function capabilityOptionValue(
   capabilities: CapabilityWithService[],
@@ -61,6 +80,7 @@ export function RuleForm({
   teamId: string;
 }) {
   const t = useTranslations("Automations");
+  const errorText = useErrorText();
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(rule?.name ?? "");
   const [actionValue, setActionValue] = useState(() =>
@@ -168,13 +188,13 @@ export function RuleForm({
       description={t("ruleFormDescription")}
       footer={
         <>
-          <Button size="lg" onClick={onClose}>
+          <Button size="md" onClick={onClose}>
             {t("cancel")}
           </Button>
           <Button
             type="submit"
             form="rule-form"
-            size="lg"
+            size="md"
             variant="primary"
             disabled={!valid}
             loading={mutation.isPending}
@@ -186,7 +206,7 @@ export function RuleForm({
     >
       <form
         id="rule-form"
-        className="space-y-6 p-6"
+        className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (!valid) return;
@@ -197,27 +217,32 @@ export function RuleForm({
           }
         }}
       >
-        <label className="text-text block text-sm font-medium">
-          <span>{t("ruleName")}</span>
+        <div>
+          <label htmlFor="rule-name-input" className="text-text mb-1 block text-xs font-medium">
+            {t("ruleName")}
+          </label>
           <input
+            id="rule-name-input"
             ref={nameRef}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+            className="ow-input h-9 w-full rounded-md px-3 text-sm"
             placeholder={t("ruleNamePlaceholder")}
             maxLength={200}
             required
           />
-        </label>
+        </div>
 
-        <fieldset className="surface-subtle border-border space-y-4 rounded-md border p-4">
-          <legend className="text-text px-1 text-sm font-semibold">{t("action")}</legend>
-          <label className="text-text block text-sm font-medium">
+        <fieldset className="space-y-3 pt-1">
+          <legend className="text-muted text-[11px] font-semibold tracking-wider uppercase">
+            {t("action")}
+          </legend>
+          <label className="text-text block text-xs font-medium">
             <span>{t("event")}</span>
             <select
               value={actionValue}
               onChange={(event) => selectAction(event.target.value)}
-              className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+              className="ow-input mt-1 flex h-9 w-full rounded-md px-3 text-sm"
             >
               {actions.map((action) => (
                 <option
@@ -230,12 +255,12 @@ export function RuleForm({
             </select>
           </label>
           {!isBuiltInAction ? (
-            <label className="text-text block text-sm font-medium">
+            <label className="text-text block text-xs font-medium">
               <span>{t("sourceConnection")}</span>
               <select
                 value={triggerConnectionId}
                 onChange={(event) => setTriggerConnectionId(event.target.value)}
-                className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                className="ow-input mt-1 flex h-9 w-full rounded-md px-3 text-sm"
                 required
               >
                 <option value="">{t("selectConnection")}</option>
@@ -257,9 +282,9 @@ export function RuleForm({
           ) : null}
           {selectedAction?.fields.length ? (
             <div>
-              <div className="text-text text-sm font-medium">{t("actionConfiguration")}</div>
-              <p className="text-muted mt-1 text-xs">{selectedAction.description}</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="text-text text-xs font-medium">{t("actionConfiguration")}</div>
+              <p className="text-muted mt-0.5 text-xs">{selectedAction.description}</p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 {selectedAction.fields.map((field) => (
                   <label key={field.name} className="text-muted block text-xs font-medium">
                     <span>{field.label}</span>
@@ -272,7 +297,7 @@ export function RuleForm({
                             [field.name]: event.target.value,
                           }))
                         }
-                        className="ow-input mt-1.5 h-9 w-full rounded-md px-3 text-sm"
+                        className="ow-input mt-1 h-9 w-full rounded-md px-3 text-sm"
                         required={field.required}
                       >
                         {!field.required ? <option value="" /> : null}
@@ -296,7 +321,7 @@ export function RuleForm({
                             [field.name]: event.target.value,
                           }))
                         }
-                        className="ow-input mt-1.5 h-9 w-full rounded-md px-3 text-sm"
+                        className="ow-input mt-1 h-9 w-full rounded-md px-3 text-sm"
                         required={field.required}
                       />
                     )}
@@ -306,7 +331,9 @@ export function RuleForm({
                         <option value="UTC" />
                       </datalist>
                     ) : null}
-                    <span className="mt-1 block font-normal">{field.description}</span>
+                    {captionFor(field.label, field.description) ? (
+                      <span className="mt-1 block font-normal">{field.description}</span>
+                    ) : null}
                   </label>
                 ))}
               </div>
@@ -314,14 +341,16 @@ export function RuleForm({
           ) : null}
         </fieldset>
 
-        <fieldset className="surface-subtle border-border space-y-4 rounded-md border p-4">
-          <legend className="text-text px-1 text-sm font-semibold">{t("reaction")}</legend>
-          <label className="text-text block text-sm font-medium">
+        <fieldset className="space-y-3 pt-1">
+          <legend className="text-muted text-[11px] font-semibold tracking-wider uppercase">
+            {t("reaction")}
+          </legend>
+          <label className="text-text block text-xs font-medium">
             <span>{t("outcome")}</span>
             <select
               value={reactionValue}
               onChange={(event) => selectReaction(event.target.value)}
-              className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+              className="ow-input mt-1 flex h-9 w-full rounded-md px-3 text-sm"
             >
               {reactions.map((reaction) => (
                 <option
@@ -335,12 +364,12 @@ export function RuleForm({
           </label>
           {needsReactionConnection ? (
             <>
-              <label className="text-text block text-sm font-medium">
+              <label className="text-text block text-xs font-medium">
                 <span>{t("destinationConnection")}</span>
                 <select
                   value={reactionConnectionId}
                   onChange={(event) => setReactionConnectionId(event.target.value)}
-                  className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                  className="ow-input mt-1 flex h-9 w-full rounded-md px-3 text-sm"
                   required
                 >
                   <option value="">{t("selectConnection")}</option>
@@ -359,7 +388,7 @@ export function RuleForm({
           {selectedReaction?.fields.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {selectedReaction.fields.map((field) => (
-                <label key={field.name} className="text-text block text-sm font-medium">
+                <label key={field.name} className="text-text block text-xs font-medium">
                   <span>{field.label}</span>
                   {field.input_type === "select" ? (
                     <select
@@ -370,7 +399,7 @@ export function RuleForm({
                           [field.name]: event.target.value,
                         }))
                       }
-                      className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                      className="ow-input mt-1 h-9 w-full rounded-md px-3 text-sm"
                       required={field.required}
                     >
                       {!field.required ? <option value="" /> : null}
@@ -390,13 +419,15 @@ export function RuleForm({
                           [field.name]: event.target.value,
                         }))
                       }
-                      className="ow-input mt-2 h-10 w-full rounded-md px-3 text-sm"
+                      className="ow-input mt-1 h-9 w-full rounded-md px-3 text-sm"
                       required={field.required}
                     />
                   )}
-                  <span className="text-muted mt-1 block text-xs font-normal">
-                    {field.description}
-                  </span>
+                  {captionFor(field.label, field.description) ? (
+                    <span className="text-muted mt-1 block text-xs font-normal">
+                      {field.description}
+                    </span>
+                  ) : null}
                 </label>
               ))}
             </div>
@@ -405,7 +436,9 @@ export function RuleForm({
 
         <Alert tone="info">{t("savedDisabledHint")}</Alert>
         {mutation.error ? (
-          <Alert tone="danger">{t("requestFailed", { code: mutation.error.message })}</Alert>
+          <Alert tone="danger">
+            {t("requestFailed", { code: errorText(mutation.error.message) })}
+          </Alert>
         ) : null}
       </form>
     </AutomationDialog>
