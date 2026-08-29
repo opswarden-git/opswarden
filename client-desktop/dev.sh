@@ -19,5 +19,5 @@ exec nix develop .#tauri --command bash -c '
   export GSETTINGS_BACKEND=memory
   # beforeDevCommand (in tauri.conf.json) reuses an existing :4242 dev server,
   # or starts client-web if none is running (avoids EADDRINUSE).
-  cd client-desktop && npm run tauri dev
+  cd client-desktop && npm run dev
 '
