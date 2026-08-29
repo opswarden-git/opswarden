@@ -179,12 +179,13 @@ impl AutomationReactionExecutor {
             .await?
             .filter(|incident| incident.team_id == team_id)
             .ok_or(DomainError::IncidentNotFound)?;
+        let expected_updated_at = incident.updated_at;
         let previous = incident.status;
         if incident.escalate()? {
             let audit =
                 IncidentEvent::status_changed(incident.id, actor, previous, incident.status);
             self.incidents
-                .update_incident_with_event(&incident, &audit)
+                .update_incident_with_event(&incident, &audit, expected_updated_at)
                 .await?;
             self.events
                 .publish(DomainEvent::IncidentStateChanged {

@@ -318,6 +318,7 @@ mod tests {
     use crate::adapters::pg::team::PgTeamRepo;
     use crate::adapters::pg::user::PgUserRepo;
     use crate::domain::incident::{Incident, Severity};
+    use crate::domain::incident_event::IncidentEvent;
     use crate::domain::team::Team;
     use crate::domain::user::{Email, User};
     use crate::ports::{IncidentRepo, TeamRepo, UserRepo};
@@ -368,7 +369,7 @@ mod tests {
     async fn linked_active_incident_blocks_and_resolving_unblocks(pool: PgPool) {
         let releases = PgReleaseRepo::new(pool.clone());
         let incidents = PgIncidentRepo::new(pool.clone());
-        let (team_id, _user) = seed_team(&pool).await;
+        let (team_id, user) = seed_team(&pool).await;
 
         let release = Release::new(team_id, "v2.0.0", vec!["build".into()]).unwrap();
         releases.save_release(&release).await.unwrap();
@@ -428,8 +429,15 @@ mod tests {
         );
 
         // Resolve the incident → the active count drops to zero (auto-unblock).
+        let expected_updated_at = incident.updated_at;
+        let previous_status = incident.status;
         incident.resolve().unwrap();
-        incidents.update_incident(&incident).await.unwrap();
+        let event =
+            IncidentEvent::status_changed(incident.id, user, previous_status, incident.status);
+        incidents
+            .update_incident_with_event(&incident, &event, expected_updated_at)
+            .await
+            .unwrap();
         assert_eq!(
             releases
                 .count_active_linked_incidents(release.id)

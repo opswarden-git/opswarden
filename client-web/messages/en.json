@@ -231,6 +231,7 @@
     "invalid_ban_kind": "Ban kind must be temporary or permanent.",
     "user_not_found": "User account not found.",
     "storage_error": "A storage error occurred.",
+    "concurrent_modification": "This resource changed while you were editing it. Please retry.",
     "giphy_not_configured": "GIF search is not available right now",
     "external_service_unavailable": "The GIF service is temporarily unavailable",
     "invalid_gif_query": "Please enter a shorter search term",

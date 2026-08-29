@@ -132,6 +132,10 @@ impl IntoResponse for DomainError {
                 StatusCode::FORBIDDEN,
                 "You are not allowed to perform this action",
             ),
+            DomainError::ConcurrentModification => (
+                StatusCode::CONFLICT,
+                "The resource was modified by another request",
+            ),
             DomainError::InvalidSignature => {
                 (StatusCode::UNAUTHORIZED, "Invalid webhook signature")
             }

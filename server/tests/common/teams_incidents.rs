@@ -267,15 +267,11 @@ impl IncidentRepo for DummyIncidentRepo {
         Ok(self.incidents.lock().unwrap().get(&incident_id).cloned())
     }
 
-    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
-        self.seed_incident(incident.clone());
-        Ok(())
-    }
-
     async fn update_incident_with_event(
         &self,
         incident: &Incident,
         event: &IncidentEvent,
+        _expected_updated_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError> {
         self.seed_incident(incident.clone());
         self.events.lock().unwrap().push(event.clone());

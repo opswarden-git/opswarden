@@ -68,6 +68,7 @@ impl ChangeIncidentStatusUseCase {
             return Err(DomainError::Forbidden);
         }
 
+        let expected_updated_at = incident.updated_at;
         let previous_status = incident.status;
         let changed = incident.transition_to(cmd.new_status)?;
 
@@ -85,7 +86,7 @@ impl ChangeIncidentStatusUseCase {
                 incident.status,
             );
             self.incidents
-                .update_incident_with_event(&incident, &event)
+                .update_incident_with_event(&incident, &event, expected_updated_at)
                 .await?;
             self.events
                 .publish(DomainEvent::IncidentStateChanged {

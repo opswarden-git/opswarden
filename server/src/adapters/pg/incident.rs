@@ -172,41 +172,19 @@ impl IncidentRepo for PgIncidentRepo {
         record.map(Incident::try_from).transpose()
     }
 
-    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
-        sqlx::query(
-            r#"
-            UPDATE incidents
-            SET title = $2, description = $3, status = $4, severity = $5,
-                assignee_id = $6, updated_at = $7
-            WHERE id = $1
-            "#,
-        )
-        .bind(incident.id)
-        .bind(&incident.title)
-        .bind(&incident.description)
-        .bind(incident.status.as_str())
-        .bind(incident.severity.as_str())
-        .bind(incident.assignee)
-        .bind(incident.updated_at)
-        .execute(&self.pool)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        Ok(())
-    }
-
     async fn update_incident_with_event(
         &self,
         incident: &Incident,
         event: &IncidentEvent,
+        expected_updated_at: DateTime<Utc>,
     ) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE incidents
             SET title = $2, description = $3, status = $4, severity = $5,
                 assignee_id = $6, updated_at = $7
-            WHERE id = $1
+            WHERE id = $1 AND updated_at = $8
             "#,
         )
         .bind(incident.id)
@@ -216,9 +194,14 @@ impl IncidentRepo for PgIncidentRepo {
         .bind(incident.severity.as_str())
         .bind(incident.assignee)
         .bind(incident.updated_at)
+        .bind(expected_updated_at)
         .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+
+        if result.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
 
         sqlx::query(
             r#"

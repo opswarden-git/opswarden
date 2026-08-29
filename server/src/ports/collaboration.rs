@@ -128,12 +128,12 @@ pub trait IncidentRepo: Send + Sync {
     ) -> Result<(), DomainError>;
     async fn find_incident_by_id(&self, incident_id: Uuid)
         -> Result<Option<Incident>, DomainError>;
-    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
     /// Persist a mutation and the event describing it in one transaction.
     async fn update_incident_with_event(
         &self,
         incident: &Incident,
         event: &IncidentEvent,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError>;
     /// Append audit events describing something that happened *outside* the
     /// incidents themselves — a release they block moving a step forward. This
