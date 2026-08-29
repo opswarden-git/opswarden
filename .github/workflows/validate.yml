@@ -64,7 +64,6 @@ jobs:
         run: ./tooling/check_dockerfile_pins.sh
       - name: Validate Compose configuration
         env:
-          OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
           JWT_SECRET: CI_CONFIG_ONLY
         run: docker compose config --quiet
       - name: Verify package versions
@@ -383,7 +382,6 @@ jobs:
       && (needs.web-build.result == 'success' || needs.web-build.result == 'skipped')
     runs-on: ubuntu-latest
     env:
-      OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
       JWT_SECRET: CI_CONFIG_ONLY
     steps:
       - name: Checkout

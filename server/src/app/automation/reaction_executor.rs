@@ -64,7 +64,7 @@ impl AutomationReactionExecutor {
             "validate_release_step" => self.validate_release_step(team_id, rule, event).await,
             "block_release" => self.block_release(team_id, rule, event).await,
             "escalate_incident" => self.escalate_incident(team_id, rule, event).await,
-            "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
+            "http_notify" => self.notify_http(team_id, rule, event).await,
             "email_notify" => self.notify_email(team_id, rule, event).await,
             _ => Err(DomainError::InvalidAutomationRule),
         }
@@ -236,7 +236,7 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != HTTP_SERVICE && connection.service != "slack" {
+        if connection.service != HTTP_SERVICE {
             return Err(DomainError::InvalidAutomationRule);
         }
         let endpoint = self

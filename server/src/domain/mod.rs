@@ -23,9 +23,7 @@ pub use automation_config::{
     AutomationRule, AutomationRuleDefinition, AutomationRun, AutomationRunStatus, CredentialKind,
     ServiceConnection, WebhookDelivery, WebhookDeliveryStatus,
 };
-pub use automation_timer::{
-    ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule, TimerScheduleProjection,
-};
+pub use automation_timer::{ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule};
 pub use capabilities::{derive_capabilities, TeamCapabilities};
 pub use conversation::{ConversationFeature, ConversationScope};
 pub use error::DomainError;

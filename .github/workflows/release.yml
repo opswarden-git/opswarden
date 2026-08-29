@@ -97,7 +97,6 @@ jobs:
     needs: release-gate
     runs-on: ubuntu-latest
     env:
-      OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
       JWT_SECRET: CI_CONFIG_ONLY
     steps:
       - name: Checkout

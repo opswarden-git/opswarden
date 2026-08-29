@@ -1,14 +1,11 @@
 // --- server/src/config.rs ---
 
-use sha2::{Digest, Sha256};
-
 /// Dev fallback for the AES-256 vault key (32 bytes). Override in any real
 /// environment with `OPSWARDEN_VAULT_KEY` (64 hex chars), like `JWT_SECRET`.
 const DEV_VAULT_KEY: [u8; 32] = *b"opswarden-dev-vault-key-0123456!";
 
 #[derive(Clone)]
 pub struct Config {
-    pub kickoff_token_secret: String,
     pub jwt_secret: String,
     /// AES-256-GCM key for Team-owned connection credentials.
     pub vault_key: [u8; 32],
@@ -54,9 +51,6 @@ impl Config {
         // `${VAR:-}` passes an empty string when the host hasn't set it, and an
         // empty HMAC secret / OAuth id / notify URL must mean "not configured",
         // never a meaningless `Some("")`.
-        let kickoff_token_secret =
-            optional_env("OPSWARDEN_KICKOFF_TOKEN").unwrap_or_else(|| "OpsWarden".to_string());
-
         // Fail-fast in release builds: a missing (or blank) JWT_SECRET in
         // production would silently fall back to a publicly-known key, letting
         // anyone forge tokens. Debug builds keep a dev default for zero-config work.
@@ -127,7 +121,6 @@ impl Config {
                 .unwrap_or(300);
 
         Self {
-            kickoff_token_secret,
             jwt_secret,
             vault_key,
             google_oauth_client_id,
@@ -146,10 +139,6 @@ impl Config {
             auth_rate_limit_per_account,
             auth_rate_limit_window_seconds,
         }
-    }
-
-    pub fn kickoff_token(&self) -> String {
-        sha256_hex(&self.kickoff_token_secret)
     }
 }
 
@@ -179,12 +168,6 @@ fn parse_origins(value: &str) -> Vec<String> {
         .filter(|origin| origin.starts_with("https://") || origin.starts_with("http://"))
         .map(str::to_string)
         .collect()
-}
-
-pub fn sha256_hex(input: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(input.as_bytes());
-    hex::encode(hasher.finalize())
 }
 
 fn load_local_env() {
@@ -233,7 +216,7 @@ fn is_env_key(key: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_env_key, nonblank, parse_origins, sha256_hex};
+    use super::{is_env_key, nonblank, parse_origins};
 
     #[test]
     fn nonblank_treats_empty_and_whitespace_as_none() {
@@ -250,14 +233,6 @@ mod tests {
             nonblank(Some("  pad  ".to_string())).as_deref(),
             Some("  pad  ")
         );
-    }
-
-    #[test]
-    fn sha256_is_64_hex_chars_and_deterministic() {
-        let digest = sha256_hex("OpsWarden");
-        assert_eq!(digest.len(), 64);
-        assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(digest, sha256_hex("OpsWarden"));
     }
 
     #[test]

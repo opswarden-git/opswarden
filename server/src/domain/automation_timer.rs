@@ -27,16 +27,6 @@ pub struct TimerOccurrence {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TimerScheduleProjection {
-    pub rule_id: Uuid,
-    pub connection_id: Uuid,
-    pub schedule: TimerSchedule,
-    pub next_run_at: DateTime<Utc>,
-    pub rule_updated_at: DateTime<Utc>,
-    pub last_claimed_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimedTimerOccurrence {
     pub rule_id: Uuid,
     pub team_id: Uuid,

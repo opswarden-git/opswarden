@@ -1,10 +1,10 @@
 use axum::{
-    extract::{ConnectInfo, Query, State},
+    extract::Query,
     http::{header::HeaderName, HeaderMap},
     Json,
 };
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
 pub mod auth;
 mod conversation;
 pub mod error;
@@ -28,17 +28,10 @@ pub async fn health() -> Json<Health> {
 
 #[derive(Serialize)]
 pub struct About {
-    pub client: ClientInfo,
     pub server: ServerInfo,
 }
 #[derive(Serialize)]
-pub struct ClientInfo {
-    pub host: String,
-}
-#[derive(Serialize)]
 pub struct ServerInfo {
-    pub current_time: u64,
-    pub token: String,
     pub services: Vec<ServiceCatalog>,
 }
 #[derive(Serialize)]
@@ -90,27 +83,9 @@ pub struct AboutQuery {
     pub locale: Option<String>,
 }
 
-use crate::AppState;
-
-pub async fn about(
-    State(state): State<AppState>,
-    ConnectInfo(peer): ConnectInfo<SocketAddr>,
-    Query(query): Query<AboutQuery>,
-    headers: HeaderMap,
-) -> Json<About> {
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
+pub async fn about(Query(query): Query<AboutQuery>) -> Json<About> {
     Json(About {
-        client: ClientInfo {
-            host: resolve_client_ip(peer.ip(), &headers, state.config.trusted_proxy_hops)
-                .to_string(),
-        },
         server: ServerInfo {
-            current_time,
-            token: state.config.kickoff_token(),
             services: automation_catalog(if query.locale.as_deref() == Some("fr") {
                 "fr"
             } else {
