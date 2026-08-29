@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use super::hub::{Connection, ConnectionId, WsHub};
+use super::hub::{deliver, Connection, ConnectionId, WsHub};
 use super::protocol::{
     presence_wire, private_message_presence_wire, private_message_typing_wire, user_typing_wire,
 };
@@ -37,7 +37,7 @@ impl WsHub {
             .get_mut(&conn_id)
             .is_some_and(|connection| connection.rooms.insert(room))
         {
-            broadcast_room_presence(&connections, room);
+            broadcast_room_presence(&mut connections, room);
         }
     }
 
@@ -47,7 +47,7 @@ impl WsHub {
             .get_mut(&conn_id)
             .is_some_and(|connection| connection.rooms.remove(&room))
         {
-            broadcast_room_presence(&connections, room);
+            broadcast_room_presence(&mut connections, room);
         }
     }
 
@@ -93,7 +93,7 @@ impl WsHub {
     }
 
     fn broadcast_typing(&self, conn_id: ConnectionId, room: RoomKey) {
-        let connections = self.connections.lock().unwrap();
+        let mut connections = self.connections.lock().unwrap();
         let Some(source) = connections.get(&conn_id) else {
             return;
         };
@@ -111,16 +111,19 @@ impl WsHub {
                 private_message_typing_wire(source.user_id, peer)
             }
         };
-        for (recipient_id, connection) in connections.iter() {
-            if *recipient_id != conn_id && connection.rooms.contains(&room) {
-                let _ = connection.tx.send(payload.clone());
-            }
-        }
+        let recipients = connections
+            .iter()
+            .filter_map(|(recipient_id, connection)| {
+                (*recipient_id != conn_id && connection.rooms.contains(&room))
+                    .then_some(*recipient_id)
+            })
+            .collect();
+        deliver(&mut connections, recipients, &payload);
     }
 }
 
 pub(super) fn broadcast_room_presence(
-    connections: &HashMap<ConnectionId, Connection>,
+    connections: &mut HashMap<ConnectionId, Connection>,
     room: RoomKey,
 ) {
     let mut watchers: Vec<Uuid> = connections
@@ -136,11 +139,11 @@ pub(super) fn broadcast_room_presence(
             private_message_presence_wire(private.participants(), &watchers)
         }
     };
-    for connection in connections.values() {
-        if connection.rooms.contains(&room) {
-            let _ = connection.tx.send(payload.clone());
-        }
-    }
+    let recipients = connections
+        .iter()
+        .filter_map(|(id, connection)| connection.rooms.contains(&room).then_some(*id))
+        .collect();
+    deliver(connections, recipients, &payload);
 }
 
 #[cfg(test)]
@@ -155,9 +158,9 @@ mod tests {
     fn direct_presence_and_typing_are_bilateral() {
         let hub = WsHub::new();
         let (alice, bob, outsider) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
-        let (alice_tx, mut alice_rx) = mpsc::unbounded_channel();
-        let (bob_tx, mut bob_rx) = mpsc::unbounded_channel();
-        let (outsider_tx, mut outsider_rx) = mpsc::unbounded_channel();
+        let (alice_tx, mut alice_rx) = mpsc::channel(256);
+        let (bob_tx, mut bob_rx) = mpsc::channel(256);
+        let (outsider_tx, mut outsider_rx) = mpsc::channel(256);
         let alice_connection = hub.register(alice, HashSet::new(), alice_tx);
         let bob_connection = hub.register(bob, HashSet::new(), bob_tx);
         hub.register(outsider, HashSet::new(), outsider_tx);
@@ -179,8 +182,8 @@ mod tests {
     fn disconnect_updates_every_room_once() {
         let hub = WsHub::new();
         let (alice, bob) = (Uuid::new_v4(), Uuid::new_v4());
-        let (alice_tx, mut alice_rx) = mpsc::unbounded_channel();
-        let (bob_tx, mut bob_rx) = mpsc::unbounded_channel();
+        let (alice_tx, mut alice_rx) = mpsc::channel(256);
+        let (bob_tx, mut bob_rx) = mpsc::channel(256);
         let alice_connection = hub.register(alice, HashSet::new(), alice_tx);
         let bob_connection = hub.register(bob, HashSet::new(), bob_tx);
         hub.watch_private_message(alice_connection, bob);

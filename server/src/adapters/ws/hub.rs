@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{error::TrySendError, Sender};
 use uuid::Uuid;
 
 use super::hub_rooms::{broadcast_room_presence, RoomKey};
@@ -14,13 +14,18 @@ use crate::ports::EventPublisher;
 
 pub type ConnectionId = Uuid;
 
+/// Maximum number of serialized frames buffered for one WebSocket connection.
+/// A connection that cannot keep up is disconnected instead of being allowed
+/// to grow the server's memory without bound.
+pub const OUTBOUND_QUEUE_CAPACITY: usize = 256;
+
 pub(super) struct Connection {
     pub(super) user_id: Uuid,
     teams: HashSet<Uuid>,
     /// Incidents this connection is currently watching (presence). Ephemeral.
     /// Incident and bilateral rooms actively open on this connection.
     pub(super) rooms: HashSet<RoomKey>,
-    pub(super) tx: UnboundedSender<String>,
+    pub(super) tx: Sender<String>,
 }
 
 /// In-memory registry of live WebSocket connections and presence.
@@ -39,7 +44,7 @@ impl WsHub {
         &self,
         user_id: Uuid,
         teams: HashSet<Uuid>,
-        tx: UnboundedSender<String>,
+        tx: Sender<String>,
     ) -> ConnectionId {
         let id = Uuid::new_v4();
         let team_ids: Vec<Uuid> = teams.iter().copied().collect();
@@ -57,7 +62,7 @@ impl WsHub {
         // delivers its teams' current online rosters to it (no command needed)
         // and tells existing members it just came online.
         for team_id in team_ids {
-            broadcast_team_presence(&conns, team_id);
+            broadcast_team_presence(&mut conns, team_id);
         }
         id
     }
@@ -69,10 +74,10 @@ impl WsHub {
             // naturally drops it from every incident's watcher list and from each
             // of its teams' online rosters.
             for room in conn.rooms {
-                broadcast_room_presence(&conns, room);
+                broadcast_room_presence(&mut conns, room);
             }
             for team_id in conn.teams {
-                broadcast_team_presence(&conns, team_id);
+                broadcast_team_presence(&mut conns, team_id);
             }
         }
     }
@@ -91,7 +96,7 @@ impl WsHub {
             None => return,
         };
         for team_id in old_teams.symmetric_difference(&new_teams) {
-            broadcast_team_presence(&conns, *team_id);
+            broadcast_team_presence(&mut conns, *team_id);
         }
     }
 
@@ -106,7 +111,7 @@ impl WsHub {
         {
             return;
         }
-        let conns = self.connections.lock().unwrap();
+        let mut conns = self.connections.lock().unwrap();
         let Some(source) = conns.get(&conn_id) else {
             return;
         };
@@ -115,11 +120,13 @@ impl WsHub {
             return;
         }
         let payload = cursor_wire(incident_id, source.user_id, x, y);
-        for (recipient_id, conn) in conns.iter() {
-            if *recipient_id != conn_id && conn.rooms.contains(&room) {
-                let _ = conn.tx.send(payload.clone());
-            }
-        }
+        let recipients = conns
+            .iter()
+            .filter_map(|(recipient_id, conn)| {
+                (*recipient_id != conn_id && conn.rooms.contains(&room)).then_some(*recipient_id)
+            })
+            .collect();
+        deliver(&mut conns, recipients, &payload);
     }
 
     #[cfg(test)]
@@ -133,7 +140,7 @@ impl WsHub {
 /// user with several tabs counts once). Strictly scoped: only members of the
 /// team receive it, so a team's roster never leaks to outsiders. Called while
 /// holding the connections lock.
-fn broadcast_team_presence(conns: &HashMap<ConnectionId, Connection>, team_id: Uuid) {
+fn broadcast_team_presence(conns: &mut HashMap<ConnectionId, Connection>, team_id: Uuid) {
     let mut online: Vec<Uuid> = conns
         .values()
         .filter(|c| c.teams.contains(&team_id))
@@ -143,10 +150,50 @@ fn broadcast_team_presence(conns: &HashMap<ConnectionId, Connection>, team_id: U
     online.dedup();
 
     let payload = team_presence_wire(team_id, &online);
-    for conn in conns.values() {
-        if conn.teams.contains(&team_id) {
-            let _ = conn.tx.send(payload.clone());
+    let recipients = conns
+        .iter()
+        .filter_map(|(id, conn)| conn.teams.contains(&team_id).then_some(*id))
+        .collect();
+    deliver(conns, recipients, &payload);
+}
+
+/// Queue one payload without blocking the publisher. Closed or saturated
+/// recipients are removed immediately; dropping their last sender closes the
+/// handler's receive loop and therefore the socket. Presence is then
+/// re-broadcast for every room/team affected by the removal.
+pub(super) fn deliver(
+    conns: &mut HashMap<ConnectionId, Connection>,
+    recipients: Vec<ConnectionId>,
+    payload: &str,
+) {
+    let failed: Vec<ConnectionId> = recipients
+        .into_iter()
+        .filter(|id| {
+            conns.get(id).is_some_and(|conn| {
+                matches!(
+                    conn.tx.try_send(payload.to_owned()),
+                    Err(TrySendError::Full(_) | TrySendError::Closed(_))
+                )
+            })
+        })
+        .collect();
+    if failed.is_empty() {
+        return;
+    }
+
+    let mut rooms = HashSet::new();
+    let mut teams = HashSet::new();
+    for id in failed {
+        if let Some(conn) = conns.remove(&id) {
+            rooms.extend(conn.rooms);
+            teams.extend(conn.teams);
         }
+    }
+    for room in rooms {
+        broadcast_room_presence(conns, room);
+    }
+    for team_id in teams {
+        broadcast_team_presence(conns, team_id);
     }
 }
 
@@ -155,22 +202,23 @@ impl EventPublisher for WsHub {
     async fn publish(&self, event: DomainEvent) {
         let delivery = event.delivery();
         let payload = to_wire(&event);
-        // Collect-and-send under the lock is fine: UnboundedSender::send is
-        // synchronous and non-blocking, so no await is held across the lock.
-        let conns = self.connections.lock().unwrap();
+        // Bounded `try_send` is synchronous, so no await is held across the
+        // lock. Saturated clients are disconnected by `deliver`.
+        let mut conns = self.connections.lock().unwrap();
         // A connection is a recipient when it belongs to the event's team
         // (team-scoped events) or when its user is one of the targeted users
-        // (private messages). Send errors are ignored: a closed receiver means
-        // the connection is gone and its task will unregister itself.
-        for conn in conns.values() {
-            let is_recipient = match &delivery {
-                EventDelivery::Team(team_id) => conn.teams.contains(team_id),
-                EventDelivery::Users(user_ids) => user_ids.contains(&conn.user_id),
-            };
-            if is_recipient {
-                let _ = conn.tx.send(payload.clone());
-            }
-        }
+        // (private messages). Closed and saturated receivers are removed.
+        let recipients = conns
+            .iter()
+            .filter_map(|(id, conn)| {
+                let is_recipient = match &delivery {
+                    EventDelivery::Team(team_id) => conn.teams.contains(team_id),
+                    EventDelivery::Users(user_ids) => user_ids.contains(&conn.user_id),
+                };
+                is_recipient.then_some(*id)
+            })
+            .collect();
+        deliver(&mut conns, recipients, &payload);
     }
 }
 
@@ -186,8 +234,8 @@ mod tests {
         let team_a = Uuid::new_v4();
         let team_b = Uuid::new_v4();
 
-        let (tx_a, mut rx_a) = mpsc::unbounded_channel();
-        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+        let (tx_a, mut rx_a) = mpsc::channel(256);
+        let (tx_b, mut rx_b) = mpsc::channel(256);
         hub.register(Uuid::new_v4(), HashSet::from([team_a]), tx_a);
         hub.register(Uuid::new_v4(), HashSet::from([team_b]), tx_b);
         // Each registration broadcasts the team's online roster; drain those so
@@ -215,9 +263,9 @@ mod tests {
         // All three even share a team, to prove the PM is user-scoped, not fanned
         // out to the team.
         let team = Uuid::new_v4();
-        let (tx_s, mut rx_s) = mpsc::unbounded_channel();
-        let (tx_r, mut rx_r) = mpsc::unbounded_channel();
-        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+        let (tx_s, mut rx_s) = mpsc::channel(256);
+        let (tx_r, mut rx_r) = mpsc::channel(256);
+        let (tx_b, mut rx_b) = mpsc::channel(256);
         hub.register(sender, HashSet::from([team]), tx_s);
         hub.register(recipient, HashSet::from([team]), tx_r);
         hub.register(bystander, HashSet::from([team]), tx_b);
@@ -247,11 +295,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn disconnects_a_connection_when_its_outbound_queue_is_full() {
+        let hub = WsHub::new();
+        let user = Uuid::new_v4();
+        let (tx, _rx) = mpsc::channel(1);
+        hub.register(user, HashSet::new(), tx);
+
+        let event = || DomainEvent::PrivateMessageReceived {
+            message_id: Uuid::new_v4(),
+            sender_id: user,
+            recipient_id: Uuid::new_v4(),
+            content: "bounded".to_string(),
+            at: chrono::Utc::now(),
+        };
+        hub.publish(event()).await;
+        assert_eq!(hub.connection_count(), 1);
+
+        hub.publish(event()).await;
+        assert_eq!(hub.connection_count(), 0);
+    }
+
+    #[tokio::test]
     async fn register_broadcasts_team_presence_to_the_new_connection() {
         let hub = WsHub::new();
         let team = Uuid::new_v4();
         let user = Uuid::new_v4();
-        let (tx, mut rx) = mpsc::unbounded_channel();
+        let (tx, mut rx) = mpsc::channel(256);
         hub.register(user, HashSet::from([team]), tx);
 
         let m = rx.try_recv().unwrap();
@@ -265,8 +334,8 @@ mod tests {
         let hub = WsHub::new();
         let team = Uuid::new_v4();
         let (user_a, user_b) = (Uuid::new_v4(), Uuid::new_v4());
-        let (tx_a, _rx_a) = mpsc::unbounded_channel();
-        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+        let (tx_a, _rx_a) = mpsc::channel(256);
+        let (tx_b, mut rx_b) = mpsc::channel(256);
         let a = hub.register(user_a, HashSet::from([team]), tx_a);
         hub.register(user_b, HashSet::from([team]), tx_b);
         while rx_b.try_recv().is_ok() {} // drain register frames
@@ -283,8 +352,8 @@ mod tests {
         let hub = WsHub::new();
         let team = Uuid::new_v4();
         let user = Uuid::new_v4();
-        let (tx1, mut rx1) = mpsc::unbounded_channel();
-        let (tx2, _rx2) = mpsc::unbounded_channel();
+        let (tx1, mut rx1) = mpsc::channel(256);
+        let (tx2, _rx2) = mpsc::channel(256);
         hub.register(user, HashSet::from([team]), tx1);
         hub.register(user, HashSet::from([team]), tx2);
 
@@ -302,12 +371,12 @@ mod tests {
     async fn team_presence_does_not_leak_across_teams() {
         let hub = WsHub::new();
         let (team_a, team_b) = (Uuid::new_v4(), Uuid::new_v4());
-        let (tx_a, mut rx_a) = mpsc::unbounded_channel();
+        let (tx_a, mut rx_a) = mpsc::channel(256);
         hub.register(Uuid::new_v4(), HashSet::from([team_a]), tx_a);
         while rx_a.try_recv().is_ok() {} // drain A's own register frame
 
         // A user joins team_b: the team_a-only connection must hear nothing.
-        let (tx_b, _rx_b) = mpsc::unbounded_channel();
+        let (tx_b, _rx_b) = mpsc::channel(256);
         hub.register(Uuid::new_v4(), HashSet::from([team_b]), tx_b);
         assert!(rx_a.try_recv().is_err());
     }
@@ -317,7 +386,7 @@ mod tests {
         let hub = WsHub::new();
         let team = Uuid::new_v4();
         let user = Uuid::new_v4();
-        let (tx, mut rx) = mpsc::unbounded_channel();
+        let (tx, mut rx) = mpsc::channel(256);
         let conn = hub.register(user, HashSet::new(), tx); // starts with no teams
         while rx.try_recv().is_ok() {} // (nothing: no teams at register)
 
@@ -334,8 +403,8 @@ mod tests {
         let hub = WsHub::new();
         let team = Uuid::new_v4();
         let (leaver, stayer) = (Uuid::new_v4(), Uuid::new_v4());
-        let (tx_l, _rx_l) = mpsc::unbounded_channel();
-        let (tx_s, mut rx_s) = mpsc::unbounded_channel();
+        let (tx_l, _rx_l) = mpsc::channel(256);
+        let (tx_s, mut rx_s) = mpsc::channel(256);
         let leaver_conn = hub.register(leaver, HashSet::from([team]), tx_l);
         hub.register(stayer, HashSet::from([team]), tx_s);
         while rx_s.try_recv().is_ok() {} // drain register frames
@@ -354,7 +423,7 @@ mod tests {
         let hub = WsHub::new();
         let (team_a, team_b) = (Uuid::new_v4(), Uuid::new_v4());
         let user = Uuid::new_v4();
-        let (tx, mut rx) = mpsc::unbounded_channel();
+        let (tx, mut rx) = mpsc::channel(256);
         hub.register(user, HashSet::from([team_a, team_b]), tx);
 
         let mut teams_seen = HashSet::new();
@@ -371,7 +440,7 @@ mod tests {
     #[tokio::test]
     async fn unregister_removes_the_connection() {
         let hub = WsHub::new();
-        let (tx, _rx) = mpsc::unbounded_channel();
+        let (tx, _rx) = mpsc::channel(256);
         let id = hub.register(Uuid::new_v4(), HashSet::from([Uuid::new_v4()]), tx);
         assert_eq!(hub.connection_count(), 1);
 
@@ -385,8 +454,8 @@ mod tests {
         let incident = Uuid::new_v4();
         let (user_a, user_b) = (Uuid::new_v4(), Uuid::new_v4());
 
-        let (tx_a, mut rx_a) = mpsc::unbounded_channel();
-        let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+        let (tx_a, mut rx_a) = mpsc::channel(256);
+        let (tx_b, mut rx_b) = mpsc::channel(256);
         let a = hub.register(user_a, HashSet::new(), tx_a);
         let b = hub.register(user_b, HashSet::new(), tx_b);
 
@@ -410,8 +479,8 @@ mod tests {
         let hub = WsHub::new();
         let (incident_1, incident_2) = (Uuid::new_v4(), Uuid::new_v4());
 
-        let (tx_a, mut rx_a) = mpsc::unbounded_channel();
-        let (tx_b, _rx_b) = mpsc::unbounded_channel();
+        let (tx_a, mut rx_a) = mpsc::channel(256);
+        let (tx_b, _rx_b) = mpsc::channel(256);
         let a = hub.register(Uuid::new_v4(), HashSet::new(), tx_a);
         let b = hub.register(Uuid::new_v4(), HashSet::new(), tx_b);
 
@@ -430,8 +499,8 @@ mod tests {
         let incident = Uuid::new_v4();
         let user = Uuid::new_v4();
 
-        let (tx1, mut rx1) = mpsc::unbounded_channel();
-        let (tx2, _rx2) = mpsc::unbounded_channel();
+        let (tx1, mut rx1) = mpsc::channel(256);
+        let (tx2, _rx2) = mpsc::channel(256);
         let c1 = hub.register(user, HashSet::new(), tx1);
         let c2 = hub.register(user, HashSet::new(), tx2);
 

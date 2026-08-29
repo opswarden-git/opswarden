@@ -12,9 +12,9 @@ async fn cursor_reaches_only_other_watchers_of_the_same_incident() {
     let other_incident = Uuid::new_v4();
     let user_a = Uuid::new_v4();
 
-    let (tx_a, mut rx_a) = mpsc::unbounded_channel();
-    let (tx_b, mut rx_b) = mpsc::unbounded_channel();
-    let (tx_c, mut rx_c) = mpsc::unbounded_channel();
+    let (tx_a, mut rx_a) = mpsc::channel(256);
+    let (tx_b, mut rx_b) = mpsc::channel(256);
+    let (tx_c, mut rx_c) = mpsc::channel(256);
     let a = hub.register(user_a, HashSet::new(), tx_a);
     let b = hub.register(Uuid::new_v4(), HashSet::new(), tx_b);
     let c = hub.register(Uuid::new_v4(), HashSet::new(), tx_c);
@@ -38,8 +38,8 @@ async fn cursor_reaches_only_other_watchers_of_the_same_incident() {
 async fn cursor_rejects_unwatched_or_invalid_positions() {
     let hub = WsHub::new();
     let incident = Uuid::new_v4();
-    let (tx_a, _rx_a) = mpsc::unbounded_channel();
-    let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+    let (tx_a, _rx_a) = mpsc::channel(256);
+    let (tx_b, mut rx_b) = mpsc::channel(256);
     let a = hub.register(Uuid::new_v4(), HashSet::new(), tx_a);
     let b = hub.register(Uuid::new_v4(), HashSet::new(), tx_b);
     hub.watch(b, incident);
@@ -59,8 +59,8 @@ async fn disconnect_drops_the_user_from_presence() {
     let incident = Uuid::new_v4();
     let user_a = Uuid::new_v4();
 
-    let (tx_a, _rx_a) = mpsc::unbounded_channel();
-    let (tx_b, mut rx_b) = mpsc::unbounded_channel();
+    let (tx_a, _rx_a) = mpsc::channel(256);
+    let (tx_b, mut rx_b) = mpsc::channel(256);
     let a = hub.register(user_a, HashSet::new(), tx_a);
     let b = hub.register(Uuid::new_v4(), HashSet::new(), tx_b);
 

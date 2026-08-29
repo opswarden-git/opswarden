@@ -17,7 +17,7 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
     });
     rule.replace_definition(definition).unwrap();
     assert!(ctx.automation_rules.update_rule(&rule).await.unwrap());
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (tx, mut rx) = mpsc::channel(256);
     ctx.events
         .register(Uuid::new_v4(), HashSet::from([team_id]), tx);
     while rx.try_recv().is_ok() {}

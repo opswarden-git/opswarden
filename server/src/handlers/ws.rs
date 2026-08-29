@@ -1,6 +1,7 @@
 // --- server/src/handlers/ws.rs ---
 
 use std::collections::HashSet;
+use std::time::Duration;
 
 use axum::{
     extract::{
@@ -10,13 +11,20 @@ use axum::{
     http::{header::ORIGIN, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
+use tokio::time::timeout;
 use uuid::Uuid;
 
+use crate::adapters::ws::hub::OUTBOUND_QUEUE_CAPACITY;
 use crate::domain::capabilities::derive_capabilities;
+use crate::ports::TokenClaims;
 use crate::AppState;
+
+const AUTHENTICATION_TIMEOUT: Duration = Duration::from_secs(10);
+const MAX_PREAUTHENTICATION_FRAMES: usize = 8;
 
 /// `GET /ws` — upgrade to a WebSocket. This route is public: authentication
 /// happens in-band via the first message (browsers cannot set an Authorization
@@ -77,20 +85,24 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // 1. First-message authentication. Anything other than a valid auth frame
     //    closes the connection.
-    let user_id = loop {
-        match receiver.next().await {
-            Some(Ok(Message::Text(text))) => match authenticate(text.as_str(), &state).await {
-                Some(uid) => break uid,
-                None => {
-                    let _ = sender.send(Message::Close(None)).await;
-                    return;
-                }
-            },
-            // Ignore ping/binary frames sent before authenticating.
-            Some(Ok(Message::Ping(_) | Message::Pong(_) | Message::Binary(_))) => continue,
-            _ => return,
+    let claims = match timeout(
+        AUTHENTICATION_TIMEOUT,
+        receive_authentication(&mut receiver, &state),
+    )
+    .await
+    {
+        Ok(Some(claims)) => claims,
+        Ok(None) | Err(_) => {
+            let _ = sender.send(Message::Close(None)).await;
+            return;
         }
     };
+    let user_id = claims.user_id;
+    let session_lifetime = session_lifetime(claims.expires_at, state.clock.now());
+    if session_lifetime.is_zero() {
+        let _ = sender.send(Message::Close(None)).await;
+        return;
+    }
 
     // 2. Scope the connection to the teams the user belongs to.
     let teams: HashSet<Uuid> = match state.teams.list_team_ids_for_user(user_id).await {
@@ -100,7 +112,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // 3. Register with the hub and pump events to the socket. The team set is
     //    also kept locally to authorize presence/typing commands (step 4).
-    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let (tx, mut rx) = mpsc::channel::<String>(OUTBOUND_QUEUE_CAPACITY);
     let conn_id = state.events.register(user_id, teams.clone(), tx);
 
     let mut send_task = tokio::spawn(async move {
@@ -213,12 +225,41 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     tokio::select! {
         _ = &mut send_task => recv_task.abort(),
         _ = &mut recv_task => send_task.abort(),
+        _ = tokio::time::sleep(session_lifetime) => {
+            // Dropping the hub's bounded sender ends the outbound task and
+            // closes the socket. The peer cannot retain a session beyond the
+            // JWT's absolute expiry even if it remains otherwise idle.
+            state.events.unregister(conn_id);
+            recv_task.abort();
+            let _ = send_task.await;
+        }
     }
 
     state.events.unregister(conn_id);
 }
 
-async fn authenticate(text: &str, state: &AppState) -> Option<Uuid> {
+async fn receive_authentication(
+    receiver: &mut futures_util::stream::SplitStream<WebSocket>,
+    state: &AppState,
+) -> Option<TokenClaims> {
+    let mut frames_seen = 0;
+    loop {
+        frames_seen += 1;
+        if frames_seen > MAX_PREAUTHENTICATION_FRAMES {
+            return None;
+        }
+        match receiver.next().await {
+            Some(Ok(Message::Text(text))) => return authenticate(text.as_str(), state).await,
+            // A few transport-level frames are tolerated, but they cannot
+            // extend the outer authentication deadline or keep the socket
+            // anonymous indefinitely.
+            Some(Ok(Message::Ping(_) | Message::Pong(_) | Message::Binary(_))) => continue,
+            _ => return None,
+        }
+    }
+}
+
+async fn authenticate(text: &str, state: &AppState) -> Option<TokenClaims> {
     let auth: AuthMessage = serde_json::from_str(text).ok()?;
     if auth.kind != "auth" {
         return None;
@@ -232,14 +273,25 @@ async fn authenticate(text: &str, state: &AppState) -> Option<Uuid> {
     {
         return None;
     }
-    Some(claims.user_id)
+    if state.users.find_by_id(claims.user_id).await.ok()?.is_none() {
+        return None;
+    }
+    Some(claims)
+}
+
+fn session_lifetime(expires_at: DateTime<Utc>, now: DateTime<Utc>) -> Duration {
+    expires_at
+        .signed_duration_since(now)
+        .to_std()
+        .unwrap_or(Duration::ZERO)
 }
 
 #[cfg(test)]
 mod tests {
     use axum::http::{header::ORIGIN, HeaderMap, HeaderValue};
+    use chrono::{Duration as ChronoDuration, TimeZone, Utc};
 
-    use super::origin_is_allowed;
+    use super::{origin_is_allowed, session_lifetime};
 
     fn allowlist() -> Vec<String> {
         vec![
@@ -279,5 +331,15 @@ mod tests {
         );
         headers.append(ORIGIN, HeaderValue::from_static("https://attacker.example"));
         assert!(!origin_is_allowed(&headers, &allowlist()));
+    }
+
+    #[test]
+    fn session_lifetime_uses_the_absolute_jwt_expiry() {
+        let now = Utc.timestamp_opt(1_700_000_000, 0).unwrap();
+        assert_eq!(
+            session_lifetime(now + ChronoDuration::seconds(30), now),
+            std::time::Duration::from_secs(30)
+        );
+        assert!(session_lifetime(now - ChronoDuration::seconds(1), now).is_zero());
     }
 }
