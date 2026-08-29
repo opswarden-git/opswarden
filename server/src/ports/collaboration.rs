@@ -6,7 +6,7 @@ use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
-use crate::domain::release::{Release, ReleaseState};
+use crate::domain::release::{Release, ReleaseBaseState};
 use crate::domain::team::{
     Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamImage, TeamMemberView,
 };
@@ -298,5 +298,5 @@ pub trait ReleaseRepo: Send + Sync {
     async fn list_release_states_linked_to_incident(
         &self,
         incident_id: Uuid,
-    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError>;
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError>;
 }

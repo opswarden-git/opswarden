@@ -12,7 +12,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
-use crate::domain::release::{Release, ReleaseState, ReleaseStep};
+use crate::domain::release::{Release, ReleaseBaseState, ReleaseStep};
 use crate::ports::ReleaseRepo;
 
 pub struct PgReleaseRepo {
@@ -22,18 +22,6 @@ pub struct PgReleaseRepo {
 impl PgReleaseRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
-    }
-}
-
-fn base_state_to_str(state: ReleaseState) -> &'static str {
-    match state {
-        ReleaseState::Created => "created",
-        ReleaseState::InProgress => "in_progress",
-        ReleaseState::Completed => "completed",
-        ReleaseState::Cancelled => "cancelled",
-        // `Blocked` is a derived effective state, never a stored base; map it back
-        // to its underlying base defensively so a leak can never corrupt the row.
-        ReleaseState::Blocked => "in_progress",
     }
 }
 
@@ -50,7 +38,7 @@ impl ReleaseRepo for PgReleaseRepo {
             release.id,
             release.team_id,
             release.title,
-            base_state_to_str(release.base_state),
+            release.base_state.as_str(),
             release.created_at,
             release.updated_at,
         )
@@ -109,7 +97,7 @@ impl ReleaseRepo for PgReleaseRepo {
             id: row.id,
             team_id: row.team_id,
             title: row.title,
-            base_state: ReleaseState::from_base_str(&row.base_state)?,
+            base_state: ReleaseBaseState::try_from(row.base_state.as_str())?,
             steps: steps
                 .into_iter()
                 .map(|s| ReleaseStep {
@@ -171,7 +159,7 @@ impl ReleaseRepo for PgReleaseRepo {
                     id: row.id,
                     team_id: row.team_id,
                     title: row.title,
-                    base_state: ReleaseState::from_base_str(&row.base_state)?,
+                    base_state: ReleaseBaseState::try_from(row.base_state.as_str())?,
                     steps: steps_by_release.remove(&row.id).unwrap_or_default(),
                     created_at: row.created_at,
                     updated_at: row.updated_at,
@@ -186,7 +174,7 @@ impl ReleaseRepo for PgReleaseRepo {
         sqlx::query!(
             r#"UPDATE releases SET base_state = $2, updated_at = $3 WHERE id = $1"#,
             release.id,
-            base_state_to_str(release.base_state),
+            release.base_state.as_str(),
             release.updated_at,
         )
         .execute(&mut *tx)
@@ -297,7 +285,7 @@ impl ReleaseRepo for PgReleaseRepo {
     async fn list_release_states_linked_to_incident(
         &self,
         incident_id: Uuid,
-    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError> {
         let rows = sqlx::query!(
             r#"
             SELECT r.id, r.team_id, r.base_state
@@ -316,7 +304,7 @@ impl ReleaseRepo for PgReleaseRepo {
                 Ok((
                     row.id,
                     row.team_id,
-                    ReleaseState::from_base_str(&row.base_state)?,
+                    ReleaseBaseState::try_from(row.base_state.as_str())?,
                 ))
             })
             .collect()
@@ -359,7 +347,7 @@ mod tests {
         repo.save_release(&release).await.unwrap();
 
         let loaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
-        assert_eq!(loaded.base_state, ReleaseState::Created);
+        assert_eq!(loaded.base_state, ReleaseBaseState::Created);
         assert_eq!(loaded.steps.len(), 2);
         assert_eq!(loaded.steps[0].name, "build");
 
@@ -367,7 +355,7 @@ mod tests {
         repo.update_release(&release).await.unwrap();
 
         let reloaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
-        assert_eq!(reloaded.base_state, ReleaseState::InProgress);
+        assert_eq!(reloaded.base_state, ReleaseBaseState::InProgress);
         assert!(reloaded.steps[0].is_validated());
         assert_eq!(reloaded.steps[0].validated_by, Some(user_id));
         assert!(!reloaded.steps[1].is_validated());
@@ -435,7 +423,10 @@ mod tests {
             .list_release_states_linked_to_incident(incident.id)
             .await
             .unwrap();
-        assert_eq!(linked, vec![(release.id, team_id, ReleaseState::Created)]);
+        assert_eq!(
+            linked,
+            vec![(release.id, team_id, ReleaseBaseState::Created)]
+        );
 
         // Resolve the incident → the active count drops to zero (auto-unblock).
         incident.resolve().unwrap();

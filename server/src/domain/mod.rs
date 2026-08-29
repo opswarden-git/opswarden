@@ -35,7 +35,7 @@ pub use private_message::{
     MAX_PRIVATE_MESSAGE_ATTACHMENTS, MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES,
     MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES, MAX_PRIVATE_MESSAGE_LEN,
 };
-pub use release::{effective_release_state, Release, ReleaseState, ReleaseStep};
+pub use release::{effective_release_state, Release, ReleaseBaseState, ReleaseState, ReleaseStep};
 pub use team::{
     plan_manager_transfer, InvitationCode, ManagerTransfer, Role, RoleChange, Team, TeamMember,
 };

@@ -11,7 +11,7 @@ use opswarden_server::domain::incident_event::IncidentEvent;
 use opswarden_server::domain::private_message::{
     PrivateMessage, PrivateMessageAttachment, PrivateMessageReaction,
 };
-use opswarden_server::domain::release::{Release, ReleaseState};
+use opswarden_server::domain::release::{Release, ReleaseBaseState};
 use opswarden_server::domain::team::{
     Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
 };

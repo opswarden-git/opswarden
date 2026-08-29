@@ -12,7 +12,7 @@ use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::{Incident, Severity};
 use crate::domain::incident_event::IncidentEvent;
-use crate::domain::release::ReleaseState;
+use crate::domain::release::{ReleaseBaseState, ReleaseState};
 use crate::ports::{
     ConnectionCredentialVault, EmailMessage, EmailSender, EventPublisher, IncidentRepo, Notifier,
     ReleaseRepo, ServiceConnectionRepo, SmtpConfig,
@@ -133,7 +133,7 @@ impl AutomationReactionExecutor {
             .await?
             > 0;
         let old_state = release.effective_state(has_active);
-        if release.base_state != ReleaseState::InProgress {
+        if release.base_state != ReleaseBaseState::InProgress {
             return Err(DomainError::InvalidReleaseTransition);
         }
         if old_state == ReleaseState::Blocked {

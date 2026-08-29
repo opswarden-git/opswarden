@@ -56,7 +56,7 @@ impl CreateReleaseUseCase {
             .publish(DomainEvent::ReleaseStateChanged {
                 team_id: release.team_id,
                 release_id: release.id,
-                new_state: release.base_state,
+                new_state: release.base_state.into(),
             })
             .await;
         load_detail(&self.releases, release).await

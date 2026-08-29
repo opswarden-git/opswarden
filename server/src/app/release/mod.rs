@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::release::{effective_release_state, Release, ReleaseState};
+use crate::domain::release::{effective_release_state, Release, ReleaseBaseState, ReleaseState};
 use crate::ports::{EventPublisher, ReleaseRepo};
 
 pub mod cancel_release;
@@ -83,7 +83,7 @@ pub(crate) async fn emit_if_state_changed(
 pub(crate) async fn snapshot_linked_releases(
     releases: &Arc<dyn ReleaseRepo>,
     incident_id: Uuid,
-) -> Result<Vec<(Uuid, Uuid, ReleaseState, ReleaseState)>, DomainError> {
+) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState, ReleaseState)>, DomainError> {
     let linked = releases
         .list_release_states_linked_to_incident(incident_id)
         .await?;
@@ -105,7 +105,7 @@ pub(crate) async fn snapshot_linked_releases(
 pub(crate) async fn emit_release_state_changes(
     releases: &Arc<dyn ReleaseRepo>,
     events: &Arc<dyn EventPublisher>,
-    snapshot: Vec<(Uuid, Uuid, ReleaseState, ReleaseState)>,
+    snapshot: Vec<(Uuid, Uuid, ReleaseBaseState, ReleaseState)>,
 ) -> Result<(), DomainError> {
     for (release_id, team_id, base, old_eff) in snapshot {
         let has_active = releases.count_active_linked_incidents(release_id).await? > 0;
@@ -125,7 +125,7 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
-    use crate::domain::release::{Release, ReleaseState};
+    use crate::domain::release::{Release, ReleaseBaseState};
     use crate::ports::ReleaseRepo;
 
     /// In-memory release repo for use-case tests. `active_incidents` marks which
@@ -252,7 +252,7 @@ pub(crate) mod tests {
         async fn list_release_states_linked_to_incident(
             &self,
             incident_id: Uuid,
-        ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+        ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError> {
             let releases = self.releases.lock().unwrap();
             Ok(self
                 .links

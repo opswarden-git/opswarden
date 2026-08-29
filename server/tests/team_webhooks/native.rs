@@ -34,7 +34,7 @@ async fn github_event_validates_the_next_release_step_and_records_the_run() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.base_state, ReleaseState::InProgress);
+    assert_eq!(stored.base_state, ReleaseBaseState::InProgress);
     assert_eq!(stored.steps[0].validated_by, rule.created_by);
     assert!(stored.steps[0].validated_at.is_some());
     assert!(stored.steps[1].validated_at.is_none());
@@ -200,7 +200,7 @@ async fn native_reactions_cannot_mutate_another_teams_release() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.base_state, ReleaseState::Created);
+    assert_eq!(stored.base_state, ReleaseBaseState::Created);
     assert!(stored.steps.iter().all(|step| !step.is_validated()));
     assert_eq!(
         ctx.automation_runs.all()[0].status,

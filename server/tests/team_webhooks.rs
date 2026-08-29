@@ -14,7 +14,7 @@ use opswarden_server::domain::automation_config::{
 };
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::{Incident, IncidentStatus, Severity};
-use opswarden_server::domain::release::{Release, ReleaseState};
+use opswarden_server::domain::release::{Release, ReleaseBaseState, ReleaseState};
 use opswarden_server::ports::{
     AutomationRuleRepo, ConnectionCredentialVault, IncidentRepo, ReleaseRepo, ServiceConnectionRepo,
 };

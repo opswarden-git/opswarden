@@ -260,7 +260,7 @@ impl ReleaseRepo for DummyReleaseRepo {
     async fn list_release_states_linked_to_incident(
         &self,
         incident_id: Uuid,
-    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError> {
         let releases = self.releases.lock().unwrap();
         Ok(self
             .links

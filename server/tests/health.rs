@@ -4,7 +4,9 @@ mod common;
 use common::test_app;
 
 use axum::body::Body;
+use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
+use std::net::SocketAddr;
 use tower::ServiceExt;
 
 #[tokio::test]

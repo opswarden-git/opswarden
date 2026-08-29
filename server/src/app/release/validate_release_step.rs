@@ -123,7 +123,7 @@ mod tests {
     use crate::app::incident::tests::{MockEventPublisher, MockTeamRepo};
     use crate::app::release::tests::MockReleaseRepo;
     use crate::domain::incident_event::IncidentEventKind;
-    use crate::domain::release::{Release, ReleaseState};
+    use crate::domain::release::{Release, ReleaseBaseState, ReleaseState};
 
     fn setup(
         role: Role,
@@ -178,7 +178,7 @@ mod tests {
         ));
         assert_eq!(
             releases.releases.lock().unwrap()[&release_id].base_state,
-            ReleaseState::InProgress
+            ReleaseBaseState::InProgress
         );
     }
 
