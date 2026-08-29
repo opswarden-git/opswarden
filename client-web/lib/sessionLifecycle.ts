@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth";
+import { useAuthStore, type User } from "@/store/auth";
 import { useWsStore } from "./wsState";
 
 let activeQueryClient: QueryClient | null = null;
@@ -47,8 +47,16 @@ export async function endSession() {
   await clearIdentityState();
 }
 
-/** Purges the previous identity before making a new bearer token observable. */
-export async function installSessionToken(token: string) {
+/** Validates a candidate token before atomically exposing its identity. */
+export async function establishSession(token: string) {
+  const response = await fetch("/api/me", {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  if (!response.ok) throw new Error("profile_load_failed");
+
+  const user = (await response.json()) as User;
   await clearIdentityState();
-  useAuthStore.getState().setToken(token);
+  useAuthStore.getState().setSession(token, user);
+  return user;
 }

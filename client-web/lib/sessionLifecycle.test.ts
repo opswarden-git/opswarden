@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/store/auth";
 import { useWsStore } from "./wsState";
-import { endSession, installSessionToken, registerSessionQueryClient } from "./sessionLifecycle";
+import { endSession, establishSession, registerSessionQueryClient } from "./sessionLifecycle";
 
 let unregisterQueryClient: (() => void) | undefined;
 
@@ -10,6 +10,7 @@ afterEach(async () => {
   unregisterQueryClient?.();
   unregisterQueryClient = undefined;
   await endSession();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -36,7 +37,15 @@ describe("session lifecycle", () => {
     useAuthStore.getState().setToken("token-a");
     useAuthStore.getState().setUser({ id: "account-a", locale: "en" });
 
-    await installSessionToken("token-b");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ id: "account-b", email: "b@example.com", locale: "en" }),
+        ),
+    );
+    await establishSession("token-b");
 
     expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
     expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
@@ -51,7 +60,10 @@ describe("session lifecycle", () => {
     });
     useWsStore.getState().sendJson({ type: "refresh_teams" });
     expect(oldSocketSend).toHaveBeenCalledTimes(1);
-    expect(useAuthStore.getState()).toMatchObject({ token: "token-b", user: null });
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "token-b",
+      user: { id: "account-b", email: "b@example.com", locale: "en" },
+    });
   });
 
   it("prevents account A timers from mutating account B realtime state", async () => {
@@ -61,7 +73,8 @@ describe("session lifecycle", () => {
     useWsStore.getState().setCursor(room.id, "shared-user", 0.1, 0.1);
     await vi.advanceTimersByTimeAsync(1700);
 
-    await installSessionToken("token-b");
+    await endSession();
+    useAuthStore.getState().setSession("token-b", { id: "account-b", locale: "en" });
     useWsStore.getState().addRoomTypingUser(room, "shared-user");
     useWsStore.getState().setCursor(room.id, "shared-user", 0.8, 0.8);
     await vi.advanceTimersByTimeAsync(1300);
@@ -83,5 +96,17 @@ describe("session lifecycle", () => {
 
     expect(queryClient.getQueryData(["teams"])).toBeUndefined();
     expect(useAuthStore.getState().token).toBeNull();
+  });
+
+  it("keeps the current identity intact when a candidate profile cannot be loaded", async () => {
+    useAuthStore.getState().setSession("token-a", { id: "account-a", locale: "en" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+
+    await expect(establishSession("token-b")).rejects.toThrow("profile_load_failed");
+
+    expect(useAuthStore.getState()).toMatchObject({
+      token: "token-a",
+      user: { id: "account-a" },
+    });
   });
 });

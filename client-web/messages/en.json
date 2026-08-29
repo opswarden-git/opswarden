@@ -112,6 +112,7 @@
     "signup_failed": "Account creation failed. The email may already be registered.",
     "signin_after_signup_failed": "Automatic login failed after account creation.",
     "profile_load_failed": "Your user profile could not be loaded.",
+    "workspace_resume_failed": "Workspace recovery failed.",
     "join_team_failed": "Invalid or expired invitation code.",
     "unknownError": "An unexpected error occurred.",
     "signupProgress": "Step {step} of 3",
