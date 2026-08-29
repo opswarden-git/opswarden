@@ -13,6 +13,13 @@ test("signup collects only persisted data and recovers from creation failure", a
   await page.getByLabel(/^Password/).fill("correct-horse");
   await page.getByRole("button", { name: "Sign up", exact: true }).click();
 
+  const persistedDraft = await page.evaluate(() =>
+    sessionStorage.getItem("opswarden_onboarding_draft"),
+  );
+  expect(persistedDraft).not.toContain("correct-horse");
+  expect(persistedDraft).not.toContain("password");
+  expect(persistedDraft).not.toContain("step");
+
   await expect(page.getByText("Step 2 of 3", { exact: true })).toBeVisible();
   await page.getByLabel("Team").fill("Platform Operations");
   await expect(page.getByLabel("Timezone")).toHaveCount(0);

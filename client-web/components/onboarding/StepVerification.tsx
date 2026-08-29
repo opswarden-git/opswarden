@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "@/i18n/routing";
 import { teamPath } from "@/lib/team-routing";
+import { clearOnboardingDraft } from "./onboardingDraft";
 import type { OnboardingData } from "./types";
 
 export function StepVerification({ data, back }: { data: OnboardingData; back: () => void }) {
@@ -95,11 +96,7 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
         }
 
         {
-          try {
-            sessionStorage.removeItem("opswarden_onboarding_draft");
-          } catch {
-            // Ignore storage cleanup error
-          }
+          clearOnboardingDraft();
           setTimeout(() => {
             router.push(targetTeamId ? teamPath(targetTeamId) : "/", {
               locale: user.locale,
