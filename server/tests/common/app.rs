@@ -42,7 +42,7 @@ fn build_context(
     let email_sender = Arc::new(DummyEmailSender::default());
     let alertmanager_metrics =
         Arc::new(opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics::default());
-    let mut config = Config::from_env();
+    let mut config = Config::from_env().expect("test configuration must be valid");
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;

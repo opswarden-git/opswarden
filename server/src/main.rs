@@ -97,7 +97,10 @@ async fn main() {
         return;
     }
 
-    let config = Config::from_env();
+    let config = Config::from_env().unwrap_or_else(|error| {
+        eprintln!("OpsWarden configuration error: {error}");
+        std::process::exit(78);
+    });
 
     let state = AppState {
         users: Arc::new(PgUserRepo::new(pool.clone())),
