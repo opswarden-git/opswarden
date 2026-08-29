@@ -56,8 +56,18 @@ vi.mock("@/lib/queries/teams", () => ({
   useTeams: () => ({ data: teamsData, isLoading: loading }),
   useTeamMembers: () => ({
     data: [
-      { user_id: "manager-1", email: "manager@example.com", role: "manager" },
-      { user_id: "responder-1", email: "responder@example.com", role: "responder" },
+      {
+        user_id: "manager-1",
+        email: "manager@example.com",
+        role: "manager",
+        can_be_assigned_incident: true,
+      },
+      {
+        user_id: "responder-1",
+        email: "responder@example.com",
+        role: "responder",
+        can_be_assigned_incident: true,
+      },
     ],
   }),
 }));

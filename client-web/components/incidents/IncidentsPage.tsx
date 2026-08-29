@@ -109,9 +109,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
           : "ready";
 
   const clearFilters = () => router.push(`${pathname}?view=all`);
-  const assignableMembers = (members ?? []).filter(
-    (member) => member.role === "manager" || member.role === "responder",
-  );
+  const assignableMembers = (members ?? []).filter((member) => member.can_be_assigned_incident);
   const viewLabel = (value: IncidentView) => t(`view${value[0].toUpperCase()}${value.slice(1)}`);
   const severityLabel = (value: IncidentSeverity) =>
     t(`severity${value[0].toUpperCase()}${value.slice(1)}`);

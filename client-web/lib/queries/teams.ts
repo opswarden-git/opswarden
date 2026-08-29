@@ -28,6 +28,7 @@ export interface TeamMember {
   user_id: string;
   email: string;
   role: TeamRole;
+  can_be_assigned_incident: boolean;
   joined_at: string;
 }
 

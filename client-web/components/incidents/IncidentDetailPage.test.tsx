@@ -89,11 +89,18 @@ const team = {
   blocked_release_count: 1,
 };
 const members = [
-  { user_id: "manager-1", email: "manager@example.com", role: "manager" as const, joined_at: "" },
+  {
+    user_id: "manager-1",
+    email: "manager@example.com",
+    role: "manager" as const,
+    can_be_assigned_incident: true,
+    joined_at: "",
+  },
   {
     user_id: "responder-1",
     email: "responder@example.com",
     role: "responder" as const,
+    can_be_assigned_incident: true,
     joined_at: "",
   },
 ];

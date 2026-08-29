@@ -45,9 +45,7 @@ export function IncidentContextPanel({
     isLoading: releasesLoading,
   } = useReleases(incident.team_id);
   const [assigneeId, setAssigneeId] = useState("");
-  const eligibleAssignees = members.filter(
-    (member) => member.role === "manager" || member.role === "responder",
-  );
+  const eligibleAssignees = members.filter((member) => member.can_be_assigned_incident);
   const memberById = new Map(members.map((member) => [member.user_id, member]));
   const assignee = incident.assignee ? memberById.get(incident.assignee) : undefined;
   const selectedAssignee = assigneeId || incident.assignee || "";

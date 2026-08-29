@@ -68,6 +68,7 @@ pub struct TeamMemberResponse {
     pub user_id: Uuid,
     pub email: String,
     pub role: String,
+    pub can_be_assigned_incident: bool,
     pub joined_at: DateTime<Utc>,
 }
 
@@ -92,6 +93,7 @@ pub async fn list_members(
                 user_id: member.user_id,
                 email: member.email,
                 role: member.role.to_string(),
+                can_be_assigned_incident: member.role.can_act_as(Role::Responder),
                 joined_at: member.joined_at,
             })
             .collect(),
