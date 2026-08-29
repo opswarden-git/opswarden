@@ -60,8 +60,11 @@ impl CancelReleaseUseCase {
             > 0;
         let old_effective = release.effective_state(has_active);
 
+        let expected_updated_at = release.updated_at;
         release.cancel()?;
-        self.releases.update_release(&release).await?;
+        self.releases
+            .update_release(&release, expected_updated_at)
+            .await?;
 
         let new_effective = release.effective_state(has_active);
         emit_if_state_changed(

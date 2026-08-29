@@ -70,8 +70,11 @@ impl ValidateReleaseStepUseCase {
             > 0;
         let old_effective = release.effective_state(has_active);
 
+        let expected_updated_at = release.updated_at;
         release.validate_step(&cmd.step, cmd.requester_id, has_active)?;
-        self.releases.update_release(&release).await?;
+        self.releases
+            .update_release(&release, expected_updated_at)
+            .await?;
 
         let new_effective = release.effective_state(has_active);
         self.events
@@ -196,6 +199,35 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err, DomainError::InvalidReleaseStep);
+        assert!(events.published.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn stale_validation_records_and_publishes_nothing() {
+        let team_id = Uuid::new_v4();
+        let requester = Uuid::new_v4();
+        let release = Release::new(team_id, "v1", vec!["build".into()]).unwrap();
+        let release_id = release.id;
+        let teams =
+            Arc::new(MockTeamRepo::default().with_member(team_id, requester, Role::Responder));
+        let releases = Arc::new(MockReleaseRepo::reject_updates());
+        releases.seed_release(release);
+        let incidents = Arc::new(crate::app::incident::tests::MockIncidentRepo::default());
+        let events = Arc::new(MockEventPublisher::default());
+        let uc =
+            ValidateReleaseStepUseCase::new(teams, releases, incidents.clone(), events.clone());
+
+        let error = uc
+            .validate(ValidateReleaseStepCommand {
+                release_id,
+                step: "build".into(),
+                requester_id: requester,
+            })
+            .await
+            .unwrap_err();
+
+        assert_eq!(error, DomainError::ConcurrentModification);
+        assert!(incidents.incident_events.lock().unwrap().is_empty());
         assert!(events.published.lock().unwrap().is_empty());
     }
 

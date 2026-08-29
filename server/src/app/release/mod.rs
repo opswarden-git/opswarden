@@ -195,6 +195,7 @@ pub(crate) mod tests {
         pub links: Mutex<Vec<(Uuid, Uuid)>>,
         pub active_incidents: Mutex<HashSet<Uuid>>,
         pub scripted_counts: Mutex<HashMap<Uuid, VecDeque<u64>>>,
+        pub reject_update: bool,
     }
 
     impl MockReleaseRepo {
@@ -209,6 +210,12 @@ pub(crate) mod tests {
                 .lock()
                 .unwrap()
                 .insert(release_id, counts.into());
+        }
+        pub fn reject_updates() -> Self {
+            Self {
+                reject_update: true,
+                ..Self::default()
+            }
         }
     }
 
@@ -237,7 +244,14 @@ pub(crate) mod tests {
                 .collect())
         }
 
-        async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+        async fn update_release(
+            &self,
+            release: &Release,
+            _expected_updated_at: chrono::DateTime<chrono::Utc>,
+        ) -> Result<(), DomainError> {
+            if self.reject_update {
+                return Err(DomainError::ConcurrentModification);
+            }
             self.seed_release(release.clone());
             Ok(())
         }

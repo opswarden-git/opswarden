@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -168,18 +169,30 @@ impl ReleaseRepo for PgReleaseRepo {
             .collect()
     }
 
-    async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+    async fn update_release(
+        &self,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
 
-        sqlx::query!(
-            r#"UPDATE releases SET base_state = $2, updated_at = $3 WHERE id = $1"#,
-            release.id,
-            release.base_state.as_str(),
-            release.updated_at,
+        let updated = sqlx::query(
+            r#"
+            UPDATE releases SET base_state = $2, updated_at = $3
+            WHERE id = $1 AND updated_at = $4
+            "#,
         )
+        .bind(release.id)
+        .bind(release.base_state.as_str())
+        .bind(release.updated_at)
+        .bind(expected_updated_at)
         .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+
+        if updated.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
 
         for step in &release.steps {
             sqlx::query!(
@@ -352,7 +365,9 @@ mod tests {
         assert_eq!(loaded.steps[0].name, "build");
 
         release.validate_step("build", user_id, false).unwrap();
-        repo.update_release(&release).await.unwrap();
+        repo.update_release(&release, loaded.updated_at)
+            .await
+            .unwrap();
 
         let reloaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
         assert_eq!(reloaded.base_state, ReleaseBaseState::InProgress);
@@ -363,6 +378,43 @@ mod tests {
         let listed = repo.list_releases_for_team(team_id).await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].steps.len(), 2);
+    }
+
+    #[sqlx::test]
+    async fn concurrent_cancel_and_validation_have_one_coherent_winner(pool: PgPool) {
+        let repo = PgReleaseRepo::new(pool.clone());
+        let (team_id, user_id) = seed_team(&pool).await;
+        let release = Release::new(team_id, "v-race", vec!["build".into()]).unwrap();
+        repo.save_release(&release).await.unwrap();
+
+        let expected_updated_at = release.updated_at;
+        let mut cancelled = release.clone();
+        let mut validated = release.clone();
+        cancelled.cancel().unwrap();
+        validated.validate_step("build", user_id, false).unwrap();
+        cancelled.updated_at = expected_updated_at + chrono::Duration::seconds(1);
+        validated.updated_at = expected_updated_at + chrono::Duration::seconds(2);
+
+        let (cancel_result, validate_result) = tokio::join!(
+            repo.update_release(&cancelled, expected_updated_at),
+            repo.update_release(&validated, expected_updated_at),
+        );
+
+        let results = [cancel_result, validate_result];
+        assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Err(DomainError::ConcurrentModification))
+                .count(),
+            1
+        );
+        let stored = repo.find_release_by_id(release.id).await.unwrap().unwrap();
+        match stored.base_state {
+            ReleaseBaseState::Cancelled => assert!(!stored.steps[0].is_validated()),
+            ReleaseBaseState::Completed => assert!(stored.steps[0].is_validated()),
+            state => panic!("unexpected winning state: {state:?}"),
+        }
     }
 
     #[sqlx::test]

@@ -283,8 +283,13 @@ pub trait ReleaseRepo: Send + Sync {
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError>;
     /// Every release of a team (with steps), newest first.
     async fn list_releases_for_team(&self, team_id: Uuid) -> Result<Vec<Release>, DomainError>;
-    /// Persist a mutated release: its `base_state` and the validation of its steps.
-    async fn update_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Persist a mutated release and its steps only if the loaded snapshot is
+    /// still current.
+    async fn update_release(
+        &self,
+        release: &Release,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
     /// Link an incident to a release (idempotent on the pair).
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError>;
     /// Unlink an incident from a release (idempotent: unlinking a missing pair is

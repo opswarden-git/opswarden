@@ -92,9 +92,12 @@ impl AutomationReactionExecutor {
             .count_active_linked_incidents(release.id)
             .await?
             > 0;
+        let expected_updated_at = release.updated_at;
         let old_state = release.effective_state(has_active);
         release.validate_step(&step, actor, has_active)?;
-        self.releases.update_release(&release).await?;
+        self.releases
+            .update_release(&release, expected_updated_at)
+            .await?;
         self.events
             .publish(DomainEvent::ReleaseStepValidated {
                 team_id,

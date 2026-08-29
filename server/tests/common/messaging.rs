@@ -205,7 +205,11 @@ impl ReleaseRepo for DummyReleaseRepo {
             .collect())
     }
 
-    async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+    async fn update_release(
+        &self,
+        release: &Release,
+        _expected_updated_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError> {
         self.releases
             .lock()
             .unwrap()
