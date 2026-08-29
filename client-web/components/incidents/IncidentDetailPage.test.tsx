@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Incident } from "@/lib/queries/incidents";
+import type { IncidentDetail } from "@/lib/queries/incidents";
 import { useWsStore } from "@/lib/ws";
 import { IncidentDetailPage } from "./IncidentDetailPage";
 
@@ -25,7 +25,7 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-const incident: Incident = {
+const incident: IncidentDetail = {
   id: "incident-12345678",
   team_id: "team-1",
   title: "Database outage",
@@ -36,6 +36,12 @@ const incident: Incident = {
   created_at: "2026-07-25T10:00:00Z",
   created_by: "manager-1",
   updated_at: "2026-07-25T10:05:00Z",
+  actions: {
+    canAssign: true,
+    canDelete: true,
+    canWriteTimeline: true,
+    transitions: ["acknowledged"],
+  },
 };
 
 let incidentQuery: { data: typeof incident | undefined; isLoading: boolean; error: Error | null } =
@@ -75,19 +81,6 @@ vi.mock("@/lib/queries/incidents", () => ({
   useToggleTimelineReaction: () => toggleReaction,
 }));
 
-let teamRole: "manager" | "responder" | "observer" = "manager";
-const team = {
-  team_id: "team-1",
-  name: "Operations",
-  get role() {
-    return teamRole;
-  },
-  created_at: "2026-07-25T09:00:00Z",
-  member_count: 2,
-  active_incident_count: 1,
-  active_release_count: 1,
-  blocked_release_count: 1,
-};
 const members = [
   {
     user_id: "manager-1",
@@ -110,7 +103,6 @@ vi.mock("@/lib/queries/privateMessages", () => ({
 }));
 
 vi.mock("@/lib/queries/teams", () => ({
-  useTeams: () => ({ data: [team] }),
   useTeamMembers: () => ({ data: members }),
 }));
 
@@ -133,7 +125,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   incidentQuery = { data: incident, isLoading: false, error: null };
-  teamRole = "manager";
   useWsStore.setState({
     watchersByRoom: {
       [`incident:${incident.id}`]: ["manager-1", "responder-1", "unknown"],
@@ -235,7 +226,19 @@ describe("IncidentDetailPage", () => {
   });
 
   it("does not render an empty Actions section for an Observer", () => {
-    teamRole = "observer";
+    incidentQuery = {
+      data: {
+        ...incident,
+        actions: {
+          canAssign: false,
+          canDelete: false,
+          canWriteTimeline: false,
+          transitions: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+    };
     render(<IncidentDetailPage incidentId={incident.id} teamId="team-1" />);
 
     const context = within(document.querySelector('[data-war-room-context="true"]') as HTMLElement);

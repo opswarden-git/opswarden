@@ -23,7 +23,9 @@ pub use delete_incident::{DeleteIncidentCommand, DeleteIncidentUseCase};
 pub use edit_timeline_entry::{
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
 };
-pub use get_incident::{GetIncidentCommand, GetIncidentResult, GetIncidentUseCase};
+pub use get_incident::{
+    GetIncidentCommand, GetIncidentResult, GetIncidentUseCase, IncidentActions,
+};
 pub use get_timeline_attachment::GetTimelineAttachmentUseCase;
 pub use list_activity::{
     IncidentActivityItem, ListIncidentActivityCommand, ListIncidentActivityResult,

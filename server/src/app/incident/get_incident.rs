@@ -8,8 +8,10 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
-use crate::domain::incident::Incident;
+use crate::domain::incident::{Incident, IncidentStatus};
+use crate::domain::team::Role;
 use crate::ports::{IncidentRepo, TeamRepo};
 
 pub struct GetIncidentCommand {
@@ -20,6 +22,31 @@ pub struct GetIncidentCommand {
 #[derive(Debug, PartialEq, Eq)]
 pub struct GetIncidentResult {
     pub incident: Incident,
+    pub actions: IncidentActions,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct IncidentActions {
+    pub can_assign: bool,
+    pub can_delete: bool,
+    pub can_write_timeline: bool,
+    pub transitions: Vec<IncidentStatus>,
+}
+
+impl IncidentActions {
+    fn derive(role: Role, status: IncidentStatus) -> Self {
+        let capabilities = derive_capabilities(role);
+        Self {
+            can_assign: capabilities.can_assign_incident && status != IncidentStatus::Resolved,
+            can_delete: capabilities.can_delete_incident,
+            can_write_timeline: capabilities.can_write_timeline,
+            transitions: if capabilities.can_transition_incident {
+                status.allowed_transitions().to_vec()
+            } else {
+                Vec::new()
+            },
+        }
+    }
 }
 
 pub struct GetIncidentUseCase {
@@ -42,12 +69,14 @@ impl GetIncidentUseCase {
             .await?
             .ok_or(DomainError::IncidentNotFound)?;
 
-        self.teams
+        let role = self
+            .teams
             .find_member_role(incident.team_id, cmd.requester_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
 
-        Ok(GetIncidentResult { incident })
+        let actions = IncidentActions::derive(role, incident.status);
+        Ok(GetIncidentResult { incident, actions })
     }
 }
 
@@ -76,6 +105,33 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.incident.id, incident.id);
+        assert!(!result.actions.can_assign);
+        assert!(!result.actions.can_delete);
+        assert!(!result.actions.can_write_timeline);
+        assert!(result.actions.transitions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn responder_receives_only_domain_allowed_transitions() {
+        let team = Uuid::new_v4();
+        let user = Uuid::new_v4();
+        let mut incident = Incident::new(team, "Cache outage", Severity::Critical).unwrap();
+        incident.acknowledge().unwrap();
+        let teams = Arc::new(MockTeamRepo::default().with_member(team, user, Role::Responder));
+        let incidents = Arc::new(MockIncidentRepo::with_incident(incident.clone()));
+
+        let result = GetIncidentUseCase::new(teams, incidents)
+            .get_incident(GetIncidentCommand {
+                incident_id: incident.id,
+                requester_id: user,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result.actions.transitions,
+            vec![IncidentStatus::Escalated, IncidentStatus::Resolved]
+        );
     }
 
     #[tokio::test]

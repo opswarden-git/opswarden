@@ -69,12 +69,7 @@ impl ChangeIncidentStatusUseCase {
         }
 
         let previous_status = incident.status;
-        let changed = match cmd.new_status {
-            IncidentStatus::Open => Err(DomainError::InvalidIncidentTransition),
-            IncidentStatus::Acknowledged => incident.acknowledge(),
-            IncidentStatus::Escalated => incident.escalate(),
-            IncidentStatus::Resolved => incident.resolve(),
-        }?;
+        let changed = incident.transition_to(cmd.new_status)?;
 
         if changed {
             // Snapshot the effective state of releases linked to this incident

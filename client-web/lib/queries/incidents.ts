@@ -8,6 +8,7 @@ import {
 } from "../conversations";
 
 export type IncidentStatus = "open" | "acknowledged" | "escalated" | "resolved";
+export type IncidentTransition = Exclude<IncidentStatus, "open">;
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 
 export interface Incident {
@@ -21,6 +22,15 @@ export interface Incident {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+}
+
+export interface IncidentDetail extends Incident {
+  actions: {
+    canAssign: boolean;
+    canDelete: boolean;
+    canWriteTimeline: boolean;
+    transitions: IncidentTransition[];
+  };
 }
 
 export interface IncidentAssignee {
@@ -65,6 +75,12 @@ interface IncidentViewResponse {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+  actions: {
+    can_assign: boolean;
+    can_delete: boolean;
+    can_write_timeline: boolean;
+    transitions: IncidentTransition[];
+  };
 }
 
 interface IncidentListItemResponse extends Omit<IncidentViewResponse, "assignee_id"> {
@@ -110,7 +126,7 @@ export type IncidentActivityItem =
       reactions: TimelineReaction[];
     };
 
-function normalizeIncident(incident: IncidentViewResponse): Incident {
+function normalizeIncident(incident: IncidentViewResponse): IncidentDetail {
   return {
     id: incident.incident_id,
     team_id: incident.team_id,
@@ -122,6 +138,12 @@ function normalizeIncident(incident: IncidentViewResponse): Incident {
     created_at: incident.created_at,
     created_by: incident.created_by,
     updated_at: incident.updated_at,
+    actions: {
+      canAssign: incident.actions.can_assign,
+      canDelete: incident.actions.can_delete,
+      canWriteTimeline: incident.actions.can_write_timeline,
+      transitions: incident.actions.transitions,
+    },
   };
 }
 
@@ -178,7 +200,7 @@ export function useIncidents(teamId?: string) {
 }
 
 export function useIncident(id: string) {
-  return useQuery<Incident>({
+  return useQuery<IncidentDetail>({
     queryKey: ["incident", id],
     queryFn: async () => {
       const res = await apiFetch(`/api/incidents/${id}`);

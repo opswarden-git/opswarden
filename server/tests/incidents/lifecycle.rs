@@ -34,6 +34,25 @@ async fn create_incident_returns_created_for_team_manager() {
     assert_eq!(json["title"], "Primary DB latency");
     assert_eq!(json["status"], "open");
     assert_eq!(json["severity"], "high");
+
+    let detail = ctx
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/incidents/{}", json["incident_id"].as_str().unwrap()))
+                .header("Authorization", "Bearer mock_jwt_token")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(detail.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let detail: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(detail["actions"]["transitions"], serde_json::json!(["acknowledged"]));
+    assert_eq!(detail["actions"]["can_assign"], true);
 }
 
 #[tokio::test]

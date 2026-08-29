@@ -22,6 +22,15 @@ impl IncidentStatus {
             Self::Resolved => "resolved",
         }
     }
+
+    pub const fn allowed_transitions(self) -> &'static [Self] {
+        match self {
+            Self::Open => &[Self::Acknowledged],
+            Self::Acknowledged => &[Self::Escalated, Self::Resolved],
+            Self::Escalated => &[Self::Resolved],
+            Self::Resolved => &[],
+        }
+    }
 }
 
 impl TryFrom<&str> for IncidentStatus {
@@ -161,43 +170,27 @@ impl Incident {
     }
 
     pub fn acknowledge(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Open => {
-                self.status = IncidentStatus::Acknowledged;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Acknowledged => Ok(false),
-            IncidentStatus::Escalated | IncidentStatus::Resolved => {
-                Err(DomainError::InvalidIncidentTransition)
-            }
-        }
+        self.transition_to(IncidentStatus::Acknowledged)
     }
 
     pub fn escalate(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Acknowledged => {
-                self.status = IncidentStatus::Escalated;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Escalated => Ok(false),
-            IncidentStatus::Open | IncidentStatus::Resolved => {
-                Err(DomainError::InvalidIncidentTransition)
-            }
-        }
+        self.transition_to(IncidentStatus::Escalated)
     }
 
     pub fn resolve(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Acknowledged | IncidentStatus::Escalated => {
-                self.status = IncidentStatus::Resolved;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Resolved => Ok(false),
-            IncidentStatus::Open => Err(DomainError::InvalidIncidentTransition),
+        self.transition_to(IncidentStatus::Resolved)
+    }
+
+    pub fn transition_to(&mut self, status: IncidentStatus) -> Result<bool, DomainError> {
+        if self.status == status && status != IncidentStatus::Open {
+            return Ok(false);
         }
+        if !self.status.allowed_transitions().contains(&status) {
+            return Err(DomainError::InvalidIncidentTransition);
+        }
+        self.status = status;
+        self.updated_at = Utc::now();
+        Ok(true)
     }
 }
 
