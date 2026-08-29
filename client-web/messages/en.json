@@ -439,12 +439,6 @@
     "missingDestinationConnection": "Connect the destination service before saving this rule.",
     "incidentSeverity": "Incident severity",
     "incidentTitleOptional": "Incident title (optional)",
-    "severity": {
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High",
-      "critical": "Critical"
-    },
     "savedDisabledHint": "Rules are saved disabled for review.",
     "saveChanges": "Save changes",
     "createRule": "Create rule",

@@ -439,12 +439,6 @@
     "missingDestinationConnection": "Connectez le service de destination avant d’enregistrer cette règle.",
     "incidentSeverity": "Sévérité de l’incident",
     "incidentTitleOptional": "Titre de l’incident (facultatif)",
-    "severity": {
-      "low": "Faible",
-      "medium": "Moyenne",
-      "high": "Haute",
-      "critical": "Critique"
-    },
     "savedDisabledHint": "Les règles sont enregistrées désactivées pour vérification.",
     "saveChanges": "Enregistrer",
     "createRule": "Créer la règle",
