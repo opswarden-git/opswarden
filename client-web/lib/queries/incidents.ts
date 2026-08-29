@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import type { IncidentSeverity, IncidentStatus, IncidentTransition } from "../incident-contract";
 import {
   downloadConversationAttachment,
   type ConversationAttachment,
@@ -7,9 +8,7 @@ import {
   type PendingConversationAttachment,
 } from "../conversations";
 
-export type IncidentStatus = "open" | "acknowledged" | "escalated" | "resolved";
-export type IncidentTransition = Exclude<IncidentStatus, "open">;
-export type IncidentSeverity = "low" | "medium" | "high" | "critical";
+export type { IncidentSeverity, IncidentStatus, IncidentTransition } from "../incident-contract";
 
 export interface Incident {
   id: string;
@@ -422,7 +421,7 @@ export function useUpdateIncidentStatus() {
       status,
     }: {
       incidentId: string;
-      status: Exclude<IncidentStatus, "open">;
+      status: IncidentTransition;
     }) => {
       const res = await apiFetch(`/api/incidents/${incidentId}/status`, {
         method: "PUT",

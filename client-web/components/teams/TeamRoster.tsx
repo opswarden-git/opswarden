@@ -19,7 +19,7 @@ import {
 import { useTeamOnline } from "@/lib/ws";
 import { useUnreadPrivateMessages } from "@/lib/queries/privateMessages";
 import { useAuthStore } from "@/store/auth";
-import { deriveCapabilities } from "@/lib/capabilities";
+import { deriveCapabilities, TEAM_ROLES, type TeamRole } from "@/lib/capabilities";
 import { teamPath } from "@/lib/team-routing";
 import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
@@ -33,7 +33,7 @@ import { RoleChip } from "./RoleChip";
 
 type Dialog = "makeManager" | "kick" | "ban" | null;
 type BanDuration = "permanent" | "1h" | "24h" | "7d";
-type RoleFilter = "all" | "manager" | "responder" | "observer";
+type RoleFilter = "all" | TeamRole;
 
 export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
   return (
@@ -247,9 +247,10 @@ export function TeamRoster({ team }: { team: Team }) {
             onChange={(value) => setRoleFilter((value || "all") as RoleFilter)}
             options={[
               { value: "", label: t("allRoles") },
-              { value: "manager", label: t("roleManager") },
-              { value: "responder", label: t("roleResponder") },
-              { value: "observer", label: t("roleObserver") },
+              ...[...TEAM_ROLES].reverse().map((role) => ({
+                value: role,
+                label: t(`role${role[0].toUpperCase()}${role.slice(1)}`),
+              })),
             ]}
           />
         </div>

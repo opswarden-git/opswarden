@@ -24,14 +24,15 @@ import {
   type IncidentStatus,
   useIncidentQueue,
 } from "@/lib/queries/incidents";
+import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from "@/lib/incident-contract";
 import { useTeamMembers, useTeams } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 
 type IncidentView = "all" | IncidentStatus;
 type IncidentSort = "newest" | "oldest" | "severity";
 
-const VIEWS: IncidentView[] = ["open", "acknowledged", "escalated", "resolved", "all"];
-const SEVERITIES: IncidentSeverity[] = ["critical", "high", "medium", "low"];
+const VIEWS: IncidentView[] = [...INCIDENT_STATUSES, "all"];
+const SEVERITIES = [...INCIDENT_SEVERITIES].reverse();
 const SORTS: IncidentSort[] = ["newest", "oldest", "severity"];
 
 export function IncidentsPage({ teamId }: { teamId: string }) {
