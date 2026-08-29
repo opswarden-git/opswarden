@@ -35,12 +35,15 @@ interface WsState {
   setTeamOnline: (teamId: string, userIds: string[]) => void;
   sendJson: (message: WsClientCommand) => void;
   setSendJson: (send: (message: WsClientCommand) => void) => void;
+  resetSessionState: () => void;
 }
 
 const CURSOR_IDLE_MS = 1800;
 const TYPING_IDLE_MS = 3000;
 const EMPTY: string[] = [];
 const EMPTY_CURSORS: Record<string, CollaboratorCursor> = {};
+const NOOP_SEND = () => {};
+let sessionGeneration = 0;
 
 export function roomKey(room: ConversationRoom) {
   return `${room.kind}:${room.id}`;
@@ -70,6 +73,7 @@ export const useWsStore = create<WsState>((set, get) => ({
     })),
   addRoomTypingUser: (room, userId) => {
     const key = roomKey(room);
+    const generation = sessionGeneration;
     set((state) => ({
       typingByRoom: {
         ...state.typingByRoom,
@@ -78,6 +82,7 @@ export const useWsStore = create<WsState>((set, get) => ({
     }));
     setTimeout(
       () =>
+        generation === sessionGeneration &&
         set((state) => ({
           typingByRoom: {
             ...state.typingByRoom,
@@ -112,6 +117,7 @@ export const useWsStore = create<WsState>((set, get) => ({
     )
       return;
     const updatedAt = Date.now();
+    const generation = sessionGeneration;
     set((state) => ({
       cursorsByIncident: {
         ...state.cursorsByIncident,
@@ -122,6 +128,7 @@ export const useWsStore = create<WsState>((set, get) => ({
       },
     }));
     setTimeout(() => {
+      if (generation !== sessionGeneration) return;
       set((state) => {
         const cursors = state.cursorsByIncident[incidentId];
         if (!cursors || cursors[userId]?.updatedAt !== updatedAt) return state;
@@ -134,8 +141,19 @@ export const useWsStore = create<WsState>((set, get) => ({
   },
   setTeamOnline: (teamId, userIds) =>
     set((state) => ({ onlineByTeam: { ...state.onlineByTeam, [teamId]: userIds } })),
-  sendJson: () => {},
+  sendJson: NOOP_SEND,
   setSendJson: (sendJson) => set({ sendJson }),
+  resetSessionState: () => {
+    sessionGeneration += 1;
+    set({
+      watchersByRoom: {},
+      typingByRoom: {},
+      activeRooms: [],
+      cursorsByIncident: {},
+      onlineByTeam: {},
+      sendJson: NOOP_SEND,
+    });
+  },
 }));
 
 export const useRoomWatchers = (room: ConversationRoom): string[] =>
