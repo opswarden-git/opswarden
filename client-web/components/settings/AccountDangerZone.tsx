@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { endSession } from "@/lib/sessionLifecycle";
 import { useAuthStore } from "@/store/auth";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useTranslations } from "next-intl";
@@ -17,7 +18,6 @@ export function AccountDangerZone() {
   const params = useParams();
   const currentLocale = params.locale as string;
   const user = useAuthStore((state) => state.user);
-  const logoutLocal = useAuthStore((state) => state.logout);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function AccountDangerZone() {
 
   const handleLogout = async () => {
     await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    logoutLocal();
+    await endSession();
     router.push(`/${currentLocale}/login`);
   };
 
@@ -40,7 +40,7 @@ export function AccountDangerZone() {
         setDeleteError(body?.code && tErr.has(body.code) ? tErr(body.code) : t("deleteFailed"));
         return;
       }
-      logoutLocal();
+      await endSession();
       router.push(`/${currentLocale}/signup`);
     } catch {
       setDeleteError(t("deleteFailed"));

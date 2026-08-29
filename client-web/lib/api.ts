@@ -1,4 +1,5 @@
 import { useAuthStore } from "../store/auth";
+import { endSession } from "./sessionLifecycle";
 
 /**
  * Extracts the current locale from the URL path.
@@ -35,8 +36,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
 
   // Global 401 handling
   if (response.status === 401) {
-    // Clear the store to avoid a zombie session
-    useAuthStore.getState().logout();
+    await endSession();
 
     // Redirect to login, preserving the user's locale
     if (typeof window !== "undefined") {

@@ -46,9 +46,12 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
         if (!signinRes.ok) throw new Error("signin_after_signup_failed");
 
         const { token } = await signinRes.json();
-        const { useAuthStore } = await import("@/store/auth");
-        const { apiFetch } = await import("@/lib/api");
-        useAuthStore.getState().setToken(token);
+        const [{ useAuthStore }, { apiFetch }, { installSessionToken }] = await Promise.all([
+          import("@/store/auth"),
+          import("@/lib/api"),
+          import("@/lib/sessionLifecycle"),
+        ]);
+        await installSessionToken(token);
 
         const meRes = await apiFetch("/api/me");
         if (!meRes.ok) throw new Error("profile_load_failed");

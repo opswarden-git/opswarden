@@ -28,10 +28,13 @@ export default function LoginPage() {
 
   const completeLogin = useCallback(
     async (token: string) => {
-      const { useAuthStore } = await import("@/store/auth");
-      const { apiFetch } = await import("@/lib/api");
+      const [{ useAuthStore }, { apiFetch }, { installSessionToken }] = await Promise.all([
+        import("@/store/auth"),
+        import("@/lib/api"),
+        import("@/lib/sessionLifecycle"),
+      ]);
 
-      useAuthStore.getState().setToken(token);
+      await installSessionToken(token);
 
       const meRes = await apiFetch("/api/me");
       if (!meRes.ok) {
