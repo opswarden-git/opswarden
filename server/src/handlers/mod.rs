@@ -143,19 +143,19 @@ fn automation_catalog(locale: &str) -> Vec<ServiceCatalog> {
             actions: service
                 .actions
                 .iter()
-                .map(|item| catalog_item(item, locale))
+                .map(|item| catalog_item(service.service, item, locale))
                 .collect(),
             reactions: service
                 .reactions
                 .iter()
-                .map(|item| catalog_item(item, locale))
+                .map(|item| catalog_item(service.service, item, locale))
                 .collect(),
             connection: service.connection.map(|connection| ConnectionCatalog {
                 description: localize_connection(service.service, locale, connection.description),
                 fields: connection
                     .fields
                     .iter()
-                    .map(|field| catalog_field(field, locale))
+                    .map(|field| catalog_field(service.service, "connection", field, locale))
                     .collect(),
                 oauth: connection.oauth.map(|oauth| OAuthCatalog {
                     label: localize_oauth(service.service, locale, oauth.label, true),
@@ -168,35 +168,38 @@ fn automation_catalog(locale: &str) -> Vec<ServiceCatalog> {
 }
 
 fn catalog_item(
+    service: &str,
     item: &crate::domain::automation_catalog::CatalogCapability,
     locale: &str,
 ) -> CatalogItem {
     CatalogItem {
         name: item.kind.to_string(),
-        label: localize_capability(item.kind, locale, item.label, true),
-        description: localize_capability(item.kind, locale, item.description, false),
+        label: localize_capability(service, item.kind, locale, item.label, true),
+        description: localize_capability(service, item.kind, locale, item.description, false),
         connection_service: item.connection_service.map(str::to_string),
         fields: item
             .fields
             .iter()
-            .map(|field| catalog_field(field, locale))
+            .map(|field| catalog_field(service, item.kind, field, locale))
             .collect(),
     }
 }
 
 fn catalog_field(
+    service: &str,
+    owner: &str,
     field: &crate::domain::automation_catalog::CatalogField,
     locale: &str,
 ) -> CatalogField {
     CatalogField {
         name: field.name.to_string(),
-        label: localize_field(field.name, locale, field.label, true),
-        description: localize_field(field.name, locale, field.description, false),
+        label: localize_field(service, owner, field.name, locale, field.label, true),
+        description: localize_field(service, owner, field.name, locale, field.description, false),
         input_type: field.input_type.to_string(),
         required: field.required,
         default_value: field
             .default_value
-            .map(|value| localize_default_value(field.name, locale, value)),
+            .map(|value| localize_default_value(service, owner, field.name, locale, value)),
         options: field
             .options
             .iter()
@@ -208,66 +211,74 @@ fn catalog_field(
     }
 }
 
-fn localize_capability(kind: &str, locale: &str, fallback: &str, label: bool) -> String {
+fn localize_capability(
+    service: &str,
+    kind: &str,
+    locale: &str,
+    fallback: &str,
+    label: bool,
+) -> String {
     if locale != "fr" {
         return fallback.to_string();
     }
-    match (kind, label, fallback) {
-        ("ci_failed", true, "Pipeline failed") => "Échec d’une pipeline CI",
-        ("ci_failed", false, "A GitLab CI/CD pipeline completed with a failing status") => {
+    match (service, kind, label) {
+        ("gitlab", "ci_failed", true) => "Échec d’une pipeline CI",
+        ("gitlab", "ci_failed", false) => {
             "Une pipeline GitLab CI/CD s’est terminée avec un statut en échec"
         }
-        ("ci_failed", true, _) => "Échec d’un workflow CI",
-        ("ci_failed", false, _) => {
+        ("github", "ci_failed", true) => "Échec d’un workflow CI",
+        ("github", "ci_failed", false) => {
             "Un workflow GitHub Actions s’est terminé avec un résultat en échec"
         }
-        ("ci_succeeded", true, "Pipeline succeeded") => "Succès d’une pipeline CI",
-        ("ci_succeeded", false, "A GitLab CI/CD pipeline completed successfully") => {
-            "Une pipeline GitLab CI/CD s’est terminée avec succès"
-        }
-        ("ci_succeeded", true, _) => "Succès d’un workflow CI",
-        ("ci_succeeded", false, _) => "Un workflow GitHub Actions s’est terminé avec succès",
-        ("tag_pushed", true, _) => "Nouveau tag poussé",
-        ("tag_pushed", false, "A new Git tag was pushed to the GitLab project") => {
-            "Un nouveau tag Git a été poussé dans le projet GitLab"
-        }
-        ("tag_pushed", false, _) => "Un nouveau tag Git a été poussé dans le dépôt",
-        ("pr_merged", true, _) => "Pull request fusionnée",
-        ("pr_merged", false, _) => "Une pull request a été fusionnée dans le dépôt",
-        ("release_created", true, _) => "Release créée",
-        ("release_created", false, _) => "Une Release a été créée dans l’équipe",
-        ("generic_event", true, _) => "Événement JSON générique",
-        ("generic_event", false, _) => {
+        ("gitlab", "ci_succeeded", true) => "Succès d’une pipeline CI",
+        ("gitlab", "ci_succeeded", false) => "Une pipeline GitLab CI/CD s’est terminée avec succès",
+        ("github", "ci_succeeded", true) => "Succès d’un workflow CI",
+        ("github", "ci_succeeded", false) => "Un workflow GitHub Actions s’est terminé avec succès",
+        ("github" | "gitlab", "tag_pushed", true) => "Nouveau tag poussé",
+        ("gitlab", "tag_pushed", false) => "Un nouveau tag Git a été poussé dans le projet GitLab",
+        ("github", "tag_pushed", false) => "Un nouveau tag Git a été poussé dans le dépôt",
+        ("github", "pr_merged", true) => "Pull request fusionnée",
+        ("github", "pr_merged", false) => "Une pull request a été fusionnée dans le dépôt",
+        ("opswarden", "release_created", true) => "Release créée",
+        ("opswarden", "release_created", false) => "Une Release a été créée dans l’équipe",
+        ("generic", "generic_event", true) => "Événement JSON générique",
+        ("generic", "generic_event", false) => {
             "Un webhook JSON borné et indépendant du fournisseur a été reçu"
         }
-        ("alert_firing", true, _) => "Alerte active",
-        ("alert_firing", false, _) => "Une alerte Alertmanager est devenue active",
-        ("alert_resolved", true, _) => "Alerte résolue",
-        ("alert_resolved", false, _) => "Une alerte Alertmanager a été résolue",
-        ("daily_at", true, _) => "Tous les jours à une heure locale",
-        ("daily_at", false, _) => {
+        ("alertmanager", "alert_firing", true) => "Alerte active",
+        ("alertmanager", "alert_firing", false) => "Une alerte Alertmanager est devenue active",
+        ("alertmanager", "alert_resolved", true) => "Alerte résolue",
+        ("alertmanager", "alert_resolved", false) => "Une alerte Alertmanager a été résolue",
+        ("timer", "daily_at", true) => "Tous les jours à une heure locale",
+        ("timer", "daily_at", false) => {
             "Exécuter une fois par jour calendaire local à l’heure configurée"
         }
-        ("every_minutes", true, _) => "Toutes les N minutes",
-        ("every_minutes", false, _) => "Exécuter selon un intervalle borné en minutes écoulées",
-        ("create_incident", true, _) => "Créer un incident",
-        ("create_incident", false, _) => {
+        ("timer", "every_minutes", true) => "Toutes les N minutes",
+        ("timer", "every_minutes", false) => {
+            "Exécuter selon un intervalle borné en minutes écoulées"
+        }
+        ("opswarden", "create_incident", true) => "Créer un incident",
+        ("opswarden", "create_incident", false) => {
             "Ouvrir un incident dans l’équipe propriétaire de la règle"
         }
-        ("validate_release_step", true, _) => "Valider une étape de Release",
-        ("validate_release_step", false, _) => {
+        ("opswarden", "validate_release_step", true) => "Valider une étape de Release",
+        ("opswarden", "validate_release_step", false) => {
             "Valider la prochaine étape séquentielle d’une Release"
         }
-        ("block_release", true, _) => "Bloquer une Release",
-        ("block_release", false, _) => "Créer et lier un Incident actif à une Release en cours",
-        ("escalate_incident", true, _) => "Escalader un Incident",
-        ("escalate_incident", false, _) => {
+        ("opswarden", "block_release", true) => "Bloquer une Release",
+        ("opswarden", "block_release", false) => {
+            "Créer et lier un Incident actif à une Release en cours"
+        }
+        ("opswarden", "escalate_incident", true) => "Escalader un Incident",
+        ("opswarden", "escalate_incident", false) => {
             "Escalader un Incident acquitté en respectant son cycle de vie"
         }
-        ("http_notify", true, _) => "Envoyer une notification HTTP",
-        ("http_notify", false, _) => "Envoyer une notification via une connexion HTTP configurée",
-        ("email_notify", true, _) => "Envoyer un e-mail",
-        ("email_notify", false, _) => "Envoyer un e-mail à une adresse configurée",
+        ("http", "http_notify", true) => "Envoyer une notification HTTP",
+        ("http", "http_notify", false) => {
+            "Envoyer une notification via une connexion HTTP configurée"
+        }
+        ("email", "email_notify", true) => "Envoyer un e-mail",
+        ("email", "email_notify", false) => "Envoyer un e-mail à une adresse configurée",
         _ => fallback,
     }
     .to_string()
@@ -304,36 +315,58 @@ fn localize_oauth(service: &str, locale: &str, fallback: &str, label: bool) -> S
     .to_string()
 }
 
-fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> String {
+fn localize_field(
+    service: &str,
+    owner: &str,
+    name: &str,
+    locale: &str,
+    fallback: &str,
+    label: bool,
+) -> String {
     if locale != "fr" {
         return fallback.to_string();
     }
-    if name == "webhook_signing_secret" && fallback == "Webhook secret token" {
-        return "Jeton secret du webhook".to_string();
-    }
-    if name == "webhook_signing_secret"
-        && fallback == "Required on first connection; sent by GitLab in X-Gitlab-Token"
-    {
-        return "Obligatoire à la première connexion ; envoyé par GitLab dans X-Gitlab-Token"
-            .to_string();
-    }
-    if name == "webhook_signing_secret" && fallback == "Shared webhook token" {
-        return "Jeton partagé du webhook".to_string();
-    }
-    if name == "webhook_signing_secret" && fallback == "Bearer token" {
-        return "Jeton Bearer".to_string();
-    }
-    if name == "webhook_signing_secret" && fallback.contains("Authorization: Bearer") {
-        return "Obligatoire à la première connexion ; envoyé dans Authorization: Bearer <jeton>"
-            .to_string();
-    }
-    if name == "webhook_signing_secret"
-        && fallback == "Required on first connection; sent in X-OpsWarden-Token"
-    {
-        return "Obligatoire à la première connexion ; envoyé dans X-OpsWarden-Token".to_string();
-    }
-    if name == "severity" && fallback == "Only match this severity" {
-        return "Limiter la règle à cette sévérité".to_string();
+    let qualified = match (service, owner, name, label) {
+        ("github", "pr_merged", "branch", true) => "Branche cible",
+        ("github", "pr_merged", "branch", false) => "Limiter la règle à cette branche cible",
+        ("opswarden", "release_created", "release_id", false) => "Limiter la règle à cette Release",
+        ("generic", "generic_event", "severity", false) => "Limiter la règle à cette sévérité",
+        ("alertmanager", "alert_firing" | "alert_resolved", "severity", false) => {
+            "Limiter la règle à cette sévérité d’alerte"
+        }
+        ("timer", "every_minutes", "timezone", false) => {
+            "Fuseau IANA utilisé pour afficher le contexte d’exécution"
+        }
+        ("opswarden", "block_release", "severity", true) => "Sévérité du blocage",
+        ("opswarden", "block_release", "severity", false) => {
+            "Sévérité affectée à l’Incident bloquant"
+        }
+        ("opswarden", "block_release", "title", true) => "Titre du blocage",
+        ("opswarden", "block_release", "title", false) => {
+            "Template facultatif du titre de l’Incident"
+        }
+        ("github", "connection", "webhook_signing_secret", true) => {
+            "Secret de signature du webhook"
+        }
+        ("github", "connection", "webhook_signing_secret", false) => {
+            "Obligatoire à la première connexion ; laisser vide ensuite pour le conserver"
+        }
+        ("gitlab", "connection", "webhook_signing_secret", true) => "Jeton secret du webhook",
+        ("gitlab", "connection", "webhook_signing_secret", false) => {
+            "Obligatoire à la première connexion ; envoyé par GitLab dans X-Gitlab-Token"
+        }
+        ("generic", "connection", "webhook_signing_secret", true) => "Jeton partagé du webhook",
+        ("generic", "connection", "webhook_signing_secret", false) => {
+            "Obligatoire à la première connexion ; envoyé dans X-OpsWarden-Token"
+        }
+        ("alertmanager", "connection", "webhook_signing_secret", true) => "Jeton Bearer",
+        ("alertmanager", "connection", "webhook_signing_secret", false) => {
+            "Obligatoire à la première connexion ; envoyé dans Authorization: Bearer <jeton>"
+        }
+        _ => "",
+    };
+    if !qualified.is_empty() {
+        return qualified.to_string();
     }
     match (name, label) {
         ("repository", true) => "Dépôt",
@@ -371,9 +404,7 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("severity", true) => "Sévérité",
         ("severity", false) => "Sévérité affectée à l’incident créé",
         ("title", true) => "Titre de l’incident",
-        ("title", false) => {
-            "Template facultatif utilisant les variables normalisées de l’événement"
-        }
+        ("title", false) => "Template facultatif utilisant les variables normalisées de l’événement",
         ("message", true) => "Message",
         ("message", false) => "Template utilisant les variables normalisées de l’événement",
         ("time", true) => "Heure locale",
@@ -382,10 +413,6 @@ fn localize_field(name: &str, locale: &str, fallback: &str, label: bool) -> Stri
         ("timezone", false) => "Fuseau IANA tel que Europe/Paris ou UTC",
         ("minutes", true) => "Intervalle en minutes",
         ("minutes", false) => "Durée entre deux exécutions, de 5 à 1 440 minutes",
-        ("webhook_signing_secret", true) => "Secret de signature du webhook",
-        ("webhook_signing_secret", false) => {
-            "Obligatoire à la première connexion ; laisser vide ensuite pour le conserver"
-        }
         ("personal_token", true) => "Jeton d’accès personnel",
         ("personal_token", false) => "Alternative chiffrée facultative à OAuth",
         ("endpoint_url", true) => "URL de l’endpoint",
@@ -434,16 +461,22 @@ fn localize_option(option: &str, locale: &str) -> String {
     .to_string()
 }
 
-fn localize_default_value(name: &str, locale: &str, fallback: &str) -> String {
-    if locale == "fr"
-        && matches!(name, "message" | "subject" | "body")
-        && fallback == "Automation event on {{repository}}"
-    {
-        "Événement d’automatisation sur {{repository}}"
-    } else {
-        fallback
+fn localize_default_value(
+    service: &str,
+    owner: &str,
+    name: &str,
+    locale: &str,
+    fallback: &str,
+) -> String {
+    if locale == "fr" {
+        match (service, owner, name) {
+            ("http", "http_notify", "message") | ("email", "email_notify", "subject" | "body") => {
+                return "Événement d’automatisation sur {{repository}}".to_string();
+            }
+            _ => {}
+        }
     }
-    .to_string()
+    fallback.to_string()
 }
 
 #[cfg(test)]
