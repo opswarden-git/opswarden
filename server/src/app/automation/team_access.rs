@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
-use crate::domain::team::Role;
 use crate::ports::TeamRepo;
 
 pub(super) async fn require_manager(
@@ -15,7 +15,7 @@ pub(super) async fn require_manager(
         .find_member_role(team_id, requester_id)
         .await?
         .ok_or(DomainError::Forbidden)?;
-    if role != Role::Manager {
+    if !derive_capabilities(role).can_manage_automations {
         return Err(DomainError::NotManager);
     }
     Ok(())
