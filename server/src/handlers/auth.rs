@@ -173,6 +173,7 @@ pub async fn delete_me(
             user_id: session.user_id,
         })
         .await?;
+    state.events.disconnect_user(session.user_id);
     let logout = LogoutUseCase::new(state.token_revocations.clone());
     logout
         .logout(LogoutCommand {
@@ -196,6 +197,7 @@ pub async fn logout(
             expires_at: session.expires_at,
         })
         .await?;
+    state.events.disconnect_user(session.user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }

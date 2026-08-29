@@ -69,17 +69,43 @@ impl WsHub {
 
     pub fn unregister(&self, id: ConnectionId) {
         let mut conns = self.connections.lock().unwrap();
-        if let Some(conn) = conns.remove(&id) {
-            // The connection is already gone from the map, so rebroadcasting now
-            // naturally drops it from every incident's watcher list and from each
-            // of its teams' online rosters.
-            for room in conn.rooms {
-                broadcast_room_presence(&mut conns, room);
-            }
-            for team_id in conn.teams {
-                broadcast_team_presence(&mut conns, team_id);
-            }
-        }
+        remove_connections(&mut conns, [id]);
+    }
+
+    /// Close every live socket for an account. Used after logout and account
+    /// deletion so an already-open WebSocket cannot outlive the HTTP session
+    /// revocation that triggered the operation.
+    pub fn disconnect_user(&self, user_id: Uuid) {
+        let mut conns = self.connections.lock().unwrap();
+        let ids = conns
+            .iter()
+            .filter_map(|(id, conn)| (conn.user_id == user_id).then_some(*id))
+            .collect::<Vec<_>>();
+        remove_connections(&mut conns, ids);
+    }
+
+    /// Close this member's sockets that still carry the revoked team scope.
+    /// Other users and any connection that never had this team remain intact.
+    pub fn disconnect_team_member(&self, team_id: Uuid, user_id: Uuid) {
+        let mut conns = self.connections.lock().unwrap();
+        let ids = conns
+            .iter()
+            .filter_map(|(id, conn)| {
+                (conn.user_id == user_id && conn.teams.contains(&team_id)).then_some(*id)
+            })
+            .collect::<Vec<_>>();
+        remove_connections(&mut conns, ids);
+    }
+
+    /// Close every socket scoped to a deleted team. Affected users may retain
+    /// valid HTTP sessions and reconnect with their remaining memberships.
+    pub fn disconnect_team(&self, team_id: Uuid) {
+        let mut conns = self.connections.lock().unwrap();
+        let ids = conns
+            .iter()
+            .filter_map(|(id, conn)| conn.teams.contains(&team_id).then_some(*id))
+            .collect::<Vec<_>>();
+        remove_connections(&mut conns, ids);
     }
 
     /// Replace a connection's team scope (after the user created/joined/left/
@@ -181,9 +207,16 @@ pub(super) fn deliver(
         return;
     }
 
+    remove_connections(conns, failed);
+}
+
+fn remove_connections(
+    conns: &mut HashMap<ConnectionId, Connection>,
+    ids: impl IntoIterator<Item = ConnectionId>,
+) {
     let mut rooms = HashSet::new();
     let mut teams = HashSet::new();
-    for id in failed {
+    for id in ids {
         if let Some(conn) = conns.remove(&id) {
             rooms.extend(conn.rooms);
             teams.extend(conn.teams);
@@ -345,6 +378,73 @@ mod tests {
         assert!(m.contains("team_presence_update"));
         assert!(!m.contains(&user_a.to_string()));
         assert!(m.contains(&user_b.to_string()));
+    }
+
+    #[tokio::test]
+    async fn disconnect_user_closes_every_tab_but_not_other_users() {
+        let hub = WsHub::new();
+        let team = Uuid::new_v4();
+        let (user, other) = (Uuid::new_v4(), Uuid::new_v4());
+        let (tx_a, mut rx_a) = mpsc::channel(256);
+        let (tx_b, mut rx_b) = mpsc::channel(256);
+        let (tx_other, mut rx_other) = mpsc::channel(256);
+        hub.register(user, HashSet::from([team]), tx_a);
+        hub.register(user, HashSet::from([team]), tx_b);
+        hub.register(other, HashSet::from([team]), tx_other);
+        while rx_a.try_recv().is_ok() {}
+        while rx_b.try_recv().is_ok() {}
+        while rx_other.try_recv().is_ok() {}
+
+        hub.disconnect_user(user);
+
+        assert_eq!(hub.connection_count(), 1);
+        assert!(rx_a.recv().await.is_none());
+        assert!(rx_b.recv().await.is_none());
+        let presence = rx_other.try_recv().unwrap();
+        assert!(!presence.contains(&user.to_string()));
+        assert!(presence.contains(&other.to_string()));
+    }
+
+    #[tokio::test]
+    async fn disconnect_team_member_is_scoped_to_the_revoked_membership() {
+        let hub = WsHub::new();
+        let (revoked_team, other_team) = (Uuid::new_v4(), Uuid::new_v4());
+        let user = Uuid::new_v4();
+        let (revoked_tx, mut revoked_rx) = mpsc::channel(256);
+        let (other_tx, mut other_rx) = mpsc::channel(256);
+        hub.register(user, HashSet::from([revoked_team]), revoked_tx);
+        hub.register(user, HashSet::from([other_team]), other_tx);
+        while revoked_rx.try_recv().is_ok() {}
+        while other_rx.try_recv().is_ok() {}
+
+        hub.disconnect_team_member(revoked_team, user);
+
+        assert_eq!(hub.connection_count(), 1);
+        assert!(revoked_rx.recv().await.is_none());
+        assert!(matches!(
+            other_rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
+    }
+
+    #[tokio::test]
+    async fn disconnect_team_closes_members_but_not_outsiders() {
+        let hub = WsHub::new();
+        let deleted_team = Uuid::new_v4();
+        let (member_tx, mut member_rx) = mpsc::channel(256);
+        let (outsider_tx, mut outsider_rx) = mpsc::channel(256);
+        hub.register(Uuid::new_v4(), HashSet::from([deleted_team]), member_tx);
+        hub.register(Uuid::new_v4(), HashSet::new(), outsider_tx);
+        while member_rx.try_recv().is_ok() {}
+
+        hub.disconnect_team(deleted_team);
+
+        assert_eq!(hub.connection_count(), 1);
+        assert!(member_rx.recv().await.is_none());
+        assert!(matches!(
+            outsider_rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
     }
 
     #[tokio::test]

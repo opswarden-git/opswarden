@@ -288,6 +288,7 @@ pub async fn delete_team(
             requester_id: session.user_id,
         })
         .await?;
+    state.events.disconnect_team(team_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -304,6 +305,9 @@ pub async fn leave_team(
             requester_id: session.user_id,
         })
         .await?;
+    state
+        .events
+        .disconnect_team_member(team_id, session.user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -327,6 +331,7 @@ pub async fn kick_member(
             target_user_id: user_id,
         })
         .await?;
+    state.events.disconnect_team_member(team_id, user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -378,6 +383,9 @@ pub async fn ban_member(
             reason: payload.reason,
         })
         .await?;
+    state
+        .events
+        .disconnect_team_member(team_id, payload.user_id);
 
     Ok((
         StatusCode::CREATED,

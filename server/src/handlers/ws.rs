@@ -62,6 +62,11 @@ struct AuthMessage {
     token: String,
 }
 
+struct AuthenticatedSocket {
+    claims: TokenClaims,
+    token: String,
+}
+
 /// Inbound commands a client may send after authenticating. Unknown frames are
 /// ignored (forward-compatible). `watch`/`unwatch` drive incident presence;
 /// `refresh_teams` re-resolves the connection's team scope after the user
@@ -85,20 +90,20 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 
     // 1. First-message authentication. Anything other than a valid auth frame
     //    closes the connection.
-    let claims = match timeout(
+    let authenticated = match timeout(
         AUTHENTICATION_TIMEOUT,
         receive_authentication(&mut receiver, &state),
     )
     .await
     {
-        Ok(Some(claims)) => claims,
+        Ok(Some(authenticated)) => authenticated,
         Ok(None) | Err(_) => {
             let _ = sender.send(Message::Close(None)).await;
             return;
         }
     };
-    let user_id = claims.user_id;
-    let session_lifetime = session_lifetime(claims.expires_at, state.clock.now());
+    let user_id = authenticated.claims.user_id;
+    let session_lifetime = session_lifetime(authenticated.claims.expires_at, state.clock.now());
     if session_lifetime.is_zero() {
         let _ = sender.send(Message::Close(None)).await;
         return;
@@ -114,6 +119,12 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     //    also kept locally to authorize presence/typing commands (step 4).
     let (tx, mut rx) = mpsc::channel::<String>(OUTBOUND_QUEUE_CAPACITY);
     let conn_id = state.events.register(user_id, teams.clone(), tx);
+    if !session_scope_is_current(&state, &authenticated.token, user_id, &teams).await {
+        // Closes races where logout/account deletion/membership revocation
+        // committed after the first checks but before hub registration.
+        state.events.unregister(conn_id);
+        return;
+    }
 
     let mut send_task = tokio::spawn(async move {
         while let Some(payload) = rx.recv().await {
@@ -241,7 +252,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
 async fn receive_authentication(
     receiver: &mut futures_util::stream::SplitStream<WebSocket>,
     state: &AppState,
-) -> Option<TokenClaims> {
+) -> Option<AuthenticatedSocket> {
     let mut frames_seen = 0;
     loop {
         frames_seen += 1;
@@ -259,7 +270,7 @@ async fn receive_authentication(
     }
 }
 
-async fn authenticate(text: &str, state: &AppState) -> Option<TokenClaims> {
+async fn authenticate(text: &str, state: &AppState) -> Option<AuthenticatedSocket> {
     let auth: AuthMessage = serde_json::from_str(text).ok()?;
     if auth.kind != "auth" {
         return None;
@@ -276,7 +287,31 @@ async fn authenticate(text: &str, state: &AppState) -> Option<TokenClaims> {
     if state.users.find_by_id(claims.user_id).await.ok()?.is_none() {
         return None;
     }
-    Some(claims)
+    Some(AuthenticatedSocket {
+        claims,
+        token: auth.token,
+    })
+}
+
+async fn session_scope_is_current(
+    state: &AppState,
+    token: &str,
+    user_id: Uuid,
+    expected_teams: &HashSet<Uuid>,
+) -> bool {
+    if state
+        .token_revocations
+        .is_revoked(token)
+        .await
+        .unwrap_or(true)
+        || !matches!(state.users.find_by_id(user_id).await, Ok(Some(_)))
+    {
+        return false;
+    }
+    match state.teams.list_team_ids_for_user(user_id).await {
+        Ok(ids) => ids.into_iter().collect::<HashSet<_>>() == *expected_teams,
+        Err(_) => false,
+    }
 }
 
 fn session_lifetime(expires_at: DateTime<Utc>, now: DateTime<Utc>) -> Duration {

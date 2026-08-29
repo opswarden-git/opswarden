@@ -5,6 +5,10 @@ async fn leave_team_removes_member_when_not_manager() {
     let requester = Uuid::nil();
 
     ctx.teams.seed_member(team_id, requester, Role::Responder);
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events
+        .register(requester, HashSet::from([team_id]), tx);
+    while rx.try_recv().is_ok() {}
 
     let response = ctx
         .app
@@ -20,6 +24,7 @@ async fn leave_team_removes_member_when_not_manager() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(rx.recv().await.is_none());
 }
 
 #[tokio::test]
@@ -29,6 +34,10 @@ async fn manager_can_delete_team() {
     let requester = Uuid::nil();
 
     ctx.teams.seed_member(team_id, requester, Role::Manager);
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events
+        .register(requester, HashSet::from([team_id]), tx);
+    while rx.try_recv().is_ok() {}
 
     let response = ctx
         .app
@@ -44,6 +53,7 @@ async fn manager_can_delete_team() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(rx.recv().await.is_none());
 }
 
 #[tokio::test]
@@ -130,6 +140,10 @@ async fn manager_kicks_a_member_over_http() {
     let observer = Uuid::new_v4();
     ctx.teams.seed_member(team_id, Uuid::nil(), Role::Manager);
     ctx.teams.seed_member(team_id, observer, Role::Observer);
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events
+        .register(observer, HashSet::from([team_id]), tx);
+    while rx.try_recv().is_ok() {}
 
     let response = ctx
         .app
@@ -146,6 +160,8 @@ async fn manager_kicks_a_member_over_http() {
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert_eq!(ctx.teams.role_for(team_id, observer), None);
+    while rx.try_recv().is_ok() {}
+    assert!(rx.recv().await.is_none());
 }
 
 #[tokio::test]
@@ -180,6 +196,10 @@ async fn manager_permanently_bans_a_member_and_drops_membership() {
     let observer = Uuid::new_v4();
     ctx.teams.seed_member(team_id, Uuid::nil(), Role::Manager);
     ctx.teams.seed_member(team_id, observer, Role::Observer);
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events
+        .register(observer, HashSet::from([team_id]), tx);
+    while rx.try_recv().is_ok() {}
 
     let payload = serde_json::json!({ "user_id": observer, "kind": "permanent" });
     let response = ctx
@@ -199,6 +219,8 @@ async fn manager_permanently_bans_a_member_and_drops_membership() {
     assert_eq!(response.status(), StatusCode::CREATED);
     // Membership is dropped by the ban.
     assert_eq!(ctx.teams.role_for(team_id, observer), None);
+    while rx.try_recv().is_ok() {}
+    assert!(rx.recv().await.is_none());
 }
 
 #[tokio::test]
