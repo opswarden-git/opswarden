@@ -13,20 +13,14 @@ use crate::adapters::pg::automation::service_connection::{
 };
 use crate::adapters::pg::incident::PgIncidentRepo;
 use crate::adapters::pg::release::PgReleaseRepo;
-use crate::adapters::pg::team::PgTeamRepo;
 use crate::adapters::ws::WsHub;
 use crate::app::automation::{TimerWorker, TimerWorkerDependencies};
 use crate::domain::automation_config::AutomationRule;
 use crate::domain::automation_timer::{DAILY_AT_KIND, EVERY_MINUTES_KIND};
-use crate::domain::team::Role;
-use crate::ports::{AutomationRuleRepo, TeamRepo};
+use crate::ports::AutomationRuleRepo;
 
 async fn timer_rule(pool: &PgPool, suffix: &str) -> (AutomationRule, TimerSchedule) {
     let (team_id, user_id) = seed_team(pool, suffix).await;
-    PgTeamRepo::new(pool.clone())
-        .add_member(team_id, user_id, Role::Manager)
-        .await
-        .unwrap();
     let connection_id = sqlx::query_scalar::<_, Uuid>(
         "SELECT id FROM service_connections WHERE team_id = $1 AND service = 'timer'",
     )
@@ -74,12 +68,7 @@ fn timer_worker(pool: &PgPool, timers: Arc<PgAutomationTimerRepo>) -> TimerWorke
 
 #[sqlx::test]
 async fn manager_membership_creates_one_internal_timer_connection(pool: PgPool) {
-    let (team_id, user_id) = seed_team(&pool, "timer-connection").await;
-    let teams = PgTeamRepo::new(pool.clone());
-    teams
-        .add_member(team_id, user_id, Role::Manager)
-        .await
-        .unwrap();
+    let (team_id, _) = seed_team(&pool, "timer-connection").await;
 
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT count(*) FROM service_connections WHERE team_id = $1 AND service = 'timer'",
@@ -124,10 +113,6 @@ async fn projection_requires_current_enabled_timer_rule(pool: PgPool) {
 #[sqlx::test]
 async fn invalid_timer_rule_and_projection_roll_back_together(pool: PgPool) {
     let (team_id, user_id) = seed_team(&pool, "invalid-atomic").await;
-    PgTeamRepo::new(pool.clone())
-        .add_member(team_id, user_id, Role::Manager)
-        .await
-        .unwrap();
     let connection_id = sqlx::query_scalar::<_, Uuid>(
         "SELECT id FROM service_connections WHERE team_id = $1 AND service = 'timer'",
     )

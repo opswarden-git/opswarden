@@ -1,8 +1,5 @@
 use super::super::test_support::seed_team;
 use super::*;
-use crate::adapters::pg::team::PgTeamRepo;
-use crate::domain::team::Role;
-use crate::ports::TeamRepo;
 
 const KEY: [u8; aes::KEY_LEN] = [73; aes::KEY_LEN];
 
@@ -44,10 +41,6 @@ async fn every_credential_kind_round_trips_through_postgres(pool: PgPool) {
 #[sqlx::test]
 async fn manager_membership_creates_one_credential_free_opswarden_connection(pool: PgPool) {
     let (team_id, manager_id) = seed_team(&pool, "native-opswarden").await;
-    PgTeamRepo::new(pool.clone())
-        .add_member(team_id, manager_id, Role::Manager)
-        .await
-        .unwrap();
     let repo = PgServiceConnectionRepo::new(pool.clone());
 
     let connection = repo
@@ -74,12 +67,18 @@ async fn the_same_provider_is_isolated_between_teams(pool: PgPool) {
     repo.insert_connection(&github_a).await.unwrap();
     repo.insert_connection(&github_b).await.unwrap();
 
+    let external_for = |connections: Vec<ServiceConnection>| {
+        connections
+            .into_iter()
+            .filter(|connection| connection.service == "github")
+            .collect::<Vec<_>>()
+    };
     assert_eq!(
-        repo.list_connections_for_team(team_a).await.unwrap(),
+        external_for(repo.list_connections_for_team(team_a).await.unwrap()),
         vec![github_a.clone()]
     );
     assert_eq!(
-        repo.list_connections_for_team(team_b).await.unwrap(),
+        external_for(repo.list_connections_for_team(team_b).await.unwrap()),
         vec![github_b.clone()]
     );
     assert!(repo

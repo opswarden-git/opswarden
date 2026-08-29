@@ -188,8 +188,15 @@ mod tests {
         // A plain member (Manager-gating lives in the use-case): deleting the
         // account removes the user and membership (FK cascade), but never the
         // team, incident, or operational note.
+        let manager_email =
+            Email::new(format!("manager_{}@opswarden.com", uuid::Uuid::new_v4())).unwrap();
+        let manager = User::new(manager_email, "hash");
+        users.save(&manager).await.unwrap();
         let team = Team::new(format!("Delete {}", uuid::Uuid::new_v4())).unwrap();
-        teams.save_team(&team).await.unwrap();
+        teams
+            .create_team_with_manager(&team, manager.id)
+            .await
+            .unwrap();
         teams
             .add_member(team.id, user.id, Role::Observer)
             .await

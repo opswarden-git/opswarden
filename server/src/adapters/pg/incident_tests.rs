@@ -12,9 +12,8 @@ async fn seed_team(pool: &PgPool) -> Uuid {
     users.save(&user).await.unwrap();
 
     let team = Team::new("Incident Team").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, user.id, Role::Manager)
+        .create_team_with_manager(&team, user.id)
         .await
         .unwrap();
     team.id
@@ -166,13 +165,12 @@ async fn incident_read_position_clears_unread_and_never_moves_backwards(pool: Pg
     let actor = User::new(actor_email, "hash");
     users.save(&actor).await.unwrap();
     let team = Team::new("Unread Team").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, viewer.id, Role::Observer)
+        .create_team_with_manager(&team, actor.id)
         .await
         .unwrap();
     teams
-        .add_member(team.id, actor.id, Role::Responder)
+        .add_member(team.id, viewer.id, Role::Observer)
         .await
         .unwrap();
 

@@ -60,7 +60,7 @@ pub(crate) mod tests {
         pub team: Option<Team>,
         /// Preset memberships consulted by `find_member_role` (user → role).
         pub roles: HashMap<Uuid, Role>,
-        pub saved: Mutex<Vec<Team>>,
+        pub created: Mutex<Vec<(Uuid, Uuid)>>,
         pub added: Mutex<Vec<(Uuid, Uuid, Role)>>,
         pub transfers: Mutex<Vec<(Uuid, Uuid, Uuid)>>,
         pub deleted: Mutex<Vec<Uuid>>,
@@ -90,8 +90,12 @@ pub(crate) mod tests {
 
     #[async_trait]
     impl TeamRepo for MockTeamRepo {
-        async fn save_team(&self, team: &Team) -> Result<(), DomainError> {
-            self.saved.lock().unwrap().push(team.clone());
+        async fn create_team_with_manager(
+            &self,
+            team: &Team,
+            manager_id: Uuid,
+        ) -> Result<(), DomainError> {
+            self.created.lock().unwrap().push((team.id, manager_id));
             Ok(())
         }
 

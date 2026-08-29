@@ -29,8 +29,12 @@ pub trait UserRepo: Send + Sync {
 
 #[async_trait]
 pub trait TeamRepo: Send + Sync {
-    /// Persist a newly created team.
-    async fn save_team(&self, team: &Team) -> Result<(), DomainError>;
+    /// Persist a team and its initial Manager in one transaction.
+    async fn create_team_with_manager(
+        &self,
+        team: &Team,
+        manager_id: Uuid,
+    ) -> Result<(), DomainError>;
     /// Resolve a team from a (human-typed) invitation code.
     async fn find_by_invitation_code(&self, code: &str) -> Result<Option<Team>, DomainError>;
     /// The role a user holds in a team, or `None` if they are not a member.

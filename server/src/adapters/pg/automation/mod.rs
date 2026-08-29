@@ -23,7 +23,10 @@ pub(super) mod test_support {
         users.save(&user).await.unwrap();
 
         let team = Team::new(format!("Automation {suffix}")).unwrap();
-        teams.save_team(&team).await.unwrap();
+        teams
+            .create_team_with_manager(&team, user.id)
+            .await
+            .unwrap();
         (team.id, user.id)
     }
 }

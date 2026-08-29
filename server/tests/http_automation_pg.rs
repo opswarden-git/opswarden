@@ -27,7 +27,7 @@ use opswarden_server::domain::automation_config::{
     AutomationRule, AutomationRunStatus, CredentialKind, ServiceConnection,
 };
 use opswarden_server::domain::release::Release;
-use opswarden_server::domain::team::{Role, Team};
+use opswarden_server::domain::team::Team;
 use opswarden_server::domain::user::{Email, User};
 use opswarden_server::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, IncidentRepo, ReleaseRepo,
@@ -65,7 +65,10 @@ async fn postgres_chain_persists_one_http_run_and_deduplicates_the_delivery(pool
     );
     users.save(&user).await.unwrap();
     let team = Team::new("HTTP automation PG").unwrap();
-    teams.save_team(&team).await.unwrap();
+    teams
+        .create_team_with_manager(&team, user.id)
+        .await
+        .unwrap();
 
     let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
     let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));
@@ -158,9 +161,8 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     );
     users.save(&manager).await.unwrap();
     let team = Team::new("Native OpsWarden PG").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, manager.id, Role::Manager)
+        .create_team_with_manager(&team, manager.id)
         .await
         .unwrap();
 
@@ -248,7 +250,10 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
     );
     users.save(&user).await.unwrap();
     let team = Team::new("Generic automation PG").unwrap();
-    teams.save_team(&team).await.unwrap();
+    teams
+        .create_team_with_manager(&team, user.id)
+        .await
+        .unwrap();
 
     let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
     let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));

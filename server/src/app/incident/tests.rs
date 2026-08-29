@@ -33,7 +33,11 @@ impl MockTeamRepo {
 
 #[async_trait]
 impl TeamRepo for MockTeamRepo {
-    async fn save_team(&self, _team: &crate::domain::team::Team) -> Result<(), DomainError> {
+    async fn create_team_with_manager(
+        &self,
+        _team: &crate::domain::team::Team,
+        _manager_id: Uuid,
+    ) -> Result<(), DomainError> {
         Ok(())
     }
 

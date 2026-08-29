@@ -8,8 +8,13 @@ pub struct DummyTeamRepo {
 
 #[async_trait]
 impl TeamRepo for DummyTeamRepo {
-    async fn save_team(&self, team: &Team) -> Result<(), DomainError> {
+    async fn create_team_with_manager(
+        &self,
+        team: &Team,
+        manager_id: Uuid,
+    ) -> Result<(), DomainError> {
         self.seed_team(team.clone());
+        self.seed_member(team.id, manager_id, Role::Manager);
         Ok(())
     }
 

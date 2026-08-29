@@ -32,22 +32,32 @@ impl PgTeamRepo {
 
 #[async_trait]
 impl TeamRepo for PgTeamRepo {
-    async fn save_team(&self, team: &Team) -> Result<(), DomainError> {
-        sqlx::query!(
-            r#"
-            INSERT INTO teams (id, name, invitation_code, created_at)
-            VALUES ($1, $2, $3, $4)
-            "#,
-            team.id,
-            team.name,
-            team.invitation_code.as_str(),
-            team.created_at,
+    async fn create_team_with_manager(
+        &self,
+        team: &Team,
+        manager_id: Uuid,
+    ) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+
+        sqlx::query(
+            "INSERT INTO teams (id, name, invitation_code, created_at) VALUES ($1, $2, $3, $4)",
         )
-        .execute(&self.pool)
+        .bind(team.id)
+        .bind(&team.name)
+        .bind(team.invitation_code.as_str())
+        .bind(team.created_at)
+        .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(())
+        sqlx::query("INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'manager')")
+            .bind(team.id)
+            .bind(manager_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+
+        tx.commit().await.map_err(|_| DomainError::Storage)
     }
 
     async fn find_by_invitation_code(&self, code: &str) -> Result<Option<Team>, DomainError> {
@@ -124,34 +134,55 @@ impl TeamRepo for PgTeamRepo {
         old_manager: Uuid,
         new_manager: Uuid,
     ) -> Result<(), DomainError> {
-        // Single transaction, demote-then-promote: between the two statements
-        // the team has zero Managers, so the `one_manager_per_team` index is
-        // never violated and the swap is all-or-nothing.
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
 
-        sqlx::query!(
-            r#"
-            UPDATE team_members SET role = 'responder'
-            WHERE team_id = $1 AND user_id = $2
-            "#,
-            team_id,
-            old_manager,
+        let current_role = sqlx::query_scalar::<_, String>(
+            "SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE",
         )
-        .execute(&mut *tx)
+        .bind(team_id)
+        .bind(old_manager)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if current_role.as_deref() != Some(Role::Manager.as_str()) {
+            return Err(DomainError::NotManager);
+        }
 
-        sqlx::query!(
-            r#"
-            UPDATE team_members SET role = 'manager'
-            WHERE team_id = $1 AND user_id = $2
-            "#,
-            team_id,
-            new_manager,
+        let target_role = sqlx::query_scalar::<_, String>(
+            "SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE",
         )
+        .bind(team_id)
+        .bind(new_manager)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if target_role.is_none() {
+            return Err(DomainError::MemberNotFound);
+        }
+
+        let demoted = sqlx::query(
+            "UPDATE team_members SET role = 'responder' WHERE team_id = $1 AND user_id = $2 AND role = 'manager'",
+        )
+        .bind(team_id)
+        .bind(old_manager)
         .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
+        if demoted.rows_affected() != 1 {
+            return Err(DomainError::NotManager);
+        }
+
+        let promoted = sqlx::query(
+            "UPDATE team_members SET role = 'manager' WHERE team_id = $1 AND user_id = $2 AND role <> 'manager'",
+        )
+        .bind(team_id)
+        .bind(new_manager)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if promoted.rows_affected() != 1 {
+            return Err(DomainError::MemberNotFound);
+        }
 
         tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
