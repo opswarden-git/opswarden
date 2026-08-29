@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
 
+use crate::domain::automation_catalog::TIMER_SERVICE;
 use crate::domain::automation_config::{AutomationRun, WebhookDelivery, WebhookDeliveryStatus};
-use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::domain::event::{AutomationRuleResult, DomainEvent};
 use crate::ports::{

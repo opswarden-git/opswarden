@@ -4,6 +4,9 @@ use uuid::Uuid;
 
 use super::reaction_executor::smtp_config;
 use super::team_access::require_manager;
+use crate::domain::automation_catalog::{
+    service, ConnectionConfigurator, ConnectionProbe, EMAIL_SERVICE, GITHUB_SERVICE, HTTP_SERVICE,
+};
 use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
 use crate::domain::user::Email;
@@ -11,12 +14,6 @@ use crate::ports::{
     ConnectionCredentialVault, EmailSender, Notifier, ServiceConnectionRepo, TeamRepo,
 };
 
-pub const GITHUB_SERVICE: &str = "github";
-pub const GITLAB_SERVICE: &str = "gitlab";
-pub const GENERIC_SERVICE: &str = "generic";
-pub const ALERTMANAGER_SERVICE: &str = "alertmanager";
-pub const HTTP_SERVICE: &str = "http";
-pub const EMAIL_SERVICE: &str = "email";
 const CONNECTION_TEST_MESSAGE: &str = "OpsWarden connection test";
 
 pub struct ConfigureGithubConnectionCommand {
@@ -26,13 +23,8 @@ pub struct ConfigureGithubConnectionCommand {
     pub personal_token: Option<String>,
 }
 
-pub struct ConfigureGitlabConnectionCommand {
-    pub team_id: Uuid,
-    pub requester_id: Uuid,
-    pub webhook_token: Option<String>,
-}
-
-pub struct ConfigureGenericConnectionCommand {
+pub struct ConfigureTokenWebhookConnectionCommand {
+    pub service: &'static str,
     pub team_id: Uuid,
     pub requester_id: Uuid,
     pub webhook_token: Option<String>,
@@ -154,70 +146,37 @@ impl TeamConnectionUseCase {
         self.connection_view(cmd.team_id, connection.id).await
     }
 
-    pub async fn configure_gitlab(
+    pub async fn configure_token_webhook(
         &self,
-        cmd: ConfigureGitlabConnectionCommand,
+        cmd: ConfigureTokenWebhookConnectionCommand,
     ) -> Result<TeamConnectionView, DomainError> {
-        self.configure_token_webhook(
-            GITLAB_SERVICE,
-            cmd.team_id,
-            cmd.requester_id,
-            cmd.webhook_token,
-        )
-        .await
-    }
-
-    pub async fn configure_generic(
-        &self,
-        cmd: ConfigureGenericConnectionCommand,
-    ) -> Result<TeamConnectionView, DomainError> {
-        self.configure_token_webhook(
-            GENERIC_SERVICE,
-            cmd.team_id,
-            cmd.requester_id,
-            cmd.webhook_token,
-        )
-        .await
-    }
-
-    pub async fn configure_alertmanager(
-        &self,
-        cmd: ConfigureGenericConnectionCommand,
-    ) -> Result<TeamConnectionView, DomainError> {
-        self.configure_token_webhook(
-            ALERTMANAGER_SERVICE,
-            cmd.team_id,
-            cmd.requester_id,
-            cmd.webhook_token,
-        )
-        .await
-    }
-
-    async fn configure_token_webhook(
-        &self,
-        service: &'static str,
-        team_id: Uuid,
-        requester_id: Uuid,
-        webhook_token: Option<String>,
-    ) -> Result<TeamConnectionView, DomainError> {
-        require_manager(&self.teams, team_id, requester_id).await?;
-        validate_optional_secret(&webhook_token)?;
+        let definition = service(cmd.service).ok_or(DomainError::InvalidServiceConnection)?;
+        if definition
+            .connection
+            .map(|connection| connection.configurator)
+            != Some(ConnectionConfigurator::TokenWebhook)
+        {
+            return Err(DomainError::InvalidServiceConnection);
+        }
+        require_manager(&self.teams, cmd.team_id, cmd.requester_id).await?;
+        validate_optional_secret(&cmd.webhook_token)?;
         let existing = self
             .connections
-            .find_connection_by_service(team_id, service)
+            .find_connection_by_service(cmd.team_id, definition.service)
             .await?;
-        if existing.is_none() && webhook_token.is_none() {
+        if existing.is_none() && cmd.webhook_token.is_none() {
             return Err(DomainError::InvalidServiceSecret);
         }
         let connection = match existing {
             Some(connection) => connection,
             None => {
-                let connection = ServiceConnection::new(team_id, service, requester_id)?;
+                let connection =
+                    ServiceConnection::new(cmd.team_id, definition.service, cmd.requester_id)?;
                 self.connections.insert_connection(&connection).await?;
                 connection
             }
         };
-        if let Some(token) = webhook_token {
+        if let Some(token) = cmd.webhook_token {
             self.credentials
                 .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &token)
                 .await?;
@@ -225,7 +184,7 @@ impl TeamConnectionUseCase {
                 .reset_connection_health(connection.id)
                 .await?;
         }
-        self.connection_view(team_id, connection.id).await
+        self.connection_view(cmd.team_id, connection.id).await
     }
 
     pub async fn configure_http(
@@ -344,10 +303,13 @@ impl TeamConnectionUseCase {
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
 
-        let outcome = match connection.service.as_str() {
-            HTTP_SERVICE => self.probe_http(connection.id).await,
-            EMAIL_SERVICE => self.probe_smtp(connection.id).await,
-            _ => return Err(DomainError::InvalidServiceConnection),
+        let probe = service(&connection.service)
+            .and_then(|definition| definition.connection)
+            .and_then(|connection| connection.probe)
+            .ok_or(DomainError::InvalidServiceConnection)?;
+        let outcome = match probe {
+            ConnectionProbe::Http => self.probe_http(connection.id).await,
+            ConnectionProbe::Email => self.probe_smtp(connection.id).await,
         };
 
         match outcome {
@@ -414,7 +376,7 @@ impl TeamConnectionUseCase {
             .find_connection_for_team(cmd.team_id, cmd.connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if matches!(connection.service.as_str(), "opswarden" | "timer") {
+        if service(&connection.service).is_some_and(|definition| definition.internal) {
             return Err(DomainError::InvalidServiceConnection);
         }
         if !self

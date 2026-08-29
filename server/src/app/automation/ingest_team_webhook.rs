@@ -3,6 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::{service, WebhookAuthentication};
 use crate::domain::automation_config::{
     AutomationRule, AutomationRun, CredentialKind, WebhookDelivery,
 };
@@ -78,16 +79,20 @@ impl IngestTeamWebhookUseCase {
             .await?
             .ok_or(DomainError::UnknownService)?;
         let authentication = cmd.signature.as_deref().unwrap_or_default();
-        let authenticated = match connection.service.as_str() {
-            "github" => self
-                .dependencies
-                .verifier
-                .verify(&secret, &cmd.body, authentication),
-            "gitlab" | "generic" | "alertmanager" => self
+        let authentication_mode = service(&connection.service)
+            .and_then(|definition| definition.connection)
+            .and_then(|connection| connection.webhook_authentication)
+            .ok_or(DomainError::UnknownService)?;
+        let authenticated = match authentication_mode {
+            WebhookAuthentication::Signature => {
+                self.dependencies
+                    .verifier
+                    .verify(&secret, &cmd.body, authentication)
+            }
+            WebhookAuthentication::Token => self
                 .dependencies
                 .verifier
                 .verify_token(&secret, authentication),
-            _ => return Err(DomainError::UnknownService),
         };
         if !authenticated {
             return Err(DomainError::InvalidSignature);

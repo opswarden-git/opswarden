@@ -7,6 +7,7 @@
 use serde_json::{Map, Value};
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::GENERIC_SERVICE;
 use crate::domain::error::DomainError;
 use crate::ports::WebhookParser;
 
@@ -28,7 +29,7 @@ pub struct GenericParser;
 
 impl WebhookParser for GenericParser {
     fn parse(&self, service: &str, provider_event: &str, body: &[u8]) -> Option<ExternalEvent> {
-        if service != "generic" {
+        if service != GENERIC_SERVICE {
             return None;
         }
         let payload = parse_and_validate(body).ok()?;
@@ -42,7 +43,7 @@ impl WebhookParser for GenericParser {
                 attributes.insert((*field).to_string(), value.clone());
             }
         }
-        Some(ExternalEvent::new("generic", "generic_event").with_attributes(attributes))
+        Some(ExternalEvent::new(GENERIC_SERVICE, "generic_event").with_attributes(attributes))
     }
 }
 

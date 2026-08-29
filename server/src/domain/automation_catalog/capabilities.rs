@@ -1,4 +1,7 @@
-use super::{CatalogCapability, CatalogField};
+use super::{
+    CatalogCapability, CatalogField, ReactionExecutor, GENERIC_SERVICE, GITHUB_SERVICE,
+    GITLAB_SERVICE, HTTP_SERVICE, OPSWARDEN_SERVICE, TIMER_SERVICE,
+};
 
 pub(super) const NO_OPTIONS: &[&str] = &[];
 pub(super) const SEVERITY_OPTIONS: &[&str] = &["low", "medium", "high", "critical"];
@@ -157,29 +160,33 @@ pub(super) const GITHUB_ACTIONS: &[CatalogCapability] = &[
         kind: "ci_failed",
         label: "CI run failed",
         description: "A GitHub Actions workflow run completed with a failing conclusion",
-        connection_service: Some("github"),
+        connection_service: Some(GITHUB_SERVICE),
         fields: CI_FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "ci_succeeded",
         label: "CI run succeeded",
         description: "A GitHub Actions workflow run completed successfully",
-        connection_service: Some("github"),
+        connection_service: Some(GITHUB_SERVICE),
         fields: CI_FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "tag_pushed",
         label: "New tag pushed",
         description: "A new Git tag was pushed to the repository",
-        connection_service: Some("github"),
+        connection_service: Some(GITHUB_SERVICE),
         fields: TAG_FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "pr_merged",
         label: "Pull request merged",
         description: "A pull request was merged into the repository",
-        connection_service: Some("github"),
+        connection_service: Some(GITHUB_SERVICE),
         fields: PULL_REQUEST_FILTERS,
+        executor: None,
     },
 ];
 
@@ -188,22 +195,25 @@ pub(super) const GITLAB_ACTIONS: &[CatalogCapability] = &[
         kind: "ci_failed",
         label: "Pipeline failed",
         description: "A GitLab CI/CD pipeline completed with a failing status",
-        connection_service: Some("gitlab"),
+        connection_service: Some(GITLAB_SERVICE),
         fields: CI_FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "ci_succeeded",
         label: "Pipeline succeeded",
         description: "A GitLab CI/CD pipeline completed successfully",
-        connection_service: Some("gitlab"),
+        connection_service: Some(GITLAB_SERVICE),
         fields: CI_FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "tag_pushed",
         label: "New tag pushed",
         description: "A new Git tag was pushed to the GitLab project",
-        connection_service: Some("gitlab"),
+        connection_service: Some(GITLAB_SERVICE),
         fields: TAG_FILTERS,
+        executor: None,
     },
 ];
 
@@ -211,8 +221,9 @@ pub(super) const OPSWARDEN_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "release_created",
     label: "Release created",
     description: "A Release was created in the Team",
-    connection_service: Some("opswarden"),
+    connection_service: Some(OPSWARDEN_SERVICE),
     fields: RELEASE_FILTERS,
+    executor: None,
 }];
 
 pub(super) const TIMER_DAILY_FIELDS: &[CatalogField] = &[
@@ -262,15 +273,17 @@ pub(super) const TIMER_ACTIONS: &[CatalogCapability] = &[
         kind: "daily_at",
         label: "Every day at a local time",
         description: "Run once per local calendar day at the configured time",
-        connection_service: Some("timer"),
+        connection_service: Some(TIMER_SERVICE),
         fields: TIMER_DAILY_FIELDS,
+        executor: None,
     },
     CatalogCapability {
         kind: "every_minutes",
         label: "Every number of minutes",
         description: "Run at a bounded elapsed-minute interval",
-        connection_service: Some("timer"),
+        connection_service: Some(TIMER_SERVICE),
         fields: TIMER_INTERVAL_FIELDS,
+        executor: None,
     },
 ];
 
@@ -278,8 +291,9 @@ pub(super) const GENERIC_ACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "generic_event",
     label: "Generic JSON event",
     description: "A bounded provider-neutral JSON webhook was received",
-    connection_service: Some("generic"),
+    connection_service: Some(GENERIC_SERVICE),
     fields: GENERIC_FILTERS,
+    executor: None,
 }];
 
 pub(super) const INCIDENT_FIELDS: &[CatalogField] = &[
@@ -371,6 +385,7 @@ pub(super) const OPSWARDEN_REACTIONS: &[CatalogCapability] = &[
         description: "Open an incident in the Team that owns the automation rule",
         connection_service: None,
         fields: INCIDENT_FIELDS,
+        executor: Some(ReactionExecutor::CreateIncident),
     },
     CatalogCapability {
         kind: "validate_release_step",
@@ -378,6 +393,7 @@ pub(super) const OPSWARDEN_REACTIONS: &[CatalogCapability] = &[
         description: "Validate the next sequential step of a Release",
         connection_service: None,
         fields: RELEASE_STEP_REACTION_FIELDS,
+        executor: Some(ReactionExecutor::ValidateReleaseStep),
     },
     CatalogCapability {
         kind: "block_release",
@@ -385,6 +401,7 @@ pub(super) const OPSWARDEN_REACTIONS: &[CatalogCapability] = &[
         description: "Create and link an active blocker Incident to an in-progress Release",
         connection_service: None,
         fields: BLOCK_RELEASE_REACTION_FIELDS,
+        executor: Some(ReactionExecutor::BlockRelease),
     },
     CatalogCapability {
         kind: "escalate_incident",
@@ -392,6 +409,7 @@ pub(super) const OPSWARDEN_REACTIONS: &[CatalogCapability] = &[
         description: "Escalate an acknowledged Incident while preserving its lifecycle",
         connection_service: None,
         fields: ESCALATE_INCIDENT_REACTION_FIELDS,
+        executor: Some(ReactionExecutor::EscalateIncident),
     },
 ];
 
@@ -399,7 +417,7 @@ pub(super) const HTTP_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "http_notify",
     label: "Send HTTP notification",
     description: "Send a notification through a configured HTTP connection",
-    connection_service: Some("http"),
+    connection_service: Some(HTTP_SERVICE),
     fields: &[CatalogField {
         name: "message",
         label: "Message",
@@ -409,4 +427,5 @@ pub(super) const HTTP_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
         default_value: Some("Automation event on {{repository}}"),
         options: NO_OPTIONS,
     }],
+    executor: Some(ReactionExecutor::HttpNotify),
 }];

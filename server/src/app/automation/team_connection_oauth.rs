@@ -3,7 +3,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use super::team_access::require_manager;
-use super::team_connection::{TeamConnectionView, GITHUB_SERVICE};
+use super::team_connection::TeamConnectionView;
+use crate::domain::automation_catalog::GITHUB_SERVICE;
 use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
 use crate::ports::{

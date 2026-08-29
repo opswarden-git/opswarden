@@ -12,13 +12,15 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::app::automation::team_connection::{ALERTMANAGER_SERVICE, GITHUB_SERVICE};
 use crate::app::automation::{
-    CompleteGithubOAuthCommand, ConfigureEmailConnectionCommand, ConfigureGenericConnectionCommand,
-    ConfigureGithubConnectionCommand, ConfigureGitlabConnectionCommand,
-    ConfigureHttpConnectionCommand, DeleteTeamConnectionCommand, ListTeamConnectionsCommand,
-    RefreshGithubOAuthCommand, StartGithubOAuthCommand, TeamConnectionOAuthUseCase,
-    TeamConnectionUseCase, TeamConnectionView, TestConnectionCommand,
+    CompleteGithubOAuthCommand, ConfigureEmailConnectionCommand, ConfigureGithubConnectionCommand,
+    ConfigureHttpConnectionCommand, ConfigureTokenWebhookConnectionCommand,
+    DeleteTeamConnectionCommand, ListTeamConnectionsCommand, RefreshGithubOAuthCommand,
+    StartGithubOAuthCommand, TeamConnectionOAuthUseCase, TeamConnectionUseCase, TeamConnectionView,
+    TestConnectionCommand,
+};
+use crate::domain::automation_catalog::{
+    service as catalog_service, ConnectionConfigurator, GITHUB_SERVICE,
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
@@ -29,12 +31,6 @@ use crate::AppState;
 pub struct ConfigureGithubPayload {
     pub webhook_signing_secret: Option<String>,
     pub personal_token: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ConfigureGitlabPayload {
-    pub webhook_signing_secret: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -80,13 +76,15 @@ impl From<TeamConnectionView> for TeamConnectionResponse {
     fn from(view: TeamConnectionView) -> Self {
         use crate::domain::automation_config::CredentialKind;
 
-        let webhook_path = match view.connection.service.as_str() {
-            "github" | "gitlab" | "generic" | "alertmanager" => Some(format!(
-                "/webhooks/{}/{}",
-                view.connection.service, view.connection.id
-            )),
-            _ => None,
-        };
+        let webhook_path = catalog_service(&view.connection.service)
+            .and_then(|service| service.connection)
+            .and_then(|connection| connection.webhook_authentication)
+            .map(|_| {
+                format!(
+                    "/webhooks/{}/{}",
+                    view.connection.service, view.connection.id
+                )
+            });
         Self {
             id: view.connection.id,
             team_id: view.connection.team_id,
@@ -149,8 +147,13 @@ pub async fn configure_service(
         state.notifier.clone(),
         state.email_sender.clone(),
     );
-    let view = match service.as_str() {
-        GITHUB_SERVICE => {
+    let definition = catalog_service(&service).ok_or(DomainError::InvalidServiceConnection)?;
+    let configurator = definition
+        .connection
+        .map(|connection| connection.configurator)
+        .ok_or(DomainError::InvalidServiceConnection)?;
+    let view = match configurator {
+        ConnectionConfigurator::Github => {
             let payload: ConfigureGithubPayload =
                 serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
             use_case
@@ -162,32 +165,19 @@ pub async fn configure_service(
                 })
                 .await?
         }
-        "gitlab" => {
-            let payload: ConfigureGitlabPayload =
+        ConnectionConfigurator::TokenWebhook => {
+            let payload: ConfigureGenericPayload =
                 serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
             use_case
-                .configure_gitlab(ConfigureGitlabConnectionCommand {
+                .configure_token_webhook(ConfigureTokenWebhookConnectionCommand {
+                    service: definition.service,
                     team_id,
                     requester_id: session.user_id,
                     webhook_token: payload.webhook_signing_secret,
                 })
                 .await?
         }
-        "generic" | ALERTMANAGER_SERVICE => {
-            let payload: ConfigureGenericPayload =
-                serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
-            let command = ConfigureGenericConnectionCommand {
-                team_id,
-                requester_id: session.user_id,
-                webhook_token: payload.webhook_signing_secret,
-            };
-            if service == ALERTMANAGER_SERVICE {
-                use_case.configure_alertmanager(command).await?
-            } else {
-                use_case.configure_generic(command).await?
-            }
-        }
-        "http" => {
+        ConnectionConfigurator::Http => {
             let payload: ConfigureHttpPayload = serde_json::from_value(payload)
                 .map_err(|_| DomainError::InvalidReactionEndpoint)?;
             use_case
@@ -198,7 +188,7 @@ pub async fn configure_service(
                 })
                 .await?
         }
-        "email" => {
+        ConnectionConfigurator::Email => {
             let payload: ConfigureEmailPayload =
                 serde_json::from_value(payload).map_err(|_| DomainError::InvalidServiceSecret)?;
             use_case
@@ -213,7 +203,6 @@ pub async fn configure_service(
                 })
                 .await?
         }
-        _ => return Err(DomainError::InvalidServiceConnection),
     };
     Ok(Json(view.into()))
 }

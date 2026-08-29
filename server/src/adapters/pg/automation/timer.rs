@@ -5,8 +5,9 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::domain::automation_catalog::TIMER_SERVICE;
 use crate::domain::automation_config::{AutomationRun, AutomationRunStatus, WebhookDeliveryStatus};
-use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::ports::AutomationTimerRepo;
 

@@ -4,6 +4,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::{reaction, reaction_executor, ReactionExecutor};
 use crate::domain::automation_config::{AutomationRule, CredentialKind};
 use crate::domain::automation_template::{
     interpolate, MAX_INTERPOLATED_PAYLOAD_BYTES, MAX_INTERPOLATED_TITLE_BYTES,
@@ -18,8 +19,6 @@ use crate::ports::{
     ReleaseRepo, ServiceConnectionRepo, SmtpConfig,
 };
 
-const HTTP_SERVICE: &str = "http";
-const EMAIL_SERVICE: &str = "email";
 const MAX_NOTIFICATION_TEXT_BYTES: usize = 1024;
 
 pub struct AutomationReactionExecutor {
@@ -59,14 +58,17 @@ impl AutomationReactionExecutor {
         rule: &AutomationRule,
         event: &ExternalEvent,
     ) -> Result<Option<(Uuid, Severity)>, DomainError> {
-        match rule.reaction_kind.as_str() {
-            "create_incident" => self.create_incident(team_id, rule, event).await,
-            "validate_release_step" => self.validate_release_step(team_id, rule, event).await,
-            "block_release" => self.block_release(team_id, rule, event).await,
-            "escalate_incident" => self.escalate_incident(team_id, rule, event).await,
-            "http_notify" => self.notify_http(team_id, rule, event).await,
-            "email_notify" => self.notify_email(team_id, rule, event).await,
-            _ => Err(DomainError::InvalidAutomationRule),
+        match reaction_executor(&rule.reaction_kind).ok_or(DomainError::InvalidAutomationRule)? {
+            ReactionExecutor::CreateIncident => self.create_incident(team_id, rule, event).await,
+            ReactionExecutor::ValidateReleaseStep => {
+                self.validate_release_step(team_id, rule, event).await
+            }
+            ReactionExecutor::BlockRelease => self.block_release(team_id, rule, event).await,
+            ReactionExecutor::EscalateIncident => {
+                self.escalate_incident(team_id, rule, event).await
+            }
+            ReactionExecutor::HttpNotify => self.notify_http(team_id, rule, event).await,
+            ReactionExecutor::EmailNotify => self.notify_email(team_id, rule, event).await,
         }
     }
 
@@ -236,7 +238,9 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != HTTP_SERVICE {
+        if reaction(&rule.reaction_kind).and_then(|reaction| reaction.connection_service)
+            != Some(connection.service.as_str())
+        {
             return Err(DomainError::InvalidAutomationRule);
         }
         let endpoint = self
@@ -278,7 +282,9 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != EMAIL_SERVICE {
+        if reaction(&rule.reaction_kind).and_then(|reaction| reaction.connection_service)
+            != Some(connection.service.as_str())
+        {
             return Err(DomainError::InvalidAutomationRule);
         }
 

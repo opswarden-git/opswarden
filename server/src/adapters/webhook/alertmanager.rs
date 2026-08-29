@@ -4,6 +4,7 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::ALERTMANAGER_SERVICE;
 use crate::domain::error::DomainError;
 use crate::ports::WebhookParser;
 
@@ -20,7 +21,7 @@ pub struct AlertmanagerParser;
 
 impl WebhookParser for AlertmanagerParser {
     fn parse(&self, service: &str, _provider_event: &str, body: &[u8]) -> Option<ExternalEvent> {
-        if service != "alertmanager" {
+        if service != ALERTMANAGER_SERVICE {
             return None;
         }
         parse_single_transition(body).ok()
@@ -148,7 +149,7 @@ fn parse_single_transition(body: &[u8]) -> Result<ExternalEvent, DomainError> {
         "resolved" => "alert_resolved",
         _ => return Err(DomainError::InvalidWebhookDelivery),
     };
-    Ok(ExternalEvent::new("alertmanager", kind)
+    Ok(ExternalEvent::new(ALERTMANAGER_SERVICE, kind)
         .with_attributes(normalized_attributes(object, alert, status)))
 }
 

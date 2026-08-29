@@ -4,10 +4,10 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::team_access::require_manager;
-use crate::domain::automation_catalog::{action, reaction, CatalogField};
+use crate::domain::automation_catalog::{action, reaction, CatalogField, TIMER_SERVICE};
 use crate::domain::automation_config::{AutomationRule, AutomationRuleDefinition};
 use crate::domain::automation_template::{validate_template, MAX_TEMPLATE_BYTES};
-use crate::domain::automation_timer::{TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_timer::TimerSchedule;
 use crate::domain::error::DomainError;
 use crate::ports::{AutomationRuleRepo, ServiceConnectionRepo, TeamRepo};
 

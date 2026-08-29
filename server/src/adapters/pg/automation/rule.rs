@@ -6,8 +6,9 @@ use serde_json::Value;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+use crate::domain::automation_catalog::TIMER_SERVICE;
 use crate::domain::automation_config::AutomationRule;
-use crate::domain::automation_timer::{TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_timer::TimerSchedule;
 use crate::domain::error::DomainError;
 use crate::ports::AutomationRuleRepo;
 

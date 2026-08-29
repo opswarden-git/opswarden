@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::{automation::ExternalEvent, error::DomainError};
 
-pub const TIMER_SERVICE: &str = "timer";
+use crate::domain::automation_catalog::TIMER_SERVICE;
 pub const DAILY_AT_KIND: &str = "daily_at";
 pub const EVERY_MINUTES_KIND: &str = "every_minutes";
 pub const MIN_INTERVAL_MINUTES: u16 = 5;

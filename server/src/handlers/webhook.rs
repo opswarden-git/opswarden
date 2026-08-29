@@ -19,6 +19,9 @@ use crate::adapters::webhook::{alertmanager, generic::validate_payload};
 use crate::app::automation::{
     IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
 };
+use crate::domain::automation_catalog::{
+    ALERTMANAGER_SERVICE, GENERIC_SERVICE, GITHUB_SERVICE, GITLAB_SERVICE,
+};
 use crate::domain::error::DomainError;
 use crate::AppState;
 
@@ -66,7 +69,7 @@ pub async fn receive_github_for_connection(
     let result = webhook_use_case(&state)
         .ingest(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "github",
+            expected_service: GITHUB_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -97,7 +100,7 @@ pub async fn receive_gitlab_for_connection(
     let result = webhook_use_case(&state)
         .ingest(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "gitlab",
+            expected_service: GITLAB_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -130,7 +133,7 @@ pub async fn receive_generic_for_connection(
     let result = webhook_use_case(&state)
         .ingest(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "generic",
+            expected_service: GENERIC_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -183,7 +186,7 @@ async fn receive_alertmanager(
         let result = use_case
             .ingest(IngestTeamWebhookCommand {
                 connection_id,
-                expected_service: "alertmanager",
+                expected_service: ALERTMANAGER_SERVICE,
                 provider_delivery_id: transition.delivery_id,
                 provider_event: "alertmanager_webhook".to_string(),
                 signature: signature.clone(),

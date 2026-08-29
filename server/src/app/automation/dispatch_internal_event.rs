@@ -4,6 +4,7 @@ use serde_json::{Map, Value};
 use uuid::Uuid;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::OPSWARDEN_SERVICE;
 use crate::domain::automation_config::{AutomationRun, ServiceConnection, WebhookDelivery};
 use crate::domain::error::DomainError;
 use crate::domain::event::{AutomationRuleResult, DomainEvent};
@@ -15,8 +16,6 @@ use crate::ports::{
 
 use super::ingest_team_webhook::trigger_matches;
 use super::AutomationReactionExecutor;
-
-pub const OPSWARDEN_SERVICE: &str = "opswarden";
 
 pub struct DispatchInternalAutomationCommand {
     pub team_id: Uuid,
