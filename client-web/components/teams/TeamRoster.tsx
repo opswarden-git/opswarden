@@ -76,7 +76,7 @@ export function TeamRoster({ team }: { team: Team }) {
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
   const capabilities = deriveCapabilities(team.role);
-  const { data: unreadData } = useUnreadPrivateMessages(capabilities.canSendPrivateMessage);
+  const { data: unreadData } = useUnreadPrivateMessages();
   const unreadPeerSet = useMemo(
     () => new Set(unreadData?.unread_peer_ids ?? []),
     [unreadData?.unread_peer_ids],
@@ -137,7 +137,7 @@ export function TeamRoster({ team }: { team: Team }) {
           const hasUnread = unreadPeerSet.has(member.user_id);
           const displayName = memberDisplayName(member.email);
           const conversationHref =
-            member.user_id !== currentUserId && capabilities.canSendPrivateMessage
+            member.user_id !== currentUserId
               ? teamPath(team.team_id, "messages", member.user_id)
               : null;
           const rowActions = capabilities.canManageMembers ? (

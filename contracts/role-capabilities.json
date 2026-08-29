@@ -15,8 +15,7 @@
     "canManageAutomations": false,
     "canViewInvitationCode": false,
     "canLeaveTeam": true,
-    "canDeleteTeam": false,
-    "canSendPrivateMessage": true
+    "canDeleteTeam": false
   },
   "responder": {
     "canCreateIncident": false,
@@ -34,8 +33,7 @@
     "canManageAutomations": false,
     "canViewInvitationCode": false,
     "canLeaveTeam": true,
-    "canDeleteTeam": false,
-    "canSendPrivateMessage": true
+    "canDeleteTeam": false
   },
   "manager": {
     "canCreateIncident": true,
@@ -53,7 +51,6 @@
     "canManageAutomations": true,
     "canViewInvitationCode": true,
     "canLeaveTeam": false,
-    "canDeleteTeam": true,
-    "canSendPrivateMessage": true
+    "canDeleteTeam": true
   }
 }

@@ -28,7 +28,6 @@ pub struct TeamCapabilities {
     pub can_view_invitation_code: bool,
     pub can_leave_team: bool,
     pub can_delete_team: bool,
-    pub can_send_private_message: bool,
 }
 
 #[derive(Deserialize)]
