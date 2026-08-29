@@ -14,6 +14,13 @@ pub enum IncidentStatus {
 }
 
 impl IncidentStatus {
+    pub const ALL: &'static [Self] = &[
+        Self::Open,
+        Self::Acknowledged,
+        Self::Escalated,
+        Self::Resolved,
+    ];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Open => "open",
@@ -62,6 +69,8 @@ pub enum Severity {
 }
 
 impl Severity {
+    pub const ALL: &'static [Self] = &[Self::Low, Self::Medium, Self::High, Self::Critical];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Low => "low",

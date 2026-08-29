@@ -30,6 +30,13 @@ pub enum ReleaseBaseState {
 }
 
 impl ReleaseBaseState {
+    pub const ALL: &'static [Self] = &[
+        Self::Created,
+        Self::InProgress,
+        Self::Completed,
+        Self::Cancelled,
+    ];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Created => "created",

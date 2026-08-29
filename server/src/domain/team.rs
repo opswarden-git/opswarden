@@ -18,6 +18,8 @@ pub enum Role {
 }
 
 impl Role {
+    pub const ALL: &'static [Self] = &[Self::Observer, Self::Responder, Self::Manager];
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Observer => "observer",
