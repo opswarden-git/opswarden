@@ -7,7 +7,6 @@ import { Alert } from "@/components/ui/Alert";
 import { actionButtonClassNames, Button, IconButton } from "@/components/ui/Button";
 import { Link } from "@/i18n/routing";
 import { deriveCapabilities, type TeamRole } from "@/lib/capabilities";
-import { useIncidents } from "@/lib/queries/incidents";
 import {
   type Release,
   useLinkIncident,
@@ -60,7 +59,6 @@ export function ReleaseDetail({
   const t = useTranslations("Releases");
   const tErr = useTranslations("errors");
   const locale = useLocale();
-  const { data: incidents } = useIncidents(teamId);
   const { data: members } = useTeamMembers(teamId);
   const validateStep = useValidateStep();
   const linkIncident = useLinkIncident();
@@ -72,19 +70,10 @@ export function ReleaseDetail({
   const nextStepIndex = steps.findIndex((step) => !step.validated);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
   const lastError = validateStep.error || linkIncident.error || unlinkIncident.error;
-  const incidentById = (id: string) => (incidents ?? []).find((incident) => incident.id === id);
-  const linkedIncidents = release.linked_incident_ids
-    .map(incidentById)
-    .filter((incident) => incident !== undefined);
-  const blockingIncidents = linkedIncidents.filter((incident) => incident.status !== "resolved");
-  const linkable = (incidents ?? []).filter(
-    (incident) =>
-      incident.status !== "resolved" && !release.linked_incident_ids.includes(incident.id),
-  );
   const memberEmail = (userId: string | null) =>
     members?.find((member) => member.user_id === userId)?.email ?? t("unknownValidator");
   const canLink = capabilities.canLinkReleaseIncident && !terminal;
-  const showLinked = linkedIncidents.length > 0 || canLink;
+  const showLinked = release.linked_incidents.length > 0 || canLink;
   const stamp = (value: string) =>
     new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
       new Date(value),
@@ -136,7 +125,7 @@ export function ReleaseDetail({
                     <p className="text-rel-blocked mt-1 flex items-center gap-1.5 text-xs">
                       <Ban className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <a href="#linked-incidents" className="underline underline-offset-2">
-                        {t("blockedByCount", { count: blockingIncidents.length })}
+                        {t("blockedByCount", { count: release.blockers.length })}
                       </a>
                     </p>
                   ) : null}
@@ -182,23 +171,22 @@ export function ReleaseDetail({
             {t("linkedIncidents")}
           </h2>
 
-          {linkedIncidents.length > 0 ? (
+          {release.linked_incidents.length > 0 ? (
             <ul className="divide-border-muted mt-2 divide-y">
-              {release.linked_incident_ids.map((id) => {
-                const incident = incidentById(id);
+              {release.linked_incidents.map((incident) => {
                 return (
-                  <li key={id} className="flex min-w-0 items-center gap-3 py-3">
+                  <li key={incident.incident_id} className="flex min-w-0 items-center gap-3 py-3">
                     <Link
-                      href={teamPath(teamId, "incidents", id)}
+                      href={teamPath(teamId, "incidents", incident.incident_id)}
                       className="text-text hover:text-gold min-w-0 flex-1 truncate text-sm font-medium transition-colors"
                     >
-                      {incident ? incident.title : t("unknownIncident")}
+                      {incident.title}
                     </Link>
-                    {incident ? <StateChip status={incident.status} /> : null}
+                    <StateChip status={incident.status} />
                     {canLink ? (
                       <IconButton
                         label={t("unlinkIncident", {
-                          title: incident?.title ?? t("unknownIncident"),
+                          title: incident.title,
                         })}
                         size="sm"
                         variant="ghost"
@@ -206,7 +194,7 @@ export function ReleaseDetail({
                         onClick={() =>
                           unlinkIncident.mutate({
                             releaseId: release.release_id,
-                            incidentId: id,
+                            incidentId: incident.incident_id,
                             teamId,
                           })
                         }
@@ -231,14 +219,16 @@ export function ReleaseDetail({
                     linkIncident.mutate({ releaseId: release.release_id, incidentId, teamId });
                   }
                 }}
-                disabled={linkIncident.isPending || linkable.length === 0}
+                disabled={linkIncident.isPending || release.linkable_incidents.length === 0}
                 className="ow-input h-9 w-full min-w-0 rounded-md px-3 text-sm disabled:opacity-50"
               >
                 <option value="">
-                  {linkable.length === 0 ? t("noLinkableIncidents") : t("linkIncidentPlaceholder")}
+                  {release.linkable_incidents.length === 0
+                    ? t("noLinkableIncidents")
+                    : t("linkIncidentPlaceholder")}
                 </option>
-                {linkable.map((incident) => (
-                  <option key={incident.id} value={incident.id}>
+                {release.linkable_incidents.map((incident) => (
+                  <option key={incident.incident_id} value={incident.incident_id}>
                     {incident.title}
                   </option>
                 ))}

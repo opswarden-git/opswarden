@@ -7,12 +7,13 @@
 // `release_state_changed` event — including the auto-unblock triggered from
 // `ChangeIncidentStatus` when the last active linked incident resolves.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
+use crate::domain::incident::{Incident, IncidentStatus, Severity};
 use crate::domain::release::{effective_release_state, Release, ReleaseBaseState, ReleaseState};
 use crate::ports::{EventPublisher, ReleaseRepo};
 
@@ -29,9 +30,7 @@ pub use get_release::{GetReleaseCommand, GetReleaseUseCase};
 pub use link_incident::{
     LinkIncidentCommand, LinkIncidentUseCase, UnlinkIncidentCommand, UnlinkIncidentUseCase,
 };
-pub use list_releases::{
-    ListReleasesCommand, ListReleasesUseCase, ReleaseBlocker, ReleaseListItem,
-};
+pub use list_releases::{ListReleasesCommand, ListReleasesUseCase, ReleaseListItem};
 pub use validate_release_step::{ValidateReleaseStepCommand, ValidateReleaseStepUseCase};
 
 /// A release plus the read-only facts derived from its links: the effective
@@ -41,6 +40,64 @@ pub struct ReleaseDetail {
     pub release: Release,
     pub effective_state: ReleaseState,
     pub linked_incident_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleaseIncident {
+    pub incident_id: Uuid,
+    pub title: String,
+    pub status: IncidentStatus,
+    pub severity: Severity,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReleaseIncidentProjection {
+    pub linked: Vec<ReleaseIncident>,
+    pub blockers: Vec<ReleaseIncident>,
+    pub linkable: Vec<ReleaseIncident>,
+}
+
+pub fn project_release_incidents(
+    linked_incident_ids: &[Uuid],
+    incidents_by_id: &HashMap<Uuid, Incident>,
+) -> ReleaseIncidentProjection {
+    let linked: Vec<_> = linked_incident_ids
+        .iter()
+        .filter_map(|id| incidents_by_id.get(id))
+        .map(release_incident)
+        .collect();
+    let blockers = linked
+        .iter()
+        .filter(|incident| incident.status != IncidentStatus::Resolved)
+        .cloned()
+        .collect();
+    let mut linkable: Vec<_> = incidents_by_id
+        .values()
+        .filter(|incident| {
+            incident.status != IncidentStatus::Resolved
+                && !linked_incident_ids.contains(&incident.id)
+        })
+        .map(release_incident)
+        .collect();
+    linkable.sort_by(|left, right| {
+        left.title
+            .cmp(&right.title)
+            .then(left.incident_id.cmp(&right.incident_id))
+    });
+    ReleaseIncidentProjection {
+        linked,
+        blockers,
+        linkable,
+    }
+}
+
+fn release_incident(incident: &Incident) -> ReleaseIncident {
+    ReleaseIncident {
+        incident_id: incident.id,
+        title: incident.title.clone(),
+        status: incident.status,
+        severity: incident.severity,
+    }
 }
 
 /// Enrich a release with its effective state and linked incidents for a read.

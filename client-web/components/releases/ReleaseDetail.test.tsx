@@ -21,38 +21,10 @@ vi.mock("@/i18n/routing", () => ({
   ),
 }));
 
-const incidents = [
-  {
-    id: "incident-1",
-    team_id: "team-1",
-    title: "Database outage",
-    description: "",
-    status: "escalated" as const,
-    severity: "critical" as const,
-    assignee: null,
-    created_at: "2026-07-25T10:00:00Z",
-    created_by: null,
-    updated_at: "2026-07-25T10:00:00Z",
-  },
-  {
-    id: "incident-2",
-    team_id: "team-1",
-    title: "API latency",
-    description: "",
-    status: "open" as const,
-    severity: "high" as const,
-    assignee: null,
-    created_at: "2026-07-25T10:00:00Z",
-    created_by: null,
-    updated_at: "2026-07-25T10:00:00Z",
-  },
-];
-
 const validateStep = { error: null, isPending: false, mutate: vi.fn() };
 const linkIncident = { error: null, isPending: false, mutate: vi.fn() };
 const unlinkIncident = { error: null, isPending: false, mutate: vi.fn() };
 
-vi.mock("@/lib/queries/incidents", () => ({ useIncidents: () => ({ data: incidents }) }));
 vi.mock("@/lib/queries/teams", () => ({
   useTeamMembers: () => ({
     data: [{ user_id: "responder-1", email: "responder@example.com", role: "responder" }],
@@ -93,7 +65,30 @@ function release(overrides: Partial<Release> = {}): Release {
         validated_at: null,
       },
     ],
-    linked_incident_ids: ["incident-1", "missing-incident"],
+    linked_incidents: [
+      {
+        incident_id: "incident-1",
+        title: "Database outage",
+        status: "escalated",
+        severity: "critical",
+      },
+    ],
+    blockers: [
+      {
+        incident_id: "incident-1",
+        title: "Database outage",
+        status: "escalated",
+        severity: "critical",
+      },
+    ],
+    linkable_incidents: [
+      {
+        incident_id: "incident-2",
+        title: "API latency",
+        status: "open",
+        severity: "high",
+      },
+    ],
     created_at: "2026-07-25T09:00:00Z",
     updated_at: "2026-07-25T10:00:00Z",
     ...overrides,
@@ -123,11 +118,10 @@ describe("ReleaseDetail", () => {
     });
   });
 
-  it("links and unlinks active incidents while preserving unknown linked ids", () => {
+  it("links and unlinks incidents from the server projection", () => {
     render(<ReleaseDetail release={release()} teamId="team-1" role="manager" />);
 
     expect(screen.getByText("Database outage")).toBeInTheDocument();
-    expect(screen.getByText("unknownIncident")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /unlinkIncident:Database outage/ }));
     expect(unlinkIncident.mutate).toHaveBeenCalledWith({
       releaseId: "release-1",
@@ -148,7 +142,7 @@ describe("ReleaseDetail", () => {
   it("shows blockers and prevents progression while blocked", () => {
     render(
       <ReleaseDetail
-        release={release({ state: "blocked", linked_incident_ids: ["incident-1"] })}
+        release={release({ state: "blocked" })}
         teamId="team-1"
         role="responder"
       />,
@@ -161,7 +155,14 @@ describe("ReleaseDetail", () => {
   it("hides mutating controls for terminal releases", () => {
     render(
       <ReleaseDetail
-        release={release({ state: "completed", steps: [], linked_incident_ids: [] })}
+        release={{
+          ...release(),
+          state: "completed",
+          steps: [],
+          linked_incidents: [],
+          blockers: [],
+          linkable_incidents: [],
+        }}
         teamId="team-1"
         role="manager"
       />,

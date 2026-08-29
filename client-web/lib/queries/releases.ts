@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import type { IncidentSeverity, IncidentStatus } from "./incidents";
 
 export type ReleaseState = "created" | "in_progress" | "blocked" | "completed" | "cancelled";
 
@@ -11,11 +12,11 @@ export interface ReleaseStep {
   validated_at: string | null;
 }
 
-export interface ReleaseBlocker {
+export interface ReleaseIncident {
   incident_id: string;
   title: string;
-  status: "open" | "acknowledged" | "escalated";
-  severity: "low" | "medium" | "high" | "critical";
+  status: IncidentStatus;
+  severity: IncidentSeverity;
 }
 
 export interface ReleaseListItem {
@@ -26,7 +27,7 @@ export interface ReleaseListItem {
   state: ReleaseState;
   progress: { completed: number; total: number };
   next_step: Pick<ReleaseStep, "position" | "name"> | null;
-  blockers: ReleaseBlocker[];
+  blockers: ReleaseIncident[];
   linked_incident_ids: string[];
   created_at: string;
   updated_at: string;
@@ -39,7 +40,9 @@ export interface Release {
   /** Effective state (with `blocked` already resolved from linked incidents). */
   state: ReleaseState;
   steps: ReleaseStep[];
-  linked_incident_ids: string[];
+  linked_incidents: ReleaseIncident[];
+  blockers: ReleaseIncident[];
+  linkable_incidents: ReleaseIncident[];
   created_at: string;
   updated_at: string;
 }
