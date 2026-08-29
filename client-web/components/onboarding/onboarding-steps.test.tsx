@@ -98,7 +98,7 @@ describe("onboarding steps", () => {
   });
 
   it("surfaces a stable signup failure in the verification console", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
     const back = vi.fn();
     render(<StepVerification data={data} back={back} />);
     expect(screen.getByText("creatingWorkspace")).toBeInTheDocument();

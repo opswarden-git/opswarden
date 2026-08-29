@@ -28,21 +28,11 @@ export default function LoginPage() {
 
   const completeLogin = useCallback(
     async (token: string) => {
-      const [{ useAuthStore }, { apiFetch }, { installSessionToken }] = await Promise.all([
-        import("@/store/auth"),
+      const [{ apiFetch }, { establishSession }] = await Promise.all([
         import("@/lib/api"),
         import("@/lib/sessionLifecycle"),
       ]);
-
-      await installSessionToken(token);
-
-      const meRes = await apiFetch("/api/me");
-      if (!meRes.ok) {
-        throw new Error("profile_load_failed");
-      }
-
-      const user = await meRes.json();
-      useAuthStore.getState().setUser(user);
+      const user = await establishSession(token);
 
       const teamsRes = await apiFetch("/api/teams");
       if (teamsRes.ok) {
