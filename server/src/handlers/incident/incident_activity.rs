@@ -194,21 +194,9 @@ pub async fn delete_incident(
 }
 
 pub(super) fn parse_severity(value: &str) -> Result<Severity, DomainError> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "low" => Ok(Severity::Low),
-        "medium" => Ok(Severity::Medium),
-        "high" => Ok(Severity::High),
-        "critical" => Ok(Severity::Critical),
-        _ => Err(DomainError::InvalidSeverity),
-    }
+    Severity::try_from(value.trim().to_ascii_lowercase().as_str())
 }
 
 pub(super) fn parse_incident_status(value: &str) -> Result<IncidentStatus, DomainError> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "open" => Ok(IncidentStatus::Open),
-        "acknowledged" => Ok(IncidentStatus::Acknowledged),
-        "escalated" => Ok(IncidentStatus::Escalated),
-        "resolved" => Ok(IncidentStatus::Resolved),
-        _ => Err(DomainError::InvalidIncidentStatus),
-    }
+    IncidentStatus::try_from(value.trim().to_ascii_lowercase().as_str())
 }

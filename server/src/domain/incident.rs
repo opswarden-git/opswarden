@@ -13,15 +13,34 @@ pub enum IncidentStatus {
     Resolved,
 }
 
+impl IncidentStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Acknowledged => "acknowledged",
+            Self::Escalated => "escalated",
+            Self::Resolved => "resolved",
+        }
+    }
+}
+
+impl TryFrom<&str> for IncidentStatus {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "open" => Ok(Self::Open),
+            "acknowledged" => Ok(Self::Acknowledged),
+            "escalated" => Ok(Self::Escalated),
+            "resolved" => Ok(Self::Resolved),
+            _ => Err(DomainError::InvalidIncidentStatus),
+        }
+    }
+}
+
 impl fmt::Display for IncidentStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            IncidentStatus::Open => "open",
-            IncidentStatus::Acknowledged => "acknowledged",
-            IncidentStatus::Escalated => "escalated",
-            IncidentStatus::Resolved => "resolved",
-        };
-        f.write_str(value)
+        f.write_str(self.as_str())
     }
 }
 
@@ -33,15 +52,34 @@ pub enum Severity {
     Critical,
 }
 
+impl Severity {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+}
+
+impl TryFrom<&str> for Severity {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "critical" => Ok(Self::Critical),
+            _ => Err(DomainError::InvalidSeverity),
+        }
+    }
+}
+
 impl fmt::Display for Severity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            Severity::Low => "low",
-            Severity::Medium => "medium",
-            Severity::High => "high",
-            Severity::Critical => "critical",
-        };
-        f.write_str(value)
+        f.write_str(self.as_str())
     }
 }
 

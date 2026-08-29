@@ -18,6 +18,14 @@ pub enum Role {
 }
 
 impl Role {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Observer => "observer",
+            Self::Responder => "responder",
+            Self::Manager => "manager",
+        }
+    }
+
     /// Privilege rank; only meaningful relative to other ranks.
     fn rank(self) -> u8 {
         match self {
@@ -33,14 +41,22 @@ impl Role {
     }
 }
 
+impl TryFrom<&str> for Role {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "observer" => Ok(Self::Observer),
+            "responder" => Ok(Self::Responder),
+            "manager" => Ok(Self::Manager),
+            _ => Err(DomainError::InvalidRole),
+        }
+    }
+}
+
 impl fmt::Display for Role {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            Role::Observer => "observer",
-            Role::Responder => "responder",
-            Role::Manager => "manager",
-        };
-        f.write_str(value)
+        f.write_str(self.as_str())
     }
 }
 

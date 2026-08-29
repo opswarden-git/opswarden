@@ -18,7 +18,7 @@ mod team_image;
 #[path = "team_mapping.rs"]
 mod team_mapping;
 
-use team_mapping::{ban_kind, role_from_str, role_to_str};
+use team_mapping::{ban_kind, role_from_str};
 
 pub struct PgTeamRepo {
     pool: PgPool,
@@ -89,7 +89,7 @@ impl TeamRepo for PgTeamRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(record.map(|row| role_from_str(&row.role)))
+        record.map(|row| role_from_str(&row.role)).transpose()
     }
 
     async fn add_member(
@@ -105,7 +105,7 @@ impl TeamRepo for PgTeamRepo {
             "#,
             team_id,
             user_id,
-            role_to_str(role),
+            role.as_str(),
         )
         .execute(&self.pool)
         .await
@@ -188,20 +188,20 @@ impl TeamRepo for PgTeamRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(records
+        records
             .into_iter()
             .map(|row| {
-                (
+                Ok((
                     Team {
                         id: row.id,
                         name: row.name,
                         invitation_code: InvitationCode::from_existing(row.invitation_code),
                         created_at: row.created_at,
                     },
-                    role_from_str(&row.role),
-                )
+                    role_from_str(&row.role)?,
+                ))
             })
-            .collect())
+            .collect()
     }
 
     async fn list_team_directory_for_user(
@@ -294,15 +294,17 @@ impl TeamRepo for PgTeamRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(records
+        records
             .into_iter()
-            .map(|row| TeamMemberView {
-                user_id: row.user_id,
-                email: row.email,
-                role: role_from_str(&row.role),
-                joined_at: row.joined_at,
+            .map(|row| {
+                Ok(TeamMemberView {
+                    user_id: row.user_id,
+                    email: row.email,
+                    role: role_from_str(&row.role)?,
+                    joined_at: row.joined_at,
+                })
             })
-            .collect())
+            .collect()
     }
 
     async fn set_member_role(
@@ -318,7 +320,7 @@ impl TeamRepo for PgTeamRepo {
             "#,
             team_id,
             user_id,
-            role_to_str(role),
+            role.as_str(),
         )
         .execute(&self.pool)
         .await

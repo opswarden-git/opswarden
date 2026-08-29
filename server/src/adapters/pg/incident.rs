@@ -33,20 +33,24 @@ struct IncidentRow {
     updated_at: DateTime<Utc>,
 }
 
-impl From<IncidentRow> for Incident {
-    fn from(row: IncidentRow) -> Self {
-        Self {
+impl TryFrom<IncidentRow> for Incident {
+    type Error = DomainError;
+
+    fn try_from(row: IncidentRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: row.id,
             team_id: row.team_id,
             title: row.title,
             description: row.description,
-            status: status_from_str(&row.status),
-            severity: severity_from_str(&row.severity),
+            status: IncidentStatus::try_from(row.status.as_str())
+                .map_err(|_| DomainError::Storage)?,
+            severity: Severity::try_from(row.severity.as_str())
+                .map_err(|_| DomainError::Storage)?,
             assignee: row.assignee_id,
             created_by: row.created_by,
             created_at: row.created_at,
             updated_at: row.updated_at,
-        }
+        })
     }
 }
 
@@ -71,42 +75,6 @@ fn event_kind_from_str(value: &str) -> Option<IncidentEventKind> {
     }
 }
 
-fn status_to_str(status: IncidentStatus) -> &'static str {
-    match status {
-        IncidentStatus::Open => "open",
-        IncidentStatus::Acknowledged => "acknowledged",
-        IncidentStatus::Escalated => "escalated",
-        IncidentStatus::Resolved => "resolved",
-    }
-}
-
-fn status_from_str(value: &str) -> IncidentStatus {
-    match value {
-        "acknowledged" => IncidentStatus::Acknowledged,
-        "escalated" => IncidentStatus::Escalated,
-        "resolved" => IncidentStatus::Resolved,
-        _ => IncidentStatus::Open,
-    }
-}
-
-fn severity_to_str(severity: Severity) -> &'static str {
-    match severity {
-        Severity::Low => "low",
-        Severity::Medium => "medium",
-        Severity::High => "high",
-        Severity::Critical => "critical",
-    }
-}
-
-fn severity_from_str(value: &str) -> Severity {
-    match value {
-        "medium" => Severity::Medium,
-        "high" => Severity::High,
-        "critical" => Severity::Critical,
-        _ => Severity::Low,
-    }
-}
-
 #[async_trait]
 impl IncidentRepo for PgIncidentRepo {
     async fn save_incident(&self, incident: &Incident) -> Result<(), DomainError> {
@@ -123,8 +91,8 @@ impl IncidentRepo for PgIncidentRepo {
         .bind(incident.team_id)
         .bind(&incident.title)
         .bind(&incident.description)
-        .bind(status_to_str(incident.status))
-        .bind(severity_to_str(incident.severity))
+        .bind(incident.status.as_str())
+        .bind(incident.severity.as_str())
         .bind(incident.assignee)
         .bind(incident.created_by)
         .bind(incident.created_at)
@@ -155,8 +123,8 @@ impl IncidentRepo for PgIncidentRepo {
         .bind(incident.team_id)
         .bind(&incident.title)
         .bind(&incident.description)
-        .bind(status_to_str(incident.status))
-        .bind(severity_to_str(incident.severity))
+        .bind(incident.status.as_str())
+        .bind(incident.severity.as_str())
         .bind(incident.assignee)
         .bind(incident.created_by)
         .bind(incident.created_at)
@@ -201,7 +169,7 @@ impl IncidentRepo for PgIncidentRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(record.map(Incident::from))
+        record.map(Incident::try_from).transpose()
     }
 
     async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
@@ -216,8 +184,8 @@ impl IncidentRepo for PgIncidentRepo {
         .bind(incident.id)
         .bind(&incident.title)
         .bind(&incident.description)
-        .bind(status_to_str(incident.status))
-        .bind(severity_to_str(incident.severity))
+        .bind(incident.status.as_str())
+        .bind(incident.severity.as_str())
         .bind(incident.assignee)
         .bind(incident.updated_at)
         .execute(&self.pool)
@@ -244,8 +212,8 @@ impl IncidentRepo for PgIncidentRepo {
         .bind(incident.id)
         .bind(&incident.title)
         .bind(&incident.description)
-        .bind(status_to_str(incident.status))
-        .bind(severity_to_str(incident.severity))
+        .bind(incident.status.as_str())
+        .bind(incident.severity.as_str())
         .bind(incident.assignee)
         .bind(incident.updated_at)
         .execute(&mut *tx)
@@ -351,7 +319,7 @@ impl IncidentRepo for PgIncidentRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
 
-        Ok(records.into_iter().map(Incident::from).collect())
+        records.into_iter().map(Incident::try_from).collect()
     }
 
     async fn list_unread_incident_ids(

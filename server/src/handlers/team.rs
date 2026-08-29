@@ -151,10 +151,9 @@ pub struct SetMemberRolePayload {
 /// Only Observer and Responder are settable here; "manager" (and anything else)
 /// is rejected — the Manager seat moves through `transfer_manager`, not this route.
 fn parse_assignable_role(value: &str) -> Result<Role, DomainError> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "observer" => Ok(Role::Observer),
-        "responder" => Ok(Role::Responder),
-        _ => Err(DomainError::InvalidRole),
+    match Role::try_from(value.trim().to_ascii_lowercase().as_str())? {
+        role @ (Role::Observer | Role::Responder) => Ok(role),
+        Role::Manager => Err(DomainError::InvalidRole),
     }
 }
 

@@ -54,21 +54,23 @@ pub(super) async fn list_for_user(
     .await
     .map_err(|_| DomainError::Storage)?;
 
-    Ok(records
+    records
         .into_iter()
-        .map(|row| TeamDirectoryItem {
-            team: Team {
-                id: row.id,
-                name: row.name,
-                invitation_code: InvitationCode::from_existing(row.invitation_code),
-                created_at: row.created_at,
-            },
-            role: role_from_str(&row.role),
-            member_count: row.member_count as u64,
-            active_incident_count: row.active_incident_count as u64,
-            active_release_count: row.active_release_count as u64,
-            blocked_release_count: row.blocked_release_count as u64,
-            image_updated_at: row.image_updated_at,
+        .map(|row| {
+            Ok(TeamDirectoryItem {
+                team: Team {
+                    id: row.id,
+                    name: row.name,
+                    invitation_code: InvitationCode::from_existing(row.invitation_code),
+                    created_at: row.created_at,
+                },
+                role: role_from_str(&row.role)?,
+                member_count: row.member_count as u64,
+                active_incident_count: row.active_incident_count as u64,
+                active_release_count: row.active_release_count as u64,
+                blocked_release_count: row.blocked_release_count as u64,
+                image_updated_at: row.image_updated_at,
+            })
         })
-        .collect())
+        .collect()
 }
