@@ -213,11 +213,19 @@ impl AutomationRuleRepo for DummyAutomationRuleRepo {
         Ok(())
     }
 
-    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError> {
+    async fn update_rule(
+        &self,
+        rule: &AutomationRule,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError> {
         let mut rules = self.rules.lock().unwrap();
-        let exists = rules
+        let stored = rules
             .get(&rule.id)
-            .is_some_and(|stored| stored.team_id == rule.team_id);
+            .filter(|stored| stored.team_id == rule.team_id);
+        if stored.is_some_and(|stored| stored.updated_at != expected_updated_at) {
+            return Err(DomainError::ConcurrentModification);
+        }
+        let exists = stored.is_some();
         if exists {
             rules.insert(rule.id, rule.clone());
         }

@@ -89,7 +89,11 @@ pub trait ConnectionCredentialVault: Send + Sync {
 #[async_trait]
 pub trait AutomationRuleRepo: Send + Sync {
     async fn insert_rule(&self, rule: &AutomationRule) -> Result<(), DomainError>;
-    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError>;
+    async fn update_rule(
+        &self,
+        rule: &AutomationRule,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError>;
     async fn find_rule_for_team(
         &self,
         team_id: Uuid,

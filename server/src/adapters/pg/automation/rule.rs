@@ -166,11 +166,15 @@ impl AutomationRuleRepo for PgAutomationRuleRepo {
         Ok(())
     }
 
-    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError> {
+    async fn update_rule(
+        &self,
+        rule: &AutomationRule,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError> {
         let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let previous = sqlx::query_as::<_, (bool, Uuid, String, Value)>(
+        let previous = sqlx::query_as::<_, (bool, Uuid, String, Value, DateTime<Utc>)>(
             r#"
-            SELECT enabled, trigger_connection_id, trigger_kind, trigger_config
+            SELECT enabled, trigger_connection_id, trigger_kind, trigger_config, updated_at
             FROM automation_rules
             WHERE team_id = $1 AND id = $2
             FOR UPDATE
@@ -188,6 +192,9 @@ impl AutomationRuleRepo for PgAutomationRuleRepo {
                 .map_err(|_| DomainError::Storage)?;
             return Ok(false);
         };
+        if previous.4 != expected_updated_at {
+            return Err(DomainError::ConcurrentModification);
+        }
         let service =
             connection_service(&mut transaction, rule.team_id, rule.trigger_connection_id).await?;
         let timer_schedule = if service.as_deref() == Some(TIMER_SERVICE) {
@@ -428,8 +435,12 @@ mod tests {
             vec![]
         );
 
+        let expected_updated_at = stored.updated_at;
         stored.set_enabled(true);
-        assert!(repo.update_rule(&stored).await.unwrap());
+        assert!(repo
+            .update_rule(&stored, expected_updated_at)
+            .await
+            .unwrap());
         assert_eq!(
             repo.list_enabled_rules_for_trigger(team_a, github_a.id, "ci_failed")
                 .await

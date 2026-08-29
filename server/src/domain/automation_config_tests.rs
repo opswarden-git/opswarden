@@ -34,7 +34,7 @@ fn new_rule_is_disabled_and_requires_object_configs() {
     let team_id = Uuid::new_v4();
     let user_id = Uuid::new_v4();
     let connection_id = Uuid::new_v4();
-    let rule = AutomationRule::new(
+    let mut rule = AutomationRule::new(
         team_id,
         "CI failed",
         connection_id,
@@ -47,6 +47,9 @@ fn new_rule_is_disabled_and_requires_object_configs() {
     )
     .unwrap();
     assert!(!rule.enabled);
+    let initial_revision = rule.updated_at;
+    rule.set_enabled(false);
+    assert!(rule.updated_at > initial_revision);
 
     assert_eq!(
         AutomationRule::new(

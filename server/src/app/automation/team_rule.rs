@@ -95,6 +95,7 @@ impl TeamRuleUseCase {
             .find_rule_for_team(cmd.team_id, cmd.rule_id)
             .await?
             .ok_or(DomainError::AutomationRuleNotFound)?;
+        let expected_updated_at = rule.updated_at;
         let current = rule.definition();
         let definition = AutomationRuleDefinition {
             name: cmd.name.unwrap_or(current.name),
@@ -114,7 +115,7 @@ impl TeamRuleUseCase {
         if let Some(enabled) = cmd.enabled {
             rule.set_enabled(enabled);
         }
-        if !self.rules.update_rule(&rule).await? {
+        if !self.rules.update_rule(&rule, expected_updated_at).await? {
             return Err(DomainError::AutomationRuleNotFound);
         }
         Ok(rule)

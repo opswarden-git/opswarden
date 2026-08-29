@@ -99,15 +99,67 @@ async fn projection_requires_current_enabled_timer_rule(pool: PgPool) {
         .await
         .unwrap());
 
+    let expected_updated_at = rule.updated_at;
     rule.set_enabled(false);
     PgAutomationRuleRepo::new(pool.clone())
-        .update_rule(&rule)
+        .update_rule(&rule, expected_updated_at)
         .await
         .unwrap();
     assert!(!repo
         .upsert_schedule(rule.id, &schedule, now, rule.updated_at)
         .await
         .unwrap());
+}
+
+#[sqlx::test]
+async fn concurrent_timer_edits_keep_only_the_winning_projection(pool: PgPool) {
+    let (rule, _) = timer_rule(&pool, "concurrent-edit").await;
+    let expected_updated_at = rule.updated_at;
+    let mut ten_minutes = rule.clone();
+    let mut fifteen_minutes = rule.clone();
+    let mut ten_definition = ten_minutes.definition();
+    ten_definition.trigger_config = json!({"minutes": "10", "timezone": "Europe/Paris"});
+    ten_minutes.replace_definition(ten_definition).unwrap();
+    let mut fifteen_definition = fifteen_minutes.definition();
+    fifteen_definition.trigger_config = json!({"minutes": "15", "timezone": "Europe/Paris"});
+    fifteen_minutes
+        .replace_definition(fifteen_definition)
+        .unwrap();
+
+    let rules = PgAutomationRuleRepo::new(pool.clone());
+    let (ten_result, fifteen_result) = tokio::join!(
+        rules.update_rule(&ten_minutes, expected_updated_at),
+        rules.update_rule(&fifteen_minutes, expected_updated_at),
+    );
+
+    let results = [ten_result, fifteen_result];
+    assert_eq!(
+        results.iter().filter(|result| result == &&Ok(true)).count(),
+        1
+    );
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| **result == Err(DomainError::ConcurrentModification))
+            .count(),
+        1
+    );
+    let (config, rule_revision, interval, projection_revision) =
+        sqlx::query_as::<_, (serde_json::Value, DateTime<Utc>, i32, DateTime<Utc>)>(
+            r#"
+            SELECT r.trigger_config, r.updated_at, s.interval_minutes, s.rule_updated_at
+            FROM automation_rules r
+            JOIN automation_timer_schedules s ON s.rule_id = r.id
+            WHERE r.id = $1
+            "#,
+        )
+        .bind(rule.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let configured_minutes = config["minutes"].as_str().unwrap().parse::<i32>().unwrap();
+    assert_eq!(interval, configured_minutes);
+    assert_eq!(projection_revision, rule_revision);
 }
 
 #[sqlx::test]
@@ -285,9 +337,10 @@ async fn disabled_rule_turns_an_unstarted_claim_into_a_skipped_run(pool: PgPool)
         .await
         .unwrap();
     timers.claim_due(now).await.unwrap().unwrap();
+    let expected_updated_at = rule.updated_at;
     rule.set_enabled(false);
     PgAutomationRuleRepo::new(pool.clone())
-        .update_rule(&rule)
+        .update_rule(&rule, expected_updated_at)
         .await
         .unwrap();
 
