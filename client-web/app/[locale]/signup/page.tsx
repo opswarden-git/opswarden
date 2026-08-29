@@ -7,49 +7,21 @@ import { StepCredentials } from "@/components/onboarding/StepCredentials";
 import { StepTeam } from "@/components/onboarding/StepTeam";
 import { StepVerification } from "@/components/onboarding/StepVerification";
 import type { OnboardingData, UpdateOnboardingData } from "@/components/onboarding/types";
+import {
+  persistOnboardingDraft,
+  readOnboardingDraft,
+} from "@/components/onboarding/onboardingDraft";
 import { useTranslations } from "next-intl";
-
-const STORAGE_KEY = "opswarden_onboarding_draft";
-
-function getInitialOnboardingState(): { step: number; data: OnboardingData } {
-  const defaultData: OnboardingData = {
-    email: "",
-    password: "",
-    mode: "create",
-    teamName: "",
-    invitationCode: "",
-  };
-  if (typeof window === "undefined") return { step: 1, data: defaultData };
-  try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        step:
-          typeof parsed.step === "number" && parsed.step >= 1 && parsed.step <= 3 ? parsed.step : 1,
-        data: { ...defaultData, ...(parsed.data || {}) },
-      };
-    }
-  } catch {
-    // Ignore storage read error
-  }
-  return { step: 1, data: defaultData };
-}
 
 export default function SignupPage() {
   const t = useTranslations("Auth");
   const tOnboarding = useTranslations("Onboarding");
-  const [initialState] = useState(getInitialOnboardingState);
-  const [step, setStep] = useState(initialState.step);
-  const [data, setData] = useState<OnboardingData>(initialState.data);
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState<OnboardingData>(readOnboardingDraft);
 
   React.useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, data }));
-    } catch {
-      // Ignore storage write error
-    }
-  }, [step, data]);
+    persistOnboardingDraft(data);
+  }, [data]);
 
   const updateData: UpdateOnboardingData = (fields) => {
     setData((prev) => ({ ...prev, ...fields }));
