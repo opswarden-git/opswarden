@@ -4,7 +4,7 @@ set -euo pipefail
 api_origin=${OPSWARDEN_API_ORIGIN:-http://localhost:8080}
 webhook_secret=${OPSWARDEN_DEMO_WEBHOOK_SECRET:-opswarden-demo-webhook-secret}
 connection_id=${OPSWARDEN_CONNECTION_ID:-}
-automation_team_id=${OPSWARDEN_DEMO_TEAM_ID:-39aa8884-22cc-4764-a9e7-7df7c7619ba6}
+automation_team_id=${OPSWARDEN_DEMO_TEAM_ID:-50000000-0000-4000-8000-000000000001}
 demo_email=${OPSWARDEN_DEMO_EMAIL:-manager@opswarden.local}
 demo_password=${OPSWARDEN_DEMO_PASSWORD:-sudo}
 delivery_id=${OPSWARDEN_DELIVERY_ID:-$(uuidgen)}

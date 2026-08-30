@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 const releasesUrl = `/en/teams/${TEAM_ID}/releases`;
-const BLOCKED_RELEASE_ID = "30000000-0000-4000-8000-000000000001";
-const ACTIVE_RELEASE_ID = "30000000-0000-4000-8000-000000000003";
+const BLOCKED_RELEASE_ID = "54000000-0000-4000-8000-000000000001";
+const ACTIVE_RELEASE_ID = "54000000-0000-4000-8000-000000000003";
 
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
@@ -56,7 +56,7 @@ test.describe("Release queue", () => {
       ).toBeVisible();
 
       await container.getByRole("link", { name: "v2.8.0 — Payment resilience" }).click();
-      await expect(page).toHaveURL(/releases\/30000000-0000-4000-8000-000000000001\?view=blocked/);
+      await expect(page).toHaveURL(/releases\/54000000-0000-4000-8000-000000000001\?view=blocked/);
       await expect(
         page.getByRole("heading", { name: "v2.8.0 — Payment resilience" }).first(),
       ).toBeVisible();

@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 const SECRET = "e2e-alertmanager-secret";
 const runtimeConfig = resolve(__dirname, "../../target/e2e-alertmanager/alertmanager.yml");
 

@@ -19,15 +19,22 @@ impl SmtpEmailSender {
         Self
     }
 
-    /// Build an authenticated, timeout-bounded STARTTLS transport. Shared by the
-    /// connection test and the REAction so both exercise the same handshake.
+    /// Build an authenticated, timeout-bounded encrypted transport. Port 465
+    /// uses implicit TLS; submission ports such as 587 require STARTTLS. Shared
+    /// by the connection test and the reaction so both exercise the same
+    /// handshake.
     fn transport(config: &SmtpConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, DomainError> {
         let credentials = Credentials::new(config.username.clone(), config.password.clone());
-        let transport = AsyncSmtpTransport::<Tokio1Executor>::relay(&config.host)
-            .map_err(|error| {
-                error!("Invalid SMTP host {}: {}", config.host, error);
-                DomainError::EmailTransportError
-            })?
+        let builder = if config.port == 465 {
+            AsyncSmtpTransport::<Tokio1Executor>::relay(&config.host)
+        } else {
+            AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.host)
+        }
+        .map_err(|error| {
+            error!("Invalid SMTP host {}: {}", config.host, error);
+            DomainError::EmailTransportError
+        })?;
+        let transport = builder
             .port(config.port)
             .credentials(credentials)
             .timeout(Some(SMTP_TIMEOUT))
