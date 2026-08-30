@@ -45,26 +45,39 @@ impl From<WebhookJobRow> for ClaimedWebhookJob {
 #[async_trait]
 impl WebhookJobRepo for PgWebhookJobRepo {
     async fn enqueue(&self, job: &WebhookJob) -> Result<bool, DomainError> {
-        let result = sqlx::query(
-            r#"
-            INSERT INTO webhook_jobs (
-                id, connection_id, expected_service, provider_delivery_id,
-                provider_event, body
+        Ok(self.enqueue_batch(std::slice::from_ref(job)).await?[0])
+    }
+
+    async fn enqueue_batch(&self, jobs: &[WebhookJob]) -> Result<Vec<bool>, DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let mut accepted = Vec::with_capacity(jobs.len());
+        for job in jobs {
+            let result = sqlx::query(
+                r#"
+                INSERT INTO webhook_jobs (
+                    id, connection_id, expected_service, provider_delivery_id,
+                    provider_event, body
+                )
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (connection_id, provider_delivery_id) DO NOTHING
+                "#,
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (connection_id, provider_delivery_id) DO NOTHING
-            "#,
-        )
-        .bind(job.id)
-        .bind(job.connection_id)
-        .bind(&job.expected_service)
-        .bind(&job.provider_delivery_id)
-        .bind(&job.provider_event)
-        .bind(&job.body)
-        .execute(&self.pool)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-        Ok(result.rows_affected() == 1)
+            .bind(job.id)
+            .bind(job.connection_id)
+            .bind(&job.expected_service)
+            .bind(&job.provider_delivery_id)
+            .bind(&job.provider_event)
+            .bind(&job.body)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+            accepted.push(result.rows_affected() == 1);
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(accepted)
     }
 
     async fn claim(&self, limit: u32) -> Result<Vec<ClaimedWebhookJob>, DomainError> {
@@ -176,7 +189,14 @@ mod tests {
     async fn queue_deduplicates_and_fences_a_reclaimed_job(pool: PgPool) {
         let repo = PgWebhookJobRepo::new(pool.clone());
         let job = job(&pool, "queue-reclaim").await;
-        assert!(repo.enqueue(&job).await.unwrap());
+        let duplicate = WebhookJob {
+            id: Uuid::new_v4(),
+            ..job.clone()
+        };
+        assert_eq!(
+            repo.enqueue_batch(&[job.clone(), duplicate]).await.unwrap(),
+            vec![true, false]
+        );
         assert!(!repo.enqueue(&job).await.unwrap());
 
         let stale = repo.claim(1).await.unwrap().pop().unwrap();
@@ -202,6 +222,31 @@ mod tests {
                 .unwrap();
         assert_eq!(status, "completed");
         assert_eq!(body_len, 0);
+    }
+
+    #[sqlx::test]
+    async fn invalid_batch_item_rolls_back_every_job(pool: PgPool) {
+        let repo = PgWebhookJobRepo::new(pool.clone());
+        let first = job(&pool, "queue-rollback").await;
+        let invalid = WebhookJob {
+            id: Uuid::new_v4(),
+            connection_id: Uuid::new_v4(),
+            provider_delivery_id: "invalid-foreign-connection".to_string(),
+            ..first.clone()
+        };
+
+        assert_eq!(
+            repo.enqueue_batch(&[first.clone(), invalid])
+                .await
+                .unwrap_err(),
+            DomainError::Storage
+        );
+        let count: i64 = sqlx::query_scalar("SELECT count(*) FROM webhook_jobs WHERE id = $1")
+            .bind(first.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
     }
 
     #[sqlx::test]

@@ -213,6 +213,7 @@ pub struct ClaimedWebhookJob {
 #[async_trait]
 pub trait WebhookJobRepo: Send + Sync {
     async fn enqueue(&self, job: &WebhookJob) -> Result<bool, DomainError>;
+    async fn enqueue_batch(&self, jobs: &[WebhookJob]) -> Result<Vec<bool>, DomainError>;
     async fn claim(&self, limit: u32) -> Result<Vec<ClaimedWebhookJob>, DomainError>;
     async fn complete(&self, claim: &ClaimedWebhookJob) -> Result<bool, DomainError>;
     async fn retry(&self, claim: &ClaimedWebhookJob, error_code: &str)

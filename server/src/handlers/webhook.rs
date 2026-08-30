@@ -182,18 +182,19 @@ async fn receive_alertmanager(
         rules_triggered: 0,
         rules_failed: 0,
     };
-    for transition in transitions {
-        let result = state
-            .webhook_ingress
-            .accept(IngestTeamWebhookCommand {
-                connection_id,
-                expected_service: ALERTMANAGER_SERVICE,
-                provider_delivery_id: transition.delivery_id,
-                provider_event: "alertmanager_webhook".to_string(),
-                signature: signature.clone(),
-                body: transition.body,
-            })
-            .await?;
+    let commands = transitions
+        .into_iter()
+        .map(|transition| IngestTeamWebhookCommand {
+            connection_id,
+            expected_service: ALERTMANAGER_SERVICE,
+            provider_delivery_id: transition.delivery_id,
+            provider_event: "alertmanager_webhook".to_string(),
+            signature: signature.clone(),
+            body: transition.body,
+        })
+        .collect();
+    let results = state.webhook_ingress.accept_batch(commands).await?;
+    for result in results {
         state.alertmanager_metrics.record(result_outcome(&result));
         receipt.transitions_duplicate += usize::from(result.duplicate);
         receipt.transitions_ignored += usize::from(result.ignored);

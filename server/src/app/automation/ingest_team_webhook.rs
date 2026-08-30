@@ -308,6 +308,10 @@ pub trait TeamWebhookIngress: Send + Sync {
         &self,
         cmd: IngestTeamWebhookCommand,
     ) -> Result<IngestTeamWebhookResult, DomainError>;
+    async fn accept_batch(
+        &self,
+        commands: Vec<IngestTeamWebhookCommand>,
+    ) -> Result<Vec<IngestTeamWebhookResult>, DomainError>;
 }
 
 #[async_trait::async_trait]
@@ -317,6 +321,17 @@ impl TeamWebhookIngress for IngestTeamWebhookUseCase {
         cmd: IngestTeamWebhookCommand,
     ) -> Result<IngestTeamWebhookResult, DomainError> {
         self.ingest(cmd).await
+    }
+
+    async fn accept_batch(
+        &self,
+        commands: Vec<IngestTeamWebhookCommand>,
+    ) -> Result<Vec<IngestTeamWebhookResult>, DomainError> {
+        let mut results = Vec::with_capacity(commands.len());
+        for command in commands {
+            results.push(self.ingest(command).await?);
+        }
+        Ok(results)
     }
 }
 
@@ -340,27 +355,46 @@ impl TeamWebhookIngress for DurableTeamWebhookIngress {
         &self,
         cmd: IngestTeamWebhookCommand,
     ) -> Result<IngestTeamWebhookResult, DomainError> {
-        self.use_case.authenticate(&cmd).await?;
-        let delivery = WebhookDelivery::new(
-            cmd.connection_id,
-            cmd.provider_delivery_id,
-            cmd.provider_event,
-        )?;
-        let job = WebhookJob {
-            id: Uuid::new_v4(),
-            connection_id: cmd.connection_id,
-            expected_service: cmd.expected_service.to_string(),
-            provider_delivery_id: delivery.provider_delivery_id,
-            provider_event: delivery.provider_event,
-            body: cmd.body,
-        };
-        let accepted = self.jobs.enqueue(&job).await?;
-        Ok(IngestTeamWebhookResult {
-            duplicate: !accepted,
-            ignored: false,
-            rules_triggered: 0,
-            rules_failed: 0,
-        })
+        self.accept_batch(vec![cmd])
+            .await?
+            .into_iter()
+            .next()
+            .ok_or(DomainError::Storage)
+    }
+
+    async fn accept_batch(
+        &self,
+        commands: Vec<IngestTeamWebhookCommand>,
+    ) -> Result<Vec<IngestTeamWebhookResult>, DomainError> {
+        let mut jobs = Vec::with_capacity(commands.len());
+        for cmd in commands {
+            self.use_case.authenticate(&cmd).await?;
+            let delivery = WebhookDelivery::new(
+                cmd.connection_id,
+                cmd.provider_delivery_id,
+                cmd.provider_event,
+            )?;
+            jobs.push(WebhookJob {
+                id: Uuid::new_v4(),
+                connection_id: cmd.connection_id,
+                expected_service: cmd.expected_service.to_string(),
+                provider_delivery_id: delivery.provider_delivery_id,
+                provider_event: delivery.provider_event,
+                body: cmd.body,
+            });
+        }
+        Ok(self
+            .jobs
+            .enqueue_batch(&jobs)
+            .await?
+            .into_iter()
+            .map(|accepted| IngestTeamWebhookResult {
+                duplicate: !accepted,
+                ignored: false,
+                rules_triggered: 0,
+                rules_failed: 0,
+            })
+            .collect())
     }
 }
 
