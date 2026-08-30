@@ -1,12 +1,11 @@
 // --- server/src/app/team/join_team.rs ---
 use std::sync::Arc;
 
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::team::Role;
-use crate::ports::TeamRepo;
+use crate::ports::{Clock, TeamRepo};
 
 pub struct JoinTeamCommand {
     pub invitation_code: String,
@@ -21,6 +20,7 @@ pub struct JoinTeamResult {
 
 pub struct JoinTeamUseCase {
     teams: Arc<dyn TeamRepo>,
+    clock: Arc<dyn Clock>,
 }
 
 /// Role granted to anyone joining via invitation code: least privilege first.
@@ -28,8 +28,8 @@ pub struct JoinTeamUseCase {
 const JOIN_ROLE: Role = Role::Observer;
 
 impl JoinTeamUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>) -> Self {
-        Self { teams }
+    pub fn new(teams: Arc<dyn TeamRepo>, clock: Arc<dyn Clock>) -> Self {
+        Self { teams, clock }
     }
 
     /// Join a team from its invitation code as an `Observer`. Unknown codes are
@@ -45,7 +45,7 @@ impl JoinTeamUseCase {
         // An active ban blocks (re)joining. An expired temporary ban does not —
         // the row may linger, but `is_active` gates on its expiry.
         if let Some(ban) = self.teams.find_ban(team.id, cmd.user_id).await? {
-            if ban.is_active(Utc::now()) {
+            if ban.is_active(self.clock.now()) {
                 return Err(DomainError::UserBanned);
             }
         }

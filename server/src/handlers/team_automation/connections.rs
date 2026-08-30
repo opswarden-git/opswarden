@@ -265,7 +265,7 @@ pub async fn start_github_oauth(
             requester_id: session.user_id,
             locale: locale.to_string(),
             code_verifier,
-            exp: (Utc::now() + Duration::minutes(10)).timestamp() as usize,
+            exp: (state.clock.now() + Duration::minutes(10)).timestamp() as usize,
         },
         &EncodingKey::from_secret(state.config.jwt_secret.as_bytes()),
     )

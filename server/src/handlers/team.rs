@@ -111,13 +111,17 @@ pub async fn add_member(
     Path(team_id): Path<Uuid>,
     Json(payload): Json<AddMemberPayload>,
 ) -> Result<StatusCode, DomainError> {
-    AddMemberUseCase::new(state.teams.clone(), state.users.clone())
-        .add_member(AddMemberCommand {
-            team_id,
-            requester_id: session.user_id,
-            target_user_id: payload.user_id,
-        })
-        .await?;
+    AddMemberUseCase::new(
+        state.teams.clone(),
+        state.users.clone(),
+        state.clock.clone(),
+    )
+    .add_member(AddMemberCommand {
+        team_id,
+        requester_id: session.user_id,
+        target_user_id: payload.user_id,
+    })
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -230,7 +234,7 @@ pub async fn join_team(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<JoinTeamPayload>,
 ) -> Result<Json<JoinTeamResponse>, DomainError> {
-    let use_case = JoinTeamUseCase::new(state.teams.clone());
+    let use_case = JoinTeamUseCase::new(state.teams.clone(), state.clock.clone());
     let result = use_case
         .join_team(JoinTeamCommand {
             invitation_code: payload.invitation_code,
@@ -368,6 +372,7 @@ pub async fn ban_member(
         state.teams.clone(),
         state.users.clone(),
         state.events.clone(),
+        state.clock.clone(),
     );
     let result = use_case
         .ban_member(BanMemberCommand {

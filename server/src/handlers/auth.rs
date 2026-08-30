@@ -74,7 +74,7 @@ pub async fn sign_in(
     // account the credentials are being guessed against. Lowercased and trimmed
     // so neither casing nor padding buys a fresh budget.
     let account_key = format!("account:{}", payload.email.trim().to_lowercase());
-    let now = chrono::Utc::now();
+    let now = state.clock.now();
 
     if let crate::adapters::rate_limit::Decision::Deny { .. } =
         state.account_rate_limiter.peek(&account_key, now)

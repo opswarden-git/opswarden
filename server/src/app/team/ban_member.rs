@@ -16,7 +16,7 @@ use crate::domain::event::DomainEvent;
 #[cfg(test)]
 use crate::domain::team::Role;
 use crate::domain::team::{validate_member_moderation, TeamBan};
-use crate::ports::{EventPublisher, TeamRepo, UserRepo};
+use crate::ports::{Clock, EventPublisher, TeamRepo, UserRepo};
 
 /// What the caller asked for; the use-case turns it into a validated `TeamBan`.
 pub enum BanRequest {
@@ -45,6 +45,7 @@ pub struct BanMemberUseCase {
     teams: Arc<dyn TeamRepo>,
     users: Arc<dyn UserRepo>,
     events: Arc<dyn EventPublisher>,
+    clock: Arc<dyn Clock>,
 }
 
 impl BanMemberUseCase {
@@ -52,11 +53,13 @@ impl BanMemberUseCase {
         teams: Arc<dyn TeamRepo>,
         users: Arc<dyn UserRepo>,
         events: Arc<dyn EventPublisher>,
+        clock: Arc<dyn Clock>,
     ) -> Self {
         Self {
             teams,
             users,
             events,
+            clock,
         }
     }
 
@@ -84,13 +87,15 @@ impl BanMemberUseCase {
             return Err(DomainError::UserNotFound);
         }
 
+        let now = self.clock.now();
         let ban = match cmd.request {
-            BanRequest::Temporary { expires_at } => TeamBan::temporary(
+            BanRequest::Temporary { expires_at } => TeamBan::temporary_at(
                 cmd.team_id,
                 cmd.target_user_id,
                 cmd.requester_id,
                 expires_at,
                 cmd.reason,
+                now,
             )?,
             BanRequest::Permanent => TeamBan::permanent(
                 cmd.team_id,

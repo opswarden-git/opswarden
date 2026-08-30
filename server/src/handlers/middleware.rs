@@ -34,7 +34,7 @@ pub async fn rate_limit_auth(
 
     match state
         .auth_rate_limiter
-        .check(&format!("addr:{caller}"), Utc::now())
+        .check(&format!("addr:{caller}"), state.clock.now())
     {
         Decision::Allow => next.run(req).await,
         Decision::Deny {

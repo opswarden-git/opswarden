@@ -288,14 +288,15 @@ pub struct TeamBanView {
 impl TeamBan {
     /// A temporary ban. Rejected if `expires_at` is not in the future (a ban
     /// that expired the moment it was created would be meaningless).
-    pub fn temporary(
+    pub fn temporary_at(
         team_id: Uuid,
         user_id: Uuid,
         created_by: Uuid,
         expires_at: DateTime<Utc>,
         reason: Option<String>,
+        now: DateTime<Utc>,
     ) -> Result<Self, DomainError> {
-        if expires_at <= Utc::now() {
+        if expires_at <= now {
             return Err(DomainError::InvalidBanExpiry);
         }
         Ok(Self {
@@ -304,8 +305,18 @@ impl TeamBan {
             kind: BanKind::Temporary { expires_at },
             reason,
             created_by: Some(created_by),
-            created_at: Utc::now(),
+            created_at: now,
         })
+    }
+
+    pub fn temporary(
+        team_id: Uuid,
+        user_id: Uuid,
+        created_by: Uuid,
+        expires_at: DateTime<Utc>,
+        reason: Option<String>,
+    ) -> Result<Self, DomainError> {
+        Self::temporary_at(team_id, user_id, created_by, expires_at, reason, Utc::now())
     }
 
     /// A permanent ban (no expiry).

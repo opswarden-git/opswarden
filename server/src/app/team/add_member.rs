@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::team::Role;
-use crate::ports::{TeamRepo, UserRepo};
+use crate::ports::{Clock, TeamRepo, UserRepo};
 
 pub struct AddMemberCommand {
     pub team_id: Uuid,
@@ -17,11 +16,16 @@ pub struct AddMemberCommand {
 pub struct AddMemberUseCase {
     teams: Arc<dyn TeamRepo>,
     users: Arc<dyn UserRepo>,
+    clock: Arc<dyn Clock>,
 }
 
 impl AddMemberUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>, users: Arc<dyn UserRepo>) -> Self {
-        Self { teams, users }
+    pub fn new(teams: Arc<dyn TeamRepo>, users: Arc<dyn UserRepo>, clock: Arc<dyn Clock>) -> Self {
+        Self {
+            teams,
+            users,
+            clock,
+        }
     }
 
     /// Add an existing account as an Observer. Only a Manager may bypass the
@@ -48,7 +52,7 @@ impl AddMemberUseCase {
             return Err(DomainError::AlreadyMember);
         }
         if let Some(ban) = self.teams.find_ban(cmd.team_id, cmd.target_user_id).await? {
-            if ban.is_active(Utc::now()) {
+            if ban.is_active(self.clock.now()) {
                 return Err(DomainError::UserBanned);
             }
         }
