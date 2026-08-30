@@ -28,7 +28,7 @@ import {
 import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { useReleases } from "@/lib/queries/releases";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 
 export function ReleasesPage({ teamId }: { teamId: string }) {
@@ -37,15 +37,12 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
+  const { teams, role = "observer", capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
   const { data: releases, isLoading, error } = useReleases(teamId);
   const view = normalizeReleaseView(searchParams.get("view"));
   const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";
   const urlQuery = searchParams.get("q") ?? "";
-  const activeTeam = teams?.find((team) => team.team_id === teamId);
-  const role = activeTeam?.role ?? "observer";
-  const capabilities = deriveCapabilities(role);
-  const hasNoTeams = teams?.length === 0;
+  const hasNoTeams = teams.length === 0;
   const counts = releaseViewCounts(releases ?? []);
   const visibleReleases = (releases ?? [])
     .filter((release) => releaseBelongsToView(release, view))

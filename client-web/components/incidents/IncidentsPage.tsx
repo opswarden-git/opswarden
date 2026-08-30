@@ -26,7 +26,8 @@ import {
   useIncidentQueue,
 } from "@/lib/queries/incidents";
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from "@/lib/incident-contract";
-import { useTeamMembers, useTeams } from "@/lib/queries/teams";
+import { useTeamMembers } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 
 type IncidentView = "all" | IncidentStatus;
@@ -42,11 +43,9 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
+  const { teams, activeTeam, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
   const { data: members } = useTeamMembers(teamId);
-  const activeTeam = teams?.find((team) => team.team_id === teamId);
-  const capabilities = deriveCapabilities(activeTeam?.role ?? "observer");
-  const hasNoTeams = teams?.length === 0;
+  const hasNoTeams = teams.length === 0;
 
   const requestedView = searchParams.get("view") as IncidentView | null;
   const view = requestedView && VIEWS.includes(requestedView) ? requestedView : "open";

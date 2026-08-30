@@ -27,7 +27,7 @@ import {
   useAutomationRuns,
   useTeamConnections,
 } from "@/lib/queries/automations";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 import { cn } from "@/lib/utils";
 import { ConnectionsView } from "./ConnectionsView";
@@ -153,9 +153,8 @@ export function TeamAutomationsPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = resource === "integrations" ? "connections" : resource;
-  const teams = useTeams();
-  const team = teams.data?.find((candidate) => candidate.team_id === teamId);
-  const canManage = team ? deriveCapabilities(team.role).canManageAutomations : false;
+  const { activeTeam: team, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
+  const canManage = capabilities.canManageAutomations;
   const needsConfiguration = canManage && resource !== "runs";
   const catalog = useAutomationCatalog(needsConfiguration);
   const connections = useTeamConnections(teamId, needsConfiguration);
@@ -163,21 +162,27 @@ export function TeamAutomationsPage({
   const runs = useAutomationRuns(teamId, canManage && resource === "runs");
 
   const basePath = teamPath(teamId, resource);
-  const ruleStatus = ["enabled", "disabled"].includes(searchParams.get("status") ?? "")
-    ? (searchParams.get("status") as "enabled" | "disabled")
-    : "all";
-  const ruleSort = ["next_asc", "next_desc", "updated_asc", "updated_desc"].includes(
-    searchParams.get("sort") ?? "",
-  )
-    ? (searchParams.get("sort") as "next_asc" | "next_desc" | "updated_asc" | "updated_desc")
-    : "updated_desc";
+  const rawStatus = searchParams.get("status");
+  const ruleStatus: "all" | "enabled" | "disabled" =
+    rawStatus === "enabled" || rawStatus === "disabled" ? rawStatus : "all";
+  const rawSort = searchParams.get("sort");
+  const ruleSort: "next_asc" | "next_desc" | "updated_asc" | "updated_desc" =
+    rawSort === "next_asc" ||
+    rawSort === "next_desc" ||
+    rawSort === "updated_asc" ||
+    rawSort === "updated_desc"
+      ? rawSort
+      : "updated_desc";
   const runStatus = searchParams.get("status") ?? "all";
   const runRule = searchParams.get("rule") ?? "all";
   const runSort = ["duration_asc", "duration_desc", "started_asc", "started_desc"].includes(
     searchParams.get("sort") ?? "",
   )
     ? (searchParams.get("sort") as
-        "duration_asc" | "duration_desc" | "started_asc" | "started_desc")
+        | "duration_asc"
+        | "duration_desc"
+        | "started_asc"
+        | "started_desc")
     : "started_desc";
   const setParam = (name: string, value?: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -275,13 +280,13 @@ export function TeamAutomationsPage({
   );
 
   const isLoading =
-    teams.isLoading ||
+    isLoadingTeams ||
     (canManage &&
       (rules.isLoading ||
         (resource !== "runs" && (catalog.isLoading || connections.isLoading)) ||
         (resource === "runs" && runs.isLoading)));
   const hasError =
-    !!teams.error ||
+    !!teamsError ||
     !team ||
     (canManage &&
       !!(

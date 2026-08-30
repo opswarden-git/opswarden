@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Link, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { useCancelRelease, useRelease } from "@/lib/queries/releases";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 import { ReleaseDetail } from "./ReleaseDetail";
 import { ReleaseStateChip } from "./ReleaseStateChip";
@@ -66,12 +66,9 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
   const router = useRouter();
   const searchParams = useSearchParams();
   const [confirmCancel, setConfirmCancel] = React.useState(false);
-  const { data: teams, isLoading: isLoadingTeams } = useTeams();
+  const { activeTeam, role = "observer", capabilities, isLoading: isLoadingTeams } = useTeamScope();
   const { data: release, isLoading, error } = useRelease(releaseId);
   const cancelRelease = useCancelRelease();
-
-  const team = teams?.find((candidate) => candidate.team_id === teamId);
-  const capabilities = deriveCapabilities(team?.role ?? "observer");
   const view = normalizeReleaseView(searchParams.get("view"));
   const listBase = teamPath(teamId, "releases");
   const listHref = view === "active" ? listBase : `${listBase}?view=${view}`;
@@ -85,7 +82,7 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
   }, [release, router, teamId, view]);
 
   const state: PageContentState =
-    isLoadingTeams || isLoading ? "loading" : error || !release || !team ? "error" : "ready";
+    isLoadingTeams || isLoading ? "loading" : error || !release || !activeTeam ? "error" : "ready";
 
   return (
     <PageLayout>
@@ -134,7 +131,7 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
         }
       >
         {release ? (
-          <ReleaseDetail release={release} teamId={teamId} role={team?.role ?? "observer"} />
+          <ReleaseDetail release={release} teamId={teamId} role={role} />
         ) : null}
       </PageContent>
 

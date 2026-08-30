@@ -16,7 +16,7 @@ import { deriveCapabilities } from "@/lib/capabilities";
 import { useAutomationRules, useAutomationRuns } from "@/lib/queries/automations";
 import { useIncidentQueue } from "@/lib/queries/incidents";
 import { useReleases } from "@/lib/queries/releases";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "./TeamScope";
 import { teamPath } from "@/lib/team-routing";
 import { cn, formatRelativeAge } from "@/lib/utils";
 import { OperationsCalendar, type OperationsCalendarEvent } from "./OperationsCalendar";
@@ -339,11 +339,10 @@ function OverviewRunsSection({
 
 function useTeamOverviewData(teamId: string) {
   const ta = useTranslations("Automations");
-  const teams = useTeams();
+  const { activeTeam: team, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
   const incidents = useIncidentQueue(teamId, { sort: "severity" });
   const releases = useReleases(teamId);
-  const team = teams.data?.find((candidate) => candidate.team_id === teamId);
-  const canViewRuns = deriveCapabilities(team?.role ?? "observer").canManageAutomations;
+  const canViewRuns = capabilities.canManageAutomations;
   const rules = useAutomationRules(teamId, canViewRuns);
   const runs = useAutomationRuns(teamId, canViewRuns);
 
@@ -378,12 +377,12 @@ function useTeamOverviewData(teamId: string) {
   ];
 
   const state: PageContentState =
-    teams.isLoading ||
+    isLoadingTeams ||
     incidents.isLoading ||
     releases.isLoading ||
     (canViewRuns && (rules.isLoading || runs.isLoading))
       ? "loading"
-      : teams.error ||
+      : teamsError ||
           incidents.error ||
           releases.error ||
           (canViewRuns && (rules.error || runs.error)) ||
