@@ -86,22 +86,6 @@ client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
 strongly typed, PostgreSQL protects concurrent multi-user state, and Tauri adds
 native desktop behavior without introducing a second application architecture.
 
-### Collaboration limits
-
-The server owns and enforces these values. Clients mirror attachment limits for
-early feedback; server validation remains authoritative.
-
-| Rule                          | Value                                                              | Served by                                         |
-| ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------- |
-| Timeline reaction set         | 👍 👀 ✅ 🚨 ❤️ 🎉 — six emojis, anything else is rejected          | `GET /reactions/available`                        |
-| Conversation text length      | 2 000 characters                                                   | Incident timeline and private-message POST routes |
-| Attachments per message       | 4 files; 5 MiB each; 10 MiB combined                               | Incident timeline and private-message POST routes |
-| Attachment media policy       | Download-only allowlist; active HTML is rejected                   | Incident timeline and private-message POST routes |
-| Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                                     |
-
-Reactions apply only to Incident timeline entries, never to private messages or
-Release step validations.
-
 ## For developers
 
 OpsWarden is built to be run both locally for development and in the cloud for production. To get a feel for the platform on your own machine, you can launch the entire stack in just a few commands using Docker:
@@ -124,7 +108,27 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 
 ## Technical reference
 
-### Architecture
+<details>
+<summary><strong>Collaboration limits</strong></summary>
+
+The server owns and enforces these values. Clients mirror attachment limits for
+early feedback; server validation remains authoritative.
+
+| Rule                          | Value                                                              | Served by                                         |
+| ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------- |
+| Timeline reaction set         | 👍 👀 ✅ 🚨 ❤️ 🎉 — six emojis, anything else is rejected          | `GET /reactions/available`                        |
+| Conversation text length      | 2 000 characters                                                   | Incident timeline and private-message POST routes |
+| Attachments per message       | 4 files; 5 MiB each; 10 MiB combined                               | Incident timeline and private-message POST routes |
+| Attachment media policy       | Download-only allowlist; active HTML is rejected                   | Incident timeline and private-message POST routes |
+| Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                                     |
+
+Reactions apply only to Incident timeline entries, never to private messages or
+Release step validations.
+
+</details>
+
+<details>
+<summary><strong>Architecture</strong></summary>
 
 The Rust server owns authorization, lifecycle rules and persistence. The web
 and desktop clients consume the same HTTP and WebSocket contracts; the desktop
@@ -157,7 +161,10 @@ flowchart LR
     Hub -->|scoped updates| Desktop
 ```
 
-### Codebase navigation
+</details>
+
+<details>
+<summary><strong>Codebase navigation</strong></summary>
 
 | Concern                          | Location                                                                                           | Responsibility                                                                        |
 | -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -173,6 +180,8 @@ flowchart LR
 | Next.js routes and UI            | [`client-web/app`](client-web/app), [`client-web/components`](client-web/components)               | Locale-aware pages, product views and accessible primitives                           |
 | Client data and realtime         | [`client-web/lib/queries`](client-web/lib/queries), [`client-web/lib/ws.ts`](client-web/lib/ws.ts) | Typed HTTP access, caching and WebSocket synchronization                              |
 | Desktop shell                    | [`client-desktop/src-tauri`](client-desktop/src-tauri)                                             | Tauri packaging, native window behavior and notifications                             |
+
+</details>
 
 <details>
 <summary><strong>REST API reference</strong></summary>
