@@ -21,7 +21,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const safeLocale = routing.locales.includes(locale as "en" | "fr") ? locale : "en";
+  const safeLocale = isAppLocale(locale) ? locale : routing.defaultLocale;
   const t = await getTranslations({ locale: safeLocale, namespace: "Metadata" });
   return {
     applicationName: "OpsWarden",
