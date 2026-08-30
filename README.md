@@ -324,7 +324,14 @@ authoritative schema.
 
 </details>
 
-For deeper setup and operational guidance, see the [technical documentation](https://opswarden-git.github.io/opswarden/), the [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/), the expanded [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and the [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
+For deeper setup and operational guidance, please see:
+- [Technical documentation](https://opswarden-git.github.io/opswarden/)
+- [WebSocket protocol](WEBSOCKET_SPEC.md)
+
+And please follow the rules and design standards stated in:
+- [Design system](DESIGN_SYSTEM.md)
+- [UI guidelines](UI_GUIDELINES.md)
+- [Contribution guide](HOWTOCONTRIBUTE.md)
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
