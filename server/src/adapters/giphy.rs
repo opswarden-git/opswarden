@@ -20,10 +20,16 @@ impl GiphyClient {
     /// `base_url` is the GIPHY API root (e.g. `https://api.giphy.com`); it is a
     /// parameter so tests can point the client at a local fake server.
     pub fn new(api_key: Option<String>, base_url: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::limited(3))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         Self {
             api_key,
             base_url,
-            client: reqwest::Client::new(),
+            client,
         }
     }
 }

@@ -12,6 +12,15 @@ pub struct GoogleOAuthClient {
     redirect_uri: String,
 }
 
+fn hardened_oauth_http_client() -> Client {
+    Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
+
 impl GoogleOAuthClient {
     pub fn new(
         client_id: Option<String>,
@@ -19,7 +28,7 @@ impl GoogleOAuthClient {
         redirect_uri: String,
     ) -> Self {
         Self {
-            client: Client::new(),
+            client: hardened_oauth_http_client(),
             client_id,
             client_secret,
             redirect_uri,
@@ -126,7 +135,7 @@ impl GithubOAuthClient {
         redirect_uri: String,
     ) -> Self {
         Self {
-            client: Client::new(),
+            client: hardened_oauth_http_client(),
             client_id,
             client_secret,
             redirect_uri,
@@ -256,7 +265,7 @@ impl GithubServiceOAuthClient {
         redirect_uri: String,
     ) -> Self {
         Self {
-            client: Client::new(),
+            client: hardened_oauth_http_client(),
             client_id,
             client_secret,
             redirect_uri,
