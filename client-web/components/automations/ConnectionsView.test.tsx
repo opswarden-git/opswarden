@@ -115,7 +115,7 @@ describe("ConnectionsView", () => {
     );
   });
 
-  it("shows only management actions for an active OAuth connection", () => {
+  it("keeps active OAuth management compact while allowing explicit reconfiguration", () => {
     const service = {
       name: "github",
       label: "GitHub",
@@ -155,7 +155,11 @@ describe("ConnectionsView", () => {
     expect(screen.getByRole("button", { name: "disconnect" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "connect" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Authorize with GitHub" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "refreshOAuthToken" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "refreshOAuthToken" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "reconfigure" }));
+    expect(screen.getByRole("button", { name: "Authorize with GitHub" })).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "reconfigureService GitHub" })).toBeInTheDocument();
   });
 
   it("labels an untested outbound connection as ready instead of awaiting an event", () => {

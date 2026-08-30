@@ -1,6 +1,7 @@
 use axum::{
     extract::{ConnectInfo, Query, State},
-    http::{header::HeaderName, HeaderMap},
+    http::{header, header::HeaderName, HeaderMap, HeaderValue},
+    response::Response,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -127,6 +128,45 @@ pub(crate) fn canonical_ip(ip: IpAddr) -> IpAddr {
             .map(IpAddr::V4)
             .unwrap_or(IpAddr::V6(ipv6)),
         ipv4 => ipv4,
+    }
+}
+
+/// OAuth state cookies may remain usable over plain HTTP on loopback during
+/// development, but must never be sent over an unencrypted production callback.
+pub(crate) fn oauth_cookie_secure_suffix(callback_uri: &str) -> &'static str {
+    if callback_uri.starts_with("https://") {
+        "; Secure"
+    } else {
+        ""
+    }
+}
+
+/// OAuth redirects contain per-request state and, after login, a bearer token.
+/// Explicitly prevent CDNs and browsers from retaining either response.
+pub(crate) fn disable_oauth_response_caching(response: &mut Response) {
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, max-age=0"),
+    );
+    response
+        .headers_mut()
+        .insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+}
+
+#[cfg(test)]
+mod oauth_cookie_tests {
+    use super::oauth_cookie_secure_suffix;
+
+    #[test]
+    fn oauth_state_cookie_is_secure_exactly_for_https_callbacks() {
+        assert_eq!(
+            oauth_cookie_secure_suffix("https://app.opswarden.dev/api/auth/google/callback"),
+            "; Secure"
+        );
+        assert_eq!(
+            oauth_cookie_secure_suffix("http://localhost:8080/api/auth/google/callback"),
+            ""
+        );
     }
 }
 

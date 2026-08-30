@@ -7,6 +7,7 @@ use crate::app::auth::{
 use crate::domain::error::DomainError;
 use crate::domain::user::Locale;
 use crate::handlers::middleware::AuthenticatedSession;
+use crate::handlers::{disable_oauth_response_caching, oauth_cookie_secure_suffix};
 use crate::AppState;
 use axum::{
     extract::{Extension, Query, State},
@@ -219,15 +220,18 @@ pub async fn google_start(
     };
     let state_token = format!("{}:{locale}", Uuid::new_v4());
     let auth_url = state.oauth.authorization_url(&state_token)?;
+    let secure = oauth_cookie_secure_suffix(&state.config.google_oauth_redirect_uri);
 
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
         HeaderValue::from_str(&format!(
-            "opswarden_oauth_state={state_token}; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=600"
+            "opswarden_oauth_state={state_token}; HttpOnly; SameSite=Lax; \
+             Path=/api/auth/google; Max-Age=600{secure}"
         ))
         .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -278,13 +282,17 @@ pub async fn google_callback(
         state.config.web_origin.trim_end_matches('/'),
         result.token
     );
+    let secure = oauth_cookie_secure_suffix(&state.config.google_oauth_redirect_uri);
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_static(
-            "opswarden_oauth_state=; HttpOnly; SameSite=Lax; Path=/api/auth/google; Max-Age=0",
-        ),
+        HeaderValue::from_str(&format!(
+            "opswarden_oauth_state=; HttpOnly; SameSite=Lax; \
+             Path=/api/auth/google; Max-Age=0{secure}"
+        ))
+        .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -302,15 +310,7 @@ pub async fn github_start(
     };
     let state_token = format!("{}:{locale}", Uuid::new_v4());
     let auth_url = state.github_auth_oauth.authorization_url(&state_token)?;
-    let secure = if state
-        .config
-        .github_auth_redirect_uri
-        .starts_with("https://")
-    {
-        "; Secure"
-    } else {
-        ""
-    };
+    let secure = oauth_cookie_secure_suffix(&state.config.github_auth_redirect_uri);
 
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
@@ -321,6 +321,7 @@ pub async fn github_start(
         ))
         .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -362,14 +363,17 @@ pub async fn github_callback(
         state.config.web_origin.trim_end_matches('/'),
         result.token
     );
+    let secure = oauth_cookie_secure_suffix(&state.config.github_auth_redirect_uri);
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_static(
+        HeaderValue::from_str(&format!(
             "opswarden_github_auth_state=; HttpOnly; SameSite=Lax; \
-             Path=/api/auth/github; Max-Age=0",
-        ),
+             Path=/api/auth/github; Max-Age=0{secure}"
+        ))
+        .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 

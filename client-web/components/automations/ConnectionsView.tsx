@@ -22,6 +22,7 @@ import {
   type TeamConnection,
   useConfigureTeamConnection,
   useDeleteTeamConnection,
+  useRefreshServiceOAuth,
   useStartServiceOAuth,
   useTestTeamConnection,
 } from "@/lib/queries/automations";
@@ -91,11 +92,13 @@ function ConnectionStatus({ connection }: { connection: TeamConnection }) {
 }
 
 function ConnectionForm({
+  connection,
   id,
   onClose,
   service,
   teamId,
 }: {
+  connection?: TeamConnection;
   id: string;
   onClose: () => void;
   service: AutomationService;
@@ -108,12 +111,16 @@ function ConnectionForm({
   const [values, setValues] = useState(() => catalogValues(fields));
   const configure = useConfigureTeamConnection(teamId);
   const startOAuth = useStartServiceOAuth(teamId);
-  const valid = catalogFieldsAreValid(fields, values);
+  const valid = catalogFieldsAreValid(fields, values, !!connection);
 
   return (
     <form
       id={id}
-      aria-label={t("connectService", { service: service.label })}
+      aria-label={
+        connection
+          ? t("reconfigureService", { service: service.label })
+          : t("connectService", { service: service.label })
+      }
       className="px-4 py-4"
       onSubmit={(event) => {
         event.preventDefault();
@@ -197,6 +204,9 @@ function ConnectionForm({
             ) : null}
           </div>
         </div>
+        {connection && fields.length > 0 ? (
+          <p className="text-muted text-xs">{t("blankPreservesExisting")}</p>
+        ) : null}
         {startOAuth.error ? (
           <Alert tone="danger">
             {t("requestFailed", { code: errorText(startOAuth.error.message) })}
@@ -227,8 +237,10 @@ export function ConnectionsView({
   const errorText = useErrorText();
   const locale = useLocale();
   const [editing, setEditing] = useState<string | null>(null);
+  const [configuring, setConfiguring] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TeamConnection | null>(null);
   const testConnection = useTestTeamConnection(teamId);
+  const refreshOAuth = useRefreshServiceOAuth(teamId);
   const deleteConnection = useDeleteTeamConnection(teamId);
   const services = connectableServices(catalog);
   const integrations = services.map((service) => ({
@@ -304,7 +316,10 @@ export function ConnectionsView({
                           }
                           aria-expanded={isExpanded}
                           aria-controls={panelId}
-                          onClick={() => setEditing(isExpanded ? null : service.name)}
+                          onClick={() => {
+                            setEditing(isExpanded ? null : service.name);
+                            setConfiguring(null);
+                          }}
                         >
                           <ChevronRight
                             className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`}
@@ -355,6 +370,16 @@ export function ConnectionsView({
                                   </div>
                                 </dl>
                                 <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      setConfiguring((current) =>
+                                        current === service.name ? null : service.name,
+                                      )
+                                    }
+                                  >
+                                    {t("reconfigure")}
+                                  </Button>
                                   {service.connection?.testable ? (
                                     <Button
                                       size="sm"
@@ -365,6 +390,19 @@ export function ConnectionsView({
                                       }
                                     >
                                       {t("test")}
+                                    </Button>
+                                  ) : null}
+                                  {connection.oauth_refresh_configured &&
+                                  service.connection?.oauth ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => refreshOAuth.mutate(connection.id)}
+                                      loading={
+                                        refreshOAuth.isPending &&
+                                        refreshOAuth.variables === connection.id
+                                      }
+                                    >
+                                      {t("refreshOAuthToken")}
                                     </Button>
                                   ) : null}
                                   <Button
@@ -399,6 +437,22 @@ export function ConnectionsView({
                               {testConnection.isSuccess &&
                               testConnection.variables === connection.id ? (
                                 <Alert tone="success">{t("testSucceeded")}</Alert>
+                              ) : null}
+                              {refreshOAuth.error && refreshOAuth.variables === connection.id ? (
+                                <Alert tone="danger">
+                                  {t("requestFailed", {
+                                    code: errorText(refreshOAuth.error.message),
+                                  })}
+                                </Alert>
+                              ) : null}
+                              {configuring === service.name ? (
+                                <ConnectionForm
+                                  id={`${panelId}-form`}
+                                  teamId={teamId}
+                                  service={service}
+                                  connection={connection}
+                                  onClose={() => setConfiguring(null)}
+                                />
                               ) : null}
                             </div>
                           ) : null}

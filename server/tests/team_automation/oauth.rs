@@ -17,6 +17,7 @@ async fn github_oauth_flow_stores_tokens_without_returning_them() {
         .await
         .unwrap();
     assert_eq!(start.status(), StatusCode::OK);
+    assert_eq!(start.headers().get("cache-control").unwrap(), "no-store, max-age=0");
     let set_cookie = start
         .headers()
         .get("set-cookie")
@@ -56,6 +57,10 @@ async fn github_oauth_flow_stores_tokens_without_returning_them() {
         .await
         .unwrap();
     assert!(callback.status().is_redirection());
+    assert_eq!(
+        callback.headers().get("cache-control").unwrap(),
+        "no-store, max-age=0"
+    );
     let location = callback
         .headers()
         .get("location")

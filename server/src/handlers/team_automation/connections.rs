@@ -22,6 +22,7 @@ use crate::app::automation::{
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
+use crate::handlers::{disable_oauth_response_caching, oauth_cookie_secure_suffix};
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -281,15 +282,7 @@ pub async fn start_github_oauth(
         &EncodingKey::from_secret(state.config.jwt_secret.as_bytes()),
     )
     .map_err(|_| DomainError::OAuthFailed)?;
-    let secure = if state
-        .config
-        .github_oauth_redirect_uri
-        .starts_with("https://")
-    {
-        "; Secure"
-    } else {
-        ""
-    };
+    let secure = oauth_cookie_secure_suffix(&state.config.github_oauth_redirect_uri);
     let mut response = Json(StartGithubOAuthResponse { authorization_url }).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
@@ -299,6 +292,7 @@ pub async fn start_github_oauth(
         ))
         .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -355,14 +349,17 @@ pub async fn github_oauth_callback(
         claims.locale,
         claims.team_id
     );
+    let secure = oauth_cookie_secure_suffix(&state.config.github_oauth_redirect_uri);
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_static(
+        HeaderValue::from_str(&format!(
             "opswarden_github_oauth=; HttpOnly; SameSite=Lax; \
-             Path=/api/service-oauth/github; Max-Age=0",
-        ),
+             Path=/api/service-oauth/github; Max-Age=0{secure}"
+        ))
+        .map_err(|_| DomainError::OAuthFailed)?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
