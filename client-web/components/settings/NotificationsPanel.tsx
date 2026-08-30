@@ -9,30 +9,13 @@ import {
   setNotificationSoundsEnabled,
   subscribeToNotificationSounds,
 } from "@/lib/notificationSounds";
+import {
+  getNotificationPermission,
+  NotificationPermissionState,
+  requestNotificationPermission,
+} from "@/lib/desktopNotify";
 import { SettingsRow, SettingsSection } from "./SettingsPrimitives";
 
-type PermissionState = "unsupported" | "default" | "granted" | "denied";
-
-function readPermission(): PermissionState {
-  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
-  return window.Notification.permission as PermissionState;
-}
-
-/**
- * The one place a member can grant notification permission.
- *
- * Browsers only honour `Notification.requestPermission()` when it follows a
- * real click — Firefox rejects it outright otherwise. Asking from the realtime
- * handler, at the moment an event arrives, therefore never granted anything and
- * failed silently: permission stayed `default` forever and every notification
- * was dropped. This asks from a button instead, and says out loud what the
- * current answer is, including the one state the app cannot recover from on its
- * own.
- */
-/**
- * `Notification.permission` is an external store that never announces its own
- * changes, so the subscription exists only to let us re-read after we asked.
- */
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void) {
@@ -40,13 +23,24 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
+let cachedPermission: NotificationPermissionState = "default";
+
+function readPermission(): NotificationPermissionState {
+  void getNotificationPermission().then((perm) => {
+    if (cachedPermission !== perm) {
+      cachedPermission = perm;
+      listeners.forEach((l) => l());
+    }
+  });
+  return cachedPermission;
+}
+
 export function NotificationsPanel() {
   const t = useTranslations("Settings");
   const state = React.useSyncExternalStore(
     subscribe,
     readPermission,
-    // The server has no `Notification`; the client corrects on hydration.
-    () => "default" as PermissionState,
+    () => "default" as NotificationPermissionState,
   );
   const soundsEnabled = React.useSyncExternalStore(
     subscribeToNotificationSounds,
@@ -56,7 +50,8 @@ export function NotificationsPanel() {
 
   const request = async () => {
     try {
-      await window.Notification.requestPermission();
+      const res = await requestNotificationPermission();
+      cachedPermission = res;
     } catch {
       // A refusal is an answer; re-reading tells us which one.
     }

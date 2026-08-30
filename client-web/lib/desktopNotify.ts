@@ -1,16 +1,61 @@
 // Native desktop notifications, isolated from the rest of the app.
 //
-// This is a no-op everywhere except inside the Tauri desktop shell
-// (client-desktop). In SSR and in a normal browser it returns immediately, so
-// callers (e.g. the realtime hook) can fire it unconditionally. The Tauri
-// notification plugin is loaded lazily so it never ships in the web bundle's
-// initial chunks and is only resolved when actually running in the desktop app.
+// This is a unified bridge for both normal web browsers and the Tauri desktop
+// shell (client-desktop). Callers (e.g. settings panels and realtime hooks) can
+// query permissions and trigger notifications through a single API without
+// needing browser/Tauri branch checks.
+
+export type NotificationPermissionState = "unsupported" | "default" | "granted" | "denied";
 
 /** True only inside a Tauri webview (not SSR, not a normal browser tab). */
-function isTauri(): boolean {
+export function isTauri(): boolean {
   return (
     typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
+}
+
+/** Check whether notifications are supported in the current environment. */
+export function isNotificationSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isTauri()) return true;
+  return "Notification" in window;
+}
+
+/** Get the current notification permission state for Web or Tauri. */
+export async function getNotificationPermission(): Promise<NotificationPermissionState> {
+  if (!isNotificationSupported()) return "unsupported";
+  try {
+    if (isTauri()) {
+      const { isPermissionGranted } = await import("@tauri-apps/plugin-notification");
+      const granted = await isPermissionGranted();
+      return granted ? "granted" : "default";
+    }
+    if ("Notification" in window) {
+      return window.Notification.permission as NotificationPermissionState;
+    }
+  } catch (err) {
+    console.warn("[desktop] permission check failed:", err);
+  }
+  return "unsupported";
+}
+
+/** Request notification permission from the user in Web or Tauri. */
+export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
+  if (!isNotificationSupported()) return "unsupported";
+  try {
+    if (isTauri()) {
+      const { requestPermission } = await import("@tauri-apps/plugin-notification");
+      const res = await requestPermission();
+      return res === "granted" ? "granted" : "denied";
+    }
+    if ("Notification" in window) {
+      const res = await window.Notification.requestPermission();
+      return res as NotificationPermissionState;
+    }
+  } catch (err) {
+    console.warn("[desktop] permission request failed:", err);
+  }
+  return "unsupported";
 }
 
 /** Notifications are useful only while the application is outside the user's attention. */
@@ -20,14 +65,12 @@ export function shouldShowDesktopNotification(): boolean {
 }
 
 /**
- * Show a native OS notification when running in the desktop shell; otherwise do
- * nothing. Never throws: any failure (permission denied, plugin missing, IPC
- * blocked) is logged and swallowed so realtime handling is never interrupted.
+ * Show a native OS notification when running in Desktop or Web. Never throws:
+ * any failure (permission denied, plugin missing, IPC blocked) is logged and
+ * swallowed so realtime handling is never interrupted.
  */
 export async function notifyDesktop(title: string, body: string): Promise<void> {
   try {
-    // Check again here as focus may have returned after the realtime event was
-    // dispatched but before a permission prompt or lazy import completed.
     if (!shouldShowDesktopNotification()) return;
 
     if (isTauri()) {
