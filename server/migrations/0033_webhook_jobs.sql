@@ -1,3 +1,4 @@
+-- opswarden: migration-phase=expand
 create table if not exists webhook_jobs (
     id uuid primary key,
     connection_id uuid not null references service_connections (id) on delete cascade,

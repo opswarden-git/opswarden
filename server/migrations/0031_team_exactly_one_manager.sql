@@ -1,3 +1,4 @@
+-- opswarden: migration-phase=contract
 -- A team must have exactly one Manager at every transaction boundary.
 -- Deferred checks allow an atomic demote/promote transfer and team creation.
 

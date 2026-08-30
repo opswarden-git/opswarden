@@ -1,3 +1,4 @@
+-- opswarden: migration-phase=backfill
 -- Permit a crashed webhook attempt to be retried without allowing the stale
 -- worker to finalize a delivery after its lease has been reclaimed.
 alter table webhook_deliveries
