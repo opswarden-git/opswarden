@@ -235,6 +235,16 @@ pub(crate) mod tests {
             self.save_release(release).await
         }
 
+        async fn create_blocking_incident(
+            &self,
+            release_id: Uuid,
+            _expected_updated_at: chrono::DateTime<chrono::Utc>,
+            incident: &crate::domain::incident::Incident,
+            _event: &crate::domain::incident_event::IncidentEvent,
+        ) -> Result<(), DomainError> {
+            self.link_incident(release_id, incident.id).await
+        }
+
         async fn find_release_by_id(
             &self,
             release_id: Uuid,

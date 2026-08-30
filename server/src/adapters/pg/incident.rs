@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
@@ -17,6 +17,57 @@ impl PgIncidentRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+}
+
+pub(super) async fn insert_incident(
+    transaction: &mut Transaction<'_, Postgres>,
+    incident: &Incident,
+) -> Result<(), DomainError> {
+    sqlx::query(
+        r#"
+        INSERT INTO incidents (
+            id, team_id, title, description, status, severity, assignee_id,
+            created_by, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        "#,
+    )
+    .bind(incident.id)
+    .bind(incident.team_id)
+    .bind(&incident.title)
+    .bind(&incident.description)
+    .bind(incident.status.as_str())
+    .bind(incident.severity.as_str())
+    .bind(incident.assignee)
+    .bind(incident.created_by)
+    .bind(incident.created_at)
+    .bind(incident.updated_at)
+    .execute(&mut **transaction)
+    .await
+    .map_err(|_| DomainError::Storage)?;
+    Ok(())
+}
+
+pub(super) async fn insert_event(
+    transaction: &mut Transaction<'_, Postgres>,
+    event: &IncidentEvent,
+) -> Result<(), DomainError> {
+    sqlx::query(
+        r#"
+        INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+    )
+    .bind(event.id)
+    .bind(event.incident_id)
+    .bind(event.kind.to_string())
+    .bind(event.actor_id)
+    .bind(&event.data)
+    .bind(event.created_at)
+    .execute(&mut **transaction)
+    .await
+    .map_err(|_| DomainError::Storage)?;
+    Ok(())
 }
 
 #[derive(FromRow)]
@@ -110,45 +161,8 @@ impl IncidentRepo for PgIncidentRepo {
         event: &IncidentEvent,
     ) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        sqlx::query(
-            r#"
-            INSERT INTO incidents (
-                id, team_id, title, description, status, severity, assignee_id,
-                created_by, created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            "#,
-        )
-        .bind(incident.id)
-        .bind(incident.team_id)
-        .bind(&incident.title)
-        .bind(&incident.description)
-        .bind(incident.status.as_str())
-        .bind(incident.severity.as_str())
-        .bind(incident.assignee)
-        .bind(incident.created_by)
-        .bind(incident.created_at)
-        .bind(incident.updated_at)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        sqlx::query(
-            r#"
-            INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            "#,
-        )
-        .bind(event.id)
-        .bind(event.incident_id)
-        .bind(event.kind.to_string())
-        .bind(event.actor_id)
-        .bind(&event.data)
-        .bind(event.created_at)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
+        insert_incident(&mut tx, incident).await?;
+        insert_event(&mut tx, event).await?;
         tx.commit().await.map_err(|_| DomainError::Storage)
     }
 

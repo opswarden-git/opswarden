@@ -151,10 +151,9 @@ impl AutomationReactionExecutor {
         let incident =
             Incident::new_with_description(team_id, title, incident_description(event), severity)?;
         let created = IncidentEvent::created(&incident, None);
-        self.incidents
-            .save_incident_with_event(&incident, &created)
+        self.releases
+            .create_blocking_incident(release.id, release.updated_at, &incident, &created)
             .await?;
-        self.releases.link_incident(release.id, incident.id).await?;
         let new_state = release.effective_state(true);
         if new_state != old_state {
             self.events

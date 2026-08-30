@@ -301,6 +301,15 @@ pub trait ReleaseRepo: Send + Sync {
         delivery_id: &str,
         event: &crate::domain::automation::ExternalEvent,
     ) -> Result<(), DomainError>;
+    /// Create an incident, its audit event and its Release link in one
+    /// transaction, provided the Release snapshot is still current.
+    async fn create_blocking_incident(
+        &self,
+        release_id: Uuid,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError>;
     /// Load a release with its ordered steps, or `None`.
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError>;
     /// Every release of a team (with steps), newest first.

@@ -14,8 +14,12 @@ use uuid::Uuid;
 
 use crate::domain::automation_catalog::OPSWARDEN_SERVICE;
 use crate::domain::error::DomainError;
+use crate::domain::incident::Incident;
+use crate::domain::incident_event::IncidentEvent;
 use crate::domain::release::{Release, ReleaseBaseState, ReleaseStep};
 use crate::ports::ReleaseRepo;
+
+use super::incident::{insert_event, insert_incident};
 
 pub struct PgReleaseRepo {
     pool: PgPool,
@@ -112,6 +116,51 @@ impl ReleaseRepo for PgReleaseRepo {
             .await
             .map_err(|_| DomainError::Storage)?;
         Ok(())
+    }
+
+    async fn create_blocking_incident(
+        &self,
+        release_id: Uuid,
+        expected_updated_at: DateTime<Utc>,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let locked = sqlx::query(
+            r#"
+            UPDATE releases
+            SET updated_at = GREATEST(clock_timestamp(), updated_at + interval '1 microsecond')
+            WHERE id = $1
+              AND team_id = $2
+              AND base_state = 'in_progress'
+              AND updated_at = $3
+            "#,
+        )
+        .bind(release_id)
+        .bind(incident.team_id)
+        .bind(expected_updated_at)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if locked.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
+
+        insert_incident(&mut transaction, incident).await?;
+        insert_event(&mut transaction, event).await?;
+        sqlx::query(
+            r#"
+            INSERT INTO release_incidents (release_id, incident_id)
+            VALUES ($1, $2)
+            "#,
+        )
+        .bind(release_id)
+        .bind(incident.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        transaction.commit().await.map_err(|_| DomainError::Storage)
     }
 
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError> {
@@ -482,6 +531,75 @@ mod tests {
             ReleaseBaseState::Completed => assert!(stored.steps[0].is_validated()),
             state => panic!("unexpected winning state: {state:?}"),
         }
+    }
+
+    #[sqlx::test]
+    async fn blocking_incident_and_release_link_roll_back_together(pool: PgPool) {
+        let releases = PgReleaseRepo::new(pool.clone());
+        let incidents = PgIncidentRepo::new(pool.clone());
+        let (team_id, user_id) = seed_team(&pool).await;
+        let mut release =
+            Release::new(team_id, "v-block", vec!["build".into(), "deploy".into()]).unwrap();
+        release.validate_step("build", user_id, false).unwrap();
+        releases.save_release(&release).await.unwrap();
+        let stored_updated_at = releases
+            .find_release_by_id(release.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .updated_at;
+        let incident = Incident::new(team_id, "Deployment blocked", Severity::High).unwrap();
+        let event = IncidentEvent::created(&incident, None);
+
+        sqlx::query(
+            r#"
+            CREATE FUNCTION reject_release_incident_link() RETURNS trigger AS $$
+            BEGIN
+                RAISE EXCEPTION 'injected release link failure';
+            END;
+            $$ LANGUAGE plpgsql
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            r#"
+            CREATE TRIGGER reject_release_incident_link
+            BEFORE INSERT ON release_incidents
+            FOR EACH ROW EXECUTE FUNCTION reject_release_incident_link()
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        assert_eq!(
+            releases
+                .create_blocking_incident(release.id, release.updated_at, &incident, &event)
+                .await,
+            Err(DomainError::Storage)
+        );
+
+        assert!(incidents
+            .find_incident_by_id(incident.id)
+            .await
+            .unwrap()
+            .is_none());
+        assert!(releases
+            .list_linked_incident_ids(release.id)
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            releases
+                .find_release_by_id(release.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .updated_at,
+            stored_updated_at
+        );
     }
 
     #[sqlx::test]
