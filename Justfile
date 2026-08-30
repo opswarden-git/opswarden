@@ -50,16 +50,16 @@ down:
 demo:
     docker compose up --build --detach --wait db server
     docker compose up --build --detach --wait --no-deps client_web
-    ./tooling/seed_demo.sh
-    ./tooling/test_github_webhook.sh
+    python3 tooling/demo.py seed --target local
+    python3 tooling/demo.py run --target local
 
 # remplit la base locale avec un dataset UX réaliste et rejouable
 demo-seed:
-    ./tooling/seed_demo.sh
+    python3 tooling/demo.py seed --target local
 
 # simule un workflow GitHub échoué avec une signature HMAC valide
 demo-webhook:
-    ./tooling/test_github_webhook.sh
+    python3 tooling/demo.py run --target local
 
 # prépare les identités dédiées; le Manager conserve le vrai onboarding Team
 demo-bootstrap:

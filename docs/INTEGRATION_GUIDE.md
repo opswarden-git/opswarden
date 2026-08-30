@@ -15,8 +15,7 @@ emails, Team IDs, cluster paths, bearer tokens, webhook secrets, SMTP
 credentials, and outbound endpoints belong only in the Git-ignored `.env`.
 There is no `.presentation.env` and no `tooling/presentation/`.
 
-The historical three-Team browser fixture remains in `tooling/seed_demo.*` for
-Playwright. The presentation engine is `tooling/demo.py` plus `tooling/demo/`.
+The presentation and seeding engine is `tooling/demo.py` plus `tooling/demo/`.
 
 ## Configure `.env`
 
