@@ -43,10 +43,15 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
+use tokio::task::JoinHandle;
+use tokio::time::Instant;
 
 const DATABASE_CONNECT_ATTEMPTS: usize = 30;
 const DATABASE_CONNECT_RETRY_DELAY: Duration = Duration::from_secs(2);
 const WEBHOOK_POLL_INTERVAL: Duration = Duration::from_secs(1);
+/// Kubernetes grants the pod 30 seconds; keep five seconds for runtime and
+/// container teardown after application tasks have been cancelled.
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
 
 #[tokio::main]
 async fn main() {
@@ -241,16 +246,73 @@ async fn main() {
         WEBHOOK_POLL_INTERVAL,
         shutdown_tx.subscribe(),
     ));
-    let server_result = axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal())
-    .await;
+    let server_shutdown = shutdown_tx.subscribe();
+    let server_task = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(wait_for_shutdown(server_shutdown))
+        .await
+    });
+
+    supervise_shutdown(shutdown_tx, server_task, timer_task, webhook_task).await;
+}
+
+async fn supervise_shutdown(
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
+    mut server_task: JoinHandle<std::io::Result<()>>,
+    mut timer_task: JoinHandle<()>,
+    mut webhook_task: JoinHandle<()>,
+) {
+    let mut server_result = None;
+    tokio::select! {
+        _ = shutdown_signal() => {}
+        result = &mut server_task => server_result = Some(result),
+    }
+
     let _ = shutdown_tx.send(true);
-    let _ = timer_task.await;
-    let _ = webhook_task.await;
-    server_result.expect("server error");
+    let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+
+    let server_wait = async {
+        match server_result {
+            Some(result) => Some(result),
+            None => wait_for_component("HTTP/WebSocket server", &mut server_task, deadline).await,
+        }
+    };
+    let (server_result, _, _) = tokio::join!(
+        server_wait,
+        wait_for_component("timer worker", &mut timer_task, deadline),
+        wait_for_component("webhook worker", &mut webhook_task, deadline),
+    );
+
+    if let Some(result) = server_result {
+        result.expect("server task failed").expect("server error");
+    }
+}
+
+async fn wait_for_component<T>(
+    component: &'static str,
+    task: &mut JoinHandle<T>,
+    deadline: Instant,
+) -> Option<Result<T, tokio::task::JoinError>> {
+    match tokio::time::timeout_at(deadline, &mut *task).await {
+        Ok(result) => Some(result),
+        Err(_) => {
+            tracing::error!(component, "shutdown deadline exceeded; aborting task");
+            task.abort();
+            let _ = task.await;
+            None
+        }
+    }
+}
+
+async fn wait_for_shutdown(mut shutdown: tokio::sync::watch::Receiver<bool>) {
+    while !*shutdown.borrow() {
+        if shutdown.changed().await.is_err() {
+            break;
+        }
+    }
 }
 
 async fn run_webhook_worker(
@@ -383,4 +445,36 @@ async fn connect_database(database_url: &str) -> PgPool {
     }
 
     unreachable!("the bounded database connection loop always returns or panics")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn completed_component_finishes_before_the_deadline() {
+        let mut task = tokio::spawn(async { 42 });
+        let result = wait_for_component(
+            "test component",
+            &mut task,
+            Instant::now() + Duration::from_secs(1),
+        )
+        .await;
+
+        assert_eq!(result.unwrap().unwrap(), 42);
+    }
+
+    #[tokio::test]
+    async fn stalled_component_is_aborted_at_the_deadline() {
+        let mut task = tokio::spawn(std::future::pending::<()>());
+        let result = wait_for_component(
+            "test component",
+            &mut task,
+            Instant::now() + Duration::from_millis(10),
+        )
+        .await;
+
+        assert!(result.is_none());
+        assert!(task.is_finished());
+    }
 }
