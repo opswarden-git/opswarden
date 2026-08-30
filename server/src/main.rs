@@ -1,5 +1,6 @@
 // --- server/src/main.rs ---
 
+use axum::extract::MatchedPath;
 use opentelemetry::{trace::TracerProvider as _, KeyValue};
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 use opswarden_server::adapters::clock::SystemClock;
@@ -213,7 +214,10 @@ async fn main() {
     }));
     let webhook_worker = Arc::new(WebhookWorker::new(webhook_dependencies, webhook_jobs));
 
-    let app = build_app(state).layer(TraceLayer::new_for_http());
+    let app = build_app(state).layer(
+        TraceLayer::new_for_http()
+            .make_span_with(|request: &axum::http::Request<_>| http_request_span(request)),
+    );
 
     let addr = bind_addr;
     let listener = match tokio::net::TcpListener::bind(&addr).await {
@@ -313,6 +317,19 @@ async fn wait_for_shutdown(mut shutdown: tokio::sync::watch::Receiver<bool>) {
             break;
         }
     }
+}
+
+fn http_request_span<B>(request: &axum::http::Request<B>) -> tracing::Span {
+    let route = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(MatchedPath::as_str)
+        .unwrap_or("<unmatched>");
+    tracing::info_span!(
+        "http.request",
+        http.request.method = %request.method(),
+        http.route = route,
+    )
 }
 
 async fn run_webhook_worker(
@@ -450,6 +467,23 @@ async fn connect_database(database_url: &str) -> PgPool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{body::Body, routing::get, Router};
+    use std::{io, sync::Mutex};
+    use tower::ServiceExt;
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    struct TraceWriter(Arc<Mutex<Vec<u8>>>);
+
+    impl io::Write for TraceWriter {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn completed_component_finishes_before_the_deadline() {
@@ -476,5 +510,40 @@ mod tests {
 
         assert!(result.is_none());
         assert!(task.is_finished());
+    }
+
+    #[tokio::test]
+    async fn http_traces_exclude_query_and_request_secrets() {
+        let output = Arc::new(Mutex::new(Vec::new()));
+        let writer = output.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || TraceWriter(writer.clone()))
+            .with_ansi(false)
+            .without_time()
+            .with_span_events(FmtSpan::FULL)
+            .finish();
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let app = Router::new().route("/callback", get(|| async {})).layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &axum::http::Request<_>| http_request_span(request)),
+        );
+        let request = axum::http::Request::builder()
+            .uri("/callback?code=authorization-code-secret&state=oauth-state-secret")
+            .header("cookie", "oauth=secret-cookie")
+            .header("authorization", "Bearer secret-header")
+            .body(Body::empty())
+            .unwrap();
+
+        app.oneshot(request).await.unwrap();
+        let traces = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(traces.contains("/callback"));
+        for secret in [
+            "authorization-code-secret",
+            "oauth-state-secret",
+            "secret-cookie",
+            "secret-header",
+        ] {
+            assert!(!traces.contains(secret), "trace leaked {secret}");
+        }
     }
 }
