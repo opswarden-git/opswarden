@@ -72,9 +72,14 @@ impl JoinTeamUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::clock::SystemClock;
     use crate::app::team::tests::MockTeamRepo;
     use crate::domain::team::{BanKind, Team, TeamBan};
-    use chrono::Duration;
+    use chrono::{Duration, Utc};
+
+    fn clock() -> Arc<SystemClock> {
+        Arc::new(SystemClock)
+    }
 
     #[tokio::test]
     async fn join_team_adds_member_as_observer() {
@@ -82,7 +87,7 @@ mod tests {
         let code = team.invitation_code.as_str().to_string();
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()));
         let user = Uuid::new_v4();
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -101,7 +106,7 @@ mod tests {
     #[tokio::test]
     async fn join_team_rejects_unknown_invitation_code() {
         let repo = Arc::new(MockTeamRepo::default());
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -120,7 +125,7 @@ mod tests {
         let code = team.invitation_code.as_str().to_string();
         let user = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::with_team(team).with_member(user, Role::Responder));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -140,7 +145,7 @@ mod tests {
         let user = Uuid::new_v4();
         let ban = TeamBan::permanent(team.id, user, Uuid::new_v4(), None);
         let repo = Arc::new(MockTeamRepo::with_team(team).with_ban(ban));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -171,7 +176,7 @@ mod tests {
             created_at: Utc::now() - Duration::hours(2),
         };
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()).with_ban(expired));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -195,7 +200,7 @@ mod tests {
         let dirty_code = format!("  {}  ", raw_code.to_lowercase());
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()));
         let user = Uuid::new_v4();
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {

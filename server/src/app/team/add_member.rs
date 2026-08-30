@@ -66,9 +66,14 @@ impl AddMemberUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::clock::SystemClock;
     use crate::app::auth::tests::MockUserRepo;
     use crate::app::team::tests::MockTeamRepo;
     use crate::domain::team::TeamBan;
+
+    fn clock() -> Arc<SystemClock> {
+        Arc::new(SystemClock)
+    }
 
     fn users_with(_user_id: Uuid) -> Arc<MockUserRepo> {
         Arc::new(MockUserRepo {
@@ -82,7 +87,7 @@ mod tests {
         let manager = Uuid::new_v4();
         let target = Uuid::new_v4();
         let teams = Arc::new(MockTeamRepo::default().with_member(manager, Role::Manager));
-        let use_case = AddMemberUseCase::new(teams.clone(), users_with(target));
+        let use_case = AddMemberUseCase::new(teams.clone(), users_with(target), clock());
 
         use_case
             .add_member(AddMemberCommand {
@@ -105,7 +110,7 @@ mod tests {
         let responder = Uuid::new_v4();
         let target = Uuid::new_v4();
         let teams = Arc::new(MockTeamRepo::default().with_member(responder, Role::Responder));
-        let use_case = AddMemberUseCase::new(teams.clone(), users_with(target));
+        let use_case = AddMemberUseCase::new(teams.clone(), users_with(target), clock());
 
         let result = use_case
             .add_member(AddMemberCommand {
@@ -129,7 +134,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(target, Role::Observer),
         );
-        let result = AddMemberUseCase::new(existing, users_with(target))
+        let result = AddMemberUseCase::new(existing, users_with(target), clock())
             .add_member(AddMemberCommand {
                 team_id: team,
                 requester_id: manager,
@@ -143,7 +148,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_ban(TeamBan::permanent(team, target, manager, None)),
         );
-        let result = AddMemberUseCase::new(banned, users_with(target))
+        let result = AddMemberUseCase::new(banned, users_with(target), clock())
             .add_member(AddMemberCommand {
                 team_id: team,
                 requester_id: manager,

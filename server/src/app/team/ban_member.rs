@@ -149,7 +149,15 @@ mod tests {
             simulate_user_exists: user_exists,
         });
         let events = Arc::new(MockEventPublisher::default());
-        (BanMemberUseCase::new(teams, users, events.clone()), events)
+        (
+            BanMemberUseCase::new(
+                teams,
+                users,
+                events.clone(),
+                Arc::new(crate::adapters::clock::SystemClock),
+            ),
+            events,
+        )
     }
 
     #[tokio::test]
