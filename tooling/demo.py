@@ -16,11 +16,17 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
-from uuid import UUID, uuid4
+from uuid import UUID
 
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "tooling" / "demo"
+DEMO_DELIVERY_IDS = {
+    "github": "opswarden-demo-github-ci-failure-v1",
+    "gitlab": "opswarden-demo-gitlab-ci-failure-v1",
+    "generic": "opswarden-demo-deployment-failure-v1",
+    "alertmanager": "sha256:d3acde02ddffbdb72461e544f436c5f6448d2c9a26aacedc53256310498722ff",
+}
 class DemoError(RuntimeError):
     pass
 
@@ -361,6 +367,34 @@ def post_webhook(origin: str, path: str, payload: dict[str, object], headers: di
     print(f"Accepted {path}: {body}")
 
 
+def wait_for_demo_runs(database: Database, team_id: str, timeout_seconds: float = 20) -> dict[str, int]:
+    expected_rows = database.query(
+        "select count(*) from automation_rules where team_id = :'team_id'::uuid "
+        "and enabled and name like 'Demo: %'",
+        {"team_id": team_id},
+    )
+    expected = int(expected_rows[0]) if expected_rows else 0
+    deadline = time.monotonic() + timeout_seconds
+    counts: dict[str, int] = {}
+    while time.monotonic() < deadline:
+        rows = database.query(
+            "select status || '=' || count(*) from automation_runs run "
+            "join automation_rules rule on rule.id = run.rule_id "
+            "where rule.team_id = :'team_id'::uuid and rule.name like 'Demo: %' "
+            "group by status order by status",
+            {"team_id": team_id},
+        )
+        counts = {status: int(count) for status, count in (row.split("=", 1) for row in rows)}
+        if sum(counts.values()) == expected and counts.get("running", 0) == 0:
+            break
+        time.sleep(0.5)
+    else:
+        raise DemoError(f"Demo runs did not settle within {timeout_seconds:g} seconds: {counts}")
+    if counts.get("failed", 0):
+        raise DemoError(f"Demo run failed: {counts}")
+    return counts
+
+
 def run_webhooks(config: dict[str, str], origin: str, database: Database, team_id: str) -> None:
     require(
         config, "DEMO_GITHUB_WEBHOOK_SECRET", "DEMO_GITLAB_WEBHOOK_SECRET",
@@ -370,21 +404,30 @@ def run_webhooks(config: dict[str, str], origin: str, database: Database, team_i
     missing = [service for service in ("github", "gitlab", "generic", "alertmanager") if service not in ids]
     if missing:
         raise DemoError("Missing configured connections: " + ", ".join(missing))
+    database.apply(
+        ASSETS / "reset_run.sql",
+        {
+            "team_id": team_id,
+            "github_delivery_id": DEMO_DELIVERY_IDS["github"],
+            "gitlab_delivery_id": DEMO_DELIVERY_IDS["gitlab"],
+            "generic_delivery_id": DEMO_DELIVERY_IDS["generic"],
+            "alertmanager_delivery_id": DEMO_DELIVERY_IDS["alertmanager"],
+        },
+    )
     repository = value(config, "DEMO_GITHUB_REPOSITORY", "your-github-org/opswarden-demo")
     github = {"repository": {"full_name": repository}, "workflow_run": {"name": value(config, "DEMO_GITHUB_WORKFLOW", "OpsWarden Demo CI"), "head_branch": value(config, "DEMO_GITHUB_BRANCH", "main"), "conclusion": "failure", "html_url": f"https://github.com/{repository}/actions/runs/42"}}
     encoded = json.dumps(github, separators=(",", ":")).encode()
     signature = hmac.new(value(config, "DEMO_GITHUB_WEBHOOK_SECRET").encode(), encoded, hashlib.sha256).hexdigest()
-    post_webhook(origin, f"/webhooks/github/{ids['github']}", github, {"X-GitHub-Delivery": str(uuid4()), "X-GitHub-Event": "workflow_run", "X-Hub-Signature-256": f"sha256={signature}"})
+    post_webhook(origin, f"/webhooks/github/{ids['github']}", github, {"X-GitHub-Delivery": DEMO_DELIVERY_IDS["github"], "X-GitHub-Event": "workflow_run", "X-Hub-Signature-256": f"sha256={signature}"})
     gitlab_project = value(config, "DEMO_GITLAB_PROJECT", "your-gitlab-namespace/opswarden-demo")
     gitlab = {"object_kind": "pipeline", "object_attributes": {"status": "failed", "ref": value(config, "DEMO_GITLAB_BRANCH", "main"), "name": value(config, "DEMO_GITLAB_PIPELINE", "CI"), "url": f"https://gitlab.com/{gitlab_project}/-/pipelines/42"}, "project": {"path_with_namespace": gitlab_project}}
-    post_webhook(origin, f"/webhooks/gitlab/{ids['gitlab']}", gitlab, {"X-Gitlab-Event-UUID": str(uuid4()), "X-Gitlab-Event": "Pipeline Hook", "X-Gitlab-Token": value(config, "DEMO_GITLAB_WEBHOOK_SECRET")})
+    post_webhook(origin, f"/webhooks/gitlab/{ids['gitlab']}", gitlab, {"X-Gitlab-Event-UUID": DEMO_DELIVERY_IDS["gitlab"], "X-Gitlab-Event": "Pipeline Hook", "X-Gitlab-Token": value(config, "DEMO_GITLAB_WEBHOOK_SECRET")})
     generic = {"source": "opswarden-demo", "title": "Production deployment failed", "message": "Health check timed out", "severity": "critical", "external_id": "deploy-42", "event_url": "https://app.opswarden.dev"}
-    post_webhook(origin, f"/webhooks/generic/{ids['generic']}", generic, {"X-OpsWarden-Delivery": str(uuid4()), "X-OpsWarden-Event": "deployment_failed", "X-OpsWarden-Token": value(config, "DEMO_GENERIC_WEBHOOK_SECRET")})
-    alertmanager = {"version": "4", "groupKey": '{}:{severity="critical"}', "status": "firing", "receiver": "opswarden", "commonLabels": {"severity": "critical"}, "alerts": [{"status": "firing", "fingerprint": f"demo-{uuid4().hex[:12]}", "startsAt": "2026-08-30T19:00:00Z", "endsAt": "2030-01-01T00:00:00Z", "generatorURL": "https://prometheus.example/graph", "labels": {"alertname": "PaymentApiDown", "severity": "critical", "service": "payments"}, "annotations": {"summary": "Payment API unavailable", "description": "Health probe failed"}}]}
+    post_webhook(origin, f"/webhooks/generic/{ids['generic']}", generic, {"X-OpsWarden-Delivery": DEMO_DELIVERY_IDS["generic"], "X-OpsWarden-Event": "deployment_failed", "X-OpsWarden-Token": value(config, "DEMO_GENERIC_WEBHOOK_SECRET")})
+    alertmanager = {"version": "4", "groupKey": '{}:{severity="critical"}', "status": "firing", "receiver": "opswarden", "commonLabels": {"severity": "critical"}, "alerts": [{"status": "firing", "fingerprint": "demo-payment-api-down", "startsAt": "2026-08-30T19:00:00Z", "endsAt": "2030-01-01T00:00:00Z", "generatorURL": "https://prometheus.example/graph", "labels": {"alertname": "PaymentApiDown", "severity": "critical", "service": "payments"}, "annotations": {"summary": "Payment API unavailable", "description": "Health probe failed"}}]}
     post_webhook(origin, f"/webhooks/alertmanager/{ids['alertmanager']}", alertmanager, {"Authorization": f"Bearer {value(config, 'DEMO_ALERTMANAGER_WEBHOOK_SECRET')}"})
-    time.sleep(2)
-    counts = database.query("select status || '=' || count(*) from automation_runs run join automation_rules rule on rule.id = run.rule_id where rule.team_id = :'team_id'::uuid and rule.name like 'Demo: %' group by status order by status", {"team_id": team_id})
-    print("Demo run status: " + (", ".join(counts) if counts else "no runs persisted yet"))
+    counts = wait_for_demo_runs(database, team_id)
+    print("Demo run status: " + ", ".join(f"{status}={count}" for status, count in sorted(counts.items())))
 
 
 def doctor(config: dict[str, str], args: argparse.Namespace) -> None:
