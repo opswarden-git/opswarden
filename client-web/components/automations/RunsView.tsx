@@ -3,6 +3,7 @@
 import { CircleAlert, CircleCheck, CircleHelp, Loader, SkipForward } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   OperationalTable,
   OperationalTableBody,
@@ -112,11 +113,7 @@ export function RunsView({
     });
 
   if (runs.length === 0) {
-    return (
-      <section className="surface rounded-md p-12 text-center">
-        <h3 className="text-muted text-sm font-medium">{t("noRuns")}</h3>
-      </section>
-    );
+    return <EmptyState title={t("noRuns")} />;
   }
 
   return (

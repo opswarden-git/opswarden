@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TableFilterControl, TableSortControl } from "@/components/ui/CollectionControls";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -118,11 +119,11 @@ export function RulesView({
   if (rules.length === 0) {
     return (
       <>
-        <section className="surface rounded-md p-12 text-center">
-          <Power className="text-muted mx-auto h-8 w-8" aria-hidden="true" />
-          <h3 className="text-text mt-4 font-semibold">{t("noRules")}</h3>
-          <p className="text-muted mx-auto mt-1 max-w-lg text-sm">{t("noRulesDescription")}</p>
-        </section>
+        <EmptyState
+          icon={<Power className="h-5 w-5" />}
+          title={t("noRules")}
+          description={t("noRulesDescription")}
+        />
         {isCreatingRule ? (
           <RuleForm
             teamId={teamId}

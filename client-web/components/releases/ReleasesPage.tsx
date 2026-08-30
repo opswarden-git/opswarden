@@ -18,6 +18,7 @@ import {
 } from "@/components/releases/release-views";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   CollectionSearch,
   MobileCollectionFilters,
@@ -191,29 +192,27 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
         errorFallback={<Alert tone="danger">{t("failedToLoad")}</Alert>}
         emptyFallback={
           hasNoTeams ? (
-            <div className="surface rounded-md p-12 text-center">
-              <Shield className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">{t("noTeamsYet")}</h3>
-              <p className="text-muted mt-2 mb-6 text-sm">{t("noTeamsDesc")}</p>
-              <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
-                {t("goToTeams")}
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Shield className="h-6 w-6" />}
+              title={t("noTeamsYet")}
+              description={t("noTeamsDesc")}
+              action={
+                <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
+                  {t("goToTeams")}
+                </Link>
+              }
+            />
           ) : (
-            <div className="surface rounded-md p-12 text-center">
-              <Rocket className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">
-                {hasReleases ? t("noMatchingReleases") : t("noReleasesYet")}
-              </h3>
-              <p className="text-muted mt-2 text-sm">
-                {hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
-              </p>
-              {hasReleases ? (
-                <Button className="mt-6" onClick={clearFilters}>
-                  {t("clearFilters")}
-                </Button>
-              ) : null}
-            </div>
+            <EmptyState
+              icon={<Rocket className="h-6 w-6" />}
+              title={hasReleases ? t("noMatchingReleases") : t("noReleasesYet")}
+              description={hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
+              action={
+                hasReleases ? (
+                  <Button onClick={clearFilters}>{t("clearFilters")}</Button>
+                ) : null
+              }
+            />
           )
         }
       >
