@@ -90,10 +90,16 @@ pub async fn send_private_message(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<SendPrivateMessagePayload>,
 ) -> Result<(StatusCode, Json<PrivateMessageResponse>), DomainError> {
+    if payload.attachments.len() > 10 {
+        return Err(DomainError::InvalidPrivateMessageAttachment);
+    }
     let attachments = payload
         .attachments
         .into_iter()
         .map(|attachment| {
+            if attachment.data_base64.is_empty() || attachment.data_base64.len() > 15_000_000 {
+                return Err(DomainError::InvalidPrivateMessageAttachment);
+            }
             base64::engine::general_purpose::STANDARD
                 .decode(attachment.data_base64)
                 .map(|content| (attachment.file_name, attachment.media_type, content))

@@ -238,6 +238,26 @@ impl IntoResponse for DomainError {
             "code": code,
         }));
 
-        (status, body).into_response()
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            (status, [(axum::http::header::RETRY_AFTER, "60")], body).into_response()
+        } else {
+            (status, body).into_response()
+        }
+    }
+}
+
+/// Unified API error type wrapping domain errors for Axum handler signatures.
+#[derive(Debug)]
+pub struct ApiError(pub DomainError);
+
+impl From<DomainError> for ApiError {
+    fn from(err: DomainError) -> Self {
+        ApiError(err)
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        self.0.into_response()
     }
 }

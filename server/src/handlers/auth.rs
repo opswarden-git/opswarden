@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignUpPayload {
     pub email: String,
     pub password: String,
@@ -55,6 +56,7 @@ pub async fn sign_up(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignInPayload {
     pub email: String,
     pub password: String,
@@ -138,6 +140,7 @@ pub async fn get_me(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateLocalePayload {
     pub locale: String,
 }

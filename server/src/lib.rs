@@ -8,6 +8,9 @@ pub mod config;
 pub mod domain;
 pub mod handlers;
 pub mod ports;
+pub const DEFAULT_BODY_LIMIT_BYTES: usize = 1024 * 1024; // 1 MiB
+pub const UPLOAD_BODY_LIMIT_BYTES: usize = 14 * 1024 * 1024; // 14 MiB
+pub const WEBHOOK_BODY_LIMIT_BYTES: usize = 1024 * 1024; // 1 MiB
 
 use axum::{
     extract::DefaultBodyLimit,
@@ -81,7 +84,7 @@ pub fn build_app(state: AppState) -> Router {
             "/api/private-messages",
             post(handlers::private_message::send_private_message)
                 .get(handlers::private_message::list_private_messages)
-                .layer(DefaultBodyLimit::max(14 * 1024 * 1024)),
+                .layer(DefaultBodyLimit::max(UPLOAD_BODY_LIMIT_BYTES)),
         )
         .route(
             "/api/private-messages/read",
@@ -281,13 +284,15 @@ pub fn build_app(state: AppState) -> Router {
         // Public: authenticated by the provider webhook credential, not a JWT.
         .route(
             "/webhooks/github/{connection_id}",
-            post(handlers::webhook::receive_github_for_connection)
-                .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
+            post(handlers::webhook::receive_github_for_connection).layer(
+                axum::extract::DefaultBodyLimit::max(WEBHOOK_BODY_LIMIT_BYTES),
+            ),
         )
         .route(
             "/webhooks/gitlab/{connection_id}",
-            post(handlers::webhook::receive_gitlab_for_connection)
-                .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
+            post(handlers::webhook::receive_gitlab_for_connection).layer(
+                axum::extract::DefaultBodyLimit::max(WEBHOOK_BODY_LIMIT_BYTES),
+            ),
         )
         .route(
             "/webhooks/generic/{connection_id}",

@@ -21,6 +21,7 @@ use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateTeamImagePayload {
     pub media_type: String,
     pub data_base64: String,
@@ -37,6 +38,9 @@ pub async fn update_team_image(
     Path(team_id): Path<Uuid>,
     Json(payload): Json<UpdateTeamImagePayload>,
 ) -> Result<Json<UpdateTeamImageResponse>, DomainError> {
+    if payload.data_base64.is_empty() || payload.data_base64.len() > 1_500_000 {
+        return Err(DomainError::InvalidTeamImage);
+    }
     let content = base64::engine::general_purpose::STANDARD
         .decode(payload.data_base64)
         .map_err(|_| DomainError::InvalidTeamImage)?;

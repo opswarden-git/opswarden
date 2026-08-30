@@ -101,6 +101,7 @@ pub async fn list_members(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AddMemberPayload {
     pub user_id: Uuid,
 }
@@ -150,6 +151,7 @@ pub async fn get_invitation_code(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SetMemberRolePayload {
     pub role: String,
 }
@@ -184,6 +186,7 @@ pub async fn set_member_role(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateTeamPayload {
     pub name: String,
 }
@@ -219,6 +222,7 @@ pub async fn create_team(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct JoinTeamPayload {
     pub invitation_code: String,
 }
@@ -249,6 +253,7 @@ pub async fn join_team(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransferManagerPayload {
     pub new_manager_id: Uuid,
 }
@@ -337,6 +342,7 @@ pub async fn kick_member(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BanMemberPayload {
     pub user_id: Uuid,
     /// "temporary" (requires `expires_at`) or "permanent".
