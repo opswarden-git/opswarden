@@ -279,6 +279,13 @@ pub trait PrivateMessageRepo: Send + Sync {
 pub trait ReleaseRepo: Send + Sync {
     /// Persist a new release and all its (unvalidated) steps.
     async fn save_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Persist a release and its normalized internal event atomically.
+    async fn create_release(
+        &self,
+        release: &Release,
+        delivery_id: &str,
+        event: &crate::domain::automation::ExternalEvent,
+    ) -> Result<(), DomainError>;
     /// Load a release with its ordered steps, or `None`.
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError>;
     /// Every release of a team (with steps), newest first.

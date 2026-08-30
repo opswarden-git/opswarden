@@ -9,9 +9,10 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+use crate::domain::automation_catalog::OPSWARDEN_SERVICE;
 use crate::domain::error::DomainError;
 use crate::domain::release::{Release, ReleaseBaseState, ReleaseStep};
 use crate::ports::ReleaseRepo;
@@ -24,13 +25,11 @@ impl PgReleaseRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
 
-#[async_trait]
-impl ReleaseRepo for PgReleaseRepo {
-    async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
-        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-
+    async fn insert_release(
+        transaction: &mut Transaction<'_, Postgres>,
+        release: &Release,
+    ) -> Result<(), DomainError> {
         sqlx::query!(
             r#"
             INSERT INTO releases (id, team_id, title, base_state, created_at, updated_at)
@@ -43,7 +42,7 @@ impl ReleaseRepo for PgReleaseRepo {
             release.created_at,
             release.updated_at,
         )
-        .execute(&mut *tx)
+        .execute(&mut **transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
 
@@ -59,12 +58,59 @@ impl ReleaseRepo for PgReleaseRepo {
                 step.validated_by,
                 step.validated_at,
             )
-            .execute(&mut *tx)
+            .execute(&mut **transaction)
             .await
             .map_err(|_| DomainError::Storage)?;
         }
+        Ok(())
+    }
+}
 
+#[async_trait]
+impl ReleaseRepo for PgReleaseRepo {
+    async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::insert_release(&mut tx, release).await?;
         tx.commit().await.map_err(|_| DomainError::Storage)?;
+        Ok(())
+    }
+
+    async fn create_release(
+        &self,
+        release: &Release,
+        delivery_id: &str,
+        event: &crate::domain::automation::ExternalEvent,
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::insert_release(&mut transaction, release).await?;
+        let body = serde_json::to_vec(event).map_err(|_| DomainError::Storage)?;
+        let result = sqlx::query(
+            r#"
+            INSERT INTO webhook_jobs (
+                id, connection_id, expected_service, provider_delivery_id,
+                provider_event, body
+            )
+            SELECT $1, connection.id, $2, $3, $4, $5
+            FROM service_connections AS connection
+            WHERE connection.team_id = $6 AND connection.service = $2
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(OPSWARDEN_SERVICE)
+        .bind(delivery_id)
+        .bind(&event.kind)
+        .bind(body)
+        .bind(release.team_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if result.rows_affected() != 1 {
+            return Err(DomainError::Storage);
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
         Ok(())
     }
 
@@ -330,6 +376,7 @@ mod tests {
     use crate::adapters::pg::incident::PgIncidentRepo;
     use crate::adapters::pg::team::PgTeamRepo;
     use crate::adapters::pg::user::PgUserRepo;
+    use crate::domain::automation::release_created_event;
     use crate::domain::incident::{Incident, Severity};
     use crate::domain::incident_event::IncidentEvent;
     use crate::domain::team::Team;
@@ -348,6 +395,26 @@ mod tests {
             .await
             .unwrap();
         (team.id, user.id)
+    }
+
+    #[sqlx::test]
+    async fn release_and_internal_event_roll_back_together(pool: PgPool) {
+        let (team_id, _) = seed_team(&pool).await;
+        sqlx::query("DELETE FROM service_connections WHERE team_id = $1 AND service = 'opswarden'")
+            .bind(team_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let repo = PgReleaseRepo::new(pool.clone());
+        let release = Release::new(team_id, "v3.0.0", vec!["deploy".into()]).unwrap();
+        let event = release_created_event(&release);
+        let delivery_id = format!("release:{}:created", release.id);
+
+        assert_eq!(
+            repo.create_release(&release, &delivery_id, &event).await,
+            Err(DomainError::Storage)
+        );
+        assert!(repo.find_release_by_id(release.id).await.unwrap().is_none());
     }
 
     #[sqlx::test]

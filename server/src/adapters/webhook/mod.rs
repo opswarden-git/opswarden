@@ -4,11 +4,13 @@ pub mod alertmanager;
 pub mod generic;
 pub mod github;
 pub mod gitlab;
+pub mod opswarden;
 
 pub use alertmanager::AlertmanagerParser;
 pub use generic::GenericParser;
 pub use github::GithubParser;
 pub use gitlab::GitlabParser;
+pub use opswarden::OpsWardenParser;
 
 use crate::domain::automation::ExternalEvent;
 use crate::ports::WebhookParser;
@@ -25,6 +27,7 @@ impl CompositeWebhookParser {
                 Box::new(GitlabParser),
                 Box::new(GenericParser),
                 Box::new(AlertmanagerParser),
+                Box::new(OpsWardenParser),
             ],
         }
     }

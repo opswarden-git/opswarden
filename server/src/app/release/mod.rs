@@ -226,6 +226,15 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn create_release(
+            &self,
+            release: &Release,
+            _delivery_id: &str,
+            _event: &crate::domain::automation::ExternalEvent,
+        ) -> Result<(), DomainError> {
+            self.save_release(release).await
+        }
+
         async fn find_release_by_id(
             &self,
             release_id: Uuid,

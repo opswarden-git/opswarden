@@ -1,6 +1,5 @@
 // --- server/src/app/automation/mod.rs ---
 
-pub mod dispatch_internal_event;
 pub mod ingest_team_webhook;
 pub mod reaction_executor;
 mod team_access;
@@ -11,10 +10,6 @@ pub mod team_run;
 pub mod timer_worker;
 pub mod webhook_worker;
 
-pub use dispatch_internal_event::{
-    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationResult,
-    DispatchInternalAutomationUseCase, InternalAutomationDependencies,
-};
 pub use ingest_team_webhook::{
     DurableTeamWebhookIngress, IngestTeamWebhookCommand, IngestTeamWebhookResult,
     IngestTeamWebhookUseCase, TeamWebhookDependencies, TeamWebhookIngress,

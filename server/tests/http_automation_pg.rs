@@ -18,12 +18,13 @@ use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::adapters::webhook::generic::GenericParser;
 use opswarden_server::adapters::webhook::github::GithubParser;
+use opswarden_server::adapters::webhook::CompositeWebhookParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::app::automation::{
-    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationUseCase,
     DurableTeamWebhookIngress, IngestTeamWebhookCommand, IngestTeamWebhookUseCase,
-    InternalAutomationDependencies, TeamWebhookDependencies, TeamWebhookIngress, WebhookWorker,
+    TeamWebhookDependencies, TeamWebhookIngress, WebhookWorker,
 };
+use opswarden_server::domain::automation::release_created_event;
 use opswarden_server::domain::automation_config::{
     AutomationRule, AutomationRunStatus, CredentialKind, ServiceConnection,
 };
@@ -194,41 +195,35 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     rule.set_enabled(true);
     rules.insert_rule(&rule).await.unwrap();
     let release = Release::new(team.id, "v1.2.0", vec!["build".into()]).unwrap();
-    releases.save_release(&release).await.unwrap();
-
-    let use_case = DispatchInternalAutomationUseCase::new(InternalAutomationDependencies {
-        connections,
-        credentials,
-        deliveries,
-        rules,
-        runs: runs.clone(),
-        incidents: incidents.clone(),
-        releases,
-        notifier: Arc::new(common::DummyNotifier::default()),
-        events: Arc::new(WsHub::new()),
-        email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
-    });
     let event = release_created_event(&release);
     let delivery_id = format!("release:{}:created", release.id);
-    let first = use_case
-        .dispatch(DispatchInternalAutomationCommand {
-            team_id: team.id,
-            delivery_id: delivery_id.clone(),
-            event: event.clone(),
-        })
+    releases
+        .create_release(&release, &delivery_id, &event)
         .await
         .unwrap();
-    assert!(!first.duplicate);
-    assert_eq!(first.rules_triggered, 1);
-    let duplicate = use_case
-        .dispatch(DispatchInternalAutomationCommand {
-            team_id: team.id,
-            delivery_id,
-            event,
-        })
-        .await
-        .unwrap();
-    assert!(duplicate.duplicate);
+
+    let jobs = Arc::new(PgWebhookJobRepo::new(pool.clone()));
+    let worker = WebhookWorker::new(
+        TeamWebhookDependencies {
+            connections,
+            credentials,
+            verifier: Arc::new(HmacSha256Verifier),
+            parser: Arc::new(CompositeWebhookParser::new()),
+            deliveries,
+            rules,
+            runs: runs.clone(),
+            incidents: incidents.clone(),
+            releases,
+            notifier: Arc::new(common::DummyNotifier::default()),
+            events: Arc::new(WsHub::new()),
+            email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
+        },
+        jobs,
+    );
+    let first = worker.tick().await.unwrap();
+    assert_eq!(first.claimed, 1);
+    assert_eq!(first.completed, 1);
+    assert_eq!(worker.tick().await.unwrap().claimed, 0);
     let persisted_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
     assert_eq!(persisted_runs.len(), 1);
     assert_eq!(persisted_runs[0].status, AutomationRunStatus::Succeeded);
