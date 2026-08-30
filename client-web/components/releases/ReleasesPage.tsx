@@ -39,11 +39,9 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const searchParamsString = searchParams.toString();
   const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
   const { data: releases, isLoading, error } = useReleases(teamId);
-  const selectedReleaseId = searchParams.get("release") ?? "";
   const view = normalizeReleaseView(searchParams.get("view"));
   const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";
   const urlQuery = searchParams.get("q") ?? "";
-
   const activeTeam = teams?.find((team) => team.team_id === teamId);
   const role = activeTeam?.role ?? "observer";
   const capabilities = deriveCapabilities(role);
@@ -79,12 +77,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
     const detailPath = teamPath(teamId, "releases", releaseId);
     return view === "active" ? detailPath : `${detailPath}?view=${view}`;
   };
-  const legacyDetailHref = selectedReleaseId ? releaseHref(selectedReleaseId) : null;
 
-  React.useEffect(() => {
-    if (!legacyDetailHref) return;
-    router.replace(legacyDetailHref);
-  }, [legacyDetailHref, router]);
   const setParam = (name: string, value?: string) => router.push(paramsWith({ [name]: value }));
   const commitSearch = React.useCallback(
     (value: string) => {
