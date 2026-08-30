@@ -13,6 +13,7 @@ import {
   useUnlinkIncident,
   useValidateStep,
 } from "@/lib/queries/releases";
+import { formatDateTime } from "@/lib/utils";
 import { isExecutableRelease, isTerminalRelease } from "@/components/releases/release-views";
 import { useTeamMembers } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
@@ -75,10 +76,7 @@ export function ReleaseDetail({
     members?.find((member) => member.user_id === userId)?.email ?? t("unknownValidator");
   const canLink = capabilities.canLinkReleaseIncident && !terminal;
   const showLinked = release.linked_incidents.length > 0 || canLink;
-  const stamp = (value: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
-      new Date(value),
-    );
+  const stamp = (value: string) => formatDateTime(value, locale);
 
   return (
     <div className="space-y-6">

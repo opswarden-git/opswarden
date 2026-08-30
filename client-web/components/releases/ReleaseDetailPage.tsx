@@ -18,6 +18,7 @@ import { ReleaseDetail } from "./ReleaseDetail";
 import { ReleaseStateChip } from "./ReleaseStateChip";
 import { actionButtonClassNames, Button } from "@/components/ui/Button";
 import { normalizeReleaseView } from "./release-views";
+import { formatDateTime } from "@/lib/utils";
 
 function ReleaseDetailSkeleton({ label }: { label: string }) {
   return (
@@ -99,10 +100,7 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
           release ? (
             <time dateTime={release.created_at} className="text-muted text-sm font-normal">
               {t("createdOn", {
-                date: new Intl.DateTimeFormat(locale, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(new Date(release.created_at)),
+                date: formatDateTime(release.created_at, locale),
               })}
             </time>
           ) : null
