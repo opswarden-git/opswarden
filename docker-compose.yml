@@ -38,6 +38,10 @@ services:
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-http://localhost:8080/api/auth/google/callback}
+      # GitHub identity OAuth (optional; blank => GitHub sign-in disabled).
+      GITHUB_AUTH_CLIENT_ID: ${GITHUB_AUTH_CLIENT_ID:-}
+      GITHUB_AUTH_CLIENT_SECRET: ${GITHUB_AUTH_CLIENT_SECRET:-}
+      GITHUB_AUTH_REDIRECT_URI: ${GITHUB_AUTH_REDIRECT_URI:-http://localhost:8080/api/auth/github/callback}
       # GitHub service OAuth (optional; a GitHub App with expiring user tokens
       # supplies both the access token and its rotatable refresh token).
       GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}

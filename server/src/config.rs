@@ -40,6 +40,11 @@ pub struct Config {
     pub google_oauth_client_id: Option<String>,
     pub google_oauth_client_secret: Option<String>,
     pub google_oauth_redirect_uri: String,
+    /// Dedicated GitHub identity OAuth application. Kept separate from the
+    /// Team automation integration, whose tokens carry repository access.
+    pub github_auth_client_id: Option<String>,
+    pub github_auth_client_secret: Option<String>,
+    pub github_auth_redirect_uri: String,
     pub github_oauth_client_id: Option<String>,
     pub github_oauth_client_secret: Option<String>,
     pub github_oauth_redirect_uri: String,
@@ -96,6 +101,10 @@ impl Config {
         let google_oauth_client_secret = optional_env("GOOGLE_OAUTH_CLIENT_SECRET");
         let google_oauth_redirect_uri = optional_env("GOOGLE_OAUTH_REDIRECT_URI")
             .unwrap_or_else(|| "http://localhost:8080/api/auth/google/callback".to_string());
+        let github_auth_client_id = optional_env("GITHUB_AUTH_CLIENT_ID");
+        let github_auth_client_secret = optional_env("GITHUB_AUTH_CLIENT_SECRET");
+        let github_auth_redirect_uri = optional_env("GITHUB_AUTH_REDIRECT_URI")
+            .unwrap_or_else(|| "http://localhost:8080/api/auth/github/callback".to_string());
         let github_oauth_client_id = optional_env("GITHUB_OAUTH_CLIENT_ID");
         let github_oauth_client_secret = optional_env("GITHUB_OAUTH_CLIENT_SECRET");
         let github_oauth_redirect_uri =
@@ -144,6 +153,9 @@ impl Config {
             google_oauth_client_id,
             google_oauth_client_secret,
             google_oauth_redirect_uri,
+            github_auth_client_id,
+            github_auth_client_secret,
+            github_auth_redirect_uri,
             github_oauth_client_id,
             github_oauth_client_secret,
             github_oauth_redirect_uri,

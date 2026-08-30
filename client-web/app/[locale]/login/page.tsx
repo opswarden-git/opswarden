@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { Link, useRouter } from "@/i18n/routing";
 import { Eye, EyeOff } from "lucide-react";
+import { FaGithub } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import { Alert } from "@/components/ui/Alert";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -37,7 +38,7 @@ export default function LoginPage() {
       const teamsRes = await apiFetch("/api/teams");
       if (teamsRes.ok) {
         const teams = (await teamsRes.json()) as Team[];
-        router.push(teams[0] ? teamPath(teams[0].team_id) : "/settings?setup=team", {
+        router.push(teams[0] ? teamPath(teams[0].team_id) : "/signup?resume=team", {
           locale: user.locale,
         });
         return;
@@ -184,6 +185,18 @@ export default function LoginPage() {
                 >
                   <FcGoogle className="size-5" />
                   {t("loginWithGoogle")}
+                </Button>
+                <Button
+                  size="lg"
+                  fullWidth
+                  onClick={() => {
+                    const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                    window.location.href = `/api/auth/github/start?locale=${locale}`;
+                  }}
+                >
+                  <FaGithub className="size-5" />
+                  {t("loginWithGithub")}
                 </Button>
               </div>
             </form>

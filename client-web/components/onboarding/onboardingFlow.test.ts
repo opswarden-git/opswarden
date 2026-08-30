@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiFetch } from "@/lib/api";
 import { establishSession } from "@/lib/sessionLifecycle";
 import type { OnboardingData } from "./types";
-import { completeOnboarding } from "./onboardingFlow";
+import { completeOnboarding, completeTeamOnboarding } from "./onboardingFlow";
 
 vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
 vi.mock("@/lib/sessionLifecycle", () => ({ establishSession: vi.fn() }));
@@ -33,6 +33,23 @@ afterEach(() => {
 });
 
 describe("completeOnboarding", () => {
+  it("completes team setup without replaying authentication for an existing session", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    mockedApiFetch
+      .mockResolvedValueOnce(Response.json([]))
+      .mockResolvedValueOnce(Response.json({ team_id: "team-1" }, { status: 201 }));
+
+    await expect(completeTeamOnboarding(data)).resolves.toBe("team-1");
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mockedEstablishSession).not.toHaveBeenCalled();
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(1, "/api/teams");
+    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, "/api/teams", {
+      method: "POST",
+      body: JSON.stringify({ name: "Operations" }),
+    });
+  });
+
   it("creates the account, establishes its session and creates its first team", async () => {
     authResponses();
     mockedApiFetch

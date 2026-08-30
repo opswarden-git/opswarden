@@ -64,6 +64,12 @@ async function createOrJoinTeam(data: OnboardingData) {
   return body.team_id;
 }
 
+/** Completes only the team part for an account that already owns a session. */
+export async function completeTeamOnboarding(data: OnboardingData): Promise<string> {
+  const resumedTeamId = await existingTeamId();
+  return resumedTeamId || (await createOrJoinTeam(data));
+}
+
 /**
  * Completes signup as a resumable workflow. Every retry authenticates the same
  * credentials and checks persisted membership before replaying create/join.
@@ -72,7 +78,6 @@ export async function completeOnboarding(data: OnboardingData): Promise<Onboardi
   await signUpOrResume(data);
   const token = await signIn(data);
   const user = await establishSession(token);
-  const resumedTeamId = await existingTeamId();
-  const teamId = resumedTeamId || (await createOrJoinTeam(data));
+  const teamId = await completeTeamOnboarding(data);
   return { user, teamId };
 }
