@@ -9,6 +9,7 @@ WORKDIR /app
 ENV SQLX_OFFLINE=true
 COPY Cargo.toml Cargo.lock ./
 COPY .sqlx ./.sqlx
+COPY contracts ./contracts
 COPY server ./server
 RUN cargo build --release -p opswarden-server
 

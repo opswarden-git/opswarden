@@ -295,12 +295,7 @@ fn private_message_presence_and_typing_are_flat_and_scoped() {
 
 #[test]
 fn private_message_mutations_have_stable_wire_contracts() {
-    let (message_id, from, to, by) = (
-        Uuid::new_v4(),
-        Uuid::new_v4(),
-        Uuid::new_v4(),
-        Uuid::new_v4(),
-    );
+    let (message_id, from, to) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
     let at = Utc::now();
     let edited = parse(&DomainEvent::PrivateMessageEdited {
         message_id,
@@ -311,19 +306,6 @@ fn private_message_mutations_have_stable_wire_contracts() {
     assert_eq!(edited["type"], "private_message_edited");
     assert_eq!(edited["message_id"], message_id.to_string());
     assert_eq!(edited["at"], at.timestamp());
-
-    let reaction = parse(&DomainEvent::PrivateMessageReactionChanged {
-        message_id,
-        sender_id: from,
-        recipient_id: to,
-        emoji: "✅".into(),
-        user_id: by,
-        active: true,
-    });
-    assert_eq!(reaction["type"], "private_message_reaction_changed");
-    assert_eq!(reaction["emoji"], "✅");
-    assert_eq!(reaction["by"], by.to_string());
-    assert_eq!(reaction["active"], true);
 }
 
 #[test]

@@ -29,8 +29,9 @@ rm -f "$portal/docs/assets/logo.png"
 cp "$REPOSITORY_ROOT/client-web/public/assets/heroicon.png" "$portal/docs/assets/logo.png"
 
 # Root contracts are canonical and included by MkDocs snippets.
-for contract in README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md WEBSOCKET_SPEC.md; do
-  cp "$REPOSITORY_ROOT/$contract" "$portal/$contract"
+cp "$REPOSITORY_ROOT/README.md" "$portal/README.md"
+for contract in DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md WEBSOCKET_SPEC.md; do
+  cp "$REPOSITORY_ROOT/docs/$contract" "$portal/$contract"
 done
 mkdir -p "$portal/repository-docs/integrations"
 cp "$REPOSITORY_ROOT/docs/integrations/"*.md "$portal/repository-docs/integrations/"

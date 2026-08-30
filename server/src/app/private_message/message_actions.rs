@@ -6,7 +6,6 @@ use uuid::Uuid;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
-use crate::domain::timeline::validate_reaction_emoji;
 use crate::ports::{EventPublisher, PrivateMessageRepo, TeamRepo};
 
 use super::users_share_team;
@@ -89,65 +88,6 @@ impl EditPrivateMessageUseCase {
             })
             .await;
         Ok(EditPrivateMessageResult { content, edited_at })
-    }
-}
-
-pub struct TogglePrivateMessageReactionCommand {
-    pub requester_id: Uuid,
-    pub message_id: Uuid,
-    pub emoji: String,
-}
-
-pub struct TogglePrivateMessageReactionResult {
-    pub active: bool,
-}
-
-pub struct TogglePrivateMessageReactionUseCase {
-    teams: Arc<dyn TeamRepo>,
-    messages: Arc<dyn PrivateMessageRepo>,
-    events: Arc<dyn EventPublisher>,
-}
-
-impl TogglePrivateMessageReactionUseCase {
-    pub fn new(
-        teams: Arc<dyn TeamRepo>,
-        messages: Arc<dyn PrivateMessageRepo>,
-        events: Arc<dyn EventPublisher>,
-    ) -> Self {
-        Self {
-            teams,
-            messages,
-            events,
-        }
-    }
-
-    pub async fn toggle(
-        &self,
-        command: TogglePrivateMessageReactionCommand,
-    ) -> Result<TogglePrivateMessageReactionResult, DomainError> {
-        let emoji = validate_reaction_emoji(&command.emoji)?;
-        let (sender_id, recipient_id) = authorized_participants(
-            &self.messages,
-            &self.teams,
-            command.message_id,
-            command.requester_id,
-        )
-        .await?;
-        let active = self
-            .messages
-            .toggle_reaction(command.message_id, command.requester_id, &emoji)
-            .await?;
-        self.events
-            .publish(DomainEvent::PrivateMessageReactionChanged {
-                message_id: command.message_id,
-                sender_id,
-                recipient_id,
-                emoji,
-                user_id: command.requester_id,
-                active,
-            })
-            .await;
-        Ok(TogglePrivateMessageReactionResult { active })
     }
 }
 
@@ -250,24 +190,6 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(error, DomainError::Forbidden);
-    }
-
-    #[tokio::test]
-    async fn participant_toggles_a_valid_reaction() {
-        let (_, recipient, messages, teams, events, message) = setup();
-        let result = TogglePrivateMessageReactionUseCase::new(teams, messages, events.clone())
-            .toggle(TogglePrivateMessageReactionCommand {
-                requester_id: recipient,
-                message_id: message.id,
-                emoji: " ✅ ".into(),
-            })
-            .await
-            .unwrap();
-        assert!(result.active);
-        assert!(matches!(
-            events.published.lock().unwrap().as_slice(),
-            [DomainEvent::PrivateMessageReactionChanged { active: true, .. }]
-        ));
     }
 
     #[tokio::test]

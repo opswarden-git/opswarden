@@ -245,22 +245,6 @@ pub fn to_wire(event: &DomainEvent) -> String {
             "to": recipient_id,
             "at": at.timestamp(),
         }),
-        DomainEvent::PrivateMessageReactionChanged {
-            message_id,
-            sender_id,
-            recipient_id,
-            emoji,
-            user_id,
-            active,
-        } => json!({
-            "type": "private_message_reaction_changed",
-            "message_id": message_id,
-            "from": sender_id,
-            "to": recipient_id,
-            "emoji": emoji,
-            "by": user_id,
-            "active": active,
-        }),
         DomainEvent::ReleaseStepValidated {
             release_id,
             step,

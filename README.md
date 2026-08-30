@@ -147,6 +147,21 @@ docker compose up --build
 
 Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). Here is a breakdown of the services that are running:
 
+The ignored `.env` also drives the optional single-Team presentation fixture.
+After completing the Manager's real Team onboarding, verify and populate it
+without changing the three-Team browser-test fixture:
+
+```bash
+python3 tooling/demo.py doctor --target local
+python3 tooling/demo.py seed --target local
+python3 tooling/demo.py run --target local
+python3 tooling/demo.py deseed --target local
+```
+
+Production uses the same dataset and commands with `--target production`, a
+configured kube context and an explicit operation confirmation. Run
+`python3 tooling/demo.py --help` before using that guarded path.
+
 | Icon                                                                                                                         | Service          | Stack       | Local address                   |
 | ---------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------- | ------------------------------- |
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" width="18" alt="" /> | `db`             | PostgreSQL  | `localhost:5433`                |
@@ -301,7 +316,7 @@ RFC 3339. DTO definitions live beside the handlers in
 
 The non-REST real-time endpoint is `GET` `/ws`: its first message authenticates
 the client, then room messages scope delivery. See
-[`WEBSOCKET_SPEC.md`](WEBSOCKET_SPEC.md) for the wire contract.
+[`WEBSOCKET_SPEC.md`](docs/WEBSOCKET_SPEC.md) for the wire contract.
 
 </details>
 
@@ -378,10 +393,10 @@ Work from a short-lived branch and keep changes focused on the core platform. Fo
 
 Please follow the rules and design standards stated in:
 - [Technical documentation](https://opswarden-git.github.io/opswarden/)
-- [WebSocket protocol](WEBSOCKET_SPEC.md)
-- [Design system](DESIGN_SYSTEM.md)
-- [UI guidelines](UI_GUIDELINES.md)
-- [Contribution guide](HOWTOCONTRIBUTE.md)
+- [WebSocket protocol](docs/WEBSOCKET_SPEC.md)
+- [Design system](docs/DESIGN_SYSTEM.md)
+- [UI guidelines](docs/UI_GUIDELINES.md)
+- [Contribution guide](docs/HOWTOCONTRIBUTE.md)
 
 The executable source-hygiene, migration and container-pin policies are enforced by the required CI gate.
 

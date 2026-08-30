@@ -111,15 +111,6 @@ export type WsServerEvent =
       at: number;
     }
   | { type: "private_message_edited"; message_id: string; from: string; to: string; at: number }
-  | {
-      type: "private_message_reaction_changed";
-      message_id: string;
-      from: string;
-      to: string;
-      emoji: string;
-      by: string;
-      active: boolean;
-    }
   | { type: "release_step_validated"; release_id: string; step: string; by: string }
   | { type: "release_state_changed"; release_id: string; new_state: string };
 
@@ -130,7 +121,6 @@ type ContractEvent = Extract<
   | { type: "member_banned" }
   | { type: "private_message_received" }
   | { type: "private_message_edited" }
-  | { type: "private_message_reaction_changed" }
   | { type: "rule_triggered" }
   | { type: "rule_failed" }
 >;
@@ -163,8 +153,7 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
       }
       break;
     case "private_message_received":
-    case "private_message_edited":
-    case "private_message_reaction_changed": {
+    case "private_message_edited": {
       // Sender and recipient invalidate the same peer-scoped conversation;
       // no team-wide cache is touched.
       const me = useAuthStore.getState().user?.id;
@@ -337,8 +326,7 @@ export function useRealtime() {
         handleWsContractEvent(event, queryClient);
         break;
       }
-      case "private_message_edited":
-      case "private_message_reaction_changed": {
+      case "private_message_edited": {
         handleWsContractEvent(event, queryClient);
         break;
       }

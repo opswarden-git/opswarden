@@ -251,7 +251,7 @@ async fn attachment_round_trip_is_private_bounded_metadata_plus_download() {
 }
 
 #[tokio::test]
-async fn author_can_edit_and_each_participant_can_toggle_a_reaction() {
+async fn author_can_edit_but_private_message_reactions_are_not_routed() {
     let ctx = test_context();
     let peer = Uuid::new_v4();
     let team = Uuid::new_v4();
@@ -292,7 +292,7 @@ async fn author_can_edit_and_each_participant_can_toggle_a_reaction() {
         )
         .await
         .unwrap();
-    assert_eq!(reaction.status(), StatusCode::OK);
+    assert_eq!(reaction.status(), StatusCode::NOT_FOUND);
 
     let list = ctx
         .app
@@ -311,9 +311,7 @@ async fn author_can_edit_and_each_participant_can_toggle_a_reaction() {
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(body["messages"][0]["content"], "after");
     assert!(body["messages"][0]["edited_at"].is_string());
-    assert_eq!(body["messages"][0]["reactions"][0]["emoji"], "✅");
-    assert_eq!(body["messages"][0]["reactions"][0]["count"], 1);
-    assert_eq!(body["messages"][0]["reactions"][0]["reacted"], true);
+    assert!(body["messages"][0].get("reactions").is_none());
 }
 
 #[tokio::test]

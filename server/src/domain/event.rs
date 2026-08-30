@@ -133,15 +133,6 @@ pub enum DomainEvent {
         recipient_id: Uuid,
         at: DateTime<Utc>,
     },
-    /// One participant added or removed an emoji reaction.
-    PrivateMessageReactionChanged {
-        message_id: Uuid,
-        sender_id: Uuid,
-        recipient_id: Uuid,
-        emoji: String,
-        user_id: Uuid,
-        active: bool,
-    },
     /// A release step was validated. Team-scoped.
     ReleaseStepValidated {
         team_id: Uuid,
@@ -196,11 +187,6 @@ impl DomainEvent {
                 ..
             }
             | DomainEvent::PrivateMessageEdited {
-                sender_id,
-                recipient_id,
-                ..
-            }
-            | DomainEvent::PrivateMessageReactionChanged {
                 sender_id,
                 recipient_id,
                 ..

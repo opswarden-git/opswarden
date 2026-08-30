@@ -9,9 +9,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::conversation::{
-    normalize_message_content, validate_attachments, MessageAttachment, MessageReactionSummary,
-};
+use super::conversation::{normalize_message_content, validate_attachments, MessageAttachment};
 use super::error::DomainError;
 
 /// Server-side body cap. Matches the timeline-entry limit: generous for a real
@@ -23,7 +21,6 @@ pub use super::conversation::{
     MAX_MESSAGE_LEN as MAX_PRIVATE_MESSAGE_LEN,
 };
 pub type PrivateMessageAttachment = MessageAttachment;
-pub type PrivateMessageReaction = MessageReactionSummary;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrivateMessage {
@@ -34,7 +31,6 @@ pub struct PrivateMessage {
     pub created_at: DateTime<Utc>,
     pub edited_at: Option<DateTime<Utc>>,
     pub attachments: Vec<PrivateMessageAttachment>,
-    pub reactions: Vec<PrivateMessageReaction>,
 }
 
 impl PrivateMessage {
@@ -87,7 +83,6 @@ impl PrivateMessage {
             created_at,
             edited_at: None,
             attachments,
-            reactions: Vec::new(),
         })
     }
 

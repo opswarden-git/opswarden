@@ -31,9 +31,9 @@ pub use event::DomainEvent;
 pub use incident::{Incident, IncidentStatus, Severity};
 pub use incident_event::{IncidentEvent, IncidentEventKind};
 pub use private_message::{
-    PrivateMessage, PrivateMessageAttachment, PrivateMessageReaction,
-    MAX_PRIVATE_MESSAGE_ATTACHMENTS, MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES,
-    MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES, MAX_PRIVATE_MESSAGE_LEN,
+    PrivateMessage, PrivateMessageAttachment, MAX_PRIVATE_MESSAGE_ATTACHMENTS,
+    MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES, MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES,
+    MAX_PRIVATE_MESSAGE_LEN,
 };
 pub use release::{effective_release_state, Release, ReleaseBaseState, ReleaseState, ReleaseStep};
 pub use team::{

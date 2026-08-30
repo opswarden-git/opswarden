@@ -386,7 +386,7 @@ jobs:
             release-artifacts/*-setup.exe \
             release-artifacts/*.dmg \
             release-artifacts/SHA256SUMS \
-            --title "OpsWarden ${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
             --notes-file "$RELEASE_NOTES" \
             --verify-tag
       - name: Publish release summary

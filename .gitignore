@@ -18,6 +18,7 @@ test-results/
 # Env / secrets
 .env
 .env*.local
+.presentation.env
 # Misc
 *.log
 .DS_Store

@@ -74,7 +74,7 @@ export function Dialog({
           data-dialog-part="content"
           {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
-            "surface elevated fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden outline-none",
+            "surface elevated fixed z-50 flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden outline-none data-[state=closed]:pointer-events-none",
             // Both variants are the same surface anchored to the bottom edge; a
             // modal simply lifts off it and centres from `sm` up. A phone has no
             // room for a floating card, and a sheet is where a thumb already is.

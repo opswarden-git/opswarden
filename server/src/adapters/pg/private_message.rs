@@ -1,8 +1,8 @@
 // --- server/src/adapters/pg/private_message.rs ---
 //
-// PostgreSQL adapter for bilateral messages, their bounded attachments and
-// reactions. Conversation reads are keyset-paginated and hydrated in three
-// bounded queries, avoiding one query per message.
+// PostgreSQL adapter for bilateral messages and their bounded attachments.
+// Conversation reads are keyset-paginated and hydrated in bounded queries,
+// avoiding one query per message.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -10,9 +10,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
-use crate::domain::private_message::{
-    PrivateMessage, PrivateMessageAttachment, PrivateMessageReaction,
-};
+use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
 use crate::ports::PrivateMessageRepo;
 
 pub struct PgPrivateMessageRepo {
@@ -102,7 +100,6 @@ impl PrivateMessageRepo for PgPrivateMessageRepo {
                 created_at: row.get("created_at"),
                 edited_at: row.get("edited_at"),
                 attachments: Vec::new(),
-                reactions: Vec::new(),
             })
             .collect::<Vec<_>>();
         let message_ids = messages
@@ -133,29 +130,6 @@ impl PrivateMessageRepo for PgPrivateMessageRepo {
                     size_bytes: row.get::<i64, _>("size_bytes") as usize,
                     content: Vec::new(),
                     created_at: row.get("created_at"),
-                });
-            }
-        }
-
-        let reaction_rows = sqlx::query(
-            "SELECT message_id, emoji, count(*)::bigint AS count, \
-                    bool_or(user_id = $2) AS reacted \
-             FROM private_message_reactions WHERE message_id = ANY($1) \
-             GROUP BY message_id, emoji ORDER BY min(created_at), emoji",
-        )
-        .bind(&message_ids)
-        .bind(viewer_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-        for row in reaction_rows {
-            let message_id: Uuid = row.get("message_id");
-            if let Some(message) = messages.iter_mut().find(|message| message.id == message_id) {
-                let count: i64 = row.get("count");
-                message.reactions.push(PrivateMessageReaction {
-                    emoji: row.get("emoji"),
-                    count: count as u64,
-                    reacted: row.get("reacted"),
                 });
             }
         }
@@ -191,42 +165,6 @@ impl PrivateMessageRepo for PgPrivateMessageRepo {
             .await
             .map(|_| ())
             .map_err(|_| DomainError::Storage)
-    }
-
-    async fn toggle_reaction(
-        &self,
-        message_id: Uuid,
-        user_id: Uuid,
-        emoji: &str,
-    ) -> Result<bool, DomainError> {
-        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let removed = sqlx::query(
-            "DELETE FROM private_message_reactions \
-             WHERE message_id = $1 AND user_id = $2 AND emoji = $3",
-        )
-        .bind(message_id)
-        .bind(user_id)
-        .bind(emoji)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?
-        .rows_affected()
-            > 0;
-        if !removed {
-            sqlx::query(
-                "INSERT INTO private_message_reactions \
-                 (message_id, user_id, emoji, created_at) VALUES ($1, $2, $3, $4)",
-            )
-            .bind(message_id)
-            .bind(user_id)
-            .bind(emoji)
-            .bind(Utc::now())
-            .execute(&mut *tx)
-            .await
-            .map_err(|_| DomainError::Storage)?;
-        }
-        tx.commit().await.map_err(|_| DomainError::Storage)?;
-        Ok(!removed)
     }
 
     async fn find_attachment_for_participant(

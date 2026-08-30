@@ -7,18 +7,15 @@ import {
   downloadPrivateMessageAttachment,
   type PrivateMessage,
   useEditPrivateMessage,
-  useTogglePrivateMessageReaction,
 } from "@/lib/queries/privateMessages";
 
 export function DirectMessageItem({
-  availableReactions,
   continuesAbove,
   message,
   mine,
   peerEmail,
   peerId,
 }: {
-  availableReactions: string[];
   continuesAbove: boolean;
   message: PrivateMessage;
   mine: boolean;
@@ -28,7 +25,6 @@ export function DirectMessageItem({
   const t = useTranslations("DirectMessages");
   const tCommon = useTranslations("Common");
   const edit = useEditPrivateMessage(peerId);
-  const toggle = useTogglePrivateMessageReaction(peerId);
 
   return (
     <ConversationMessage
@@ -38,7 +34,6 @@ export function DirectMessageItem({
         sizeBytes: attachment.size_bytes,
       }))}
       authorLabel={memberDisplayName(peerEmail)}
-      availableReactions={availableReactions}
       content={message.content}
       continuesAbove={continuesAbove}
       createdAt={message.created_at}
@@ -46,7 +41,6 @@ export function DirectMessageItem({
       editError={edit.error ? t("editFailed") : undefined}
       editPending={edit.isPending}
       labels={{
-        addReaction: t("addReaction"),
         cancel: t("cancel"),
         downloadFailed: t("downloadFailed"),
         edit: t("edit"),
@@ -56,8 +50,6 @@ export function DirectMessageItem({
         save: t("save"),
       }}
       mine={mine}
-      reactions={message.reactions}
-      reactionPending={toggle.isPending}
       surface="direct"
       onDownload={async (attachmentId) => {
         const attachment = message.attachments.find((item) => item.id === attachmentId);
@@ -68,7 +60,6 @@ export function DirectMessageItem({
         edit.mutate({ messageId: message.id, content }, { onSuccess })
       }
       onResetEdit={edit.reset}
-      onToggleReaction={(emoji) => toggle.mutate({ messageId: message.id, emoji })}
     />
   );
 }

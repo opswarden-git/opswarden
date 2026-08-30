@@ -61,6 +61,22 @@ demo-seed:
 demo-webhook:
     ./tooling/test_github_webhook.sh
 
+# prépare les identités dédiées; le Manager conserve le vrai onboarding Team
+demo-bootstrap:
+    python3 tooling/demo.py bootstrap --target local
+
+# peuple la Team de présentation avec le scénario déterministe à une Team
+demo-presentation:
+    python3 tooling/demo.py seed --target local
+
+# vérifie la configuration et les identités sans modifier de donnée
+demo-doctor:
+    python3 tooling/demo.py doctor --target local
+
+# supprime uniquement les UUID et règles appartenant au scénario de présentation
+demo-deseed:
+    python3 tooling/demo.py deseed --target local
+
 # ----- Server (Rust) -----
 
 # serveur en mode développement.

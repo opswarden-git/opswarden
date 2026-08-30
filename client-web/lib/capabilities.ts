@@ -6,6 +6,9 @@ export const TEAM_ROLES = Object.keys(capabilityContract) as TeamRole[];
 
 export type TeamCapabilities = (typeof capabilityContract)[TeamRole];
 
-export function deriveCapabilities(role: TeamRole): TeamCapabilities {
-  return capabilityContract[role];
+export function deriveCapabilities(role?: string): TeamCapabilities {
+  if (role && role in capabilityContract) {
+    return capabilityContract[role as TeamRole];
+  }
+  return capabilityContract.responder;
 }

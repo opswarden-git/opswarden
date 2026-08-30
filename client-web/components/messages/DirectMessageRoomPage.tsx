@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useAvailableReactions } from "@/lib/queries/incidents";
 import {
   useMarkPrivateMessageRead,
   usePrivateMessages,
@@ -48,7 +47,6 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
   );
   const send = useSendPrivateMessage();
   const markRead = useMarkPrivateMessageRead();
-  const { data: availableReactions = [] } = useAvailableReactions();
   const watchers = usePrivateMessageWatchers(peerId);
   const typingUsers = usePrivateMessageTypingUsers(peerId);
   const [announcement, setAnnouncement] = useState("");
@@ -221,7 +219,6 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
                   loadEarlierLabel={tCommon("loadEarlier")}
                   renderItem={(message, _index, continuesAbove) => (
                     <DirectMessageItem
-                      availableReactions={availableReactions}
                       continuesAbove={continuesAbove}
                       message={message}
                       mine={message.sender_id === currentUserId}

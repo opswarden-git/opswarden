@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useRouter as useIntlRouter, usePathname } from "@/i18n/routing";
 import { type AppLocale, isAppLocale } from "@/i18n/locales";
@@ -39,17 +38,10 @@ export function LanguagePanel() {
               disabled={updateLocale.isPending}
               aria-label={t("english")}
               className={cn(
-                "text-muted hover:text-text inline-flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+                "text-muted hover:text-text text-xs font-medium transition-colors disabled:opacity-50",
                 currentLocale === "en" && "text-gold hover:text-gold",
               )}
             >
-              <Image
-                src="/assets/en.webp"
-                alt={t("englishFlagAlt")}
-                width={24}
-                height={24}
-                className="block object-cover"
-              />
               {t("englishShort")}
             </button>
             <button
@@ -59,17 +51,10 @@ export function LanguagePanel() {
               disabled={updateLocale.isPending}
               aria-label={t("french")}
               className={cn(
-                "text-muted hover:text-text inline-flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+                "text-muted hover:text-text text-xs font-medium transition-colors disabled:opacity-50",
                 currentLocale === "fr" && "text-gold hover:text-gold",
               )}
             >
-              <Image
-                src="/assets/fr.webp"
-                alt={t("frenchFlagAlt")}
-                width={24}
-                height={24}
-                className="block object-cover"
-              />
               {t("frenchShort")}
             </button>
           </div>

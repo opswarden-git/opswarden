@@ -29,6 +29,8 @@ fi
 
 fence='```'
 
+printf '[![Release %s](https://img.shields.io/badge/release-%s-2563eb.svg)](https://github.com/%s/releases/tag/%s)\n\n' "$tag" "$tag" "$repository" "$tag"
+
 # A machine cannot invent why a release matters. Hand-written highlights are used
 # when they exist, and their absence only costs the summary, never the rest.
 if [ -n "$highlights" ] && [ -f "$highlights" ]; then

@@ -9,12 +9,6 @@ import { downloadConversationAttachment } from "../conversations";
 
 export type PrivateMessageAttachment = ConversationAttachment;
 
-export interface PrivateMessageReaction {
-  emoji: string;
-  count: number;
-  reacted: boolean;
-}
-
 export interface PrivateMessage {
   id: string;
   sender_id: string;
@@ -23,7 +17,6 @@ export interface PrivateMessage {
   created_at: string;
   edited_at: string | null;
   attachments: PrivateMessageAttachment[];
-  reactions: PrivateMessageReaction[];
 }
 
 export type PendingPrivateMessageAttachment = PendingConversationAttachment;
@@ -134,26 +127,6 @@ export function useEditPrivateMessage(peerId: string) {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.code ?? "edit_private_message_failed");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["private-messages", peerId] });
-    },
-  });
-}
-
-export function useTogglePrivateMessageReaction(peerId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
-      const res = await apiFetch(`/api/private-messages/${messageId}/reactions`, {
-        method: "POST",
-        body: JSON.stringify({ emoji }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.code ?? "toggle_private_message_reaction_failed");
       }
       return res.json();
     },

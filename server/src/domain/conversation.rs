@@ -113,11 +113,10 @@ pub enum ConversationFeature {
     SystemEvents,
 }
 
-const DIRECT_FEATURES: [ConversationFeature; 8] = [
+const DIRECT_FEATURES: [ConversationFeature; 7] = [
     ConversationFeature::SendText,
     ConversationFeature::SendGif,
     ConversationFeature::EditOwnMessage,
-    ConversationFeature::React,
     ConversationFeature::AttachFiles,
     ConversationFeature::PaginatedHistory,
     ConversationFeature::Presence,
@@ -164,6 +163,7 @@ mod tests {
         assert!(direct
             .features()
             .contains(&ConversationFeature::AttachFiles));
+        assert!(!direct.features().contains(&ConversationFeature::React));
         assert!(!direct
             .features()
             .contains(&ConversationFeature::SystemEvents));
@@ -173,6 +173,7 @@ mod tests {
         assert!(incident
             .features()
             .contains(&ConversationFeature::AttachFiles));
+        assert!(incident.features().contains(&ConversationFeature::React));
     }
 
     #[test]

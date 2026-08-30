@@ -2,7 +2,6 @@
 #[derive(Default)]
 pub struct DummyPrivateMessageRepo {
     messages: Mutex<Vec<PrivateMessage>>,
-    reactions: Mutex<HashSet<(Uuid, Uuid, String)>>,
     reads: Mutex<HashMap<(Uuid, Uuid), DateTime<Utc>>>,
 }
 
@@ -31,7 +30,6 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
         before: Option<(DateTime<Utc>, Uuid)>,
         limit: u32,
     ) -> Result<Vec<PrivateMessage>, DomainError> {
-        let reactions = self.reactions.lock().unwrap();
         let mut msgs: Vec<PrivateMessage> = self
             .messages
             .lock()
@@ -44,22 +42,6 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
             })
             .cloned()
             .collect();
-        for message in &mut msgs {
-            let mut by_emoji: HashMap<String, (u64, bool)> = HashMap::new();
-            for (_, user_id, emoji) in reactions.iter().filter(|(id, _, _)| *id == message.id) {
-                let summary = by_emoji.entry(emoji.clone()).or_default();
-                summary.0 += 1;
-                summary.1 |= *user_id == viewer_id;
-            }
-            message.reactions = by_emoji
-                .into_iter()
-                .map(|(emoji, (count, reacted))| PrivateMessageReaction {
-                    emoji,
-                    count,
-                    reacted,
-                })
-                .collect();
-        }
         msgs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
         msgs.truncate(limit as usize);
         Ok(msgs)
@@ -95,22 +77,6 @@ impl PrivateMessageRepo for DummyPrivateMessageRepo {
             message.edited_at = Some(edited_at);
         }
         Ok(())
-    }
-
-    async fn toggle_reaction(
-        &self,
-        message_id: Uuid,
-        user_id: Uuid,
-        emoji: &str,
-    ) -> Result<bool, DomainError> {
-        let key = (message_id, user_id, emoji.to_string());
-        let mut reactions = self.reactions.lock().unwrap();
-        if reactions.remove(&key) {
-            Ok(false)
-        } else {
-            reactions.insert(key);
-            Ok(true)
-        }
     }
 
     async fn find_attachment_for_participant(

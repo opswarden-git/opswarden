@@ -262,12 +262,6 @@ pub trait PrivateMessageRepo: Send + Sync {
         content: &str,
         edited_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError>;
-    async fn toggle_reaction(
-        &self,
-        message_id: Uuid,
-        user_id: Uuid,
-        emoji: &str,
-    ) -> Result<bool, DomainError>;
     async fn find_attachment_for_participant(
         &self,
         attachment_id: Uuid,

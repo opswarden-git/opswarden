@@ -3,8 +3,7 @@ name: CI
 run-name: "CI · ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}"
 
 "on":
-  push:
-    branches: [main]
+  push: {}
   pull_request:
     branches: [main]
 
@@ -55,11 +54,19 @@ jobs:
       - name: Enforce source hygiene
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: ./tooling/check_source_hygiene.sh "$BASE_SHA"
+        run: |
+          if ! git rev-parse --verify --quiet "${BASE_SHA}^{commit}" >/dev/null; then
+            BASE_SHA=origin/main
+          fi
+          ./tooling/check_source_hygiene.sh "$BASE_SHA"
       - name: Enforce forward-only migration policy
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: ./tooling/check_migration_policy.sh "$BASE_SHA"
+        run: |
+          if ! git rev-parse --verify --quiet "${BASE_SHA}^{commit}" >/dev/null; then
+            BASE_SHA=origin/main
+          fi
+          ./tooling/check_migration_policy.sh "$BASE_SHA"
       - name: Enforce immutable Docker base images
         run: ./tooling/check_dockerfile_pins.sh
       - name: Validate Compose configuration
@@ -130,7 +137,6 @@ jobs:
   backend-quality:
     name: Backend quality
     needs: [workflow-quality, changes]
-    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -168,7 +174,6 @@ jobs:
   backend-test:
     name: Backend tests
     needs: [workflow-quality, changes, backend-quality]
-    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -274,7 +279,6 @@ jobs:
   web-quality:
     name: Web quality
     needs: [workflow-quality, changes]
-    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -486,10 +490,10 @@ jobs:
 
           require_result workflow "$WORKFLOW_RESULT" success
           require_result changes "$CHANGES_RESULT" success
-          require_result backend-quality "$BACKEND_QUALITY_RESULT" "$(expected_for "$SERVER_CHANGED")"
-          require_result backend-test "$BACKEND_TEST_RESULT" "$(expected_for "$SERVER_CHANGED")"
+          require_result backend-quality "$BACKEND_QUALITY_RESULT" success
+          require_result backend-test "$BACKEND_TEST_RESULT" success
           require_result backend-coverage "$BACKEND_COVERAGE_RESULT" "$(expected_for "$SERVER_CHANGED")"
-          require_result web-quality "$WEB_QUALITY_RESULT" "$(expected_for "$WEB_CHANGED")"
+          require_result web-quality "$WEB_QUALITY_RESULT" success
           require_result web-build "$WEB_BUILD_RESULT" "$(expected_for "$WEB_CHANGED")"
           require_result desktop-linux-package "$DESKTOP_RESULT" "$(expected_for "$DESKTOP_CHANGED")"
           require_result e2e-critical-path "$E2E_RESULT" "$(expected_for "$E2E_CHANGED")"

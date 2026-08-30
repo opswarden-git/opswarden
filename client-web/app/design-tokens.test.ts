@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const stylesheet = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
 const buttonSource = readFileSync(resolve(process.cwd(), "components/ui/Button.tsx"), "utf8");
 const alertSource = readFileSync(resolve(process.cwd(), "components/ui/Alert.tsx"), "utf8");
-const designSystem = readFileSync(resolve(process.cwd(), "../DESIGN_SYSTEM.md"), "utf8");
+const designSystem = readFileSync(resolve(process.cwd(), "../docs/DESIGN_SYSTEM.md"), "utf8");
 const releaseChipSource = readFileSync(
   resolve(process.cwd(), "components/releases/ReleaseStateChip.tsx"),
   "utf8",

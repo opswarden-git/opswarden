@@ -276,7 +276,7 @@ export function Sidebar({
               </button>
             }
           >
-            <ProfilePanel showIdentityHeader={false} showTeamSetup={false} />
+            <ProfilePanel showIdentityHeader={false} />
             <LanguagePanel />
             <NotificationsPanel />
             <AccountDangerZone />

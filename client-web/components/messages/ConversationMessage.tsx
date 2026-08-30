@@ -21,7 +21,7 @@ export interface ConversationAttachment {
 }
 
 interface ConversationMessageLabels {
-  addReaction: string;
+  addReaction?: string;
   cancel: string;
   downloadFailed: string;
   edit: string;
@@ -34,14 +34,14 @@ interface ConversationMessageLabels {
 interface ConversationMessageProps {
   attachments?: ConversationAttachment[];
   authorLabel: string;
-  availableReactions: string[];
+  availableReactions?: string[];
   content: string;
   continuesAbove: boolean;
   createdAt: string;
   editedAt: string | null;
   labels: ConversationMessageLabels;
   mine: boolean;
-  reactions: ConversationReaction[];
+  reactions?: ConversationReaction[];
   surface: "direct" | "incident";
   editError?: string;
   editPending?: boolean;
@@ -49,7 +49,7 @@ interface ConversationMessageProps {
   onDownload?: (attachmentId: string) => Promise<void>;
   onEdit?: (content: string, onSuccess: () => void) => void;
   onResetEdit?: () => void;
-  onToggleReaction: (emoji: string) => void;
+  onToggleReaction?: (emoji: string) => void;
 }
 
 function formatBytes(bytes: number) {
@@ -61,14 +61,14 @@ function formatBytes(bytes: number) {
 export function ConversationMessage({
   attachments = [],
   authorLabel,
-  availableReactions,
+  availableReactions = [],
   content,
   continuesAbove,
   createdAt,
   editedAt,
   labels,
   mine,
-  reactions,
+  reactions = [],
   surface,
   editError,
   editPending = false,
@@ -127,15 +127,17 @@ export function ConversationMessage({
                   : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
               )}
             >
-              <IconButton
-                className="text-muted hover:text-text hover:bg-transparent"
-                label={labels.addReaction}
-                size="sm"
-                variant="ghost"
-                onClick={() => setPicking((current) => !current)}
-              >
-                <SmilePlus className="h-3.5 w-3.5" aria-hidden="true" />
-              </IconButton>
+              {onToggleReaction && labels.addReaction ? (
+                <IconButton
+                  className="text-muted hover:text-text hover:bg-transparent"
+                  label={labels.addReaction}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setPicking((current) => !current)}
+                >
+                  <SmilePlus className="h-3.5 w-3.5" aria-hidden="true" />
+                </IconButton>
+              ) : null}
               {canEdit ? (
                 <IconButton
                   className="text-muted hover:text-text hover:bg-transparent"
@@ -281,7 +283,7 @@ export function ConversationMessage({
             {new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(new Date(createdAt))}
             {editedAt ? ` · ${labels.edited}` : ""}
           </time>
-          {(present.length > 0 || picking) && !editing ? (
+          {onToggleReaction && (present.length > 0 || picking) && !editing ? (
             <div className="flex flex-wrap items-center gap-1">
               {[
                 ...present,
