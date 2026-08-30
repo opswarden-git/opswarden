@@ -6,7 +6,7 @@ use crate::domain::team::{
 };
 use crate::ports::TeamRepo;
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 #[path = "team_directory.rs"]
@@ -28,6 +28,57 @@ impl PgTeamRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+}
+
+async fn lock_moderation_target(
+    tx: &mut Transaction<'_, Postgres>,
+    team_id: Uuid,
+    requester_id: Uuid,
+    target_user_id: Uuid,
+) -> Result<Option<Role>, DomainError> {
+    let requester = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE",
+    )
+    .bind(team_id)
+    .bind(requester_id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|_| DomainError::Storage)?;
+    match requester.as_deref() {
+        None => return Err(DomainError::Forbidden),
+        Some(role) if role != Role::Manager.as_str() => return Err(DomainError::NotManager),
+        Some(_) => {}
+    }
+    if requester_id == target_user_id {
+        return Err(DomainError::CannotModerateSelf);
+    }
+    let target = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE",
+    )
+    .bind(team_id)
+    .bind(target_user_id)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|_| DomainError::Storage)?;
+    let target = target.as_deref().map(role_from_str).transpose()?;
+    if target == Some(Role::Manager) {
+        return Err(DomainError::CannotModerateManager);
+    }
+    Ok(target)
+}
+
+async fn clear_member_assignments(
+    tx: &mut Transaction<'_, Postgres>,
+    team_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), DomainError> {
+    sqlx::query("UPDATE incidents SET assignee_id = NULL WHERE team_id = $1 AND assignee_id = $2")
+        .bind(team_id)
+        .bind(user_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+    Ok(())
 }
 
 #[async_trait]
@@ -294,6 +345,34 @@ impl TeamRepo for PgTeamRepo {
         Ok(())
     }
 
+    async fn kick_member_and_clear_assignments(
+        &self,
+        team_id: Uuid,
+        requester_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        if lock_moderation_target(&mut tx, team_id, requester_id, target_user_id)
+            .await?
+            .is_none()
+        {
+            return Err(DomainError::MemberNotFound);
+        }
+        let removed = sqlx::query(
+            "DELETE FROM team_members WHERE team_id = $1 AND user_id = $2 AND role <> 'manager'",
+        )
+        .bind(team_id)
+        .bind(target_user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if removed.rows_affected() != 1 {
+            return Err(DomainError::MemberNotFound);
+        }
+        clear_member_assignments(&mut tx, team_id, target_user_id).await?;
+        tx.commit().await.map_err(|_| DomainError::Storage)
+    }
+
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
         let record = sqlx::query!(
             r#"
@@ -383,6 +462,56 @@ impl TeamRepo for PgTeamRepo {
         .map_err(|_| DomainError::Storage)?;
 
         Ok(())
+    }
+
+    async fn ban_member_and_clear_assignments(
+        &self,
+        ban: &TeamBan,
+        requester_id: Uuid,
+    ) -> Result<bool, DomainError> {
+        if ban.created_by != Some(requester_id) {
+            return Err(DomainError::Forbidden);
+        }
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let target_role =
+            lock_moderation_target(&mut tx, ban.team_id, requester_id, ban.user_id).await?;
+        sqlx::query(
+            r#"
+            INSERT INTO team_bans (team_id, user_id, expires_at, reason, created_by, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (team_id, user_id) DO UPDATE
+            SET expires_at = EXCLUDED.expires_at,
+                reason = EXCLUDED.reason,
+                created_by = EXCLUDED.created_by,
+                created_at = EXCLUDED.created_at
+            "#,
+        )
+        .bind(ban.team_id)
+        .bind(ban.user_id)
+        .bind(ban.expires_at())
+        .bind(ban.reason.as_deref())
+        .bind(ban.created_by)
+        .bind(ban.created_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        let removed_membership = target_role.is_some();
+        if removed_membership {
+            let removed = sqlx::query(
+                "DELETE FROM team_members WHERE team_id = $1 AND user_id = $2 AND role <> 'manager'",
+            )
+            .bind(ban.team_id)
+            .bind(ban.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+            if removed.rows_affected() != 1 {
+                return Err(DomainError::MemberNotFound);
+            }
+            clear_member_assignments(&mut tx, ban.team_id, ban.user_id).await?;
+        }
+        tx.commit().await.map_err(|_| DomainError::Storage)?;
+        Ok(removed_membership)
     }
 
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError> {

@@ -13,6 +13,23 @@ async fn seed_user(pool: &PgPool) -> Uuid {
     user.id
 }
 
+async fn seed_assigned_incident(pool: &PgPool, team_id: Uuid, assignee_id: Uuid) -> Uuid {
+    let incident_id = Uuid::new_v4();
+    sqlx::query(
+        r#"
+        INSERT INTO incidents (id, team_id, title, status, severity, assignee_id, created_at)
+        VALUES ($1, $2, 'Moderation rollback', 'open', 'low', $3, now())
+        "#,
+    )
+    .bind(incident_id)
+    .bind(team_id)
+    .bind(assignee_id)
+    .execute(pool)
+    .await
+    .unwrap();
+    incident_id
+}
+
 #[sqlx::test]
 async fn it_creates_joins_and_transfers_in_postgres(pool: PgPool) {
     let repo = PgTeamRepo::new(pool.clone());
@@ -143,6 +160,88 @@ async fn database_rejects_removing_the_only_manager(pool: PgPool) {
         repo.find_member_role(team.id, manager).await.unwrap(),
         Some(Role::Manager)
     );
+}
+
+#[sqlx::test]
+async fn kick_removes_membership_and_assignment_atomically(pool: PgPool) {
+    let repo = PgTeamRepo::new(pool.clone());
+    let manager = seed_user(&pool).await;
+    let member = seed_user(&pool).await;
+    let team = Team::new("Atomic kick").unwrap();
+    repo.create_team_with_manager(&team, manager).await.unwrap();
+    repo.add_member(team.id, member, Role::Responder)
+        .await
+        .unwrap();
+    let incident_id = seed_assigned_incident(&pool, team.id, member).await;
+
+    repo.kick_member_and_clear_assignments(team.id, manager, member)
+        .await
+        .unwrap();
+
+    assert_eq!(repo.find_member_role(team.id, member).await.unwrap(), None);
+    let assignee =
+        sqlx::query_scalar::<_, Option<Uuid>>("SELECT assignee_id FROM incidents WHERE id = $1")
+            .bind(incident_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(assignee, None);
+}
+
+#[sqlx::test]
+async fn failed_ban_cleanup_rolls_back_ban_and_membership(pool: PgPool) {
+    let repo = PgTeamRepo::new(pool.clone());
+    let manager = seed_user(&pool).await;
+    let member = seed_user(&pool).await;
+    let team = Team::new("Atomic ban rollback").unwrap();
+    repo.create_team_with_manager(&team, manager).await.unwrap();
+    repo.add_member(team.id, member, Role::Observer)
+        .await
+        .unwrap();
+    let incident_id = seed_assigned_incident(&pool, team.id, member).await;
+    sqlx::query(
+        r#"
+        CREATE FUNCTION reject_incident_unassignment() RETURNS trigger AS $$
+        BEGIN
+            RAISE EXCEPTION 'injected assignment cleanup failure';
+        END;
+        $$ LANGUAGE plpgsql
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        CREATE TRIGGER reject_incident_unassignment
+        BEFORE UPDATE OF assignee_id ON incidents
+        FOR EACH ROW EXECUTE FUNCTION reject_incident_unassignment()
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let ban = TeamBan::permanent(team.id, member, manager, None);
+
+    assert_eq!(
+        repo.ban_member_and_clear_assignments(&ban, manager)
+            .await
+            .unwrap_err(),
+        DomainError::Storage
+    );
+
+    assert_eq!(
+        repo.find_member_role(team.id, member).await.unwrap(),
+        Some(Role::Observer)
+    );
+    assert!(repo.find_ban(team.id, member).await.unwrap().is_none());
+    let assignee =
+        sqlx::query_scalar::<_, Option<Uuid>>("SELECT assignee_id FROM incidents WHERE id = $1")
+            .bind(incident_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(assignee, Some(member));
 }
 
 #[sqlx::test]

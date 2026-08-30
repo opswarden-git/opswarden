@@ -141,6 +141,15 @@ impl TeamRepo for MockTeamRepo {
         Ok(())
     }
 
+    async fn kick_member_and_clear_assignments(
+        &self,
+        _team_id: Uuid,
+        _requester_id: Uuid,
+        _target_user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        Ok(())
+    }
+
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
         Ok(self.roles.keys().filter(|(t, _)| *t == team_id).count() as u64)
     }
@@ -170,6 +179,14 @@ impl TeamRepo for MockTeamRepo {
 
     async fn add_ban(&self, _ban: &crate::domain::team::TeamBan) -> Result<(), DomainError> {
         Ok(())
+    }
+
+    async fn ban_member_and_clear_assignments(
+        &self,
+        _ban: &crate::domain::team::TeamBan,
+        _requester_id: Uuid,
+    ) -> Result<bool, DomainError> {
+        Ok(false)
     }
 
     async fn find_ban(

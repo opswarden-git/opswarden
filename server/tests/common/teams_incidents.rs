@@ -126,6 +126,16 @@ impl TeamRepo for DummyTeamRepo {
         Ok(())
     }
 
+    async fn kick_member_and_clear_assignments(
+        &self,
+        team_id: Uuid,
+        _requester_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        self.roles.lock().unwrap().remove(&(team_id, target_user_id));
+        Ok(())
+    }
+
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
         Ok(self
             .roles
@@ -168,6 +178,23 @@ impl TeamRepo for DummyTeamRepo {
             .unwrap()
             .insert((ban.team_id, ban.user_id), ban.clone());
         Ok(())
+    }
+
+    async fn ban_member_and_clear_assignments(
+        &self,
+        ban: &TeamBan,
+        _requester_id: Uuid,
+    ) -> Result<bool, DomainError> {
+        self.bans
+            .lock()
+            .unwrap()
+            .insert((ban.team_id, ban.user_id), ban.clone());
+        Ok(self
+            .roles
+            .lock()
+            .unwrap()
+            .remove(&(ban.team_id, ban.user_id))
+            .is_some())
     }
 
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError> {

@@ -16,7 +16,7 @@ use crate::domain::event::DomainEvent;
 #[cfg(test)]
 use crate::domain::team::Role;
 use crate::domain::team::{validate_member_moderation, TeamBan};
-use crate::ports::{EventPublisher, IncidentRepo, TeamRepo, UserRepo};
+use crate::ports::{EventPublisher, TeamRepo, UserRepo};
 
 /// What the caller asked for; the use-case turns it into a validated `TeamBan`.
 pub enum BanRequest {
@@ -43,7 +43,6 @@ pub struct BanMemberResult {
 
 pub struct BanMemberUseCase {
     teams: Arc<dyn TeamRepo>,
-    incidents: Arc<dyn IncidentRepo>,
     users: Arc<dyn UserRepo>,
     events: Arc<dyn EventPublisher>,
 }
@@ -51,13 +50,11 @@ pub struct BanMemberUseCase {
 impl BanMemberUseCase {
     pub fn new(
         teams: Arc<dyn TeamRepo>,
-        incidents: Arc<dyn IncidentRepo>,
         users: Arc<dyn UserRepo>,
         events: Arc<dyn EventPublisher>,
     ) -> Self {
         Self {
             teams,
-            incidents,
             users,
             events,
         }
@@ -103,19 +100,10 @@ impl BanMemberUseCase {
             ),
         };
         let expires_at = ban.expires_at();
-        self.teams.add_ban(&ban).await?;
-
-        // Drop the membership if the banned user is currently in the team.
-        let removed_membership = target_role.is_some();
-        if removed_membership {
-            self.teams
-                .remove_member(cmd.team_id, cmd.target_user_id)
-                .await?;
-            // No incident may stay assigned to the now-removed member.
-            self.incidents
-                .clear_assignee_for_member(cmd.team_id, cmd.target_user_id)
-                .await?;
-        }
+        let removed_membership = self
+            .teams
+            .ban_member_and_clear_assignments(&ban, cmd.requester_id)
+            .await?;
 
         // A ban is a realtime fact even when it is pre-emptive and changes no
         // membership. Current team members refresh the ban/roster projections;
@@ -142,30 +130,21 @@ impl BanMemberUseCase {
 mod tests {
     use super::*;
     use crate::app::auth::tests::MockUserRepo;
-    use crate::app::incident::tests::{MockEventPublisher, MockIncidentRepo};
+    use crate::app::incident::tests::MockEventPublisher;
     use crate::app::team::tests::MockTeamRepo;
 
-    // Build the use-case with fresh incident/user/event mocks. `user_exists`
+    // Build the use-case with fresh user/event mocks. `user_exists`
     // controls whether a pre-emptive ban's target resolves to a real account; the
-    // returned incident + event mocks let tests assert clears and notifications.
+    // returned event mock lets tests assert realtime notifications.
     fn build(
         teams: Arc<MockTeamRepo>,
         user_exists: bool,
-    ) -> (
-        BanMemberUseCase,
-        Arc<MockIncidentRepo>,
-        Arc<MockEventPublisher>,
-    ) {
-        let incidents = Arc::new(MockIncidentRepo::default());
+    ) -> (BanMemberUseCase, Arc<MockEventPublisher>) {
         let users = Arc::new(MockUserRepo {
             simulate_user_exists: user_exists,
         });
         let events = Arc::new(MockEventPublisher::default());
-        (
-            BanMemberUseCase::new(teams, incidents.clone(), users, events.clone()),
-            incidents,
-            events,
-        )
+        (BanMemberUseCase::new(teams, users, events.clone()), events)
     }
 
     #[tokio::test]
@@ -178,7 +157,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(observer, Role::Observer),
         );
-        let (use_case, incidents, events) = build(repo.clone(), true);
+        let (use_case, events) = build(repo.clone(), true);
 
         let result = use_case
             .ban_member(BanMemberCommand {
@@ -194,12 +173,7 @@ mod tests {
         assert_eq!(result.expires_at, None);
         assert!(result.removed_membership);
         assert_eq!(repo.removed.lock().unwrap().as_slice(), &[(team, observer)]);
-        // The banned member's incident assignments are cleared.
-        assert_eq!(
-            incidents.cleared.lock().unwrap().as_slice(),
-            &[(team, observer)]
-        );
-        // ...and the team's live clients are notified.
+        // The team's live clients are notified after the atomic write.
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
             [DomainEvent::MemberBanned {
@@ -229,7 +203,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(responder, Role::Responder),
         );
-        let (use_case, _incidents, _events) = build(repo.clone(), true);
+        let (use_case, _events) = build(repo.clone(), true);
 
         let result = use_case
             .ban_member(BanMemberCommand {
@@ -254,7 +228,7 @@ mod tests {
         let manager = Uuid::new_v4();
         let stranger = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::default().with_member(manager, Role::Manager));
-        let (use_case, incidents, events) = build(repo.clone(), true);
+        let (use_case, events) = build(repo.clone(), true);
 
         let result = use_case
             .ban_member(BanMemberCommand {
@@ -269,7 +243,6 @@ mod tests {
 
         assert!(!result.removed_membership);
         assert!(repo.removed.lock().unwrap().is_empty());
-        assert!(incidents.cleared.lock().unwrap().is_empty());
         // A pre-emptive ban is still announced to the team's connected members.
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
@@ -296,7 +269,7 @@ mod tests {
                 .with_member(responder, Role::Responder)
                 .with_member(observer, Role::Observer),
         );
-        let (use_case, _incidents, _events) = build(repo.clone(), true);
+        let (use_case, _events) = build(repo.clone(), true);
 
         let result = use_case
             .ban_member(BanMemberCommand {
@@ -322,7 +295,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(other_manager, Role::Manager),
         );
-        let (use_case, _incidents, _events) = build(repo.clone(), true);
+        let (use_case, _events) = build(repo.clone(), true);
 
         let self_ban = use_case
             .ban_member(BanMemberCommand {
@@ -358,7 +331,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(observer, Role::Observer),
         );
-        let (use_case, _incidents, _events) = build(repo.clone(), true);
+        let (use_case, _events) = build(repo.clone(), true);
 
         let result = use_case
             .ban_member(BanMemberCommand {
@@ -383,7 +356,7 @@ mod tests {
         let ghost = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::default().with_member(manager, Role::Manager));
         // The target is not a member and the account does not exist.
-        let (use_case, _incidents, _events) = build(repo.clone(), false);
+        let (use_case, _events) = build(repo.clone(), false);
 
         let result = use_case
             .ban_member(BanMemberCommand {

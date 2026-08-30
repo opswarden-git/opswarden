@@ -73,6 +73,14 @@ pub trait TeamRepo: Send + Sync {
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
     /// Remove a user from a team.
     async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
+    /// Revalidate moderation roles, remove the member and clear their Incident
+    /// assignments in one transaction.
+    async fn kick_member_and_clear_assignments(
+        &self,
+        team_id: Uuid,
+        requester_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<(), DomainError>;
     /// Count how many members a team has.
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError>;
     /// Every member of a team, enriched with the user's email and role. Powers
@@ -89,6 +97,13 @@ pub trait TeamRepo: Send + Sync {
     /// Record (or replace) a moderation ban. Upserts on `(team_id, user_id)` so
     /// re-banning a user updates the existing row rather than duplicating it.
     async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError>;
+    /// Revalidate moderation roles, upsert the ban and atomically remove any
+    /// membership and Incident assignments. Returns whether membership existed.
+    async fn ban_member_and_clear_assignments(
+        &self,
+        ban: &TeamBan,
+        requester_id: Uuid,
+    ) -> Result<bool, DomainError>;
     /// The ban currently recorded for a user on a team, if any. The row may be
     /// expired; the caller decides via `TeamBan::is_active`.
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError>;

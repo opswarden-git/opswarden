@@ -188,6 +188,16 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn kick_member_and_clear_assignments(
+            &self,
+            team_id: Uuid,
+            _requester_id: Uuid,
+            target_user_id: Uuid,
+        ) -> Result<(), DomainError> {
+            self.removed.lock().unwrap().push((team_id, target_user_id));
+            Ok(())
+        }
+
         async fn count_members(&self, _team_id: Uuid) -> Result<u64, DomainError> {
             Ok(self.roles.len() as u64)
         }
@@ -224,6 +234,22 @@ pub(crate) mod tests {
             bans.retain(|b| b.user_id != ban.user_id);
             bans.push(ban.clone());
             Ok(())
+        }
+
+        async fn ban_member_and_clear_assignments(
+            &self,
+            ban: &TeamBan,
+            _requester_id: Uuid,
+        ) -> Result<bool, DomainError> {
+            let removed_membership = self.roles.contains_key(&ban.user_id);
+            self.add_ban(ban).await?;
+            if removed_membership {
+                self.removed
+                    .lock()
+                    .unwrap()
+                    .push((ban.team_id, ban.user_id));
+            }
+            Ok(removed_membership)
         }
 
         async fn find_ban(
