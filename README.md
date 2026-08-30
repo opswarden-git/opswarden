@@ -154,6 +154,8 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
+For deeper setup and operational guidance, please see:
+
 <details>
 <summary><strong>Architecture</strong></summary>
 
@@ -370,22 +372,18 @@ Release step validations.
 
 </details>
 
-For deeper setup and operational guidance, please see:
-- [Technical documentation](https://opswarden-git.github.io/opswarden/)
-- [WebSocket protocol](WEBSOCKET_SPEC.md)
-
-And please follow the rules and design standards stated in:
-- [Design system](DESIGN_SYSTEM.md)
-- [UI guidelines](UI_GUIDELINES.md)
-- [Contribution guide](HOWTOCONTRIBUTE.md)
-
 ## Contributing
 
 Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
 
-See the [contribution guide](HOWTOCONTRIBUTE.md) for the contribution workflow. The
-executable source-hygiene, migration and container-pin policies are enforced by
-the required CI gate.
+Please follow the rules and design standards stated in:
+- [Technical documentation](https://opswarden-git.github.io/opswarden/)
+- [WebSocket protocol](WEBSOCKET_SPEC.md)
+- [Design system](DESIGN_SYSTEM.md)
+- [UI guidelines](UI_GUIDELINES.md)
+- [Contribution guide](HOWTOCONTRIBUTE.md)
+
+The executable source-hygiene, migration and container-pin policies are enforced by the required CI gate.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden/ci-success.png" alt="CI Success" width="100%" />
