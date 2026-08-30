@@ -267,7 +267,12 @@ impl ConnectionCredentialVault for PgConnectionCredentialVault {
                     if secret.trim().is_empty() {
                         return Err(DomainError::InvalidServiceSecret);
                     }
-                    Some(aes::encrypt(&self.key, secret.as_bytes())?)
+                    let aad = aes::canonical_aad(
+                        &connection.id,
+                        &mutation.kind.to_string(),
+                        aes::DEFAULT_KEY_VERSION,
+                    );
+                    Some(aes::encrypt(&self.key, secret.as_bytes(), &aad)?)
                 }
                 None => None,
             };
@@ -377,7 +382,8 @@ impl ConnectionCredentialVault for PgConnectionCredentialVault {
         if secret.trim().is_empty() {
             return Err(DomainError::InvalidServiceSecret);
         }
-        let (nonce, ciphertext) = aes::encrypt(&self.key, secret.as_bytes())?;
+        let aad = aes::canonical_aad(&connection_id, &kind.to_string(), aes::DEFAULT_KEY_VERSION);
+        let (nonce, ciphertext) = aes::encrypt(&self.key, secret.as_bytes(), &aad)?;
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
         sqlx::query(
             r#"
@@ -435,7 +441,8 @@ impl ConnectionCredentialVault for PgConnectionCredentialVault {
         let ciphertext: Vec<u8> = row
             .try_get("ciphertext")
             .map_err(|_| DomainError::Storage)?;
-        let plaintext = aes::decrypt(&self.key, &nonce, &ciphertext)?;
+        let aad = aes::canonical_aad(&connection_id, &kind.to_string(), aes::DEFAULT_KEY_VERSION);
+        let plaintext = aes::decrypt(&self.key, &nonce, &ciphertext, &aad)?;
         String::from_utf8(plaintext)
             .map(Some)
             .map_err(|_| DomainError::Crypto)
