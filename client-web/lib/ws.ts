@@ -177,9 +177,11 @@ export function handleWsContractEvent(event: ContractEvent, queryClient: QueryCl
     case "rule_triggered":
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["team-automation-runs"] });
+      queryClient.invalidateQueries({ queryKey: ["team-automation-connections"] });
       break;
     case "rule_failed":
       queryClient.invalidateQueries({ queryKey: ["team-automation-runs"] });
+      queryClient.invalidateQueries({ queryKey: ["team-automation-connections"] });
       console.error(
         `[Automation] Rule failed for ${event.service}: ${event.rule_name} - ${event.error}`,
       );

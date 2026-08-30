@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AutomationService } from "@/lib/queries/automations";
+import type { AutomationService, TeamConnection } from "@/lib/queries/automations";
 import { ConnectionsView } from "./ConnectionsView";
 
 vi.mock("next-intl", () => ({
@@ -25,7 +25,10 @@ vi.mock("@/lib/queries/automations", () => ({
   useTestTeamConnection: () => mutation,
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe("ConnectionsView", () => {
   it("uses the official marks for supported providers", () => {
@@ -110,5 +113,86 @@ describe("ConnectionsView", () => {
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("shows only management actions for an active OAuth connection", () => {
+    const service = {
+      name: "github",
+      label: "GitHub",
+      actions: [],
+      reactions: [],
+      connection: {
+        description: "Receive GitHub events",
+        fields: [],
+        oauth: { label: "Authorize with GitHub", description: "Authorize repositories" },
+        testable: false,
+      },
+    } satisfies AutomationService;
+    const connection = {
+      id: "connection-1",
+      team_id: "team-1",
+      service: "github",
+      secret_configured: true,
+      token_configured: true,
+      oauth_configured: true,
+      oauth_refresh_configured: true,
+      endpoint_configured: false,
+      created_at: "2026-08-31T00:00:00Z",
+      updated_at: "2026-08-31T00:00:00Z",
+      verified_at: "2026-08-31T00:00:00Z",
+      last_delivery_at: null,
+      last_error_code: null,
+      webhook_path: "/api/webhooks/github/connection-1",
+    } satisfies TeamConnection;
+
+    render(
+      <ConnectionsView catalog={[service]} connections={[connection]} rules={[]} teamId="team-1" />,
+    );
+
+    expect(screen.queryByRole("heading", { name: "inactiveIntegrations" })).not.toBeInTheDocument();
+    const manage = screen.getByRole("button", { name: "manageService GitHub" });
+    fireEvent.click(manage);
+    expect(screen.getByRole("button", { name: "disconnect" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "connect" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Authorize with GitHub" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "refreshOAuthToken" })).not.toBeInTheDocument();
+  });
+
+  it("labels an untested outbound connection as ready instead of awaiting an event", () => {
+    const service = {
+      name: "http",
+      label: "HTTP",
+      actions: [],
+      reactions: [],
+      connection: {
+        description: "Send HTTP notifications",
+        fields: [],
+        oauth: null,
+        testable: true,
+      },
+    } satisfies AutomationService;
+    const connection = {
+      id: "connection-1",
+      team_id: "team-1",
+      service: "http",
+      secret_configured: false,
+      token_configured: false,
+      oauth_configured: false,
+      oauth_refresh_configured: false,
+      endpoint_configured: true,
+      created_at: "2026-08-31T00:00:00Z",
+      updated_at: "2026-08-31T00:00:00Z",
+      verified_at: null,
+      last_delivery_at: null,
+      last_error_code: null,
+      webhook_path: null,
+    } satisfies TeamConnection;
+
+    render(
+      <ConnectionsView catalog={[service]} connections={[connection]} rules={[]} teamId="team-1" />,
+    );
+
+    expect(screen.getByText("readyToTest")).toBeInTheDocument();
+    expect(screen.queryByText("awaitingVerification")).not.toBeInTheDocument();
   });
 });
