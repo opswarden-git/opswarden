@@ -172,7 +172,7 @@ API origin and an explicit confirmation such as `--confirm SEED_PRODUCTION`.
 OAuth Manager accounts use `--prompt-token`; credentials remain in the ignored
 `.env` file and are never embedded in the SQL fixture.
 The complete local/production procedure and every `DEMO_` variable are covered
-in [`docs/integrations/DEMO_DATASET.md`](docs/integrations/DEMO_DATASET.md).
+in [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md).
 
 For deeper setup and operational guidance, please see:
 
