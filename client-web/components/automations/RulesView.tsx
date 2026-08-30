@@ -26,7 +26,8 @@ import {
   OperationalTableRow,
   OperationalTableRowHeader,
 } from "@/components/ui/OperationalTable";
-import { RuleForm, type CapabilityWithService } from "./RuleForm";
+import type { CapabilityWithService } from "@/lib/automation-catalog";
+import { RuleForm } from "./RuleForm";
 import { useErrorText } from "@/lib/useErrorText";
 
 function capabilities(catalog: AutomationService[], type: "actions" | "reactions") {

@@ -35,6 +35,10 @@ class DemoCliTests(unittest.TestCase):
         with self.assertRaisesRegex(demo.DemoError, "DESEED_PRODUCTION"):
             demo.require_confirmation(args, "deseed")
 
+    def test_local_confirmation_is_not_required(self) -> None:
+        args = argparse.Namespace(target="local", confirm="")
+        demo.require_confirmation(args, "seed")
+
     def test_psql_variables_are_separate_arguments(self) -> None:
         self.assertEqual(
             demo.Database.variable_args({"team_id": "one", "manager_id": "two"}),

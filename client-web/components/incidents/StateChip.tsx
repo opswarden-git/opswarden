@@ -1,5 +1,5 @@
 import React from "react";
-import { IncidentStatus } from "@/lib/queries/incidents";
+import type { IncidentStatus } from "@/lib/incident-contract";
 import { CircleAlert, Eye, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/StatusBadge";

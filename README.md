@@ -171,6 +171,8 @@ Production operations use the same fixture but require both a production HTTPS
 API origin and an explicit confirmation such as `--confirm SEED_PRODUCTION`.
 OAuth Manager accounts use `--prompt-token`; credentials remain in the ignored
 `.env` file and are never embedded in the SQL fixture.
+The complete local/production procedure and every `DEMO_` variable are covered
+in [`docs/integrations/DEMO_DATASET.md`](docs/integrations/DEMO_DATASET.md).
 
 For deeper setup and operational guidance, please see:
 

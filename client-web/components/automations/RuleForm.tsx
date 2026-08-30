@@ -2,7 +2,12 @@
 
 import { useTranslations } from "next-intl";
 import React, { useRef, useState } from "react";
-import { catalogFieldsAreValid, catalogPayload, catalogValues } from "@/lib/automation-catalog";
+import {
+  catalogFieldsAreValid,
+  catalogPayload,
+  catalogValues,
+  type CapabilityWithService,
+} from "@/lib/automation-catalog";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import {
@@ -16,7 +21,7 @@ import {
 import { AutomationDialog } from "./AutomationDialog";
 import { useErrorText } from "@/lib/useErrorText";
 
-export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
+export type { CapabilityWithService } from "@/lib/automation-catalog";
 
 /**
  * The catalogue ships a description for every field, and for a filter it is

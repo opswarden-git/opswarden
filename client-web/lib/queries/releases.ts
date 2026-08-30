@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import type { ReleaseState } from "../release-contract";
 import type { IncidentSeverity, IncidentStatus } from "./incidents";
 
-export type ReleaseState = "created" | "in_progress" | "blocked" | "completed" | "cancelled";
+export type { ReleaseState } from "../release-contract";
 
 export interface ReleaseStep {
   position: number;

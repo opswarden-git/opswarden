@@ -210,6 +210,9 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
 
 
 def manager_token(config: dict[str, str], target: str, origin: str, prompt: bool) -> str:
+    configured = target_value(config, target, "MANAGER_TOKEN")
+    if configured:
+        return configured
     if prompt:
         token = getpass.getpass("Manager bearer token: ").strip()
         if not token:
@@ -374,8 +377,12 @@ def main() -> int:
     parser.add_argument("--target", choices=("local", "production"), default="local")
     parser.add_argument("--confirm", default="", help="Required explicit production confirmation")
     parser.add_argument("--prompt-token", action="store_true", help="Securely prompt for an OAuth Manager bearer token")
-    parser.add_argument("--with-integrations", action="store_true", help="Configure connections and rules after seed")
+    parser.add_argument("--data-only", action="store_true", help="Seed relational data without connections or rules")
     args = parser.parse_args()
+    if args.data_only and args.command != "seed":
+        raise DemoError("--data-only is valid only with the seed command")
+    if args.command in {"bootstrap", "seed", "integrations", "deseed"}:
+        require_confirmation(args, args.command)
     config = load_config()
     origin = api_origin(config, args.target)
     ensure_health(origin)
@@ -385,18 +392,23 @@ def main() -> int:
         doctor(config, args)
         return 0
     if args.command == "bootstrap":
-        require_confirmation(args, "bootstrap")
         bootstrap_accounts(config, args.target, origin)
         print("Demo accounts are ready. Complete the Manager's real Team onboarding before seed.")
         return 0
-    require_confirmation(args, args.command)
     if args.command == "seed":
         bootstrap_accounts(config, args.target, origin)
         variables = identity_variables(config, database, args.target)
+        token = ""
+        if not args.data_only:
+            require(
+                config, "DEMO_GITHUB_WEBHOOK_SECRET", "DEMO_GITLAB_WEBHOOK_SECRET",
+                "DEMO_GENERIC_WEBHOOK_SECRET", "DEMO_ALERTMANAGER_WEBHOOK_SECRET",
+            )
+            token = manager_token(config, args.target, origin, args.prompt_token)
         database.apply(ASSETS / "seed.sql", variables)
         print(f"Seeded one Team: {target_value(config, args.target, 'TEAM_NAME')} ({variables['team_id']})")
-        if args.with_integrations:
-            configure_integrations(config, origin, variables["team_id"], manager_token(config, args.target, origin, args.prompt_token))
+        if not args.data_only:
+            configure_integrations(config, origin, variables["team_id"], token)
         return 0
     variables = identity_variables(config, database, args.target)
     if args.command == "integrations":
