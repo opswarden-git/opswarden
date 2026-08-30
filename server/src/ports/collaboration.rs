@@ -113,23 +113,14 @@ pub trait TeamRepo: Send + Sync {
     /// moderation history intentional rather than silently reactivatable.
     async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
     /// Replace the single bounded identity image attached to a Team.
-    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError> {
-        let _ = (team_id, image);
-        Err(DomainError::Storage)
-    }
+    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError>;
     /// Load image bytes only for a current member of the Team.
     async fn find_team_image_for_member(
         &self,
         team_id: Uuid,
         user_id: Uuid,
-    ) -> Result<Option<TeamImage>, DomainError> {
-        let _ = (team_id, user_id);
-        Err(DomainError::Storage)
-    }
-    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
-        let _ = team_id;
-        Err(DomainError::Storage)
-    }
+    ) -> Result<Option<TeamImage>, DomainError>;
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]

@@ -288,5 +288,25 @@ pub(crate) mod tests {
                 .retain(|ban| ban.user_id != user_id);
             Ok(())
         }
+
+        async fn save_team_image(
+            &self,
+            _team_id: Uuid,
+            _image: &TeamImage,
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn find_team_image_for_member(
+            &self,
+            _team_id: Uuid,
+            _user_id: Uuid,
+        ) -> Result<Option<TeamImage>, DomainError> {
+            Ok(None)
+        }
+
+        async fn delete_team_image(&self, _team_id: Uuid) -> Result<(), DomainError> {
+            Ok(())
+        }
     }
 }

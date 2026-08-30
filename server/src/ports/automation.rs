@@ -131,11 +131,9 @@ pub trait AutomationRuleRepo: Send + Sync {
     async fn delete_rule(&self, team_id: Uuid, rule_id: Uuid) -> Result<bool, DomainError>;
     async fn next_run_at(
         &self,
-        _team_id: Uuid,
-        _rule_id: Uuid,
-    ) -> Result<Option<DateTime<Utc>>, DomainError> {
-        Ok(None)
-    }
+        team_id: Uuid,
+        rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError>;
 }
 
 /// Durable Timer projection and cross-replica occurrence claims.
