@@ -70,9 +70,6 @@ and `startsAt`; a resolved transition also includes `endsAt`. Formatting,
 annotations, labels and a firing alert's changing `endsAt` do not affect it.
 A new alert start or a firing-to-resolved transition remains distinct.
 
-See [ADR 0002](../adr/0002-alertmanager-lifecycle-contract.md) for the complete
-decision.
-
 ## Filters and templates
 
 Rules can filter on normalized scalar fields including `severity`, `alertname`,

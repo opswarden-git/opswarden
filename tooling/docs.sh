@@ -28,13 +28,12 @@ cp -R "$wiki_source/docs-source/." "$portal/docs/"
 rm -f "$portal/docs/assets/logo.png"
 cp "$REPOSITORY_ROOT/client-web/public/assets/heroicon.png" "$portal/docs/assets/logo.png"
 
-# Root contracts are canonical and included by MkDocs snippets. ADRs used by a
-# public page are copied into the same assembly without creating a second source.
+# Root contracts are canonical and included by MkDocs snippets.
 for contract in README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md WEBSOCKET_SPEC.md; do
   cp "$REPOSITORY_ROOT/$contract" "$portal/$contract"
 done
-mkdir -p "$portal/repository-docs/adr"
-cp "$REPOSITORY_ROOT/docs/adr/"*.md "$portal/repository-docs/adr/"
+mkdir -p "$portal/repository-docs/integrations"
+cp "$REPOSITORY_ROOT/docs/integrations/"*.md "$portal/repository-docs/integrations/"
 
 OPSWARDEN_API_URL=${OPSWARDEN_API_URL:-https://api.opswarden.dev} \
   OPSWARDEN_INVENTORY_DOCS_DIR="$portal/docs/inventory" \
