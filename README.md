@@ -154,8 +154,6 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
-## Technical reference
-
 <details>
 <summary><strong>Architecture</strong></summary>
 
