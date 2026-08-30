@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("signup collects only persisted data and recovers from creation failure", async ({ page }) => {
   await page.route("**/api/auth/sign-up", (route) =>
-    route.fulfill({ status: 409, contentType: "application/json", body: "{}" }),
+    route.fulfill({ status: 500, contentType: "application/json", body: "{}" }),
   );
 
   await page.goto("/en/signup");

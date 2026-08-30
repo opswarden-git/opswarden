@@ -1,8 +1,8 @@
 {
   "name": "opswarden-desktop",
   "private": true,
-  "version": "1.0.17",
-  "description": "Thin Tauri v2 shell around the OpsWarden web client (URL mode: loads the local Compose Next app).",
+  "version": "1.0.18",
+  "description": "Thin Tauri v2 shell around the OpsWarden web client (URL mode: loads the running Next app).",
   "scripts": {
     "dev": "node scripts/tauri-dev.mjs",
     "build": "tauri build",
