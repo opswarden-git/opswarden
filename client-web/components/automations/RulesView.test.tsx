@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AutomationRule, AutomationService, TeamConnection } from "@/lib/queries/automations";
-import { RulesView } from "./RulesView";
+import { projectRule, RulesView } from "./RulesView";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
@@ -475,5 +475,27 @@ describe("RulesView", () => {
     expect(screen.getByRole("dialog", { name: "editRule" })).toBeInTheDocument();
     expect(screen.getByLabelText("ruleName")).toHaveValue("Failed CI");
     expect(screen.getByRole("textbox", { name: /Branch/ })).toHaveValue("main");
+  });
+
+  describe("projectRule", () => {
+    it("projects rule capability labels and formatted dates", () => {
+      const actions = [
+        { name: "github_ci_failed", label: "CI failed", description: "CI failed", connection_service: "github", fields: [], service: "github", builtIn: false },
+      ];
+      const reactions = [
+        { name: "create_incident", label: "Create Incident", description: "Create Incident", connection_service: "opswarden", fields: [], service: "opswarden", builtIn: true },
+      ];
+
+      const projected = projectRule(rule, actions, reactions, "en", "Disabled");
+
+      expect(projected.rule).toBe(rule);
+      expect(projected.triggerLabel).toBe("CI failed");
+      expect(projected.reactionLabel).toBe("Create Incident");
+      expect(projected.nextRunLabel).toBe("—");
+      expect(projected.updatedAtLabel).toContain("2026");
+
+      const disabledProjected = projectRule({ ...rule, enabled: false }, actions, reactions, "en", "Disabled");
+      expect(disabledProjected.nextRunLabel).toBe("Disabled");
+    });
   });
 });

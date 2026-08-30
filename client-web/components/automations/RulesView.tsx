@@ -56,6 +56,32 @@ function nextRunLabel(rule: AutomationRule, locale: string, disabledLabel: strin
   }).format(new Date(rule.next_run_at));
 }
 
+export interface RuleProjection {
+  rule: AutomationRule;
+  triggerLabel: string;
+  reactionLabel: string;
+  nextRunLabel: string;
+  updatedAtLabel: string;
+}
+
+export function projectRule(
+  rule: AutomationRule,
+  actions: CapabilityWithService[],
+  reactions: CapabilityWithService[],
+  locale: string,
+  disabledLabel: string,
+): RuleProjection {
+  return {
+    rule,
+    triggerLabel: capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind),
+    reactionLabel: capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind),
+    nextRunLabel: nextRunLabel(rule, locale, disabledLabel),
+    updatedAtLabel: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
+      new Date(rule.updated_at),
+    ),
+  };
+}
+
 function RuleStatus({ enabled }: { enabled: boolean }) {
   const t = useTranslations("Automations");
   return enabled ? (
@@ -66,6 +92,59 @@ function RuleStatus({ enabled }: { enabled: boolean }) {
     <StatusBadge tone="neutral" icon={<PowerOff />}>
       {t("disabled")}
     </StatusBadge>
+  );
+}
+
+function RuleActionMenu({
+  rule,
+  disabled,
+  label,
+  enableLabel,
+  disableLabel,
+  editLabel,
+  deleteLabel,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  rule: AutomationRule;
+  disabled: boolean;
+  label: string;
+  enableLabel: string;
+  disableLabel: string;
+  editLabel: string;
+  deleteLabel: string;
+  onToggle: (rule: AutomationRule) => void;
+  onEdit: (rule: AutomationRule) => void;
+  onDelete: (rule: AutomationRule) => void;
+}) {
+  return (
+    <ActionMenu
+      label={label}
+      disabled={disabled}
+      items={[
+        {
+          id: "toggle",
+          label: rule.enabled ? disableLabel : enableLabel,
+          icon: rule.enabled ? PowerOff : Power,
+          onSelect: () => onToggle(rule),
+        },
+        {
+          id: "edit",
+          label: editLabel,
+          icon: Pencil,
+          onSelect: () => onEdit(rule),
+        },
+        { id: "separator", separator: true },
+        {
+          id: "delete",
+          label: deleteLabel,
+          icon: Trash2,
+          tone: "danger",
+          onSelect: () => onDelete(rule),
+        },
+      ]}
+    />
   );
 }
 
@@ -116,6 +195,13 @@ export function RulesView({
       return sort === "updated_desc" ? delta : -delta;
     });
   }, [rules, sort, statusFilter]);
+
+  const projectedRules = useMemo(() => {
+    const disabledText = t("disabled");
+    return visibleRules.map((rule) =>
+      projectRule(rule, actions, reactions, locale, disabledText),
+    );
+  }, [visibleRules, actions, reactions, locale, t]);
 
   if (rules.length === 0) {
     return (
@@ -220,7 +306,7 @@ export function RulesView({
             </tr>
           </OperationalTableHead>
           <OperationalTableBody>
-            {visibleRules.map((rule) => (
+            {projectedRules.map(({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
               <OperationalTableRow key={rule.id}>
                 <OperationalTableRowHeader className="text-text font-medium">
                   {rule.name}
@@ -231,46 +317,29 @@ export function RulesView({
                   </span>
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted">
-                  {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                  {triggerLabel}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted">
-                  {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
+                  {reactionLabel}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted whitespace-nowrap">
-                  {nextRunLabel(rule, locale, t("disabled"))}
+                  {nextRunLabel}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-muted whitespace-nowrap">
-                  {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                    new Date(rule.updated_at),
-                  )}
+                  {updatedAtLabel}
                 </OperationalTableCell>
                 <OperationalTableCell className="text-right">
-                  <ActionMenu
-                    label={t("actionsMenu")}
+                  <RuleActionMenu
+                    rule={rule}
                     disabled={updateRule.isPending}
-                    items={[
-                      {
-                        id: "toggle",
-                        label: rule.enabled ? t("disable") : t("enable"),
-                        icon: rule.enabled ? PowerOff : Power,
-                        onSelect: () =>
-                          updateRule.mutate({ ruleId: rule.id, enabled: !rule.enabled }),
-                      },
-                      {
-                        id: "edit",
-                        label: t("edit"),
-                        icon: Pencil,
-                        onSelect: () => setEditing(rule),
-                      },
-                      { id: "separator", separator: true },
-                      {
-                        id: "delete",
-                        label: t("delete"),
-                        icon: Trash2,
-                        tone: "danger",
-                        onSelect: () => setDeleting(rule),
-                      },
-                    ]}
+                    label={t("actionsMenu")}
+                    enableLabel={t("enable")}
+                    disableLabel={t("disable")}
+                    editLabel={t("edit")}
+                    deleteLabel={t("delete")}
+                    onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
+                    onEdit={setEditing}
+                    onDelete={setDeleting}
                   />
                 </OperationalTableCell>
               </OperationalTableRow>
@@ -282,7 +351,7 @@ export function RulesView({
       {/* Mobile view */}
       <div className="surface overflow-hidden rounded-md lg:hidden">
         <ul aria-label={t("rulesList")} className="divide-border-muted divide-y">
-          {visibleRules.map((rule) => (
+          {projectedRules.map(({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
             <li key={rule.id} className="flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -294,32 +363,17 @@ export function RulesView({
                   </div>
                 </div>
                 <div className="shrink-0">
-                  <ActionMenu
-                    label={t("actionsMenu")}
+                  <RuleActionMenu
+                    rule={rule}
                     disabled={updateRule.isPending}
-                    items={[
-                      {
-                        id: "toggle",
-                        label: rule.enabled ? t("disable") : t("enable"),
-                        icon: rule.enabled ? PowerOff : Power,
-                        onSelect: () =>
-                          updateRule.mutate({ ruleId: rule.id, enabled: !rule.enabled }),
-                      },
-                      {
-                        id: "edit",
-                        label: t("edit"),
-                        icon: Pencil,
-                        onSelect: () => setEditing(rule),
-                      },
-                      { id: "separator", separator: true },
-                      {
-                        id: "delete",
-                        label: t("delete"),
-                        icon: Trash2,
-                        tone: "danger",
-                        onSelect: () => setDeleting(rule),
-                      },
-                    ]}
+                    label={t("actionsMenu")}
+                    enableLabel={t("enable")}
+                    disableLabel={t("disable")}
+                    editLabel={t("edit")}
+                    deleteLabel={t("delete")}
+                    onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
+                    onEdit={setEditing}
+                    onDelete={setDeleting}
                   />
                 </div>
               </div>
@@ -328,7 +382,7 @@ export function RulesView({
                   <div className="flex justify-between gap-4">
                     <span className="text-muted shrink-0 text-xs uppercase">{t("colTrigger")}</span>
                     <span className="text-text truncate text-right">
-                      {capabilityLabel(actions, rule.trigger_kind, rule.trigger_kind)}
+                      {triggerLabel}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
@@ -336,21 +390,19 @@ export function RulesView({
                       {t("colResponse")}
                     </span>
                     <span className="text-text truncate text-right">
-                      {capabilityLabel(reactions, rule.reaction_kind, rule.reaction_kind)}
+                      {reactionLabel}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted shrink-0 text-xs uppercase">{t("colNextRun")}</span>
                     <span className="text-text text-right">
-                      {nextRunLabel(rule, locale, t("disabled"))}
+                      {nextRunLabel}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted shrink-0 text-xs uppercase">{t("colUpdated")}</span>
                     <span className="text-text text-right">
-                      {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
-                        new Date(rule.updated_at),
-                      )}
+                      {updatedAtLabel}
                     </span>
                   </div>
                 </div>
