@@ -295,12 +295,6 @@ impl IncidentRepo for MockIncidentRepo {
         Ok(())
     }
 
-    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError> {
-        let mut recorded = self.incident_events.lock().unwrap();
-        recorded.extend(events.iter().cloned());
-        Ok(())
-    }
-
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,

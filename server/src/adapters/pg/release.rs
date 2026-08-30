@@ -68,6 +68,49 @@ impl PgReleaseRepo {
         }
         Ok(())
     }
+
+    async fn update_release_rows(
+        transaction: &mut Transaction<'_, Postgres>,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        let updated = sqlx::query(
+            r#"
+            UPDATE releases SET base_state = $2, updated_at = $3
+            WHERE id = $1 AND updated_at = $4
+            "#,
+        )
+        .bind(release.id)
+        .bind(release.base_state.as_str())
+        .bind(release.updated_at)
+        .bind(expected_updated_at)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if updated.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
+
+        for step in &release.steps {
+            let updated = sqlx::query(
+                r#"
+                UPDATE release_steps SET validated_by = $3, validated_at = $4
+                WHERE release_id = $1 AND position = $2
+                "#,
+            )
+            .bind(release.id)
+            .bind(step.position)
+            .bind(step.validated_by)
+            .bind(step.validated_at)
+            .execute(&mut **transaction)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+            if updated.rows_affected() != 1 {
+                return Err(DomainError::ConcurrentModification);
+            }
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -270,43 +313,23 @@ impl ReleaseRepo for PgReleaseRepo {
         expected_updated_at: DateTime<Utc>,
     ) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-
-        let updated = sqlx::query(
-            r#"
-            UPDATE releases SET base_state = $2, updated_at = $3
-            WHERE id = $1 AND updated_at = $4
-            "#,
-        )
-        .bind(release.id)
-        .bind(release.base_state.as_str())
-        .bind(release.updated_at)
-        .bind(expected_updated_at)
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        if updated.rows_affected() != 1 {
-            return Err(DomainError::ConcurrentModification);
-        }
-
-        for step in &release.steps {
-            sqlx::query!(
-                r#"
-                UPDATE release_steps SET validated_by = $3, validated_at = $4
-                WHERE release_id = $1 AND position = $2
-                "#,
-                release.id,
-                step.position,
-                step.validated_by,
-                step.validated_at,
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(|_| DomainError::Storage)?;
-        }
-
+        Self::update_release_rows(&mut tx, release, expected_updated_at).await?;
         tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
+    }
+
+    async fn update_release_with_incident_events(
+        &self,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::update_release_rows(&mut transaction, release, expected_updated_at).await?;
+        for event in events {
+            insert_event(&mut transaction, event).await?;
+        }
+        transaction.commit().await.map_err(|_| DomainError::Storage)
     }
 
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
@@ -531,6 +554,37 @@ mod tests {
             ReleaseBaseState::Completed => assert!(stored.steps[0].is_validated()),
             state => panic!("unexpected winning state: {state:?}"),
         }
+    }
+
+    #[sqlx::test]
+    async fn release_validation_rolls_back_when_incident_history_fails(pool: PgPool) {
+        let repo = PgReleaseRepo::new(pool.clone());
+        let (team_id, user_id) = seed_team(&pool).await;
+        let mut release = Release::new(team_id, "v-history", vec!["build".into()]).unwrap();
+        repo.save_release(&release).await.unwrap();
+        let expected_updated_at = release.updated_at;
+        release.validate_step("build", user_id, false).unwrap();
+        let invalid_event = IncidentEvent::release_step_validated(
+            Uuid::new_v4(),
+            user_id,
+            release.id,
+            &release.title,
+            "build",
+        );
+
+        assert_eq!(
+            repo.update_release_with_incident_events(
+                &release,
+                expected_updated_at,
+                &[invalid_event],
+            )
+            .await,
+            Err(DomainError::Storage)
+        );
+
+        let stored = repo.find_release_by_id(release.id).await.unwrap().unwrap();
+        assert_eq!(stored.base_state, ReleaseBaseState::Created);
+        assert!(!stored.steps[0].is_validated());
     }
 
     #[sqlx::test]

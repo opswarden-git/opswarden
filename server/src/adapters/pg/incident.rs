@@ -236,31 +236,6 @@ impl IncidentRepo for PgIncidentRepo {
         tx.commit().await.map_err(|_| DomainError::Storage)
     }
 
-    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError> {
-        if events.is_empty() {
-            return Ok(());
-        }
-        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        for event in events {
-            sqlx::query(
-                r#"
-                INSERT INTO incident_events (id, incident_id, kind, actor_id, data, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                "#,
-            )
-            .bind(event.id)
-            .bind(event.incident_id)
-            .bind(event.kind.to_string())
-            .bind(event.actor_id)
-            .bind(&event.data)
-            .bind(event.created_at)
-            .execute(&mut *tx)
-            .await
-            .map_err(|_| DomainError::Storage)?;
-        }
-        tx.commit().await.map_err(|_| DomainError::Storage)
-    }
-
     async fn list_events_for_incident(
         &self,
         incident_id: Uuid,

@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::{Incident, IncidentStatus, Severity};
+use crate::domain::incident_event::IncidentEvent;
 use crate::domain::release::{effective_release_state, Release, ReleaseBaseState, ReleaseState};
 use crate::ports::{EventPublisher, ReleaseRepo};
 
@@ -55,6 +56,26 @@ pub struct ReleaseIncidentProjection {
     pub linked: Vec<ReleaseIncident>,
     pub blockers: Vec<ReleaseIncident>,
     pub linkable: Vec<ReleaseIncident>,
+}
+
+pub(crate) fn release_step_incident_events(
+    release: &Release,
+    actor_id: Uuid,
+    step: &str,
+    linked_incident_ids: &[Uuid],
+) -> Vec<IncidentEvent> {
+    linked_incident_ids
+        .iter()
+        .map(|incident_id| {
+            IncidentEvent::release_step_validated(
+                *incident_id,
+                actor_id,
+                release.id,
+                &release.title,
+                step,
+            )
+        })
+        .collect()
 }
 
 pub fn project_release_incidents(
@@ -193,6 +214,7 @@ pub(crate) mod tests {
     pub struct MockReleaseRepo {
         pub releases: Mutex<HashMap<Uuid, Release>>,
         pub links: Mutex<Vec<(Uuid, Uuid)>>,
+        pub incident_events: Mutex<Vec<crate::domain::incident_event::IncidentEvent>>,
         pub active_incidents: Mutex<HashSet<Uuid>>,
         pub scripted_counts: Mutex<HashMap<Uuid, VecDeque<u64>>>,
         pub reject_update: bool,
@@ -272,6 +294,20 @@ pub(crate) mod tests {
                 return Err(DomainError::ConcurrentModification);
             }
             self.seed_release(release.clone());
+            Ok(())
+        }
+
+        async fn update_release_with_incident_events(
+            &self,
+            release: &Release,
+            expected_updated_at: chrono::DateTime<chrono::Utc>,
+            events: &[crate::domain::incident_event::IncidentEvent],
+        ) -> Result<(), DomainError> {
+            self.update_release(release, expected_updated_at).await?;
+            self.incident_events
+                .lock()
+                .unwrap()
+                .extend(events.iter().cloned());
             Ok(())
         }
 

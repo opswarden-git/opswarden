@@ -268,6 +268,10 @@ impl DummyIncidentRepo {
             .get(&incident_id)
             .map(|incident| incident.status)
     }
+
+    pub fn record_events(&self, events: &[IncidentEvent]) {
+        self.events.lock().unwrap().extend(events.iter().cloned());
+    }
 }
 
 #[async_trait]
@@ -302,14 +306,6 @@ impl IncidentRepo for DummyIncidentRepo {
     ) -> Result<(), DomainError> {
         self.seed_incident(incident.clone());
         self.events.lock().unwrap().push(event.clone());
-        Ok(())
-    }
-
-    async fn record_events(
-        &self,
-        events: &[IncidentEvent],
-    ) -> Result<(), DomainError> {
-        self.events.lock().unwrap().extend(events.iter().cloned());
         Ok(())
     }
 

@@ -239,6 +239,17 @@ impl ReleaseRepo for DummyReleaseRepo {
         Ok(())
     }
 
+    async fn update_release_with_incident_events(
+        &self,
+        release: &Release,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError> {
+        self.update_release(release, expected_updated_at).await?;
+        self.incidents.record_events(events);
+        Ok(())
+    }
+
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
         let mut links = self.links.lock().unwrap();
         if !links.contains(&(release_id, incident_id)) {

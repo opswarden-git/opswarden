@@ -19,6 +19,8 @@ use crate::ports::{
     ReleaseRepo, ServiceConnectionRepo, SmtpConfig,
 };
 
+use crate::app::release::release_step_incident_events;
+
 const MAX_NOTIFICATION_TEXT_BYTES: usize = 1024;
 
 pub struct AutomationReactionExecutor {
@@ -95,8 +97,11 @@ impl AutomationReactionExecutor {
         let expected_updated_at = release.updated_at;
         let old_state = release.effective_state(has_active);
         release.validate_step(&step, actor, has_active)?;
+        let linked_incident_ids = self.releases.list_linked_incident_ids(release.id).await?;
+        let incident_events =
+            release_step_incident_events(&release, actor, &step, &linked_incident_ids);
         self.releases
-            .update_release(&release, expected_updated_at)
+            .update_release_with_incident_events(&release, expected_updated_at, &incident_events)
             .await?;
         self.events
             .publish(DomainEvent::ReleaseStepValidated {

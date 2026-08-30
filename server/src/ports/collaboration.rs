@@ -150,12 +150,6 @@ pub trait IncidentRepo: Send + Sync {
         event: &IncidentEvent,
         expected_updated_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError>;
-    /// Append audit events describing something that happened *outside* the
-    /// incidents themselves — a release they block moving a step forward. This
-    /// is the one writer that does not pair an event with a change to
-    /// `incidents`; all of them land together or not at all, so a war room
-    /// never shows a release advancing on one incident but not its sibling.
-    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError>;
     /// Newest first. `before` is a `(created_at, id)` keyset cursor: only rows
     /// strictly older than it are returned, so a war room can walk back through
     /// a long incident without the page boundary shifting under it.
@@ -320,6 +314,14 @@ pub trait ReleaseRepo: Send + Sync {
         &self,
         release: &Release,
         expected_updated_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
+    /// Persist a validated Release step and every linked Incident audit event
+    /// in the same transaction.
+    async fn update_release_with_incident_events(
+        &self,
+        release: &Release,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+        events: &[IncidentEvent],
     ) -> Result<(), DomainError>;
     /// Link an incident to a release (idempotent on the pair).
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError>;
