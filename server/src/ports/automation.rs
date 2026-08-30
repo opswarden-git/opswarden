@@ -166,11 +166,26 @@ pub trait AutomationTimerRepo: Send + Sync {
 }
 
 /// Idempotency ledger for inbound provider deliveries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WebhookDeliveryClaim {
+    pub delivery_id: Uuid,
+    pub token: Uuid,
+}
+
 #[async_trait]
 pub trait WebhookDeliveryRepo: Send + Sync {
-    /// Atomically reserve a provider delivery. Returns false when this
-    /// connection already received the same provider id.
-    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
+    /// Atomically claims a new delivery or reclaims an expired attempt.
+    /// Returns `None` while another attempt owns the lease or after the
+    /// delivery reached a terminal state.
+    async fn claim_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+    ) -> Result<Option<WebhookDeliveryClaim>, DomainError>;
+    async fn complete_claimed_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<bool, DomainError>;
     async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
     async fn list_deliveries_for_team(
         &self,

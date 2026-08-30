@@ -292,6 +292,7 @@ impl AutomationRuleRepo for DummyAutomationRuleRepo {
 #[derive(Default)]
 pub struct DummyWebhookDeliveryRepo {
     deliveries: Mutex<HashMap<(Uuid, String), WebhookDelivery>>,
+    claims: Mutex<HashMap<Uuid, Uuid>>,
 }
 
 #[allow(dead_code)]
@@ -303,17 +304,40 @@ impl DummyWebhookDeliveryRepo {
 
 #[async_trait]
 impl WebhookDeliveryRepo for DummyWebhookDeliveryRepo {
-    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
+    async fn claim_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+    ) -> Result<Option<opswarden_server::ports::WebhookDeliveryClaim>, DomainError> {
         let key = (
             delivery.connection_id,
             delivery.provider_delivery_id.clone(),
         );
         let mut deliveries = self.deliveries.lock().unwrap();
         if deliveries.contains_key(&key) {
-            return Ok(false);
+            return Ok(None);
         }
         deliveries.insert(key, delivery.clone());
-        Ok(true)
+        let token = Uuid::new_v4();
+        self.claims.lock().unwrap().insert(delivery.id, token);
+        Ok(Some(opswarden_server::ports::WebhookDeliveryClaim {
+            delivery_id: delivery.id,
+            token,
+        }))
+    }
+
+    async fn complete_claimed_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: opswarden_server::ports::WebhookDeliveryClaim,
+    ) -> Result<bool, DomainError> {
+        if self.claims.lock().unwrap().get(&delivery.id) != Some(&claim.token) {
+            return Ok(false);
+        }
+        let updated = self.update_delivery(delivery).await?;
+        if updated {
+            self.claims.lock().unwrap().remove(&delivery.id);
+        }
+        Ok(updated)
     }
 
     async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {

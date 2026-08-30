@@ -99,19 +99,20 @@ impl IngestTeamWebhookUseCase {
         }
         let mut delivery =
             WebhookDelivery::new(connection.id, cmd.provider_delivery_id, cmd.provider_event)?;
-        if !self
+        let Some(claim) = self
             .dependencies
             .deliveries
-            .reserve_delivery(&delivery)
+            .claim_delivery(&delivery)
             .await?
-        {
+        else {
             return Ok(IngestTeamWebhookResult {
                 duplicate: true,
                 ignored: false,
                 rules_triggered: 0,
                 rules_failed: 0,
             });
-        }
+        };
+        delivery.id = claim.delivery_id;
         // A new, correctly signed provider delivery proves the connection.
         // Duplicate retries deliberately keep the original delivery health.
         self.dependencies
@@ -125,7 +126,7 @@ impl IngestTeamWebhookUseCase {
             &cmd.body,
         ) else {
             delivery.mark_ignored()?;
-            self.persist_delivery(&delivery).await?;
+            self.persist_delivery(&delivery, claim).await?;
             return Ok(IngestTeamWebhookResult {
                 duplicate: false,
                 ignored: true,
@@ -214,7 +215,7 @@ impl IngestTeamWebhookUseCase {
         } else {
             delivery.mark_processed()?;
         }
-        self.persist_delivery(&delivery).await?;
+        self.persist_delivery(&delivery, claim).await?;
         if first_error_code.is_some() {
             self.dependencies
                 .connections
@@ -230,11 +231,15 @@ impl IngestTeamWebhookUseCase {
         })
     }
 
-    async fn persist_delivery(&self, delivery: &WebhookDelivery) -> Result<(), DomainError> {
+    async fn persist_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: crate::ports::WebhookDeliveryClaim,
+    ) -> Result<(), DomainError> {
         if !self
             .dependencies
             .deliveries
-            .update_delivery(delivery)
+            .complete_claimed_delivery(delivery, claim)
             .await?
         {
             return Err(DomainError::InvalidAutomationTransition);

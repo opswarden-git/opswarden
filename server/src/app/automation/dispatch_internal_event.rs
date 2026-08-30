@@ -76,18 +76,19 @@ impl DispatchInternalAutomationUseCase {
             }
         };
         let mut delivery = WebhookDelivery::new(connection.id, cmd.delivery_id, &cmd.event.kind)?;
-        if !self
+        let Some(claim) = self
             .dependencies
             .deliveries
-            .reserve_delivery(&delivery)
+            .claim_delivery(&delivery)
             .await?
-        {
+        else {
             return Ok(DispatchInternalAutomationResult {
                 duplicate: true,
                 rules_triggered: 0,
                 rules_failed: 0,
             });
-        }
+        };
+        delivery.id = claim.delivery_id;
         self.dependencies
             .connections
             .record_delivery_result(connection.id, None)
@@ -176,7 +177,7 @@ impl DispatchInternalAutomationUseCase {
         if !self
             .dependencies
             .deliveries
-            .update_delivery(&delivery)
+            .complete_claimed_delivery(&delivery, claim)
             .await?
         {
             return Err(DomainError::InvalidAutomationTransition);
