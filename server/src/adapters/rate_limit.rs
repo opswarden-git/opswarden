@@ -23,17 +23,65 @@
 use chrono::{DateTime, Duration, Utc};
 use std::{collections::HashMap, sync::Mutex};
 
-/// Entries idle for longer than this multiple of the window are dropped, so a
-/// scan of attacker-generated keys cannot grow the map without bound.
+/// Entries idle for longer than this multiple of the window are dropped.
 const PRUNE_WINDOW_MULTIPLIER: i32 = 2;
 
-/// Prune only once the map is worth scanning; keeps the common path O(1).
-const PRUNE_THRESHOLD: usize = 1024;
+/// A process never retains more caller identities than this. At capacity, a
+/// new identity is denied until an idle bucket expires; active budgets are not
+/// evicted because that would let an attacker reset a victim's limit by churn.
+const MAX_BUCKETS: usize = 4096;
 
 #[derive(Debug, Clone, Copy)]
 struct Bucket {
     tokens: f64,
     last_refill: DateTime<Utc>,
+}
+
+struct BucketStore {
+    buckets: HashMap<String, Bucket>,
+    idle_ttl: Duration,
+    max_buckets: usize,
+    next_expiration: Option<DateTime<Utc>>,
+}
+
+impl BucketStore {
+    fn new(idle_ttl: Duration, max_buckets: usize) -> Self {
+        Self {
+            buckets: HashMap::new(),
+            idle_ttl,
+            max_buckets: max_buckets.max(1),
+            next_expiration: None,
+        }
+    }
+
+    fn expire_idle(&mut self, now: DateTime<Utc>) {
+        if !matches!(self.next_expiration, Some(expires_at) if expires_at <= now) {
+            return;
+        }
+        self.buckets
+            .retain(|_, bucket| bucket.last_refill + self.idle_ttl > now);
+        self.next_expiration = self
+            .buckets
+            .values()
+            .map(|bucket| bucket.last_refill + self.idle_ttl)
+            .min();
+    }
+
+    fn capacity_retry_after(&self, now: DateTime<Utc>) -> u64 {
+        self.next_expiration
+            .map(|expires_at| (expires_at - now).num_seconds().max(1) as u64)
+            .unwrap_or(1)
+    }
+
+    fn track_expiration(&mut self, key: &str) {
+        if let Some(bucket) = self.buckets.get(key) {
+            let expires_at = bucket.last_refill + self.idle_ttl;
+            self.next_expiration = Some(
+                self.next_expiration
+                    .map_or(expires_at, |current| current.min(expires_at)),
+            );
+        }
+    }
 }
 
 /// Outcome of a rate-limit check.
@@ -49,17 +97,25 @@ pub enum Decision {
 pub struct RateLimiter {
     capacity: f64,
     window: Duration,
-    buckets: Mutex<HashMap<String, Bucket>>,
+    buckets: Mutex<BucketStore>,
 }
 
 impl RateLimiter {
     /// `capacity` requests per `window_seconds`, refilled continuously so a
     /// caller regains one slot every `window / capacity`.
     pub fn new(capacity: u32, window_seconds: u64) -> Self {
+        Self::with_max_buckets(capacity, window_seconds, MAX_BUCKETS)
+    }
+
+    fn with_max_buckets(capacity: u32, window_seconds: u64, max_buckets: usize) -> Self {
+        let window = Duration::seconds(window_seconds.max(1) as i64);
         Self {
             capacity: f64::from(capacity.max(1)),
-            window: Duration::seconds(window_seconds.max(1) as i64),
-            buckets: Mutex::new(HashMap::new()),
+            window,
+            buckets: Mutex::new(BucketStore::new(
+                window * PRUNE_WINDOW_MULTIPLIER,
+                max_buckets,
+            )),
         }
     }
 
@@ -90,37 +146,57 @@ impl RateLimiter {
 
         // A poisoned lock must not take authentication down; recovering keeps
         // the limiter conservative (the stored counts survive).
-        let mut buckets = self
+        let mut store = self
             .buckets
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        if buckets.len() >= PRUNE_THRESHOLD {
-            let cutoff = now - self.window * PRUNE_WINDOW_MULTIPLIER;
-            buckets.retain(|_, bucket| bucket.last_refill > cutoff);
+        store.expire_idle(now);
+
+        if !store.buckets.contains_key(key) {
+            // Peeking at a previously unseen account must not let arbitrary
+            // login identifiers consume the bounded store. Its first failed
+            // attempt records the bucket through `record_failure` instead.
+            if !spend {
+                return Decision::Allow;
+            }
+            if store.buckets.len() >= store.max_buckets {
+                return Decision::Deny {
+                    retry_after_seconds: store.capacity_retry_after(now),
+                };
+            }
+            store.buckets.insert(
+                key.to_string(),
+                Bucket {
+                    tokens: self.capacity,
+                    last_refill: now,
+                },
+            );
         }
 
-        let bucket = buckets.entry(key.to_string()).or_insert(Bucket {
-            tokens: self.capacity,
-            last_refill: now,
-        });
+        let bucket = store
+            .buckets
+            .get_mut(key)
+            .expect("a rate-limit bucket was inserted or already present");
 
         let elapsed = (now - bucket.last_refill).num_milliseconds().max(0) as f64 / 1000.0;
         bucket.tokens = (bucket.tokens + elapsed * refill_per_second).min(self.capacity);
         bucket.last_refill = now;
 
-        if bucket.tokens >= 1.0 {
+        let decision = if bucket.tokens >= 1.0 {
             if spend {
                 bucket.tokens -= 1.0;
             }
-            return Decision::Allow;
-        }
-
-        let missing = 1.0 - bucket.tokens;
-        let seconds = (missing / refill_per_second).ceil().max(1.0);
-        Decision::Deny {
-            retry_after_seconds: seconds as u64,
-        }
+            Decision::Allow
+        } else {
+            let missing = 1.0 - bucket.tokens;
+            let seconds = (missing / refill_per_second).ceil().max(1.0);
+            Decision::Deny {
+                retry_after_seconds: seconds as u64,
+            }
+        };
+        store.track_expiration(key);
+        decision
     }
 }
 
@@ -218,16 +294,67 @@ mod tests {
     }
 
     #[test]
-    fn idle_entries_are_pruned_once_the_map_is_large() {
-        let limiter = RateLimiter::new(1, 1);
-        for octet in 0..=255u8 {
-            for third in 0..=4u8 {
-                limiter.check(&format!("198.51.{third}.{octet}"), at(0));
-            }
+    fn unique_keys_never_grow_the_store_past_its_capacity() {
+        let limiter = RateLimiter::with_max_buckets(1, 60, 3);
+        for key in ["one", "two", "three"] {
+            assert_eq!(limiter.check(key, at(0)), Decision::Allow);
         }
-        assert!(limiter.buckets.lock().unwrap().len() >= PRUNE_THRESHOLD);
-        // A later check past the prune horizon collapses the idle keys.
-        limiter.check(&ip(9), at(600));
-        assert!(limiter.buckets.lock().unwrap().len() < PRUNE_THRESHOLD);
+
+        assert_eq!(
+            limiter.check("four", at(0)),
+            Decision::Deny {
+                retry_after_seconds: 120,
+            }
+        );
+        assert_eq!(limiter.buckets.lock().unwrap().buckets.len(), 3);
+    }
+
+    #[test]
+    fn capacity_returns_exactly_when_idle_buckets_expire() {
+        let limiter = RateLimiter::with_max_buckets(1, 10, 1);
+        assert_eq!(limiter.check("first", at(0)), Decision::Allow);
+        assert!(matches!(
+            limiter.check("second", at(19)),
+            Decision::Deny {
+                retry_after_seconds: 1
+            }
+        ));
+
+        assert_eq!(limiter.check("second", at(20)), Decision::Allow);
+        let store = limiter.buckets.lock().unwrap();
+        assert_eq!(store.buckets.len(), 1);
+        assert!(store.buckets.contains_key("second"));
+    }
+
+    #[test]
+    fn touching_a_bucket_extends_its_idle_lifetime() {
+        let limiter = RateLimiter::with_max_buckets(2, 10, 1);
+        assert_eq!(limiter.check("active", at(0)), Decision::Allow);
+        assert_eq!(limiter.check("active", at(19)), Decision::Allow);
+
+        assert_eq!(
+            limiter.check("new", at(20)),
+            Decision::Deny {
+                retry_after_seconds: 19,
+            }
+        );
+        assert!(limiter
+            .buckets
+            .lock()
+            .unwrap()
+            .buckets
+            .contains_key("active"));
+    }
+
+    #[test]
+    fn peeking_at_unknown_accounts_does_not_allocate_buckets() {
+        let limiter = RateLimiter::with_max_buckets(1, 60, 2);
+        for key in ["one@example.com", "two@example.com", "three@example.com"] {
+            assert_eq!(limiter.peek(key, at(0)), Decision::Allow);
+        }
+        assert!(limiter.buckets.lock().unwrap().buckets.is_empty());
+
+        limiter.record_failure("one@example.com", at(0));
+        assert_eq!(limiter.buckets.lock().unwrap().buckets.len(), 1);
     }
 }
