@@ -7,6 +7,7 @@ import { StepTeam } from "./StepTeam";
 import { StepVerification } from "./StepVerification";
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => {
     const translate = (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${Object.values(values).join(":")}` : key;
@@ -49,6 +50,7 @@ describe("onboarding steps", () => {
     expect(next).not.toHaveBeenCalled();
 
     rerender(<StepCredentials data={data} updateData={updateData} next={next} />);
+    expect(screen.getByRole("button", { name: "signupWithGithub" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "showPassword" }));
     expect(screen.getByDisplayValue("password")).toHaveAttribute("type", "text");
     fireEvent.click(screen.getByRole("button", { name: "signup" }));
@@ -98,7 +100,7 @@ describe("onboarding steps", () => {
   });
 
   it("surfaces a stable signup failure in the verification console", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
     const back = vi.fn();
     render(<StepVerification data={data} back={back} />);
     expect(screen.getByText("creatingWorkspace")).toBeInTheDocument();

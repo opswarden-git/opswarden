@@ -8,7 +8,7 @@ interface StepProps {
   data: OnboardingData;
   updateData: UpdateOnboardingData;
   next: () => void;
-  back: () => void;
+  back?: () => void;
 }
 
 export function StepTeam({ data, updateData, next, back }: StepProps) {
@@ -97,10 +97,12 @@ export function StepTeam({ data, updateData, next, back }: StepProps) {
         )}
       </div>
 
-      <div className="mt-2 flex items-center justify-between pt-4">
-        <Button variant="ghost" size="lg" onClick={back}>
-          {t("back")}
-        </Button>
+      <div className={`mt-2 flex items-center pt-4 ${back ? "justify-between" : "justify-end"}`}>
+        {back ? (
+          <Button variant="ghost" size="lg" onClick={back}>
+            {t("back")}
+          </Button>
+        ) : null}
         <Button type="submit" variant="primary" size="lg">
           {t("next")}
         </Button>

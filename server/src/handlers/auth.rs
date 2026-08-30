@@ -288,6 +288,91 @@ pub async fn google_callback(
     Ok(response)
 }
 
+pub async fn github_start(
+    State(state): State<AppState>,
+    Query(query): Query<GoogleStartQuery>,
+) -> Result<Response, DomainError> {
+    if !state.github_auth_oauth.is_configured() {
+        return Err(DomainError::OAuthNotConfigured);
+    }
+
+    let locale = match query.locale.as_deref() {
+        Some("fr") => "fr",
+        _ => "en",
+    };
+    let state_token = format!("{}:{locale}", Uuid::new_v4());
+    let auth_url = state.github_auth_oauth.authorization_url(&state_token)?;
+    let secure = if state
+        .config
+        .github_auth_redirect_uri
+        .starts_with("https://")
+    {
+        "; Secure"
+    } else {
+        ""
+    };
+
+    let mut response = Redirect::temporary(&auth_url).into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "opswarden_github_auth_state={state_token}; HttpOnly; SameSite=Lax; \
+             Path=/api/auth/github; Max-Age=600{secure}"
+        ))
+        .map_err(|_| DomainError::OAuthFailed)?,
+    );
+    Ok(response)
+}
+
+pub async fn github_callback(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<GoogleCallbackQuery>,
+) -> Result<Response, DomainError> {
+    if query.error.is_some() {
+        return Err(DomainError::OAuthFailed);
+    }
+
+    let code = query.code.ok_or(DomainError::OAuthFailed)?;
+    let returned_state = query.state.ok_or(DomainError::OAuthFailed)?;
+    let cookie_state =
+        read_cookie(&headers, "opswarden_github_auth_state").ok_or(DomainError::OAuthFailed)?;
+    if cookie_state != returned_state {
+        return Err(DomainError::OAuthFailed);
+    }
+
+    let profile = state.github_auth_oauth.exchange_code(&code).await?;
+    let locale = cookie_state
+        .split_once(':')
+        .map(|(_, locale)| locale)
+        .filter(|locale| matches!(*locale, "en" | "fr"))
+        .unwrap_or("en");
+    let result = OAuthSignInUseCase::new(
+        state.users.clone(),
+        state.hasher.clone(),
+        state.tokens.clone(),
+    )
+    .sign_in(OAuthSignInCommand {
+        email: profile.email,
+    })
+    .await?;
+
+    let target = format!(
+        "{}/{locale}/login#oauth_token={}",
+        state.config.web_origin.trim_end_matches('/'),
+        result.token
+    );
+    let mut response = Redirect::temporary(&target).into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_static(
+            "opswarden_github_auth_state=; HttpOnly; SameSite=Lax; \
+             Path=/api/auth/github; Max-Age=0",
+        ),
+    );
+    Ok(response)
+}
+
 fn read_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
     let cookie = headers.get(header::COOKIE)?.to_str().ok()?;
     cookie.split(';').find_map(|part| {

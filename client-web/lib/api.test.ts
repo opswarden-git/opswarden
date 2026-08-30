@@ -39,4 +39,14 @@ describe("apiFetch", () => {
     expect(headers.get("X-Contract")).toBe("catalog");
     expect(init.cache).toBe("force-cache");
   });
+
+  it("ends the local session on an unauthorized response", async () => {
+    useAuthStore.getState().setToken("expired-token");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    vi.stubGlobal("window", undefined);
+
+    await apiFetch("/api/me");
+
+    expect(useAuthStore.getState().token).toBeNull();
+  });
 });

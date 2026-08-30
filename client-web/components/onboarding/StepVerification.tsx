@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "@/i18n/routing";
 import { teamPath } from "@/lib/team-routing";
+import { clearOnboardingDraft } from "./onboardingDraft";
+import { completeOnboarding, completeTeamOnboarding } from "./onboardingFlow";
 import type { OnboardingData } from "./types";
 
-export function StepVerification({ data, back }: { data: OnboardingData; back: () => void }) {
+export function StepVerification({
+  data,
+  back,
+  existingSession = false,
+}: {
+  data: OnboardingData;
+  back: () => void;
+  existingSession?: boolean;
+}) {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("Onboarding");
   const [error, setError] = useState<string | null>(null);
   /**
@@ -30,82 +41,16 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
 
     const createWorkspace = async () => {
       try {
-        const signupRes = await fetch("/api/auth/sign-up", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: data.email, password: data.password }),
-        });
-        if (!signupRes.ok) throw new Error("signup_failed");
-
-        const signinRes = await fetch("/api/auth/sign-in", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: data.email, password: data.password }),
-        });
-        if (!signinRes.ok) throw new Error("signin_after_signup_failed");
-
-        const { token } = await signinRes.json();
-        const { useAuthStore } = await import("@/store/auth");
-        const { apiFetch } = await import("@/lib/api");
-        useAuthStore.getState().setToken(token);
-
-        const meRes = await apiFetch("/api/me");
-        if (!meRes.ok) throw new Error("profile_load_failed");
-
-        const user = await meRes.json();
-        useAuthStore.getState().setUser(user);
-
-        let targetTeamId = "";
-        const mode = data.mode || "create";
-
-        if (mode === "create" && data.teamName) {
-          const teamRes = await apiFetch("/api/teams", {
-            method: "POST",
-            body: JSON.stringify({ name: data.teamName }),
-          });
-          if (teamRes.ok) {
-            const text = await teamRes.text();
-            // Only an id can be an id: falling back to the response body put
-            // the whole JSON object in the address bar, invitation code and all.
-            try {
-              targetTeamId = String(JSON.parse(text)?.team_id ?? "");
-            } catch {
-              targetTeamId = "";
-            }
-          } else {
-            throw new Error("create_team_failed");
-          }
-        } else if (mode === "join" && data.invitationCode) {
-          const joinRes = await apiFetch("/api/teams/join", {
-            method: "POST",
-            body: JSON.stringify({ invitation_code: data.invitationCode }),
-          });
-          if (joinRes.ok) {
-            const text = await joinRes.text();
-            // Only an id can be an id: falling back to the response body put
-            // the whole JSON object in the address bar, invitation code and all.
-            try {
-              targetTeamId = String(JSON.parse(text)?.team_id ?? "");
-            } catch {
-              targetTeamId = "";
-            }
-          } else {
-            throw new Error("join_team_failed");
-          }
-        }
-
-        {
-          try {
-            sessionStorage.removeItem("opswarden_onboarding_draft");
-          } catch {
-            // Ignore storage cleanup error
-          }
-          setTimeout(() => {
-            router.push(targetTeamId ? teamPath(targetTeamId) : "/", {
+        const result = existingSession
+          ? { teamId: await completeTeamOnboarding(data), locale }
+          : await completeOnboarding(data).then(({ user, teamId }) => ({
+              teamId,
               locale: user.locale,
-            });
-          }, 300);
-        }
+            }));
+        clearOnboardingDraft();
+        setTimeout(() => {
+          router.push(teamPath(result.teamId), { locale: result.locale });
+        }, 300);
       } catch (caught: unknown) {
         const code = caught instanceof Error && caught.message ? caught.message : "unknown";
         setError(t.has(code) ? t(code) : t("unknownError"));
@@ -113,7 +58,7 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
     };
 
     createWorkspace();
-  }, [data, router, t]);
+  }, [data, existingSession, locale, router, t]);
 
   const mode = data.mode || "create";
   const loadingText = mode === "join" ? t("joiningWorkspace") : t("creatingWorkspace");

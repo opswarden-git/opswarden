@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { FaGithub } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import type { OnboardingData, UpdateOnboardingData } from "./types";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -103,6 +104,18 @@ export function StepCredentials({ data, updateData, next }: StepProps) {
         >
           <FcGoogle className="size-5" />
           {t("signupWithGoogle")}
+        </Button>
+        <Button
+          size="lg"
+          fullWidth
+          onClick={() => {
+            const locale = window.location.pathname.startsWith("/fr") ? "fr" : "en";
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.href = `/api/auth/github/start?locale=${locale}`;
+          }}
+        >
+          <FaGithub className="size-5" />
+          {t("signupWithGithub")}
         </Button>
       </div>
     </form>

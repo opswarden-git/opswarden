@@ -34,6 +34,7 @@ pub struct AppState {
     pub hasher: Arc<dyn PasswordHasher + Send + Sync>,
     pub tokens: Arc<dyn TokenService + Send + Sync>,
     pub oauth: Arc<dyn OAuthClient + Send + Sync>,
+    pub github_auth_oauth: Arc<dyn OAuthClient + Send + Sync>,
     pub service_oauth: Arc<dyn ServiceOAuthClient + Send + Sync>,
     pub token_revocations: Arc<dyn TokenRevocationRepo + Send + Sync>,
     /// Concrete WebSocket hub: used as `dyn EventPublisher` by the use cases and
@@ -262,6 +263,7 @@ pub fn build_app(state: AppState) -> Router {
                 .route("/api/auth/sign-up", post(handlers::auth::sign_up))
                 .route("/api/auth/sign-in", post(handlers::auth::sign_in))
                 .route("/api/auth/google/start", get(handlers::auth::google_start))
+                .route("/api/auth/github/start", get(handlers::auth::github_start))
                 .route_layer(axum::middleware::from_fn_with_state(
                     state.clone(),
                     handlers::middleware::rate_limit_auth,
@@ -270,6 +272,10 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/auth/google/callback",
             get(handlers::auth::google_callback),
+        )
+        .route(
+            "/api/auth/github/callback",
+            get(handlers::auth::github_callback),
         )
         .route(
             "/api/service-oauth/github/callback",
