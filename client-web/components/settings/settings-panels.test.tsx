@@ -12,7 +12,6 @@ const nativeReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useParams: () => ({ locale: "en" }),
   useRouter: () => ({ push, replace: nativeReplace }),
-  useSearchParams: () => new URLSearchParams("setup=team"),
 }));
 
 const intlReplace = vi.fn();
@@ -36,13 +35,7 @@ vi.mock("next-intl", () => ({
 }));
 
 const updateLocale = { isPending: false, isError: false, mutate: vi.fn() };
-const createTeam = { isPending: false, isError: false, error: null, mutate: vi.fn() };
-
 vi.mock("@/lib/queries/profile", () => ({ useUpdateLocale: () => updateLocale }));
-vi.mock("@/lib/queries/teams", () => ({
-  useTeams: () => ({ data: [], isLoading: false }),
-  useCreateTeam: () => createTeam,
-}));
 vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
 const mockedApiFetch = vi.mocked(apiFetch);
 
@@ -70,7 +63,7 @@ describe("settings panels", () => {
     expect(intlReplace).toHaveBeenCalledWith("/settings", { locale: "fr" });
   });
 
-  it("creates the first team and displays persisted identity", () => {
+  it("displays persisted identity", () => {
     useAuthStore.getState().setUser({
       id: "user-1",
       email: "operator@example.com",
@@ -81,14 +74,6 @@ describe("settings panels", () => {
     expect(screen.getByText("operator@example.com")).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
     expect(screen.getByText("memberSince")).toBeInTheDocument();
-
-    const teamName = screen.getByRole("textbox", { name: "teamName" });
-    fireEvent.change(teamName, { target: { value: "  Operations  " } });
-    fireEvent.click(screen.getByRole("button", { name: "createTeam" }));
-    expect(createTeam.mutate).toHaveBeenCalledWith(
-      "Operations",
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
   });
 
   it("logs out through the server and clears the local session", async () => {

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/routing";
 import { StepCredentials } from "@/components/onboarding/StepCredentials";
 import { StepTeam } from "@/components/onboarding/StepTeam";
@@ -12,11 +13,15 @@ import {
   readOnboardingDraft,
 } from "@/components/onboarding/onboardingDraft";
 import { useTranslations } from "next-intl";
+import { useAuthStore } from "@/store/auth";
 
 export default function SignupPage() {
   const t = useTranslations("Auth");
   const tOnboarding = useTranslations("Onboarding");
-  const [step, setStep] = useState(1);
+  const searchParams = useSearchParams();
+  const hasSession = useAuthStore((state) => Boolean(state.token));
+  const resumesTeamSetup = hasSession && searchParams.get("resume") === "team";
+  const [step, setStep] = useState(() => (resumesTeamSetup ? 2 : 1));
   const [data, setData] = useState<OnboardingData>(readOnboardingDraft);
 
   React.useEffect(() => {
@@ -58,8 +63,17 @@ export default function SignupPage() {
 
         <div className="flex w-full flex-col gap-4">
           {step === 1 && <StepCredentials data={data} updateData={updateData} next={next} />}
-          {step === 2 && <StepTeam data={data} updateData={updateData} next={next} back={back} />}
-          {step === 3 && <StepVerification data={data} back={back} />}
+          {step === 2 && (
+            <StepTeam
+              data={data}
+              updateData={updateData}
+              next={next}
+              back={resumesTeamSetup ? undefined : back}
+            />
+          )}
+          {step === 3 && (
+            <StepVerification data={data} back={back} existingSession={resumesTeamSetup} />
+          )}
         </div>
 
         {step === 1 && (

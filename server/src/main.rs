@@ -10,7 +10,9 @@ use opswarden_server::adapters::email::SmtpEmailSender;
 use opswarden_server::adapters::giphy::GiphyClient;
 use opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics;
 use opswarden_server::adapters::notify::HttpNotifier;
-use opswarden_server::adapters::oauth::{GithubServiceOAuthClient, GoogleOAuthClient};
+use opswarden_server::adapters::oauth::{
+    GithubOAuthClient, GithubServiceOAuthClient, GoogleOAuthClient,
+};
 use opswarden_server::adapters::pg::automation::execution::{
     PgAutomationRunRepo, PgWebhookDeliveryRepo,
 };
@@ -112,6 +114,11 @@ async fn main() {
             config.google_oauth_client_id.clone(),
             config.google_oauth_client_secret.clone(),
             config.google_oauth_redirect_uri.clone(),
+        )),
+        github_auth_oauth: Arc::new(GithubOAuthClient::new(
+            config.github_auth_client_id.clone(),
+            config.github_auth_client_secret.clone(),
+            config.github_auth_redirect_uri.clone(),
         )),
         service_oauth: Arc::new(GithubServiceOAuthClient::new(
             config.github_oauth_client_id.clone(),

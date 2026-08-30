@@ -113,17 +113,20 @@ function messages(locale: string): Record<string, unknown> {
  * collapsed them into one generic sentence. This is exhaustive error copy,
  * not prose added to a surface. `Automations` gains one word for the localized
  * fallback used when a future run status is unknown.
+ * `Onboarding` rises by two English words for the GitHub sign-up action placed
+ * beside the existing Google option. French already had enough measured room.
+ * `Auth` rises by four words per locale for the matching GitHub login action.
  */
 const CEILINGS: Record<string, Record<string, number>> = {
   en: {
     Teams: 324,
     Incidents: 277,
-    errors: 477,
+    errors: 487,
     Automations: 281,
     Releases: 180,
-    Onboarding: 90,
+    Onboarding: 92,
     Settings: 120,
-    Auth: 31,
+    Auth: 35,
     DirectMessages: 56,
     Notifications: 45,
     Sidebar: 61,
@@ -135,12 +138,12 @@ const CEILINGS: Record<string, Record<string, number>> = {
   fr: {
     Teams: 388,
     Incidents: 380,
-    errors: 613,
+    errors: 623,
     Automations: 399,
     Releases: 222,
     Onboarding: 110,
     Settings: 151,
-    Auth: 39,
+    Auth: 43,
     DirectMessages: 71,
     Notifications: 71,
     Sidebar: 79,

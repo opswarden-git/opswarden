@@ -122,6 +122,25 @@ impl OAuthClient for DummyOAuthClient {
     }
 }
 
+pub struct DummyGithubAuthOAuthClient;
+
+#[async_trait]
+impl OAuthClient for DummyGithubAuthOAuthClient {
+    fn is_configured(&self) -> bool {
+        true
+    }
+
+    fn authorization_url(&self, state: &str) -> Result<String, DomainError> {
+        Ok(format!("https://github.test/login/oauth/authorize?state={state}"))
+    }
+
+    async fn exchange_code(&self, _code: &str) -> Result<OAuthProfile, DomainError> {
+        Ok(OAuthProfile {
+            email: "github@test.com".to_string(),
+        })
+    }
+}
+
 #[derive(Default)]
 pub struct DummyServiceOAuthClient {
     exchanges: Mutex<Vec<(String, String)>>,

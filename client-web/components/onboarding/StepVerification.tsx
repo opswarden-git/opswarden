@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "@/i18n/routing";
 import { teamPath } from "@/lib/team-routing";
 import { clearOnboardingDraft } from "./onboardingDraft";
-import { completeOnboarding } from "./onboardingFlow";
+import { completeOnboarding, completeTeamOnboarding } from "./onboardingFlow";
 import type { OnboardingData } from "./types";
 
-export function StepVerification({ data, back }: { data: OnboardingData; back: () => void }) {
+export function StepVerification({
+  data,
+  back,
+  existingSession = false,
+}: {
+  data: OnboardingData;
+  back: () => void;
+  existingSession?: boolean;
+}) {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("Onboarding");
   const [error, setError] = useState<string | null>(null);
   /**
@@ -32,10 +41,15 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
 
     const createWorkspace = async () => {
       try {
-        const { user, teamId } = await completeOnboarding(data);
+        const result = existingSession
+          ? { teamId: await completeTeamOnboarding(data), locale }
+          : await completeOnboarding(data).then(({ user, teamId }) => ({
+              teamId,
+              locale: user.locale,
+            }));
         clearOnboardingDraft();
         setTimeout(() => {
-          router.push(teamPath(teamId), { locale: user.locale });
+          router.push(teamPath(result.teamId), { locale: result.locale });
         }, 300);
       } catch (caught: unknown) {
         const code = caught instanceof Error && caught.message ? caught.message : "unknown";
@@ -44,7 +58,7 @@ export function StepVerification({ data, back }: { data: OnboardingData; back: (
     };
 
     createWorkspace();
-  }, [data, router, t]);
+  }, [data, existingSession, locale, router, t]);
 
   const mode = data.mode || "create";
   const loadingText = mode === "join" ? t("joiningWorkspace") : t("creatingWorkspace");

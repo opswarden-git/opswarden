@@ -59,6 +59,7 @@ fn build_context(
         hasher: Arc::new(DummyHasher),
         tokens: Arc::new(DummyTokenService),
         oauth: Arc::new(DummyOAuthClient),
+        github_auth_oauth: Arc::new(DummyGithubAuthOAuthClient),
         service_oauth: service_oauth.clone(),
         token_revocations: revoked_tokens.clone(),
         events: events.clone(),

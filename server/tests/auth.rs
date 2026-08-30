@@ -364,4 +364,81 @@ async fn google_callback_exchanges_code_and_redirects_with_token() {
     );
 }
 
+#[tokio::test]
+async fn github_start_redirects_and_sets_provider_scoped_state_cookie() {
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/auth/github/start?locale=fr")
+                .extension(client_addr())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    let location = response
+        .headers()
+        .get(header::LOCATION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(location.starts_with("https://github.test/login/oauth/authorize?state="));
+    let cookie = response
+        .headers()
+        .get(header::SET_COOKIE)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(cookie.starts_with("opswarden_github_auth_state="));
+    assert!(cookie.contains("Path=/api/auth/github"));
+}
+
+#[tokio::test]
+async fn github_callback_exchanges_code_and_redirects_with_token() {
+    let state = "oauth-github-test-state:fr";
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/auth/github/callback?code=ok&state={state}"))
+                .header(
+                    header::COOKIE,
+                    format!("opswarden_github_auth_state={state}"),
+                )
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response.headers().get(header::LOCATION).unwrap(),
+        "http://localhost:4242/fr/login#oauth_token=mock_jwt_token"
+    );
+}
+
+#[tokio::test]
+async fn github_callback_rejects_mismatched_state() {
+    let response = test_context()
+        .app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/auth/github/callback?code=ok&state=attacker")
+                .header(header::COOKIE, "opswarden_github_auth_state=expected:en")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+}
+
 include!("auth/rate_limit.rs");

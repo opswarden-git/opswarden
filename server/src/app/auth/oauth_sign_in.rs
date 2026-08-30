@@ -41,7 +41,7 @@ impl OAuthSignInUseCase {
             None => {
                 let password_hash = self
                     .hasher
-                    .hash(&format!("google-oauth-{}", Uuid::new_v4()))?;
+                    .hash(&format!("external-oauth-{}", Uuid::new_v4()))?;
                 let user = User::new(email, password_hash);
                 self.users.save(&user).await?;
                 user
