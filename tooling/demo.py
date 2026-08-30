@@ -21,34 +21,6 @@ from uuid import UUID, uuid4
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "tooling" / "demo"
-LEGACY_NAMES = {
-    "DEMO_API_ORIGIN": "OPSWARDEN_API_ORIGIN",
-    "DEMO_MANAGER_EMAIL": "PRESENTATION_MANAGER_EMAIL",
-    "DEMO_RESPONDER_EMAIL": "PRESENTATION_RESPONDER_EMAIL",
-    "DEMO_OBSERVER_EMAIL": "PRESENTATION_OBSERVER_EMAIL",
-    "DEMO_CONTRACTOR_EMAIL": "PRESENTATION_CONTRACTOR_EMAIL",
-    "DEMO_PASSWORD": "PRESENTATION_PASSWORD",
-    "DEMO_TEAM_NAME": "PRESENTATION_TEAM_NAME",
-    "DEMO_GITHUB_REPOSITORY": "PRESENTATION_GITHUB_REPOSITORY",
-    "DEMO_GITHUB_BRANCH": "PRESENTATION_GITHUB_BRANCH",
-    "DEMO_GITHUB_WORKFLOW": "PRESENTATION_GITHUB_WORKFLOW",
-    "DEMO_GITLAB_PROJECT": "PRESENTATION_GITLAB_PROJECT",
-    "DEMO_GITLAB_BRANCH": "PRESENTATION_GITLAB_BRANCH",
-    "DEMO_GITLAB_PIPELINE": "PRESENTATION_GITLAB_PIPELINE",
-    "DEMO_GITHUB_WEBHOOK_SECRET": "PRESENTATION_GITHUB_WEBHOOK_SECRET",
-    "DEMO_GITLAB_WEBHOOK_SECRET": "PRESENTATION_GITLAB_WEBHOOK_SECRET",
-    "DEMO_GENERIC_WEBHOOK_SECRET": "PRESENTATION_GENERIC_WEBHOOK_SECRET",
-    "DEMO_ALERTMANAGER_WEBHOOK_SECRET": "PRESENTATION_ALERTMANAGER_WEBHOOK_SECRET",
-    "DEMO_HTTP_ENDPOINT": "PRESENTATION_HTTP_ENDPOINT",
-    "DEMO_SMTP_HOST": "PRESENTATION_SMTP_HOST",
-    "DEMO_SMTP_PORT": "PRESENTATION_SMTP_PORT",
-    "DEMO_SMTP_USERNAME": "PRESENTATION_SMTP_USERNAME",
-    "DEMO_SMTP_PASSWORD": "PRESENTATION_SMTP_PASSWORD",
-    "DEMO_EMAIL_FROM": "PRESENTATION_EMAIL_FROM",
-    "DEMO_EMAIL_TO": "PRESENTATION_EMAIL_TO",
-}
-
-
 class DemoError(RuntimeError):
     pass
 
@@ -71,17 +43,16 @@ def parse_env_file(path: Path) -> dict[str, str]:
 
 def load_config() -> dict[str, str]:
     values = parse_env_file(ROOT / ".env")
-    # One-release compatibility window for the previous local profile.
-    legacy = parse_env_file(ROOT / ".presentation.env")
-    for new_name, old_name in LEGACY_NAMES.items():
-        if not values.get(new_name) and legacy.get(old_name):
-            values[new_name] = legacy[old_name]
     values.update(os.environ)
     return values
 
 
 def value(config: dict[str, str], name: str, default: str = "") -> str:
     return config.get(name, default).strip()
+
+
+def target_value(config: dict[str, str], target: str, name: str, default: str = "") -> str:
+    return value(config, f"DEMO_{target.upper()}_{name}") or value(config, f"DEMO_{name}", default)
 
 
 def require(config: dict[str, str], *names: str) -> None:
@@ -166,8 +137,8 @@ class Database:
         return result
 
     def query(self, sql: str, variables: dict[str, str] | None = None) -> list[str]:
-        command = self.command + self.variable_args(variables or {}) + ["-At", "-c", sql]
-        result = subprocess.run(command, check=True, text=True, capture_output=True)
+        command = self.command + self.variable_args(variables or {}) + ["-At", "-v", "ON_ERROR_STOP=1"]
+        result = subprocess.run(command, input=sql, check=True, text=True, capture_output=True)
         return [line for line in result.stdout.splitlines() if line]
 
     def apply(self, path: Path, variables: dict[str, str]) -> None:
@@ -190,29 +161,30 @@ def ensure_user(origin: str, email: str, password: str) -> None:
 
 
 def bootstrap_accounts(config: dict[str, str], target: str, origin: str) -> None:
-    require(
-        config, "DEMO_MANAGER_EMAIL", "DEMO_RESPONDER_EMAIL", "DEMO_OBSERVER_EMAIL",
-        "DEMO_CONTRACTOR_EMAIL", "DEMO_PASSWORD",
-    )
-    password = value(config, "DEMO_PASSWORD")
+    password = target_value(config, target, "PASSWORD")
+    if not password:
+        raise DemoError(f"Missing demo configuration: DEMO_{target.upper()}_PASSWORD or DEMO_PASSWORD")
     emails = [
-        value(config, "DEMO_RESPONDER_EMAIL"), value(config, "DEMO_OBSERVER_EMAIL"),
-        value(config, "DEMO_CONTRACTOR_EMAIL"),
+        target_value(config, target, "RESPONDER_EMAIL"), target_value(config, target, "OBSERVER_EMAIL"),
+        target_value(config, target, "CONTRACTOR_EMAIL"),
     ]
     if target == "local":
-        emails.insert(0, value(config, "DEMO_MANAGER_EMAIL"))
+        emails.insert(0, target_value(config, target, "MANAGER_EMAIL"))
+    if any(not email for email in emails):
+        raise DemoError("The Manager, Responder, Observer and Contractor demo emails must be configured")
     for email in emails:
         ensure_user(origin, email, password)
 
 
 def identity_variables(config: dict[str, str], database: Database, target: str) -> dict[str, str]:
-    require(
-        config, "DEMO_MANAGER_EMAIL", "DEMO_RESPONDER_EMAIL", "DEMO_OBSERVER_EMAIL",
-        "DEMO_CONTRACTOR_EMAIL", "DEMO_TEAM_NAME",
-    )
+    team_name = target_value(config, target, "TEAM_NAME")
+    if not team_name:
+        raise DemoError(f"Missing demo configuration: DEMO_{target.upper()}_TEAM_NAME or DEMO_TEAM_NAME")
     variables: dict[str, str] = {}
     for role in ("manager", "responder", "observer", "contractor"):
-        email = value(config, f"DEMO_{role.upper()}_EMAIL")
+        email = target_value(config, target, f"{role.upper()}_EMAIL")
+        if not email:
+            raise DemoError(f"Missing demo configuration for the {role} email")
         rows = database.query("select id from users where email = :'email'", {"email": email})
         if len(rows) != 1:
             raise DemoError(f"Expected exactly one {role} user for {email}; found {len(rows)}")
@@ -222,14 +194,14 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
         """select team.id from teams team join team_members member on member.team_id = team.id
            where team.name = :'team_name' and member.user_id = :'manager_id'::uuid
              and member.role = 'manager' order by team.id""",
-        {"team_name": value(config, "DEMO_TEAM_NAME"), "manager_id": variables["manager_id"]},
+        {"team_name": team_name, "manager_id": variables["manager_id"]},
     )
     configured_team = value(config, f"DEMO_{target.upper()}_TEAM_ID") or value(config, "DEMO_TEAM_ID")
     if configured_team:
         teams = [team for team in teams if team == configured_team]
     if len(teams) != 1:
         raise DemoError(
-            f"Expected one managed Team named {value(config, 'DEMO_TEAM_NAME')!r}; found {len(teams)}. "
+            f"Expected one managed Team named {team_name!r}; found {len(teams)}. "
             f"Complete the real onboarding first or set DEMO_{target.upper()}_TEAM_ID."
         )
     UUID(teams[0])
@@ -237,16 +209,19 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     return variables
 
 
-def manager_token(config: dict[str, str], origin: str, prompt: bool) -> str:
+def manager_token(config: dict[str, str], target: str, origin: str, prompt: bool) -> str:
     if prompt:
         token = getpass.getpass("Manager bearer token: ").strip()
         if not token:
             raise DemoError("The prompted bearer token is empty")
         return token
-    require(config, "DEMO_MANAGER_EMAIL", "DEMO_PASSWORD")
+    email = target_value(config, target, "MANAGER_EMAIL")
+    password = target_value(config, target, "PASSWORD")
+    if not email or not password:
+        raise DemoError("Manager email and password must be configured")
     status, body = request_json(
         origin, "/api/auth/sign-in", method="POST",
-        payload={"email": value(config, "DEMO_MANAGER_EMAIL"), "password": value(config, "DEMO_PASSWORD")},
+        payload={"email": email, "password": password},
     )
     if status != 200 or not isinstance(body, dict) or not body.get("token"):
         raise DemoError("Manager password sign-in failed; OAuth accounts must use --prompt-token")
@@ -305,10 +280,11 @@ def configure_integrations(config: dict[str, str], origin: str, team_id: str, to
     http_endpoint = value(config, "DEMO_HTTP_ENDPOINT")
     if http_endpoint:
         connections["http"] = configure_connection(origin, team_id, "http", {"endpoint_url": http_endpoint}, token)
-    smtp_values = [value(config, name) for name in ("DEMO_SMTP_HOST", "DEMO_SMTP_USERNAME", "DEMO_SMTP_PASSWORD", "DEMO_EMAIL_FROM")]
-    if any(smtp_values) and not all(smtp_values):
+    smtp_transport = [value(config, name) for name in ("DEMO_SMTP_HOST", "DEMO_SMTP_USERNAME", "DEMO_SMTP_PASSWORD")]
+    smtp_values = [*smtp_transport, value(config, "DEMO_EMAIL_FROM")]
+    if any(smtp_transport) and not all(smtp_values):
         raise DemoError("SMTP configuration is partial; host, username, password and from address must be set together")
-    if all(smtp_values):
+    if all(smtp_transport):
         connections["email"] = configure_connection(origin, team_id, "email", {
             "smtp_host": smtp_values[0], "smtp_port": value(config, "DEMO_SMTP_PORT", "587"),
             "smtp_username": smtp_values[1], "smtp_password": smtp_values[2], "from_address": smtp_values[3],
@@ -383,7 +359,7 @@ def doctor(config: dict[str, str], args: argparse.Namespace) -> None:
     database = Database(config, args.target)
     variables = identity_variables(config, database, args.target)
     print(f"API healthy: {origin}")
-    print(f"Team ready: {value(config, 'DEMO_TEAM_NAME')} ({variables['team_id']})")
+    print(f"Team ready: {target_value(config, args.target, 'TEAM_NAME')} ({variables['team_id']})")
     print("Users ready: manager, responder, observer, contractor")
     optional = {
         "HTTP": bool(value(config, "DEMO_HTTP_ENDPOINT")),
@@ -418,13 +394,13 @@ def main() -> int:
         bootstrap_accounts(config, args.target, origin)
         variables = identity_variables(config, database, args.target)
         database.apply(ASSETS / "seed.sql", variables)
-        print(f"Seeded one Team: {value(config, 'DEMO_TEAM_NAME')} ({variables['team_id']})")
+        print(f"Seeded one Team: {target_value(config, args.target, 'TEAM_NAME')} ({variables['team_id']})")
         if args.with_integrations:
-            configure_integrations(config, origin, variables["team_id"], manager_token(config, origin, args.prompt_token))
+            configure_integrations(config, origin, variables["team_id"], manager_token(config, args.target, origin, args.prompt_token))
         return 0
     variables = identity_variables(config, database, args.target)
     if args.command == "integrations":
-        configure_integrations(config, origin, variables["team_id"], manager_token(config, origin, args.prompt_token))
+        configure_integrations(config, origin, variables["team_id"], manager_token(config, args.target, origin, args.prompt_token))
     elif args.command == "run":
         run_webhooks(config, origin, database, variables["team_id"])
     elif args.command == "deseed":

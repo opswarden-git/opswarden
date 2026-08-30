@@ -67,7 +67,8 @@ demo-bootstrap:
 
 # peuple la Team de présentation avec le scénario déterministe à une Team
 demo-presentation:
-    python3 tooling/demo.py seed --target local
+    python3 tooling/demo.py seed --target local --with-integrations
+    python3 tooling/demo.py run --target local
 
 # vérifie la configuration et les identités sans modifier de donnée
 demo-doctor:

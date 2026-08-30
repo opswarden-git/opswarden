@@ -2,27 +2,28 @@
 
 begin;
 
--- This fixture owns only the deterministic UUIDs below. The Team itself comes
--- from the real onboarding flow and is never created or renamed here.
-delete from private_messages where id::text like '55000000-0000-4000-8000-%';
-delete from releases where id::text like '54000000-0000-4000-8000-%';
-delete from incidents where id::text like '51000000-0000-4000-8000-%';
+-- This fixture owns the presentation content of the selected Team. The Team,
+-- its Manager, users and service connections come from real product flows and
+-- are deliberately preserved.
+delete from automation_runs
+where rule_id in (select id from automation_rules where team_id = :'team_id'::uuid);
+delete from automation_rules where team_id = :'team_id'::uuid;
+delete from private_messages
+where sender_id in (:'manager_id'::uuid, :'responder_id'::uuid, :'observer_id'::uuid, :'contractor_id'::uuid)
+  and recipient_id in (:'manager_id'::uuid, :'responder_id'::uuid, :'observer_id'::uuid, :'contractor_id'::uuid);
+delete from releases where team_id = :'team_id'::uuid;
+delete from incidents where team_id = :'team_id'::uuid;
+delete from team_bans where team_id = :'team_id'::uuid;
+delete from team_members where team_id = :'team_id'::uuid and role <> 'manager';
 
 -- Keep one real Manager and add the two operational roles. The contractor is
 -- intentionally outside the Team so the ban surface has an honest example.
-delete from team_bans
-where team_id = :'team_id'::uuid
-  and user_id in (:'responder_id'::uuid, :'observer_id'::uuid);
-
 insert into team_members (team_id, user_id, role, joined_at) values
   (:'team_id'::uuid, :'responder_id'::uuid, 'responder', now() - interval '45 days'),
   (:'team_id'::uuid, :'observer_id'::uuid, 'observer', now() - interval '44 days')
 on conflict (team_id, user_id) do update set
   role = excluded.role,
   joined_at = excluded.joined_at;
-
-delete from team_members
-where team_id = :'team_id'::uuid and user_id = :'contractor_id'::uuid;
 
 insert into team_bans (team_id, user_id, expires_at, reason, created_by, created_at)
 values (

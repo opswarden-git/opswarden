@@ -154,6 +154,24 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
+### Reproducible presentation dataset
+
+The presentation profile targets one Team created through the real onboarding
+flow. It replaces that Team's incidents, releases, automation rules and
+non-Manager memberships with a deterministic narrative, while preserving the
+Team, Manager account, users and configured service connections.
+
+```bash
+python3 tooling/demo.py doctor --target local
+just demo-presentation
+python3 tooling/demo.py deseed --target local
+```
+
+Production operations use the same fixture but require both a production HTTPS
+API origin and an explicit confirmation such as `--confirm SEED_PRODUCTION`.
+OAuth Manager accounts use `--prompt-token`; credentials remain in the ignored
+`.env` file and are never embedded in the SQL fixture.
+
 For deeper setup and operational guidance, please see:
 
 <details>
