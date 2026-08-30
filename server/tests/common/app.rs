@@ -42,6 +42,26 @@ fn build_context(
     let email_sender = Arc::new(DummyEmailSender::default());
     let alertmanager_metrics =
         Arc::new(opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics::default());
+    let webhook_ingress = Arc::new(
+        opswarden_server::app::automation::IngestTeamWebhookUseCase::new(
+            opswarden_server::app::automation::TeamWebhookDependencies {
+                connections: service_connections.clone(),
+                credentials: connection_credentials.clone(),
+                verifier: Arc::new(HmacSha256Verifier),
+                parser: Arc::new(
+                    opswarden_server::adapters::webhook::CompositeWebhookParser::new(),
+                ),
+                deliveries: webhook_deliveries.clone(),
+                rules: automation_rules.clone(),
+                runs: automation_runs.clone(),
+                incidents: incidents.clone(),
+                releases: releases.clone(),
+                notifier: notifier.clone(),
+                events: events.clone(),
+                email_sender: email_sender.clone(),
+            },
+        ),
+    );
     let mut config = Config::from_env().expect("test configuration must be valid");
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
@@ -63,10 +83,7 @@ fn build_context(
         token_revocations: revoked_tokens.clone(),
         events: events.clone(),
         clock: Arc::new(DummyClock),
-        webhook_verifier: Arc::new(HmacSha256Verifier),
-        webhook_parser: Arc::new(
-            opswarden_server::adapters::webhook::CompositeWebhookParser::new(),
-        ),
+        webhook_ingress,
         alertmanager_metrics: alertmanager_metrics.clone(),
         service_connections: service_connections.clone(),
         connection_credentials: connection_credentials.clone(),

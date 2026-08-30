@@ -2,6 +2,7 @@ pub mod execution;
 pub mod rule;
 pub mod service_connection;
 pub mod timer;
+pub mod webhook_job;
 
 #[cfg(test)]
 pub(super) mod test_support {

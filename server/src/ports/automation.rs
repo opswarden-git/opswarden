@@ -194,6 +194,31 @@ pub trait WebhookDeliveryRepo: Send + Sync {
     ) -> Result<Vec<WebhookDelivery>, DomainError>;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WebhookJob {
+    pub id: Uuid,
+    pub connection_id: Uuid,
+    pub expected_service: String,
+    pub provider_delivery_id: String,
+    pub provider_event: String,
+    pub body: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClaimedWebhookJob {
+    pub job: WebhookJob,
+    pub token: Uuid,
+}
+
+#[async_trait]
+pub trait WebhookJobRepo: Send + Sync {
+    async fn enqueue(&self, job: &WebhookJob) -> Result<bool, DomainError>;
+    async fn claim(&self, limit: u32) -> Result<Vec<ClaimedWebhookJob>, DomainError>;
+    async fn complete(&self, claim: &ClaimedWebhookJob) -> Result<bool, DomainError>;
+    async fn retry(&self, claim: &ClaimedWebhookJob, error_code: &str)
+        -> Result<bool, DomainError>;
+}
+
 /// Durable result of running one rule for one delivery.
 #[async_trait]
 pub trait AutomationRunRepo: Send + Sync {

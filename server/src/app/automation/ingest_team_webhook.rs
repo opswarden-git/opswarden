@@ -12,8 +12,8 @@ use crate::domain::event::AutomationRuleResult;
 use crate::domain::event::DomainEvent;
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EmailSender, EventPublisher,
-    IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookParser,
-    WebhookVerifier,
+    IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookJob,
+    WebhookJobRepo, WebhookParser, WebhookVerifier,
 };
 
 use super::reaction_executor::AutomationReactionExecutor;
@@ -35,6 +35,7 @@ pub struct IngestTeamWebhookResult {
     pub rules_failed: usize,
 }
 
+#[derive(Clone)]
 pub struct TeamWebhookDependencies {
     pub connections: Arc<dyn ServiceConnectionRepo>,
     pub credentials: Arc<dyn ConnectionCredentialVault>,
@@ -63,6 +64,42 @@ impl IngestTeamWebhookUseCase {
         &self,
         cmd: IngestTeamWebhookCommand,
     ) -> Result<IngestTeamWebhookResult, DomainError> {
+        let connection = self.authenticate(&cmd).await?;
+        self.process(
+            connection,
+            cmd.provider_delivery_id,
+            cmd.provider_event,
+            cmd.body,
+        )
+        .await
+    }
+
+    pub async fn process_job(
+        &self,
+        job: WebhookJob,
+    ) -> Result<IngestTeamWebhookResult, DomainError> {
+        let connection = self
+            .dependencies
+            .connections
+            .find_connection_by_id(job.connection_id)
+            .await?
+            .ok_or(DomainError::ServiceConnectionNotFound)?;
+        if connection.service != job.expected_service {
+            return Err(DomainError::ServiceConnectionNotFound);
+        }
+        self.process(
+            connection,
+            job.provider_delivery_id,
+            job.provider_event,
+            job.body,
+        )
+        .await
+    }
+
+    async fn authenticate(
+        &self,
+        cmd: &IngestTeamWebhookCommand,
+    ) -> Result<crate::domain::automation_config::ServiceConnection, DomainError> {
         let connection = self
             .dependencies
             .connections
@@ -97,8 +134,18 @@ impl IngestTeamWebhookUseCase {
         if !authenticated {
             return Err(DomainError::InvalidSignature);
         }
+        Ok(connection)
+    }
+
+    async fn process(
+        &self,
+        connection: crate::domain::automation_config::ServiceConnection,
+        provider_delivery_id: String,
+        provider_event: String,
+        body: Vec<u8>,
+    ) -> Result<IngestTeamWebhookResult, DomainError> {
         let mut delivery =
-            WebhookDelivery::new(connection.id, cmd.provider_delivery_id, cmd.provider_event)?;
+            WebhookDelivery::new(connection.id, provider_delivery_id, provider_event)?;
         let Some(claim) = self
             .dependencies
             .deliveries
@@ -120,11 +167,11 @@ impl IngestTeamWebhookUseCase {
             .record_delivery_result(connection.id, None)
             .await?;
 
-        let Some(event) = self.dependencies.parser.parse(
-            &connection.service,
-            &delivery.provider_event,
-            &cmd.body,
-        ) else {
+        let Some(event) =
+            self.dependencies
+                .parser
+                .parse(&connection.service, &delivery.provider_event, &body)
+        else {
             delivery.mark_ignored()?;
             self.persist_delivery(&delivery, claim).await?;
             return Ok(IngestTeamWebhookResult {
@@ -252,6 +299,68 @@ impl IngestTeamWebhookUseCase {
             return Err(DomainError::InvalidAutomationTransition);
         }
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+pub trait TeamWebhookIngress: Send + Sync {
+    async fn accept(
+        &self,
+        cmd: IngestTeamWebhookCommand,
+    ) -> Result<IngestTeamWebhookResult, DomainError>;
+}
+
+#[async_trait::async_trait]
+impl TeamWebhookIngress for IngestTeamWebhookUseCase {
+    async fn accept(
+        &self,
+        cmd: IngestTeamWebhookCommand,
+    ) -> Result<IngestTeamWebhookResult, DomainError> {
+        self.ingest(cmd).await
+    }
+}
+
+pub struct DurableTeamWebhookIngress {
+    use_case: IngestTeamWebhookUseCase,
+    jobs: Arc<dyn WebhookJobRepo>,
+}
+
+impl DurableTeamWebhookIngress {
+    pub fn new(dependencies: TeamWebhookDependencies, jobs: Arc<dyn WebhookJobRepo>) -> Self {
+        Self {
+            use_case: IngestTeamWebhookUseCase::new(dependencies),
+            jobs,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl TeamWebhookIngress for DurableTeamWebhookIngress {
+    async fn accept(
+        &self,
+        cmd: IngestTeamWebhookCommand,
+    ) -> Result<IngestTeamWebhookResult, DomainError> {
+        self.use_case.authenticate(&cmd).await?;
+        let delivery = WebhookDelivery::new(
+            cmd.connection_id,
+            cmd.provider_delivery_id,
+            cmd.provider_event,
+        )?;
+        let job = WebhookJob {
+            id: Uuid::new_v4(),
+            connection_id: cmd.connection_id,
+            expected_service: cmd.expected_service.to_string(),
+            provider_delivery_id: delivery.provider_delivery_id,
+            provider_event: delivery.provider_event,
+            body: cmd.body,
+        };
+        let accepted = self.jobs.enqueue(&job).await?;
+        Ok(IngestTeamWebhookResult {
+            duplicate: !accepted,
+            ignored: false,
+            rules_triggered: 0,
+            rules_failed: 0,
+        })
     }
 }
 
