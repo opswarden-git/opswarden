@@ -170,6 +170,32 @@ impl Config {
             auth_rate_limit_window_seconds,
         })
     }
+
+    /// Deterministic test configuration isolated from the host developer's `.env`.
+    pub fn for_test() -> Self {
+        Self {
+            jwt_secret: "test_jwt_secret_key_32_bytes_long_12345".to_string(),
+            vault_key: DEV_VAULT_KEY,
+            google_oauth_client_id: None,
+            google_oauth_client_secret: None,
+            google_oauth_redirect_uri: "http://localhost:4242/api/auth/google/callback".to_string(),
+            github_auth_client_id: None,
+            github_auth_client_secret: None,
+            github_auth_redirect_uri: "http://localhost:4242/api/auth/github/callback".to_string(),
+            github_oauth_client_id: None,
+            github_oauth_client_secret: None,
+            github_oauth_redirect_uri: "http://localhost:4242/api/auth/github-oauth/callback".to_string(),
+            web_origin: "http://localhost:4242".to_string(),
+            ws_allowed_origins: vec!["http://localhost:4242".to_string()],
+            trusted_proxy_hops: 0,
+            giphy_api_key: None,
+            timer_poll_seconds: 1,
+            bind_addr: "127.0.0.1:0".to_string(),
+            auth_rate_limit_attempts: 1000,
+            auth_rate_limit_per_account: 1000,
+            auth_rate_limit_window_seconds: 60,
+        }
+    }
 }
 
 fn resolve_jwt_secret(

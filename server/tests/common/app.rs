@@ -64,7 +64,7 @@ fn build_context(
             },
         ),
     );
-    let mut config = Config::from_env().expect("test configuration must be valid");
+    let mut config = Config::for_test();
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;
