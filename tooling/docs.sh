@@ -38,6 +38,9 @@ OPSWARDEN_API_URL=${OPSWARDEN_API_URL:-https://api.opswarden.dev} \
   OPSWARDEN_INVENTORY_DOCS_DIR="$portal/docs/inventory" \
   node "$REPOSITORY_ROOT/tooling/inventory/build.mjs"
 
+# Strip local dev file URIs from markdown docs so link checkers pass cleanly
+find "$portal" -type f -name '*.md' -exec sed -i -E 's|file:///[^)]*/opswarden/|https://github.com/opswarden-git/opswarden/tree/main/|g' {} +
+
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   --volume "$portal:/docs" \
