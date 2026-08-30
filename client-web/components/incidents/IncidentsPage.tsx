@@ -277,7 +277,10 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
               title={t("noTeamsYet")}
               description={t("noTeamsDesc")}
               action={
-                <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
+                <Link
+                  href="/teams"
+                  className={buttonClassNames({ variant: "primary", size: "lg" })}
+                >
                   {t("goToTeams")}
                 </Link>
               }
@@ -288,9 +291,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
               title={hasIncidents ? t("noMatchingIncidents") : t("noIncidentsYet")}
               description={hasIncidents ? t("noMatchingIncidentsDesc") : t("noIncidentsDesc")}
               action={
-                hasIncidents ? (
-                  <Button onClick={clearFilters}>{t("clearFilters")}</Button>
-                ) : null
+                hasIncidents ? <Button onClick={clearFilters}>{t("clearFilters")}</Button> : null
               }
             />
           )

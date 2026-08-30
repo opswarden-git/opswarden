@@ -8,7 +8,9 @@ type HasState = { state: ReleaseState };
 
 /** Returns true for releases that are still ongoing (created, in_progress, or blocked). */
 export function isOngoingRelease(release: HasState): boolean {
-  return release.state === "created" || release.state === "in_progress" || release.state === "blocked";
+  return (
+    release.state === "created" || release.state === "in_progress" || release.state === "blocked"
+  );
 }
 
 /** Returns true for releases that can be validated directly (created or in_progress). */

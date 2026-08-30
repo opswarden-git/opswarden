@@ -9,17 +9,11 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
-  title,
-  description,
-  icon,
-  action,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, icon, action, className }: EmptyStateProps) {
   return (
     <div className={cn("surface rounded-md p-12 text-center", className)}>
       {icon ? (
-        <div className="text-muted mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-subtle border border-border">
+        <div className="text-muted bg-surface-subtle border-border mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border">
           {icon}
         </div>
       ) : null}

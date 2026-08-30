@@ -190,7 +190,10 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
               title={t("noTeamsYet")}
               description={t("noTeamsDesc")}
               action={
-                <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
+                <Link
+                  href="/teams"
+                  className={buttonClassNames({ variant: "primary", size: "lg" })}
+                >
                   {t("goToTeams")}
                 </Link>
               }
@@ -201,9 +204,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
               title={hasReleases ? t("noMatchingReleases") : t("noReleasesYet")}
               description={hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
               action={
-                hasReleases ? (
-                  <Button onClick={clearFilters}>{t("clearFilters")}</Button>
-                ) : null
+                hasReleases ? <Button onClick={clearFilters}>{t("clearFilters")}</Button> : null
               }
             />
           )

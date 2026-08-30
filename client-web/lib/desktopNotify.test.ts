@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getNotificationPermission, notifyDesktop, requestNotificationPermission } from "./desktopNotify";
+import {
+  getNotificationPermission,
+  notifyDesktop,
+  requestNotificationPermission,
+} from "./desktopNotify";
 
 const notificationPlugin = vi.hoisted(() => ({
   isPermissionGranted: vi.fn(),

@@ -294,13 +294,7 @@ pub async fn google_callback(
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        oauth_cookie_header(
-            "opswarden_oauth_state",
-            "",
-            "/api/auth/google",
-            0,
-            secure,
-        )?,
+        oauth_cookie_header("opswarden_oauth_state", "", "/api/auth/google", 0, secure)?,
     );
     Ok(response)
 }

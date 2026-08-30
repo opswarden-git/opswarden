@@ -141,11 +141,7 @@ describe("ReleaseDetail", () => {
 
   it("shows blockers and prevents progression while blocked", () => {
     render(
-      <ReleaseDetail
-        release={release({ state: "blocked" })}
-        teamId="team-1"
-        role="responder"
-      />,
+      <ReleaseDetail release={release({ state: "blocked" })} teamId="team-1" role="responder" />,
     );
 
     expect(screen.getAllByText(/blockedByCount:1/)).toHaveLength(1);

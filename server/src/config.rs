@@ -184,7 +184,8 @@ impl Config {
             github_auth_redirect_uri: "http://localhost:4242/api/auth/github/callback".to_string(),
             github_oauth_client_id: None,
             github_oauth_client_secret: None,
-            github_oauth_redirect_uri: "http://localhost:4242/api/auth/github-oauth/callback".to_string(),
+            github_oauth_redirect_uri: "http://localhost:4242/api/auth/github-oauth/callback"
+                .to_string(),
             web_origin: "http://localhost:4242".to_string(),
             ws_allowed_origins: vec!["http://localhost:4242".to_string()],
             trusted_proxy_hops: 0,
