@@ -349,6 +349,14 @@ impl AutomationRuleRepo for DummyAutomationRuleRepo {
         }
         Ok(belongs_to_team)
     }
+
+    async fn next_run_at(
+        &self,
+        _team_id: Uuid,
+        _rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError> {
+        Ok(None)
+    }
 }
 
 #[derive(Default)]

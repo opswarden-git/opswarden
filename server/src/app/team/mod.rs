@@ -292,7 +292,7 @@ pub(crate) mod tests {
         async fn save_team_image(
             &self,
             _team_id: Uuid,
-            _image: &TeamImage,
+            _image: &crate::domain::team::TeamImage,
         ) -> Result<(), DomainError> {
             Ok(())
         }
@@ -301,7 +301,7 @@ pub(crate) mod tests {
             &self,
             _team_id: Uuid,
             _user_id: Uuid,
-        ) -> Result<Option<TeamImage>, DomainError> {
+        ) -> Result<Option<crate::domain::team::TeamImage>, DomainError> {
             Ok(None)
         }
 
