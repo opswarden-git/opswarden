@@ -167,7 +167,7 @@ pub async fn delete_me(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
 ) -> Result<StatusCode, DomainError> {
-    let use_case = DeleteAccountUseCase::new(state.users.clone(), state.teams.clone());
+    let use_case = DeleteAccountUseCase::new(state.users.clone());
     use_case
         .delete_account(DeleteAccountCommand {
             user_id: session.user_id,
