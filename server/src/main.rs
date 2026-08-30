@@ -91,8 +91,7 @@ async fn main() {
     let pool = connect_database(&database_url).await;
 
     if !skip_migrations {
-        let mut migrator = sqlx::migrate!();
-        migrator.set_ignore_missing(true);
+        let migrator = sqlx::migrate!();
         migrator
             .run(&pool)
             .await
