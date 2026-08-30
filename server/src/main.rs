@@ -193,9 +193,7 @@ async fn main() {
         timers: Arc::new(PgAutomationTimerRepo::new(pool.clone())),
         connections: state.service_connections.clone(),
         credentials: state.connection_credentials.clone(),
-        deliveries: state.webhook_deliveries.clone(),
         rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
         incidents: state.incidents.clone(),
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
@@ -292,11 +290,20 @@ async fn run_timer_worker(
         tokio::select! {
             _ = interval.tick() => {
                 let now = clock.now();
-                if let Err(error) = worker.reconcile(now).await {
-                    tracing::error!(
-                        error_code = error.code(),
-                        "timer reconciliation failed"
-                    );
+                match worker.reconcile(now).await {
+                    Ok(result) if result.recovered > 0
+                        || result.retried > 0
+                        || result.stale_runs_finalized > 0 => tracing::info!(
+                            recovered = result.recovered,
+                            retried = result.retried,
+                            stale_runs_finalized = result.stale_runs_finalized,
+                            "timer reconciliation completed"
+                        ),
+                    Ok(_) => {}
+                    Err(error) => tracing::error!(
+                            error_code = error.code(),
+                            "timer reconciliation failed"
+                        ),
                 }
                 match worker.tick(now).await {
                     Ok(result) if result.claimed > 0 => tracing::info!(
@@ -304,6 +311,7 @@ async fn run_timer_worker(
                         succeeded = result.succeeded,
                         failed = result.failed,
                         skipped = result.skipped,
+                        retried = result.retried,
                         "timer tick completed"
                     ),
                     Ok(_) => {}

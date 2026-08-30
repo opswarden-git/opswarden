@@ -146,6 +146,13 @@ pub trait AutomationTimerRepo: Send + Sync {
         run: &AutomationRun,
     ) -> Result<bool, DomainError>;
 
+    /// Atomically terminalize the run, its delivery and connection health.
+    async fn finish_execution(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        run: &AutomationRun,
+    ) -> Result<bool, DomainError>;
+
     async fn list_unstarted_claims(
         &self,
         claimed_before: DateTime<Utc>,

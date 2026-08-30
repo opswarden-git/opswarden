@@ -368,6 +368,106 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
             .collect()
     }
 
+    async fn finish_execution(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        run: &AutomationRun,
+    ) -> Result<bool, DomainError> {
+        if run.delivery_id != claim.delivery_id
+            || run.rule_id != Some(claim.rule_id)
+            || !matches!(
+                run.status,
+                AutomationRunStatus::Succeeded | AutomationRunStatus::Failed
+            )
+            || run.finished_at.is_none()
+        {
+            return Err(DomainError::InvalidAutomationRun);
+        }
+        let delivery_status = match run.status {
+            AutomationRunStatus::Succeeded => WebhookDeliveryStatus::Processed,
+            AutomationRunStatus::Failed => WebhookDeliveryStatus::Failed,
+            _ => unreachable!(),
+        };
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let updated_run = sqlx::query(
+            r#"
+            UPDATE automation_runs
+            SET status = $4, incident_id = $5, error_code = $6, finished_at = $7
+            WHERE id = $1 AND delivery_id = $2 AND rule_id = $3
+              AND status = 'running'
+            "#,
+        )
+        .bind(run.id)
+        .bind(claim.delivery_id)
+        .bind(claim.rule_id)
+        .bind(run.status.to_string())
+        .bind(run.incident_id)
+        .bind(&run.error_code)
+        .bind(run.finished_at)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_run {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        let updated_delivery = sqlx::query(
+            r#"
+            UPDATE webhook_deliveries
+            SET status = $2, error_code = $3
+            WHERE id = $1 AND connection_id = $4 AND status = 'received'
+            "#,
+        )
+        .bind(claim.delivery_id)
+        .bind(delivery_status.to_string())
+        .bind(&run.error_code)
+        .bind(claim.connection_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_delivery {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        let updated_connection = sqlx::query(
+            r#"
+            UPDATE service_connections
+            SET verified_at = coalesce(verified_at, now()),
+                last_delivery_at = now(), last_error_code = $2, updated_at = now()
+            WHERE id = $1
+            "#,
+        )
+        .bind(claim.connection_id)
+        .bind(&run.error_code)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_connection {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(true)
+    }
+
     async fn abandon_claim(
         &self,
         claim: &ClaimedTimerOccurrence,
@@ -436,7 +536,8 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         started_before: DateTime<Utc>,
         finished_at: DateTime<Utc>,
     ) -> Result<u64, DomainError> {
-        let rows = sqlx::query_scalar::<_, Uuid>(
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let delivery_ids = sqlx::query_scalar::<_, Uuid>(
             r#"
             WITH stale AS (
                 UPDATE automation_runs r
@@ -459,10 +560,33 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         )
         .bind(started_before)
         .bind(finished_at)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
-        Ok(rows.len() as u64)
+        if !delivery_ids.is_empty() {
+            sqlx::query(
+                r#"
+                UPDATE service_connections
+                SET verified_at = coalesce(verified_at, $2),
+                    last_delivery_at = $2,
+                    last_error_code = 'timer_worker_interrupted',
+                    updated_at = $2
+                WHERE id IN (
+                    SELECT connection_id FROM webhook_deliveries WHERE id = ANY($1)
+                )
+                "#,
+            )
+            .bind(&delivery_ids)
+            .bind(finished_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(delivery_ids.len() as u64)
     }
 }
 

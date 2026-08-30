@@ -7,7 +7,6 @@ use super::super::rule::PgAutomationRuleRepo;
 use super::super::test_support::seed_team;
 use super::*;
 use crate::adapters::notify::HttpNotifier;
-use crate::adapters::pg::automation::execution::{PgAutomationRunRepo, PgWebhookDeliveryRepo};
 use crate::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
@@ -55,9 +54,7 @@ fn timer_worker(pool: &PgPool, timers: Arc<PgAutomationTimerRepo>) -> TimerWorke
         timers,
         connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
         credentials: Arc::new(PgConnectionCredentialVault::new(pool.clone(), [7; 32])),
-        deliveries: Arc::new(PgWebhookDeliveryRepo::new(pool.clone())),
         rules: Arc::new(PgAutomationRuleRepo::new(pool.clone())),
-        runs: Arc::new(PgAutomationRunRepo::new(pool.clone())),
         incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
         releases: Arc::new(PgReleaseRepo::new(pool.clone())),
         notifier: Arc::new(HttpNotifier::new()),
@@ -295,6 +292,111 @@ async fn claimed_occurrence_executes_one_incident_and_one_successful_run(pool: P
 }
 
 #[sqlx::test]
+async fn one_broken_occurrence_does_not_stop_the_timer_batch(pool: PgPool) {
+    let (first_rule, first_schedule) = timer_rule(&pool, "batch-first").await;
+    let (second_rule, second_schedule) = timer_rule(&pool, "batch-second").await;
+    let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
+    let timers = Arc::new(PgAutomationTimerRepo::new(pool.clone()));
+    for (rule, schedule) in [
+        (&first_rule, &first_schedule),
+        (&second_rule, &second_schedule),
+    ] {
+        assert!(timers
+            .upsert_schedule(rule.id, schedule, now, rule.updated_at)
+            .await
+            .unwrap());
+    }
+    let failing_rule_id = first_rule.id.min(second_rule.id);
+    sqlx::query("CREATE TABLE injected_timer_failures (rule_id uuid PRIMARY KEY)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        r#"
+        CREATE FUNCTION fail_selected_timer_start() RETURNS trigger AS $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM injected_timer_failures WHERE rule_id = NEW.rule_id
+            ) THEN
+                RAISE EXCEPTION 'injected timer start failure';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        CREATE TRIGGER fail_selected_timer_start
+        BEFORE UPDATE OF execution_started_at ON automation_timer_occurrences
+        FOR EACH ROW EXECUTE FUNCTION fail_selected_timer_start()
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO injected_timer_failures (rule_id) VALUES ($1)")
+        .bind(failing_rule_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let result = timer_worker(&pool, timers).tick(now).await.unwrap();
+
+    assert_eq!(result.claimed, 2);
+    assert_eq!(result.succeeded, 1);
+    assert_eq!(result.retried, 1);
+    assert_eq!((result.failed, result.skipped), (0, 0));
+    let successful_runs = sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM automation_runs WHERE status = 'succeeded'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(successful_runs, 1);
+}
+
+#[sqlx::test]
+async fn timer_completion_rolls_back_if_the_delivery_cannot_finish(pool: PgPool) {
+    let (rule, schedule) = timer_rule(&pool, "finish-rollback").await;
+    let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
+    let timers = PgAutomationTimerRepo::new(pool.clone());
+    assert!(timers
+        .upsert_schedule(rule.id, &schedule, now, rule.updated_at)
+        .await
+        .unwrap());
+    let claim = timers.claim_due(now).await.unwrap().unwrap();
+    let mut run = AutomationRun::new(claim.delivery_id, claim.rule_id);
+    assert!(timers.start_execution(&claim, &run).await.unwrap());
+    sqlx::query("UPDATE webhook_deliveries SET status = 'ignored' WHERE id = $1")
+        .bind(claim.delivery_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    run.mark_succeeded(None).unwrap();
+
+    assert!(!timers.finish_execution(&claim, &run).await.unwrap());
+
+    let states = sqlx::query_as::<_, (String, String, Option<DateTime<Utc>>)>(
+        r#"
+        SELECT run.status, delivery.status, connection.last_delivery_at
+        FROM automation_runs run
+        JOIN webhook_deliveries delivery ON delivery.id = run.delivery_id
+        JOIN service_connections connection ON connection.id = delivery.connection_id
+        WHERE run.id = $1
+        "#,
+    )
+    .bind(run.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(states, ("running".into(), "ignored".into(), None));
+}
+
+#[sqlx::test]
 async fn reconciliation_recovers_an_unstarted_claim_once(pool: PgPool) {
     let (rule, schedule) = timer_rule(&pool, "recover-claim").await;
     let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
@@ -389,11 +491,12 @@ async fn stale_running_timer_run_is_failed_without_replay(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(result.stale_runs_finalized, 1);
-    let state = sqlx::query_as::<_, (String, Option<String>, String)>(
+    let state = sqlx::query_as::<_, (String, Option<String>, String, Option<String>)>(
         r#"
-        SELECT r.status, r.error_code, d.status
+        SELECT r.status, r.error_code, d.status, c.last_error_code
         FROM automation_runs r
         JOIN webhook_deliveries d ON d.id = r.delivery_id
+        JOIN service_connections c ON c.id = d.connection_id
         WHERE r.id = $1
         "#,
     )
@@ -406,7 +509,8 @@ async fn stale_running_timer_run_is_failed_without_replay(pool: PgPool) {
         (
             "failed".to_string(),
             Some("timer_worker_interrupted".to_string()),
-            "failed".to_string()
+            "failed".to_string(),
+            Some("timer_worker_interrupted".to_string())
         )
     );
 }
