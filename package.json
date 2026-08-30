@@ -8,7 +8,6 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "baseline:visual": "node tooling/capture-visual-baseline.mjs",
     "test:e2e": "playwright test",
     "lint:css": "stylelint \"client-web/**/*.css\" --config client-web/stylelint.config.mjs",
     "knip": "knip --config client-web/knip.json"
