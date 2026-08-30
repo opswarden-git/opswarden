@@ -404,16 +404,19 @@ def run_webhooks(config: dict[str, str], origin: str, database: Database, team_i
     missing = [service for service in ("github", "gitlab", "generic", "alertmanager") if service not in ids]
     if missing:
         raise DemoError("Missing configured connections: " + ", ".join(missing))
-    database.apply(
-        ASSETS / "reset_run.sql",
-        {
-            "team_id": team_id,
-            "github_delivery_id": DEMO_DELIVERY_IDS["github"],
-            "gitlab_delivery_id": DEMO_DELIVERY_IDS["gitlab"],
-            "generic_delivery_id": DEMO_DELIVERY_IDS["generic"],
-            "alertmanager_delivery_id": DEMO_DELIVERY_IDS["alertmanager"],
-        },
-    )
+    reset_variables = {
+        "team_id": team_id,
+        "github_delivery_id": DEMO_DELIVERY_IDS["github"],
+        "gitlab_delivery_id": DEMO_DELIVERY_IDS["gitlab"],
+        "generic_delivery_id": DEMO_DELIVERY_IDS["generic"],
+        "alertmanager_delivery_id": DEMO_DELIVERY_IDS["alertmanager"],
+    }
+    has_webhook_jobs = database.query(
+        "select to_regclass('public.webhook_jobs') is not null"
+    ) == ["t"]
+    if has_webhook_jobs:
+        database.apply(ASSETS / "reset_jobs.sql", reset_variables)
+    database.apply(ASSETS / "reset_run.sql", reset_variables)
     repository = value(config, "DEMO_GITHUB_REPOSITORY", "your-github-org/opswarden-demo")
     github = {"repository": {"full_name": repository}, "workflow_run": {"name": value(config, "DEMO_GITHUB_WORKFLOW", "OpsWarden Demo CI"), "head_branch": value(config, "DEMO_GITHUB_BRANCH", "main"), "conclusion": "failure", "html_url": f"https://github.com/{repository}/actions/runs/42"}}
     encoded = json.dumps(github, separators=(",", ":")).encode()

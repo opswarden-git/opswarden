@@ -26,15 +26,6 @@ where team_id = :'team_id'::uuid
       and run.incident_id is not null
   );
 
-delete from webhook_jobs job
-using service_connections connection
-where connection.id = job.connection_id
-  and connection.team_id = :'team_id'::uuid
-  and job.provider_delivery_id in (
-    :'github_delivery_id', :'gitlab_delivery_id',
-    :'generic_delivery_id', :'alertmanager_delivery_id'
-  );
-
 -- automation_runs cascade with their owned delivery rows.
 delete from webhook_deliveries delivery
 using service_connections connection
