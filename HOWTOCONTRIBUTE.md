@@ -1,268 +1,142 @@
 # Contributing
 
-OpsWarden is an alpha incident-management product built as a modular monorepo:
-Rust/Axum on the server, Next.js on the web, and a Tauri desktop shell. This
-guide is intentionally practical: it tells you how to run the product, how the
-code is organized, and what a pull request must prove before it is merged.
+This guide defines how to change OpsWarden safely. Installation, environment
+variables and normal startup commands belong in the
+[`README.md` portal page](https://opswarden-git.github.io/opswarden/); visual
+policy belongs in
+[`UI_GUIDELINES.md`](https://opswarden-git.github.io/opswarden/design/ui-guidelines/),
+token details in
+[`DESIGN_SYSTEM.md`](https://opswarden-git.github.io/opswarden/design/design-system/),
+and the realtime wire contract in
+[`WEBSOCKET_SPEC.md`](https://opswarden-git.github.io/opswarden/reference/websocket/).
 
-## Repository map
+## Start a change
 
-```text
-.
-├── server/          Rust/Axum backend, SQLx, WebSockets
-├── client-web/      Next.js 16 web client
-├── client-desktop/  Tauri v2 desktop shell, URL mode in alpha
-├── tooling/         tarpaulin, deny and SQLx-related config
-├── .sqlx/           generated SQLx offline query cache
-└── .github/         CI and release workflows
-```
-
-This repository is the implementation source of truth. A local grading audit
-may exist in the sibling `../.other/` directory, but the documentation committed
-here must be enough to understand and run the project on its own.
-
-## Prerequisites
-
-- Nix with flakes enabled.
-- Docker and Docker Compose.
-- GitHub CLI is useful for PR/release work, but not required for local dev.
-
-Use the Nix shell unless you have intentionally replicated the toolchain:
+Use the reproducible development shell:
 
 ```bash
 nix develop
 ```
 
-For the desktop shell, use the Tauri-specific shell:
+Use `nix develop .#tauri` for desktop work. Create a short branch from `main`
+using `feat/<scope>`, `fix/<scope>`, `test/<scope>`, `refactor/<scope>`,
+`docs/<scope>` or `chore/<scope>`. Keep commits logical and use conventional
+commit messages, for example `fix(realtime): refresh presence after joining`.
 
-```bash
-nix develop .#tauri
-```
+Before coding, locate the owning layer:
 
-## Run the product
+| Area                        | Responsibility                                  |
+| --------------------------- | ----------------------------------------------- |
+| `server/src/domain/`        | Pure business rules and domain types            |
+| `server/src/app/`           | Use-cases and orchestration through ports       |
+| `server/src/ports/`         | Interfaces for persistence and external effects |
+| `server/src/adapters/`      | PostgreSQL, WebSocket, crypto and providers     |
+| `server/src/handlers/`      | Thin HTTP/WebSocket transport edge              |
+| `client-web/lib/queries/`   | Server state, mutations and cache keys          |
+| `client-web/components/ui/` | Shared accessible UI primitives                 |
+| `client-desktop/`           | Thin Tauri shell and native capabilities        |
 
-Start the server and database, matching the jury-friendly Docker path:
+Business decisions belong on the server, not in React components or handlers.
+Visible copy must exist in both `client-web/messages/en.json` and `fr.json`.
+Use an existing query hook and shared component before creating a local wrapper.
+Native helpers must safely no-op outside Tauri.
 
-```bash
-just up
-```
+Never commit credentials. Provider tokens are Team-owned secrets encrypted by
+the server; they do not belong in rule JSON, client code, logs or API responses.
 
-The backend listens on `http://localhost:8080`.
+## Extend Automation
 
-Run the web client in another shell:
+The server owns the Automation catalog exposed through `/about.json`; clients
+build forms from it. Choose stable lowercase service/event names because they
+are persisted and renaming them requires a migration.
 
-```bash
-just web-dev
-```
+### Add a Service
 
-The web client listens on `http://localhost:4242`.
+A Service is an integration family such as GitHub, GitLab, HTTP or Email.
 
-Run the desktop shell:
+1. Register the Service, its Actions, REActions and connection fields under
+   `server/src/domain/automation_catalog/`.
+2. If credentials are needed, add their `CredentialKind` in
+   `server/src/domain/automation_config.rs`; configure them through
+   `server/src/app/automation/team_connection.rs` and the Team Automation
+   handlers. Store and read values only through the encrypted Team vault.
+3. Put provider-specific transport, signature and payload behavior in
+   `server/src/adapters/`; add a port when no existing interface represents the
+   external effect.
+4. Add structurally identical English and French catalog descriptions in the
+   About handler.
+5. Test catalog exposure, Manager authorization, credential redaction and Team
+   isolation. Incoming webhooks also require valid-authentication,
+   invalid-authentication and duplicate-delivery cases.
 
-```bash
-just desktop-dev   # wrapper for ./client-desktop/dev.sh
-```
-
-The desktop app currently runs in URL mode against `http://localhost:4242`.
-Compose and CI also build and smoke-test the Linux `.deb` and AppImage packages.
-
-## Demo accounts
-
-Create or restore the demo data with:
-
-```bash
-just demo
-```
-
-The command creates the demo Teams, Incidents, Releases and Automation rule. It
-also creates these accounts:
-
-| Email                        | Role       |
-| ---------------------------- | ---------- |
-| `manager@opswarden.local`    | Manager    |
-| `responder@opswarden.local`  | Responder  |
-| `observer@opswarden.local`   | Observer   |
-| `contractor@opswarden.local` | Non-member |
-
-All four share `OPSWARDEN_DEMO_PASSWORD`. The seed script prints the value it
-used when it finishes, so the credential stays with the run rather than with
-this published page.
-
-Use disposable users for verification runs, and clean them up afterwards. Do not
-leave generated `*_it_*`, `e2e-*`, `verify*`, or `repro-*` accounts in the demo
-database.
-
-## Architecture rules
-
-The backend follows a hexagonal layout. Keep these boundaries sharp:
-
-- `server/src/domain/` — pure business rules and domain types.
-- `server/src/app/` — use-cases and orchestration over ports.
-- `server/src/ports/` — traits for persistence, notifications, vault, etc.
-- `server/src/adapters/` — Postgres, WebSocket hub, crypto, vault, notifier.
-- `server/src/handlers/` — HTTP/WebSocket edge only; keep handlers thin.
-
-Business decisions do not belong in React components or Axum handlers. If a rule
-is testable without HTTP, it probably belongs in `domain` or `app`.
-
-Frontend conventions:
-
-- Use existing query hooks in `client-web/lib/queries/`.
-- Keep server state in TanStack Query and invalidate precise keys after
-  mutations/WebSocket events.
-- Visible strings go through `client-web/messages/en.json` and
-  `client-web/messages/fr.json`.
-- Use existing shared UI pieces before creating a new local variant.
-
-Desktop conventions:
-
-- The Tauri shell is a thin wrapper over the web app in alpha.
-- Native notification helpers must no-op outside Tauri.
-- Tray/background behavior is desktop-only; do not leak it into web business
-  logic.
-
-## Environment
-
-Start from the example file:
-
-```bash
-cp .env.example .env
-```
-
-Common variables:
-
-- `DATABASE_URL` — Postgres connection string.
-- `JWT_SECRET` — required in release-like runs.
-- `OPSWARDEN_VAULT_KEY` — AES-GCM vault key; dev fallback exists only for local
-  demos. Provider credentials and automation rules are configured inside the
-  owning Team, never through global environment variables.
-- `GIPHY_API_KEY` — optional server-side key for GIF search. Never expose it as
-  `NEXT_PUBLIC_*`.
-
-Never commit real secrets. `.env` is ignored.
-
-## Extend automation and realtime
-
-You do not need to build a custom frontend form for every integration. The
-server publishes its Automation catalog through `/about.json`, and the web app
-builds the connection and rule forms from that catalog.
-
-Before coding, pick stable lowercase names such as `gitlab`, `pipeline_failed`
-or `email_notify`. These names are stored in PostgreSQL, so renaming them later
-is a data migration, not a cosmetic change.
-
-### Add a service
-
-A service is an integration family such as GitHub or HTTP.
-
-1. Add its entry to `server/src/domain/automation_catalog.rs`. Declare its
-   Actions, REActions and connection fields there. Use `connection: None` when
-   it needs no Team credentials.
-2. If it stores credentials, add the required `CredentialKind` in
-   `server/src/domain/automation_config.rs`, then handle configuration in
-   `server/src/app/automation/team_connection.rs` and
-   `server/src/handlers/team_automation.rs`. Secrets must go through the Team
-   vault; never put them in rule JSON or return them from the API.
-3. Put provider-specific HTTP, payload or signature code in an adapter under
-   `server/src/adapters/`. Wire a new adapter through `AppState` only when an
-   existing port cannot represent it.
-4. Add the English and French catalog text in `server/src/handlers/mod.rs`.
-   Keep both locales structurally identical.
-5. Test the catalog, credential redaction and Manager permissions. If the
-   service receives webhooks, add an integration test covering a valid
-   signature, an invalid signature and a duplicate delivery.
-
-Use the `github` HMAC and `gitlab` secret-token connections as incoming-webhook
-examples, and `http` as a small outgoing-connection example.
+Use GitHub/GitLab as signed incoming examples and HTTP as an outgoing example.
+Do not add a custom frontend form unless the catalog schema cannot express the
+field.
 
 ### Add an Action
 
-An Action is an external event that can start a rule, for example
-`ci_failed`.
+An Action is an external event that can trigger a Rule, such as `ci_failed`.
 
-1. Register the Action and its optional filters in
-   `server/src/domain/automation_catalog.rs`.
-2. Parse the provider payload in `server/src/adapters/webhook/`. Convert it to
-   an `ExternalEvent` with a stable `kind` and only the non-secret attributes
-   the rule engine needs.
-3. Extend `IngestTeamWebhookUseCase` if the provider needs a different
-   signature or credential path. An unrelated event should return `None` and
-   be acknowledged as ignored, not treated as an error.
-4. Add parser tests for a matching payload, an ignored payload and malformed
-   input. Add an end-to-end test proving that filters select the right rule.
-
-The frontend reads the new Action from `/about.json`. Only add React code when
-the generic catalog-driven form truly cannot represent the field.
+1. Register the Action and its bounded filters in the Service catalog.
+2. Parse the provider payload under `server/src/adapters/webhook/` and normalize
+   it to an `ExternalEvent` containing a stable `kind` and non-secret attributes.
+3. Reuse `IngestTeamWebhookUseCase`; extend its authentication path only when
+   the provider contract requires it. A valid but unrelated event returns
+   `None` and is recorded as ignored.
+4. Test matching, ignored and malformed payloads, authentication,
+   retry/idempotency and an end-to-end Rule selected by its filters.
 
 ### Add a REAction
 
-A REAction is what OpsWarden does after a rule matches, such as creating an
-Incident or sending an HTTP notification.
+A REAction is the server-side effect executed after a Rule matches.
 
-1. Register the REAction and its fields in
-   `server/src/domain/automation_catalog.rs`. Set `connection_service` when it
-   needs a configured Team connection.
-2. Add its execution branch to
-   `server/src/app/automation/reaction_executor.rs`. Keep the orchestration in
-   the app layer and network calls behind a port implemented by an adapter.
-3. Read credentials from the Team vault. Rule configuration may contain normal
-   values and bounded templates, but never tokens, passwords or endpoint URLs.
-4. Return stable `DomainError` codes so failed runs and `rule_failed` events are
-   useful to clients.
-5. Test success, provider failure, invalid configuration and output limits.
-   Add an integration test proving the Automation Run and WebSocket result.
+1. Register the REAction and its fields in the catalog. Declare
+   `connection_service` when it depends on a Team connection.
+2. Add orchestration to
+   `server/src/app/automation/reaction_executor.rs`; network calls remain behind
+   a port and adapter.
+3. Read credentials from the Team vault. Rule configuration may contain bounded
+   values and templates, never tokens, passwords or secret endpoint URLs.
+4. Return stable public `DomainError` codes for Automation Runs and
+   `rule_failed`; do not expose internal provider errors.
+5. Test success, provider failure, invalid configuration, output limits,
+   durable Run state and the resulting WebSocket event.
 
-Use `create_incident` for a domain-side example and `http_notify` for an
+`create_incident` is the domain-side reference; `http_notify` demonstrates an
 external side effect.
 
-### Add a WebSocket event
+## Add a WebSocket event
 
-WebSocket changes are a shared server/client contract. Update every layer in
-the same pull request:
+A WebSocket change is one atomic server/client/documentation contract:
 
-1. Add the business event to `server/src/domain/event.rs` and choose its
-   delivery scope: one Team or an explicit list of users.
-2. Publish it from the use-case after the database write succeeds.
-3. Serialize its exact JSON shape in `server/src/adapters/ws/protocol.rs` and
-   add an exact-shape Rust test.
-4. Document the payload and delivery rule in `WEBSOCKET_SPEC.md`.
-5. Add the event to `WsServerEvent` in `client-web/lib/ws.ts`, then handle the
-   cache update, invalidation or notification it needs.
-6. Add a TypeScript consumer test. If routing changed, add a server integration
-   test proving that unrelated Teams or users do not receive the frame.
+1. Add the business event to `server/src/domain/event.rs` and select Team or
+   explicit-user delivery.
+2. Publish it from the use-case only after the database mutation succeeds.
+3. Serialize the exact frame in `server/src/adapters/ws/protocol.rs` and add an
+   exact-shape Rust test.
+4. Add the event, exact payload fields, emission condition and recipients to
+   `WEBSOCKET_SPEC.md`.
+5. Add the TypeScript type to `WsServerEvent` in `client-web/lib/ws.ts` and
+   implement its cache/store/notification effect.
+6. Add a TypeScript consumer test. When delivery changes, add a server test
+   proving unrelated Teams or users receive nothing.
 
-After any of these extensions, run the focused tests while you work, then run:
+Do not add private-message reactions: VIGIL limits reactions to Incident
+timeline entries.
 
-```bash
-just ci
-```
+## Validate the change
 
-## Checks before a PR
-
-`just ci` mirrors the GitHub gate: one recipe per job, named after it. Run it
-whatever the change touches.
+Run focused tests while iterating, then reproduce the GitHub gate:
 
 ```bash
 just ci
 ```
 
-It needs the stack up (`just up`) for the backend and browser jobs, and the
-tooling from `nix develop` — a recipe whose tool is missing **fails** rather
-than skipping, so a green run always means every check actually ran.
+The stack must be running with `just up`. A missing tool fails rather than
+silently skipping a check. `just ci-full` additionally runs backend coverage
+and the Linux desktop package job.
 
-| Recipe                    | GitHub job                   |
-| ------------------------- | ---------------------------- |
-| `just ci-workflow`        | Workflow · Validate          |
-| `just ci-backend-quality` | Backend · Quality & security |
-| `just ci-backend-test`    | Backend · Build & test       |
-| `just ci-web`             | Web · Quality & test         |
-| `just ci-web-build`       | Web · Build                  |
-| `just ci-e2e`             | E2E · Browser suite          |
-
-`just ci-full` adds the two slow jobs, `Backend · Coverage` and
-`Desktop (Linux) · Package`.
-
-Useful focused checks:
+Useful focused commands:
 
 ```bash
 just test
@@ -273,148 +147,39 @@ npm run format:check
 npm run knip
 ```
 
-If a backend change adds or changes SQLx queries, refresh the offline cache:
+For SQLx query changes, run:
 
 ```bash
 cargo sqlx prepare --workspace -- --all-targets
 ```
 
-Commit the generated `.sqlx/query-*.json` changes.
+Commit the updated `.sqlx/query-*.json` cache. PostgreSQL adapter tests use
+`#[sqlx::test]` and require a `DATABASE_URL` whose role can create temporary
+databases; `just test` supplies the documented local default.
 
-For desktop changes:
+Coverage is measured by `just coverage`: Tarpaulin enforces 70% line coverage
+for runtime Rust under `server/src`, while Vitest/V8 enforces the frontend
+runtime-source thresholds. Do not weaken scopes or thresholds to make a change
+pass.
 
-```bash
-nix develop .#tauri --command bash -lc 'cd client-desktop/src-tauri && cargo build'
-```
+## Pull request contract
 
-For coverage:
+A pull request is ready only when:
 
-```bash
-just coverage
-```
+- relevant local checks and the required CI gate are green;
+- behavior has tests, including negative authorization and isolation cases;
+- server boundaries remain intact and visible strings are translated EN/FR;
+- REST, WebSocket, schema and documentation changes are updated together;
+- changed SQLx queries include their offline cache;
+- no secret, build output or one-off verification script is committed;
+- the description records scope, excluded work, commands run and manual checks.
 
-Tarpaulin executes the complete backend test suite but reports only runtime Rust
-under `server/src`; `main.rs`, integration-test files and inline test functions
-are excluded from the ratio. The `source-only-summary.json` gate rejects an
-empty or contaminated report and enforces 70% line coverage. Vitest/V8 applies
-the corresponding global runtime-source gate to the frontend.
+Repository guardrails enforce source files below 500 lines, forbid TypeScript
+escape hatches, pin Docker base images, preserve released migrations and reject
+unrelated test deletion. Executable policy lives in
+`tooling/check_source_hygiene.sh`, `tooling/check_dockerfile_pins.sh` and
+`tooling/check_migration_policy.sh`; these scripts, not duplicated prose, are
+authoritative.
 
-## Database tests
-
-Postgres adapter tests use `#[sqlx::test]`. Each test gets an ephemeral database
-that is created, migrated and dropped automatically.
-
-That requires:
-
-- `DATABASE_URL` to point to a Postgres server.
-- The Postgres role to have the `CREATEDB` privilege.
-
-`just test` exports a default local value:
-
-```text
-postgres://opswarden:opswarden@localhost:5433/opswarden
-```
-
-Running `cargo test` directly requires you to export `DATABASE_URL` yourself.
-
-## Branching and commits
-
-Use short branches from `main`:
-
-```text
-feat/<scope>
-fix/<scope>
-test/<scope>
-refactor/<scope>
-docs/<scope>
-chore/<scope>
-```
-
-Use conventional commits:
-
-```text
-feat(teams): add member role management endpoint
-fix(realtime): refresh team roster on presence update
-test(server): isolate PG tests and cover security adapters
-```
-
-Keep commits logical. A good PR explains:
-
-- what changed;
-- what was deliberately out of scope;
-- exact commands run;
-- any manual/live verification performed.
-
-## Pull request definition of done
-
-A PR is mergeable only when:
-
-- CI is green.
-- Local checks relevant to the change were run.
-- New behavior has tests or a written reason why it is display/manual only.
-- Backend logic respects `domain` / `app` / `ports` / `adapters` boundaries.
-- Frontend visible text is translated in both English and French.
-- WebSocket/API changes update the relevant types and docs.
-- SQLx query changes include the regenerated `.sqlx` cache.
-- No real secrets, generated build output, or one-off scripts are committed.
-
-### Repository guardrails
-
-`main` remains protected: changes go through pull requests, the required gate
-must pass on an up-to-date branch, conversations must be resolved, linear
-history is required, and force-pushes or deletion are disabled. Administrators
-remain subject to the protection. The approving-review count may stay at zero
-while the repository has only one regular maintainer.
-
-The required gate enforces these source rules:
-
-- new owned Rust, TypeScript, JavaScript and shell files stay below 500 lines;
-- application code does not use `as any`, `@ts-ignore` or `@ts-nocheck`;
-- tests are not deleted as an unrelated cleanup;
-- Docker base images remain pinned to full SHA-256 manifest digests;
-- released migrations are immutable and every new migration declares exactly
-  one `expand`, `backfill` or `contract` phase;
-- destructive or narrowing SQL is confined to a later contract migration after
-  a compatibility window and a verified backup.
-
-The executable policies live in `tooling/check_source_hygiene.sh`,
-`tooling/check_dockerfile_pins.sh` and `tooling/check_migration_policy.sh`.
-The 500-line limit is a ceiling, not a target; prefer a coherent module around
-200–350 lines.
-
-Every integration change covers its successful end-to-end path, missing and
-invalid authentication, malformed input, non-triggering provider states,
-retry/idempotency behavior, the server-owned catalog and EN/FR translations.
-Sensitive behavior has at least one negative case, and tests assert durable
-effects rather than only an HTTP status.
-
-The bounded Alertmanager mutation campaign remains available as:
-
-```bash
-cargo install --locked cargo-mutants --version 27.1.0
-just test-mutations-alertmanager
-```
-
-Any surviving, non-viable or timed-out mutant must be investigated.
-
-## Releases
-
-Tags `v*.*.*` trigger the release workflow. Its release gate runs Rust and web
-checks first. A successful tag creates the GitHub Release, pushes the server
-image to GHCR and attaches the Linux AppImage.
-
-Prepare version changes in a dedicated pull request. After its required gate is
-green:
-
-1. merge the release pull request into `main`;
-2. fetch and verify the resulting clean `main` commit;
-3. create the annotated version tag on that merged commit;
-4. push the tag and monitor the release through artifact publication.
-
-Update the README version badge and write release notes that distinguish proven
-behavior from partial work before merging. Never tag the release branch:
-squash-merging changes its commit ID, and release automation rejects a tag that
-is not reachable from `main`.
-
-Do not use this guide as a roadmap. Pick work from the current issue or project
-board, keep the change small, and ask early when a requirement is unclear.
+Keep this guide procedural. Product behavior belongs in the README and protocol
+documents; planned work belongs in the issue tracker or roadmap.

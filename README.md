@@ -15,36 +15,15 @@
 ## What is OpsWarden?
 
 **OpsWarden** is a real-time incident response and release coordination platform
-for technical teams. Incidents are triaged and resolved in one shared workspace;
-releases are validated step by step and automatically blocked when an active
-incident makes further deployment unsafe.
+for technical teams.
 
-External events can trigger internal actions through an
-**Action&rarr;REAction** rule engine. GitHub, GitLab and provider-neutral JSON
-webhooks can create OpsWarden incidents or notify a configured HTTP endpoint after
-signature/token validation, filtering and durable deduplication. Supported
-provider events include CI failure and success, new tags, and merged GitHub pull
-requests. Native Release events use the same durable engine without external
-credentials: a rule can create an Incident, validate the next Release step,
-block an in-progress Release through a linked Incident, or escalate an
-acknowledged Incident.
-
-The Generic Webhook contract is deliberately small and safe. After a Manager
-configures the `generic` service connection, JSON events are sent to
-`POST /webhooks/generic/{connection_id}` with `X-OpsWarden-Token`, a stable
-`X-OpsWarden-Delivery` id and an `X-OpsWarden-Event` value. Requests are limited
-to 64 KiB and bounded JSON; rules only receive the normalized `event_type`,
-`source`, `title`, `message`, `severity`, `external_id` and `event_url` fields.
-The raw payload and shared token are never exposed by the API or persisted in an
-automation run.
-
-Alertmanager uses a lifecycle-aware contract. Managers configure an encrypted
-bearer token, then Alertmanager sends bounded JSON notifications to
-`POST /webhooks/alertmanager/{connection_id}`. Each alert in a group becomes an
-independent `alert_firing` or `alert_resolved` transition; semantic retries are
-deduplicated without confusing formatting changes with new events. See the
-[Alertmanager operator guide](docs/integrations/alertmanager.md) for setup,
-normalization and token rotation.
+Streamline incident response and eliminate deployment risks in one unified
+workspace. Responders collaborate seamlessly while release pipelines run
+step-by-step validations that automatically halt unsafe deployments whenever active
+incidents arise. Powered by an event-driven **Action -> REAction** engine, OpsWarden
+connects your stack—from GitHub and GitLab to custom webhooks—to instantly convert
+CI events, new tags, and pull requests into automated incident triage, release
+controls, and escalation workflows with enterprise-grade security and deduplication.
 
 ### Incident response
 
@@ -94,7 +73,7 @@ leaving their shared operational context.
 Team-scoped connections cover GitHub, GitLab, Alertmanager, Generic Webhook,
 HTTP and Email. Active and inactive integrations remain visibly separate while
 credentials stay server-side; connected services can then feed the durable
-Action&rarr;REAction rule engine.
+Action -> REAction rule engine.
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/integrations.png">
@@ -120,7 +99,7 @@ early feedback; server validation remains authoritative.
 | Attachment media policy       | Download-only allowlist; active HTML is rejected                   | Incident timeline and private-message POST routes |
 | Unauthenticated auth attempts | 20 per client address per 5 minutes, then `429` with `Retry-After` | `/api/auth/*`                                     |
 
-Reactions apply to Incident timeline entries and private messages, never to
+Reactions apply only to Incident timeline entries, never to private messages or
 Release step validations.
 
 ## For developers
@@ -143,7 +122,200 @@ Once the containers are up, open `http://localhost:8081/en` (`/fr` for French). 
 | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" width="18" alt="" />         | `client_web`     | Next.js     | `:4242` dev / `:8081` Compose   |
 | <img src="https://api.iconify.design/simple-icons/tauri.svg" width="18" alt="" />                                            | `client_desktop` | Tauri       | URL mode via `just desktop-dev` |
 
-For a deep dive into setup, configuration, and advanced development commands, see the [technical documentation](https://opswarden-git.github.io/opswarden/). It includes everything from architectural decisions and the [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/) to the complete [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
+## Technical reference
+
+### Architecture
+
+The Rust server owns authorization, lifecycle rules and persistence. The web
+and desktop clients consume the same HTTP and WebSocket contracts; the desktop
+application is a Tauri shell around the web client, not a second business
+implementation.
+
+```mermaid
+flowchart LR
+    Providers[GitHub · GitLab · Alertmanager · generic webhooks]
+    Browser[Next.js web client]
+    Desktop[Tauri desktop client]
+    API[Axum HTTP handlers]
+    App[Application use cases]
+    Domain[Domain rules]
+    Ports[Repository and service ports]
+    Postgres[(PostgreSQL)]
+    Hub[WebSocket hub]
+    External[OAuth · GIPHY · HTTP · email]
+
+    Providers -->|signed or token-authenticated events| API
+    Browser -->|JWT + JSON| API
+    Desktop -->|JWT + JSON| API
+    API --> App
+    App --> Domain
+    App --> Ports
+    Ports --> Postgres
+    Ports --> External
+    App -->|domain events| Hub
+    Hub -->|scoped updates| Browser
+    Hub -->|scoped updates| Desktop
+```
+
+### Codebase navigation
+
+| Concern                          | Location                                                                                           | Responsibility                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Business entities and invariants | [`server/src/domain`](server/src/domain)                                                           | Incident and Release lifecycles, roles, message limits, automations and domain events |
+| Application logic                | [`server/src/app`](server/src/app)                                                                 | Use cases coordinating authorization, mutations, persistence and event publication    |
+| Abstract dependencies            | [`server/src/ports`](server/src/ports)                                                             | Repository, token, webhook, notification and external-service traits                  |
+| HTTP handlers and payloads       | [`server/src/handlers`](server/src/handlers)                                                       | Axum extraction, DTOs and transport error mapping                                     |
+| HTTP route wiring                | [`server/src/lib.rs`](server/src/lib.rs)                                                           | Router, middleware boundaries, body limits and shared state                           |
+| PostgreSQL persistence           | [`server/src/adapters/pg`](server/src/adapters/pg)                                                 | SQL-backed repository implementations                                                 |
+| WebSocket broadcaster            | [`server/src/adapters/ws/hub.rs`](server/src/adapters/ws/hub.rs)                                   | Connection registration and Team, Incident-room or bilateral delivery                 |
+| WebSocket wire format            | [`server/src/adapters/ws/protocol.rs`](server/src/adapters/ws/protocol.rs)                         | Stable JSON representation of domain events                                           |
+| Database evolution               | [`server/migrations`](server/migrations)                                                           | Immutable expand/backfill/contract migrations                                         |
+| Next.js routes and UI            | [`client-web/app`](client-web/app), [`client-web/components`](client-web/components)               | Locale-aware pages, product views and accessible primitives                           |
+| Client data and realtime         | [`client-web/lib/queries`](client-web/lib/queries), [`client-web/lib/ws.ts`](client-web/lib/ws.ts) | Typed HTTP access, caching and WebSocket synchronization                              |
+| Desktop shell                    | [`client-desktop/src-tauri`](client-desktop/src-tauri)                                             | Tauri packaging, native window behavior and notifications                             |
+
+<details>
+<summary><strong>REST API reference</strong></summary>
+
+JSON failures carry a stable `code`. Unless marked Public or Provider, routes
+require `Authorization: Bearer &lt;token&gt;`; Team routes also enforce membership
+and Observer/Responder/Manager permissions. IDs are UUIDs and timestamps use
+RFC 3339. DTO definitions live beside the handlers in
+[`server/src/handlers`](server/src/handlers).
+
+#### System and account
+
+| Method          | Path                                 | Access and purpose                           |
+| --------------- | ------------------------------------ | -------------------------------------------- |
+| `GET`           | `/health`                            | Public readiness check                       |
+| `GET`           | `/metrics`                           | Public Prometheus metrics                    |
+| `GET`           | `/about.json`                        | Public version and capability catalogue      |
+| `POST`          | `/api/auth/sign-up`                  | Public, rate-limited account creation        |
+| `POST`          | `/api/auth/sign-in`                  | Public, rate-limited token exchange          |
+| `GET`           | `/api/auth/google/start`             | Public, rate-limited Google OAuth start      |
+| `GET`           | `/api/auth/google/callback`          | Public Google OAuth callback                 |
+| `POST`          | `/api/auth/logout`                   | Revoke the authenticated token               |
+| `GET`, `DELETE` | `/api/me`                            | Read or delete the authenticated account     |
+| `PUT`           | `/api/me/locale`                     | Persist `en` or `fr`                         |
+| `GET`           | `/api/giphy/search`                  | Search bounded, normalized GIF results       |
+| `GET`           | `/api/service-oauth/github/callback` | Complete a state-protected GitHub connection |
+
+#### Teams and direct collaboration
+
+| Method                 | Path                                          | Access and purpose                                       |
+| ---------------------- | --------------------------------------------- | -------------------------------------------------------- |
+| `GET`, `POST`          | `/api/teams`                                  | List the caller's Teams or create one as Manager         |
+| `POST`                 | `/api/teams/join`                             | Join using an invitation code                            |
+| `GET`, `POST`          | `/api/teams/{team_id}/members`                | Member roster; Manager-only addition                     |
+| `PUT`                  | `/api/teams/{team_id}/members/{user_id}/role` | Manager role change                                      |
+| `DELETE`               | `/api/teams/{team_id}/members/{user_id}`      | Manager member removal                                   |
+| `GET`, `POST`          | `/api/teams/{team_id}/bans`                   | Manager ban list or ban creation                         |
+| `DELETE`               | `/api/teams/{team_id}/bans/{user_id}`         | Manager unban                                            |
+| `GET`                  | `/api/teams/{team_id}/invitation`             | Manager invitation-code read                             |
+| `GET`, `PUT`, `DELETE` | `/api/teams/{team_id}/image`                  | Member read; Manager replace or delete                   |
+| `POST`                 | `/api/teams/{team_id}/leave`                  | Leave when ownership rules permit it                     |
+| `PUT`                  | `/api/teams/{team_id}/manager`                | Manager ownership transfer                               |
+| `DELETE`               | `/api/teams/{team_id}`                        | Manager Team deletion                                    |
+| `GET`, `POST`          | `/api/private-messages`                       | Shared-Team participants list or send bilateral messages |
+| `PATCH`                | `/api/private-messages/{id}`                  | Original-author edit                                     |
+| `POST`                 | `/api/private-messages/read`                  | Advance a bilateral read position                        |
+| `GET`                  | `/api/private-messages/unread`                | List peers with unread messages                          |
+| `GET`                  | `/api/private-message-attachments/{id}`       | Participant-only attachment download                     |
+
+#### Incidents and Releases
+
+| Method           | Path                                                         | Access and purpose                       |
+| ---------------- | ------------------------------------------------------------ | ---------------------------------------- |
+| `GET`, `POST`    | `/api/incidents`                                             | Member list/filter; Manager creation     |
+| `GET`, `DELETE`  | `/api/incidents/{incident_id}`                               | Member detail; Manager deletion          |
+| `PUT`            | `/api/incidents/{incident_id}/status`                        | Responder/Manager lifecycle transition   |
+| `PUT`            | `/api/incidents/{incident_id}/assign`                        | Manager Responder assignment             |
+| `GET`            | `/api/incidents/{incident_id}/activity`                      | Member keyset-paginated activity         |
+| `PUT`            | `/api/incidents/{incident_id}/read`                          | Advance a member's durable read position |
+| `POST`           | `/api/incidents/{incident_id}/timeline`                      | Responder/Manager note or attachment     |
+| `PUT`            | `/api/incidents/{incident_id}/timeline/{entry_id}`           | Original-author note edit                |
+| `POST`           | `/api/incidents/{incident_id}/timeline/{entry_id}/reactions` | Member emoji toggle                      |
+| `GET`            | `/api/timeline-attachments/{attachment_id}`                  | Authorized attachment download           |
+| `GET`            | `/reactions/available`                                       | Authenticated canonical emoji catalogue  |
+| `GET`, `POST`    | `/api/releases`                                              | Member list; Manager creation            |
+| `GET`            | `/api/releases/{id}`                                         | Member Release detail                    |
+| `POST`           | `/api/releases/{id}/cancel`                                  | Manager cancellation                     |
+| `POST`           | `/api/releases/{id}/steps/{step}/validate`                   | Responder/Manager next-step validation   |
+| `POST`, `DELETE` | `/api/releases/{id}/incidents/{incident_id}/link`            | Responder/Manager link or unlink         |
+
+#### Integrations and automations
+
+| Method            | Path                                                                        | Access and purpose                      |
+| ----------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| `GET`             | `/api/teams/{team_id}/service-connections`                                  | Manager connection list without secrets |
+| `PUT`             | `/api/teams/{team_id}/service-connections/by-service/{service}`             | Manager service configuration           |
+| `POST`            | `/api/teams/{team_id}/service-connections/by-service/{service}/oauth/start` | Manager GitHub OAuth start              |
+| `POST`            | `/api/teams/{team_id}/service-connections/{connection_id}/oauth/refresh`    | Manager OAuth refresh                   |
+| `POST`            | `/api/teams/{team_id}/service-connections/{connection_id}/test`             | Manager safe connectivity test          |
+| `DELETE`          | `/api/teams/{team_id}/service-connections/{connection_id}`                  | Manager connection deletion             |
+| `GET`, `POST`     | `/api/teams/{team_id}/automation-rules`                                     | Manager rule list or creation           |
+| `PATCH`, `DELETE` | `/api/teams/{team_id}/automation-rules/{rule_id}`                           | Manager update or deletion              |
+| `GET`             | `/api/teams/{team_id}/automation-runs`                                      | Manager durable execution history       |
+| `POST`            | `/webhooks/github/{connection_id}`                                          | Provider-signature GitHub ingestion     |
+| `POST`            | `/webhooks/gitlab/{connection_id}`                                          | Provider-token GitLab ingestion         |
+| `POST`            | `/webhooks/generic/{connection_id}`                                         | Connection-token bounded JSON ingestion |
+| `POST`            | `/webhooks/alertmanager/{connection_id}`                                    | Bearer-token alert ingestion            |
+
+The non-REST real-time endpoint is `GET` `/ws`: its first message authenticates
+the client, then room messages scope delivery. See
+[`WEBSOCKET_SPEC.md`](WEBSOCKET_SPEC.md) for the wire contract.
+
+</details>
+
+<details>
+<summary><strong>Commented PostgreSQL schema</strong></summary>
+
+The diagram shows the principal ownership and collaboration relationships.
+Team-owned resources generally cascade on deletion; retained operational history
+uses `SET NULL` when an actor account disappears.
+
+```mermaid
+erDiagram
+    USERS ||--o{ TEAM_MEMBERS : joins
+    TEAMS ||--o{ TEAM_MEMBERS : contains
+    TEAMS ||--o{ INCIDENTS : owns
+    INCIDENTS ||--o{ TIMELINE_ENTRIES : records
+    TIMELINE_ENTRIES ||--o{ TIMELINE_REACTIONS : receives
+    TIMELINE_ENTRIES ||--o{ TIMELINE_ENTRY_ATTACHMENTS : carries
+    INCIDENTS ||--o{ INCIDENT_EVENTS : audits
+    INCIDENTS ||--o{ INCIDENT_CHANNEL_READS : tracks
+    TEAMS ||--o{ RELEASES : owns
+    RELEASES ||--o{ RELEASE_STEPS : orders
+    RELEASES ||--o{ RELEASE_INCIDENTS : links
+    INCIDENTS ||--o{ RELEASE_INCIDENTS : blocks
+    USERS ||--o{ PRIVATE_MESSAGES : exchanges
+    PRIVATE_MESSAGES ||--o{ PRIVATE_MESSAGE_ATTACHMENTS : carries
+    TEAMS ||--o{ SERVICE_CONNECTIONS : configures
+    SERVICE_CONNECTIONS ||--o{ SERVICE_CONNECTION_SECRETS : protects
+    TEAMS ||--o{ AUTOMATION_RULES : owns
+    AUTOMATION_RULES ||--o{ AUTOMATION_RUNS : executes
+    SERVICE_CONNECTIONS ||--o{ WEBHOOK_DELIVERIES : receives
+    WEBHOOK_DELIVERIES ||--o{ AUTOMATION_RUNS : produces
+```
+
+| Tables                                                                     | Comment                                                              |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `users`, `revoked_tokens`                                                  | Accounts, locale and revoked sessions                                |
+| `teams`, `team_members`, `team_bans`, `team_images`                        | Ownership, RBAC, moderation and bounded branding                     |
+| `incidents`, `incident_events`, `incident_channel_reads`                   | Current projection, audit history and per-user read positions        |
+| `timeline_entries`, `timeline_reactions`, `timeline_entry_attachments`     | Incident notes, Incident-only reactions and bounded files            |
+| `releases`, `release_steps`, `release_incidents`                           | Ordered progress and Incident-derived blocking                       |
+| `private_messages`, `private_message_attachments`, `private_message_reads` | Bilateral messages, files and unread positions; no private reactions |
+| `service_connections`, `service_connection_secrets`                        | Integration metadata and separately encrypted credentials            |
+| `automation_rules`, `automation_runs`, `webhook_deliveries`                | Rules, durable outcomes and delivery deduplication                   |
+| `automation_timer_schedules`, `automation_timer_occurrences`               | Schedules and exactly-once timer claims                              |
+
+The ordered files in [`server/migrations`](server/migrations) are the executable,
+authoritative schema.
+
+</details>
+
+For deeper setup and operational guidance, see the [technical documentation](https://opswarden-git.github.io/opswarden/), the [WebSocket protocol](https://opswarden-git.github.io/opswarden/reference/websocket/), the expanded [REST API](https://opswarden-git.github.io/opswarden/reference/rest-api/) and the [data model](https://opswarden-git.github.io/opswarden/reference/data-model/).
 
 <p>
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/rust/rust-original.svg" height="25" alt="Rust" />
