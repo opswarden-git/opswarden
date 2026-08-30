@@ -40,3 +40,7 @@ site/
 
 # Inventaire genere : reproductible par `just inventory`, jamais commite.
 /tooling/inventory/dist/
+
+# Python bytecode
+__pycache__/
+*.pyc
