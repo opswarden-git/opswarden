@@ -221,9 +221,27 @@ pub trait WebhookJobRepo: Send + Sync {
 }
 
 /// Durable result of running one rule for one delivery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AutomationRunReservation {
+    New(AutomationRun),
+    Existing(AutomationRun),
+}
+
 #[async_trait]
 pub trait AutomationRunRepo: Send + Sync {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError>;
+    /// Insert a new run or return the run already reserved for this
+    /// `(delivery, rule)` pair after a worker restart.
+    async fn reserve_run(
+        &self,
+        run: &AutomationRun,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<AutomationRunReservation, DomainError>;
+    /// Terminalize runs left `running` by an expired delivery attempt, even if
+    /// their rule has since been disabled or deleted.
+    async fn interrupt_running_for_delivery(
+        &self,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<u64, DomainError>;
     async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError>;
     async fn list_runs_for_team(
         &self,

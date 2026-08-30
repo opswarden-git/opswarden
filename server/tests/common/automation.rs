@@ -381,9 +381,23 @@ impl DummyAutomationRunRepo {
 
 #[async_trait]
 impl AutomationRunRepo for DummyAutomationRunRepo {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
-        self.runs.lock().unwrap().insert(run.id, run.clone());
-        Ok(())
+    async fn reserve_run(
+        &self,
+        run: &AutomationRun,
+        _claim: opswarden_server::ports::WebhookDeliveryClaim,
+    ) -> Result<opswarden_server::ports::AutomationRunReservation, DomainError> {
+        let mut runs = self.runs.lock().unwrap();
+        if let Some(existing) = runs.values().find(|existing| {
+            existing.delivery_id == run.delivery_id && existing.rule_id == run.rule_id
+        }) {
+            return Ok(opswarden_server::ports::AutomationRunReservation::Existing(
+                existing.clone(),
+            ));
+        }
+        runs.insert(run.id, run.clone());
+        Ok(opswarden_server::ports::AutomationRunReservation::New(
+            run.clone(),
+        ))
     }
 
     async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError> {
@@ -395,6 +409,23 @@ impl AutomationRunRepo for DummyAutomationRunRepo {
             runs.insert(run.id, run.clone());
         }
         Ok(can_update)
+    }
+
+    async fn interrupt_running_for_delivery(
+        &self,
+        claim: opswarden_server::ports::WebhookDeliveryClaim,
+    ) -> Result<u64, DomainError> {
+        let mut runs = self.runs.lock().unwrap();
+        let mut interrupted = 0;
+        for run in runs.values_mut().filter(|run| {
+            run.delivery_id == claim.delivery_id
+                && run.status
+                    == opswarden_server::domain::automation_config::AutomationRunStatus::Running
+        }) {
+            run.mark_failed("interrupted")?;
+            interrupted += 1;
+        }
+        Ok(interrupted)
     }
 
     async fn list_runs_for_team(

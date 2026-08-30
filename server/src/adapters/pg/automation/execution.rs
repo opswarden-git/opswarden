@@ -9,7 +9,9 @@ use crate::domain::automation_config::{
     AutomationRun, AutomationRunStatus, WebhookDelivery, WebhookDeliveryStatus,
 };
 use crate::domain::error::DomainError;
-use crate::ports::{AutomationRunRepo, WebhookDeliveryClaim, WebhookDeliveryRepo};
+use crate::ports::{
+    AutomationRunRepo, AutomationRunReservation, WebhookDeliveryClaim, WebhookDeliveryRepo,
+};
 
 pub struct PgWebhookDeliveryRepo {
     pool: PgPool,
@@ -197,7 +199,11 @@ impl TryFrom<AutomationRunRow> for AutomationRun {
 
 #[async_trait]
 impl AutomationRunRepo for PgAutomationRunRepo {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
+    async fn reserve_run(
+        &self,
+        run: &AutomationRun,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<AutomationRunReservation, DomainError> {
         if run.status != AutomationRunStatus::Running
             || run.incident_id.is_some()
             || run.error_code.is_some()
@@ -221,6 +227,8 @@ impl AutomationRunRepo for PgAutomationRunRepo {
               ON r.id = $3
              AND r.trigger_connection_id = d.connection_id
             WHERE d.id = $2
+              AND d.claim_token = $9 AND d.claim_expires_at > now()
+            ON CONFLICT (delivery_id, rule_id) DO NOTHING
             "#,
         )
         .bind(run.id)
@@ -231,13 +239,28 @@ impl AutomationRunRepo for PgAutomationRunRepo {
         .bind(&run.error_code)
         .bind(run.started_at)
         .bind(run.finished_at)
+        .bind(claim.token)
         .execute(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
-        if result.rows_affected() != 1 {
-            return Err(DomainError::Storage);
+        if result.rows_affected() == 1 {
+            return Ok(AutomationRunReservation::New(run.clone()));
         }
-        Ok(())
+        let existing = sqlx::query_as::<_, AutomationRunRow>(
+            r#"
+            SELECT id, delivery_id, rule_id, status, incident_id, error_code,
+                   started_at, finished_at
+            FROM automation_runs
+            WHERE delivery_id = $1 AND rule_id = $2
+            "#,
+        )
+        .bind(run.delivery_id)
+        .bind(rule_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .ok_or(DomainError::Storage)?;
+        Ok(AutomationRunReservation::Existing(existing.try_into()?))
     }
 
     async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError> {
@@ -260,6 +283,29 @@ impl AutomationRunRepo for PgAutomationRunRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
         Ok(result.rows_affected() == 1)
+    }
+
+    async fn interrupt_running_for_delivery(
+        &self,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<u64, DomainError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE automation_runs AS run
+            SET status = 'failed', error_code = 'interrupted', finished_at = now()
+            FROM webhook_deliveries AS delivery
+            WHERE run.delivery_id = delivery.id
+              AND delivery.id = $1 AND delivery.claim_token = $2
+              AND delivery.claim_expires_at > now()
+              AND run.status = 'running'
+            "#,
+        )
+        .bind(claim.delivery_id)
+        .bind(claim.token)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        Ok(result.rows_affected())
     }
 
     async fn list_runs_for_team(
@@ -368,11 +414,18 @@ mod tests {
 
     #[sqlx::test]
     async fn expired_delivery_claim_is_recoverable_and_fences_stale_worker(pool: PgPool) {
-        let (_, connection, _) = setup_rule(&pool, "delivery-reclaim").await;
+        let (_, connection, rule) = setup_rule(&pool, "delivery-reclaim").await;
         let repo = PgWebhookDeliveryRepo::new(pool.clone());
         let original =
             WebhookDelivery::new(connection.id, "abandoned-delivery", "workflow_run").unwrap();
         let stale_claim = repo.claim_delivery(&original).await.unwrap().unwrap();
+        let runs = PgAutomationRunRepo::new(pool.clone());
+        runs.reserve_run(
+            &AutomationRun::new(stale_claim.delivery_id, rule.id),
+            stale_claim,
+        )
+        .await
+        .unwrap();
 
         sqlx::query(
             "UPDATE webhook_deliveries SET claim_expires_at = now() - interval '1 second' WHERE id = $1",
@@ -387,6 +440,18 @@ mod tests {
         let active_claim = repo.claim_delivery(&retry).await.unwrap().unwrap();
         assert_eq!(active_claim.delivery_id, stale_claim.delivery_id);
         assert_ne!(active_claim.token, stale_claim.token);
+        assert_eq!(
+            runs.interrupt_running_for_delivery(stale_claim)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            runs.interrupt_running_for_delivery(active_claim)
+                .await
+                .unwrap(),
+            1
+        );
         retry.id = active_claim.delivery_id;
         retry.mark_processed().unwrap();
 
@@ -433,11 +498,20 @@ mod tests {
         let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
         let delivery =
             WebhookDelivery::new(connection_a.id, "run-delivery", "workflow_run").unwrap();
-        deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
+        let claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
 
         let runs = PgAutomationRunRepo::new(pool);
         let mut run = AutomationRun::new(delivery.id, rule_a.id);
-        runs.insert_run(&run).await.unwrap();
+        assert_eq!(
+            runs.reserve_run(&run, claim).await.unwrap(),
+            AutomationRunReservation::New(run.clone())
+        );
+        assert_eq!(
+            runs.reserve_run(&AutomationRun::new(delivery.id, rule_a.id), claim)
+                .await
+                .unwrap(),
+            AutomationRunReservation::Existing(run.clone())
+        );
         assert_eq!(runs.list_runs_for_team(team_b, 20).await.unwrap(), vec![]);
 
         run.mark_succeeded(None).unwrap();
@@ -456,12 +530,12 @@ mod tests {
         let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
         let delivery =
             WebhookDelivery::new(connection_a.id, "cross-delivery", "workflow_run").unwrap();
-        deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
+        let claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
 
         let runs = PgAutomationRunRepo::new(pool);
         let run = AutomationRun::new(delivery.id, rule_b.id);
         assert_eq!(
-            runs.insert_run(&run).await.unwrap_err(),
+            runs.reserve_run(&run, claim).await.unwrap_err(),
             DomainError::Storage
         );
     }

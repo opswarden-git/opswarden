@@ -26,14 +26,15 @@ use opswarden_server::app::automation::{
 };
 use opswarden_server::domain::automation::release_created_event;
 use opswarden_server::domain::automation_config::{
-    AutomationRule, AutomationRunStatus, CredentialKind, ServiceConnection,
+    AutomationRule, AutomationRun, AutomationRunStatus, CredentialKind, ServiceConnection,
+    WebhookDelivery,
 };
 use opswarden_server::domain::release::Release;
 use opswarden_server::domain::team::Team;
 use opswarden_server::domain::user::{Email, User};
 use opswarden_server::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, IncidentRepo, ReleaseRepo,
-    ServiceConnectionRepo, TeamRepo, UserRepo,
+    ServiceConnectionRepo, TeamRepo, UserRepo, WebhookDeliveryRepo,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -205,15 +206,15 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     let jobs = Arc::new(PgWebhookJobRepo::new(pool.clone()));
     let worker = WebhookWorker::new(
         TeamWebhookDependencies {
-            connections,
-            credentials,
+            connections: connections.clone(),
+            credentials: credentials.clone(),
             verifier: Arc::new(HmacSha256Verifier),
             parser: Arc::new(CompositeWebhookParser::new()),
-            deliveries,
-            rules,
+            deliveries: deliveries.clone(),
+            rules: rules.clone(),
             runs: runs.clone(),
             incidents: incidents.clone(),
-            releases,
+            releases: releases.clone(),
             notifier: Arc::new(common::DummyNotifier::default()),
             events: Arc::new(WsHub::new()),
             email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
@@ -233,6 +234,76 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     assert_eq!(
         persisted_runs[0].incident_id,
         Some(persisted_incidents[0].id)
+    );
+
+    let mut second_rule = AutomationRule::new(
+        team.id,
+        "Second release rule",
+        opswarden.id,
+        "release_created",
+        serde_json::json!({}),
+        "create_incident",
+        None,
+        serde_json::json!({"severity": "critical", "title": "must not replay"}),
+        manager.id,
+    )
+    .unwrap();
+    second_rule.set_enabled(true);
+    rules.insert_rule(&second_rule).await.unwrap();
+    let interrupted_release = Release::new(team.id, "v1.2.1", vec!["build".into()]).unwrap();
+    let interrupted_event = release_created_event(&interrupted_release);
+    let interrupted_delivery_id = format!("release:{}:created", interrupted_release.id);
+    releases
+        .create_release(
+            &interrupted_release,
+            &interrupted_delivery_id,
+            &interrupted_event,
+        )
+        .await
+        .unwrap();
+    let delivery =
+        WebhookDelivery::new(opswarden.id, interrupted_delivery_id, "release_created").unwrap();
+    let delivery_claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
+    let mut recovered_run = AutomationRun::new(delivery_claim.delivery_id, rule.id);
+    runs.reserve_run(&recovered_run, delivery_claim)
+        .await
+        .unwrap();
+    recovered_run.mark_succeeded(None).unwrap();
+    assert!(runs.update_run(&recovered_run).await.unwrap());
+    let abandoned_run = AutomationRun::new(delivery_claim.delivery_id, second_rule.id);
+    runs.reserve_run(&abandoned_run, delivery_claim)
+        .await
+        .unwrap();
+    assert!(rules.delete_rule(team.id, second_rule.id).await.unwrap());
+    sqlx::query(
+        "UPDATE webhook_deliveries SET claim_expires_at = now() - interval '1 second' WHERE id = $1",
+    )
+    .bind(delivery_claim.delivery_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let resumed = worker.tick().await.unwrap();
+    assert_eq!(resumed.completed, 1);
+    let all_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
+    let recovered = all_runs
+        .iter()
+        .find(|run| run.id == recovered_run.id)
+        .unwrap();
+    assert_eq!(recovered.status, AutomationRunStatus::Succeeded);
+    let interrupted = all_runs
+        .iter()
+        .find(|run| run.id == abandoned_run.id)
+        .unwrap();
+    assert_eq!(interrupted.status, AutomationRunStatus::Failed);
+    assert_eq!(interrupted.error_code.as_deref(), Some("interrupted"));
+    assert_eq!(
+        incidents
+            .list_incidents_for_team(team.id)
+            .await
+            .unwrap()
+            .len(),
+        1
     );
 }
 

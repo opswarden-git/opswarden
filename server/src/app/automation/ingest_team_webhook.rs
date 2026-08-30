@@ -5,15 +5,15 @@ use uuid::Uuid;
 use crate::domain::automation::ExternalEvent;
 use crate::domain::automation_catalog::{service, WebhookAuthentication};
 use crate::domain::automation_config::{
-    AutomationRule, AutomationRun, CredentialKind, WebhookDelivery,
+    AutomationRule, AutomationRun, AutomationRunStatus, CredentialKind, WebhookDelivery,
 };
 use crate::domain::error::DomainError;
 use crate::domain::event::AutomationRuleResult;
 use crate::domain::event::DomainEvent;
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, EmailSender, EventPublisher,
-    IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo, WebhookDeliveryRepo, WebhookJob,
-    WebhookJobRepo, WebhookParser, WebhookVerifier,
+    AutomationRuleRepo, AutomationRunRepo, AutomationRunReservation, ConnectionCredentialVault,
+    EmailSender, EventPublisher, IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo,
+    WebhookDeliveryRepo, WebhookJob, WebhookJobRepo, WebhookParser, WebhookVerifier,
 };
 
 use super::reaction_executor::AutomationReactionExecutor;
@@ -182,6 +182,11 @@ impl IngestTeamWebhookUseCase {
             });
         };
 
+        self.dependencies
+            .runs
+            .interrupt_running_for_delivery(claim)
+            .await?;
+
         let rules = self
             .dependencies
             .rules
@@ -194,7 +199,7 @@ impl IngestTeamWebhookUseCase {
 
         let mut rules_triggered = 0;
         let mut rules_failed = 0;
-        let mut first_error_code = None;
+        let mut first_error_code: Option<String> = None;
         let executor = AutomationReactionExecutor::new(
             self.dependencies.connections.clone(),
             self.dependencies.credentials.clone(),
@@ -205,8 +210,31 @@ impl IngestTeamWebhookUseCase {
             self.dependencies.email_sender.clone(),
         );
         for rule in matching_rules {
-            let mut run = AutomationRun::new(delivery.id, rule.id);
-            self.dependencies.runs.insert_run(&run).await?;
+            let candidate = AutomationRun::new(delivery.id, rule.id);
+            let mut run = match self
+                .dependencies
+                .runs
+                .reserve_run(&candidate, claim)
+                .await?
+            {
+                AutomationRunReservation::New(run) => run,
+                AutomationRunReservation::Existing(run) => {
+                    match run.status {
+                        AutomationRunStatus::Succeeded => rules_triggered += 1,
+                        AutomationRunStatus::Failed => {
+                            rules_failed += 1;
+                            if let Some(error_code) = run.error_code.as_deref() {
+                                first_error_code.get_or_insert_with(|| error_code.to_string());
+                            }
+                        }
+                        AutomationRunStatus::Skipped => {}
+                        AutomationRunStatus::Running => {
+                            return Err(DomainError::InvalidAutomationTransition);
+                        }
+                    }
+                    continue;
+                }
+            };
             match executor.execute(connection.team_id, &rule, &event).await {
                 Ok(created_incident) => {
                     let incident_id = created_incident.map(|(incident_id, _)| incident_id);
@@ -243,7 +271,7 @@ impl IngestTeamWebhookUseCase {
                     run.mark_failed(error_code)?;
                     self.persist_run(&run).await?;
                     rules_failed += 1;
-                    first_error_code.get_or_insert(error_code);
+                    first_error_code.get_or_insert_with(|| error_code.to_string());
                     self.dependencies
                         .events
                         .publish(DomainEvent::RuleFailed {
@@ -266,7 +294,7 @@ impl IngestTeamWebhookUseCase {
         if first_error_code.is_some() {
             self.dependencies
                 .connections
-                .record_delivery_result(connection.id, first_error_code)
+                .record_delivery_result(connection.id, first_error_code.as_deref())
                 .await?;
         }
 
