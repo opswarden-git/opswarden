@@ -293,14 +293,14 @@ def configure_integrations(config: dict[str, str], origin: str, team_id: str, to
             "smtp_username": smtp_values[1], "smtp_password": smtp_values[2], "from_address": smtp_values[3],
         }, token)
 
-    repository = value(config, "DEMO_GITHUB_REPOSITORY", "opswarden-git/opswarden-demo")
+    repository = value(config, "DEMO_GITHUB_REPOSITORY", "your-github-org/opswarden-demo")
     github_filter = {
         "repository": repository, "workflow": value(config, "DEMO_GITHUB_WORKFLOW", "OpsWarden Demo CI"),
         "branch": value(config, "DEMO_GITHUB_BRANCH", "main"), "conclusion": "failure",
     }
     definitions: list[dict[str, object]] = [
         {"name": "Demo: GitHub CI failure creates an incident", "trigger_connection_id": connections["github"]["id"], "trigger_kind": "ci_failed", "trigger_config": github_filter, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitHub CI failed: {{repository}} / {{workflow}}"}},
-        {"name": "Demo: GitLab CI failure creates an incident", "trigger_connection_id": connections["gitlab"]["id"], "trigger_kind": "ci_failed", "trigger_config": {"repository": value(config, "DEMO_GITLAB_PROJECT", "romeo.cavazza/opswarden-demo"), "workflow": value(config, "DEMO_GITLAB_PIPELINE", "CI"), "branch": value(config, "DEMO_GITLAB_BRANCH", "main"), "conclusion": "failed"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitLab CI failed: {{repository}} / {{workflow}}"}},
+        {"name": "Demo: GitLab CI failure creates an incident", "trigger_connection_id": connections["gitlab"]["id"], "trigger_kind": "ci_failed", "trigger_config": {"repository": value(config, "DEMO_GITLAB_PROJECT", "your-gitlab-namespace/opswarden-demo"), "workflow": value(config, "DEMO_GITLAB_PIPELINE", "CI"), "branch": value(config, "DEMO_GITLAB_BRANCH", "main"), "conclusion": "failed"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitLab CI failed: {{repository}} / {{workflow}}"}},
         {"name": "Demo: Generic deployment failure creates an incident", "trigger_connection_id": connections["generic"]["id"], "trigger_kind": "generic_event", "trigger_config": {"event_type": "deployment_failed", "source": "opswarden-demo", "severity": "critical"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "critical", "title": "{{title}} ({{external_id}})"}},
         {"name": "Demo: Alertmanager firing creates an incident", "trigger_connection_id": connections["alertmanager"]["id"], "trigger_kind": "alert_firing", "trigger_config": {"severity": "critical", "receiver": "opswarden"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "critical", "title": "Alertmanager: {{summary}}"}},
     ]
@@ -339,12 +339,12 @@ def run_webhooks(config: dict[str, str], origin: str, database: Database, team_i
     missing = [service for service in ("github", "gitlab", "generic", "alertmanager") if service not in ids]
     if missing:
         raise DemoError("Missing configured connections: " + ", ".join(missing))
-    repository = value(config, "DEMO_GITHUB_REPOSITORY", "opswarden-git/opswarden-demo")
+    repository = value(config, "DEMO_GITHUB_REPOSITORY", "your-github-org/opswarden-demo")
     github = {"repository": {"full_name": repository}, "workflow_run": {"name": value(config, "DEMO_GITHUB_WORKFLOW", "OpsWarden Demo CI"), "head_branch": value(config, "DEMO_GITHUB_BRANCH", "main"), "conclusion": "failure", "html_url": f"https://github.com/{repository}/actions/runs/42"}}
     encoded = json.dumps(github, separators=(",", ":")).encode()
     signature = hmac.new(value(config, "DEMO_GITHUB_WEBHOOK_SECRET").encode(), encoded, hashlib.sha256).hexdigest()
     post_webhook(origin, f"/webhooks/github/{ids['github']}", github, {"X-GitHub-Delivery": str(uuid4()), "X-GitHub-Event": "workflow_run", "X-Hub-Signature-256": f"sha256={signature}"})
-    gitlab_project = value(config, "DEMO_GITLAB_PROJECT", "romeo.cavazza/opswarden-demo")
+    gitlab_project = value(config, "DEMO_GITLAB_PROJECT", "your-gitlab-namespace/opswarden-demo")
     gitlab = {"object_kind": "pipeline", "object_attributes": {"status": "failed", "ref": value(config, "DEMO_GITLAB_BRANCH", "main"), "name": value(config, "DEMO_GITLAB_PIPELINE", "CI"), "url": f"https://gitlab.com/{gitlab_project}/-/pipelines/42"}, "project": {"path_with_namespace": gitlab_project}}
     post_webhook(origin, f"/webhooks/gitlab/{ids['gitlab']}", gitlab, {"X-Gitlab-Event-UUID": str(uuid4()), "X-Gitlab-Event": "Pipeline Hook", "X-Gitlab-Token": value(config, "DEMO_GITLAB_WEBHOOK_SECRET")})
     generic = {"source": "opswarden-demo", "title": "Production deployment failed", "message": "Health check timed out", "severity": "critical", "external_id": "deploy-42", "event_url": "https://app.opswarden.dev"}
