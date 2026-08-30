@@ -11,7 +11,8 @@ use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
 use crate::domain::user::Email;
 use crate::ports::{
-    ConnectionCredentialVault, EmailSender, Notifier, ServiceConnectionRepo, TeamRepo,
+    ConnectionCredentialVault, ConnectionHealthMutation, CredentialMutation, EmailSender, Notifier,
+    ServiceConnectionRepo, TeamRepo,
 };
 
 const CONNECTION_TEST_MESSAGE: &str = "OpsWarden connection test";
@@ -116,32 +117,37 @@ impl TeamConnectionUseCase {
             return Err(DomainError::InvalidServiceSecret);
         }
 
-        let connection = match existing {
-            Some(connection) => connection,
-            None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, GITHUB_SERVICE, cmd.requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                connection
-            }
-        };
-
         let signing_secret_replaced = cmd.webhook_signing_secret.is_some();
+        let mut mutations = Vec::new();
         if let Some(secret) = cmd.webhook_signing_secret {
-            self.credentials
-                .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &secret)
-                .await?;
+            mutations.push(CredentialMutation {
+                kind: CredentialKind::WebhookSigningSecret,
+                secret: Some(secret),
+            });
         }
         if let Some(token) = cmd.personal_token {
-            self.credentials
-                .store_credential(connection.id, CredentialKind::PersonalToken, &token)
-                .await?;
+            mutations.push(CredentialMutation {
+                kind: CredentialKind::PersonalToken,
+                secret: Some(token),
+            });
         }
-        if signing_secret_replaced {
-            self.connections
-                .reset_connection_health(connection.id)
-                .await?;
-        }
+        let candidate = existing.unwrap_or(ServiceConnection::new(
+            cmd.team_id,
+            GITHUB_SERVICE,
+            cmd.requester_id,
+        )?);
+        let connection = self
+            .credentials
+            .configure_connection(
+                &candidate,
+                &mutations,
+                if signing_secret_replaced {
+                    ConnectionHealthMutation::Reset
+                } else {
+                    ConnectionHealthMutation::Preserve
+                },
+            )
+            .await?;
 
         self.connection_view(cmd.team_id, connection.id).await
     }
@@ -167,23 +173,32 @@ impl TeamConnectionUseCase {
         if existing.is_none() && cmd.webhook_token.is_none() {
             return Err(DomainError::InvalidServiceSecret);
         }
-        let connection = match existing {
-            Some(connection) => connection,
-            None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, definition.service, cmd.requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                connection
-            }
-        };
-        if let Some(token) = cmd.webhook_token {
-            self.credentials
-                .store_credential(connection.id, CredentialKind::WebhookSigningSecret, &token)
-                .await?;
-            self.connections
-                .reset_connection_health(connection.id)
-                .await?;
-        }
+        let token_replaced = cmd.webhook_token.is_some();
+        let mutations = cmd
+            .webhook_token
+            .map(|token| CredentialMutation {
+                kind: CredentialKind::WebhookSigningSecret,
+                secret: Some(token),
+            })
+            .into_iter()
+            .collect::<Vec<_>>();
+        let candidate = existing.unwrap_or(ServiceConnection::new(
+            cmd.team_id,
+            definition.service,
+            cmd.requester_id,
+        )?);
+        let connection = self
+            .credentials
+            .configure_connection(
+                &candidate,
+                &mutations,
+                if token_replaced {
+                    ConnectionHealthMutation::Reset
+                } else {
+                    ConnectionHealthMutation::Preserve
+                },
+            )
+            .await?;
         self.connection_view(cmd.team_id, connection.id).await
     }
 
@@ -197,28 +212,25 @@ impl TeamConnectionUseCase {
         }
         self.notifier.validate_endpoint(&cmd.endpoint_url).await?;
 
-        let connection = match self
+        let existing = self
             .connections
             .find_connection_by_service(cmd.team_id, HTTP_SERVICE)
-            .await?
-        {
-            Some(connection) => connection,
-            None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, HTTP_SERVICE, cmd.requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                connection
-            }
-        };
-        self.credentials
-            .store_credential(
-                connection.id,
-                CredentialKind::EndpointUrl,
-                &cmd.endpoint_url,
-            )
             .await?;
-        self.connections
-            .reset_connection_health(connection.id)
+        let candidate = existing.unwrap_or(ServiceConnection::new(
+            cmd.team_id,
+            HTTP_SERVICE,
+            cmd.requester_id,
+        )?);
+        let connection = self
+            .credentials
+            .configure_connection(
+                &candidate,
+                &[CredentialMutation {
+                    kind: CredentialKind::EndpointUrl,
+                    secret: Some(cmd.endpoint_url),
+                }],
+                ConnectionHealthMutation::Reset,
+            )
             .await?;
         self.connection_view(cmd.team_id, connection.id).await
     }
@@ -262,31 +274,29 @@ impl TeamConnectionUseCase {
             return Err(DomainError::InvalidServiceSecret);
         }
 
-        let connection = match existing {
-            Some(connection) => connection,
-            None => {
-                let connection =
-                    ServiceConnection::new(cmd.team_id, EMAIL_SERVICE, cmd.requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                connection
-            }
-        };
-
-        for (kind, value) in [
+        let mutations = [
             (CredentialKind::SmtpHost, cmd.smtp_host),
             (CredentialKind::SmtpPort, cmd.smtp_port),
             (CredentialKind::SmtpUsername, cmd.smtp_username),
             (CredentialKind::SmtpPassword, cmd.smtp_password),
             (CredentialKind::FromAddress, cmd.from_address),
-        ] {
-            if let Some(value) = value {
-                self.credentials
-                    .store_credential(connection.id, kind, value.trim())
-                    .await?;
-            }
-        }
-        self.connections
-            .reset_connection_health(connection.id)
+        ]
+        .into_iter()
+        .filter_map(|(kind, value)| {
+            value.map(|value| CredentialMutation {
+                kind,
+                secret: Some(value.trim().to_string()),
+            })
+        })
+        .collect::<Vec<_>>();
+        let candidate = existing.unwrap_or(ServiceConnection::new(
+            cmd.team_id,
+            EMAIL_SERVICE,
+            cmd.requester_id,
+        )?);
+        let connection = self
+            .credentials
+            .configure_connection(&candidate, &mutations, ConnectionHealthMutation::Reset)
             .await?;
         self.connection_view(cmd.team_id, connection.id).await
     }

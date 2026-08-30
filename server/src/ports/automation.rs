@@ -9,6 +9,20 @@ use crate::domain::automation_config::{
 use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionHealthMutation {
+    Preserve,
+    Reset,
+    Verified,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CredentialMutation {
+    pub kind: CredentialKind,
+    /// `Some` stores/replaces the secret; `None` removes it.
+    pub secret: Option<String>,
+}
+
 /// Non-secret metadata for provider connections owned by a Team. Every lookup
 /// used by authenticated application code carries `team_id` explicitly so an
 /// unscoped list cannot be called by accident.
@@ -63,6 +77,14 @@ pub trait ServiceConnectionRepo: Send + Sync {
 /// returning credential material.
 #[async_trait]
 pub trait ConnectionCredentialVault: Send + Sync {
+    /// Create or reuse the Team/service connection and apply every credential
+    /// and health mutation in one transaction.
+    async fn configure_connection(
+        &self,
+        connection: &ServiceConnection,
+        credentials: &[CredentialMutation],
+        health: ConnectionHealthMutation,
+    ) -> Result<ServiceConnection, DomainError>;
     async fn store_credential(
         &self,
         connection_id: Uuid,

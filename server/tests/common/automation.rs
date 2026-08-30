@@ -1,6 +1,6 @@
 #[derive(Default)]
 pub struct DummyServiceConnectionRepo {
-    connections: Mutex<HashMap<Uuid, ServiceConnection>>,
+    connections: Arc<Mutex<HashMap<Uuid, ServiceConnection>>>,
 }
 
 #[async_trait]
@@ -133,10 +133,18 @@ impl ServiceConnectionRepo for DummyServiceConnectionRepo {
 #[derive(Default)]
 pub struct DummyConnectionCredentialVault {
     credentials: Mutex<HashMap<(Uuid, CredentialKind), String>>,
+    connections: Arc<Mutex<HashMap<Uuid, ServiceConnection>>>,
 }
 
 #[allow(dead_code)]
 impl DummyConnectionCredentialVault {
+    pub fn new(connections: &DummyServiceConnectionRepo) -> Self {
+        Self {
+            credentials: Mutex::new(HashMap::new()),
+            connections: connections.connections.clone(),
+        }
+    }
+
     pub fn raw_values(&self) -> Vec<String> {
         self.credentials.lock().unwrap().values().cloned().collect()
     }
@@ -144,6 +152,60 @@ impl DummyConnectionCredentialVault {
 
 #[async_trait]
 impl ConnectionCredentialVault for DummyConnectionCredentialVault {
+    async fn configure_connection(
+        &self,
+        connection: &ServiceConnection,
+        credentials: &[CredentialMutation],
+        health: ConnectionHealthMutation,
+    ) -> Result<ServiceConnection, DomainError> {
+        if credentials.iter().any(|mutation| {
+            mutation
+                .secret
+                .as_ref()
+                .is_some_and(|secret| secret.trim().is_empty())
+        }) {
+            return Err(DomainError::InvalidServiceSecret);
+        }
+        let mut connections = self.connections.lock().unwrap();
+        let connection_id = connections
+            .values()
+            .find(|stored| {
+                stored.team_id == connection.team_id && stored.service == connection.service
+            })
+            .map(|stored| stored.id)
+            .unwrap_or(connection.id);
+        let stored = connections
+            .entry(connection_id)
+            .or_insert_with(|| connection.clone());
+        let now = Utc::now();
+        match health {
+            ConnectionHealthMutation::Preserve => {}
+            ConnectionHealthMutation::Reset => {
+                stored.verified_at = None;
+                stored.last_error_code = None;
+            }
+            ConnectionHealthMutation::Verified => {
+                stored.verified_at.get_or_insert(now);
+                stored.last_error_code = None;
+            }
+        }
+        stored.updated_at = now;
+        let stored = stored.clone();
+
+        let mut values = self.credentials.lock().unwrap();
+        for mutation in credentials {
+            match mutation.secret.as_deref() {
+                Some(secret) => {
+                    values.insert((stored.id, mutation.kind), secret.to_string());
+                }
+                None => {
+                    values.remove(&(stored.id, mutation.kind));
+                }
+            }
+        }
+        Ok(stored)
+    }
+
     async fn store_credential(
         &self,
         connection_id: Uuid,

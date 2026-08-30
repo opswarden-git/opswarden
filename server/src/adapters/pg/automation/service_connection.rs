@@ -7,7 +7,9 @@ use uuid::Uuid;
 use crate::adapters::crypto::aes;
 use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
-use crate::ports::{ConnectionCredentialVault, ServiceConnectionRepo};
+use crate::ports::{
+    ConnectionCredentialVault, ConnectionHealthMutation, CredentialMutation, ServiceConnectionRepo,
+};
 
 pub struct PgServiceConnectionRepo {
     pool: PgPool,
@@ -252,6 +254,120 @@ impl PgConnectionCredentialVault {
 
 #[async_trait]
 impl ConnectionCredentialVault for PgConnectionCredentialVault {
+    async fn configure_connection(
+        &self,
+        connection: &ServiceConnection,
+        credentials: &[CredentialMutation],
+        health: ConnectionHealthMutation,
+    ) -> Result<ServiceConnection, DomainError> {
+        let mut encrypted = Vec::with_capacity(credentials.len());
+        for mutation in credentials {
+            let value = match mutation.secret.as_deref() {
+                Some(secret) => {
+                    if secret.trim().is_empty() {
+                        return Err(DomainError::InvalidServiceSecret);
+                    }
+                    Some(aes::encrypt(&self.key, secret.as_bytes())?)
+                }
+                None => None,
+            };
+            encrypted.push((mutation.kind, value));
+        }
+
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO service_connections
+                (id, team_id, service, created_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (team_id, service) DO UPDATE
+            SET service = excluded.service
+            RETURNING id, team_id, service, created_by, created_at, updated_at,
+                      verified_at, last_delivery_at, last_error_code
+            "#,
+        )
+        .bind(connection.id)
+        .bind(connection.team_id)
+        .bind(&connection.service)
+        .bind(connection.created_by)
+        .bind(connection.created_at)
+        .bind(connection.updated_at)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        let stored = connection_from_row(&row)?;
+
+        for (kind, value) in encrypted {
+            match value {
+                Some((nonce, ciphertext)) => {
+                    sqlx::query(
+                        r#"
+                        INSERT INTO service_connection_secrets
+                            (connection_id, kind, nonce, ciphertext, updated_at)
+                        VALUES ($1, $2, $3, $4, now())
+                        ON CONFLICT (connection_id, kind) DO UPDATE
+                        SET nonce = excluded.nonce,
+                            ciphertext = excluded.ciphertext,
+                            updated_at = now()
+                        "#,
+                    )
+                    .bind(stored.id)
+                    .bind(kind.to_string())
+                    .bind(nonce)
+                    .bind(ciphertext)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|_| DomainError::Storage)?;
+                }
+                None => {
+                    sqlx::query(
+                        "DELETE FROM service_connection_secrets WHERE connection_id = $1 AND kind = $2",
+                    )
+                    .bind(stored.id)
+                    .bind(kind.to_string())
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|_| DomainError::Storage)?;
+                }
+            }
+        }
+
+        let health = match health {
+            ConnectionHealthMutation::Preserve => "preserve",
+            ConnectionHealthMutation::Reset => "reset",
+            ConnectionHealthMutation::Verified => "verified",
+        };
+        let row = sqlx::query(
+            r#"
+            UPDATE service_connections
+            SET verified_at = CASE
+                    WHEN $2 = 'reset' THEN NULL
+                    WHEN $2 = 'verified' THEN coalesce(verified_at, now())
+                    ELSE verified_at
+                END,
+                last_error_code = CASE
+                    WHEN $2 IN ('reset', 'verified') THEN NULL
+                    ELSE last_error_code
+                END,
+                updated_at = now()
+            WHERE id = $1
+            RETURNING id, team_id, service, created_by, created_at, updated_at,
+                      verified_at, last_delivery_at, last_error_code
+            "#,
+        )
+        .bind(stored.id)
+        .bind(health)
+        .fetch_one(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        let stored = connection_from_row(&row)?;
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(stored)
+    }
+
     async fn store_credential(
         &self,
         connection_id: Uuid,

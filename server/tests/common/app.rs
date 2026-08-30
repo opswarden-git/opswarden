@@ -33,7 +33,9 @@ fn build_context(
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
     let events = Arc::new(WsHub::new());
     let service_connections = Arc::new(DummyServiceConnectionRepo::default());
-    let connection_credentials = Arc::new(DummyConnectionCredentialVault::default());
+    let connection_credentials = Arc::new(DummyConnectionCredentialVault::new(
+        &service_connections,
+    ));
     let service_oauth = Arc::new(DummyServiceOAuthClient::default());
     let automation_rules = Arc::new(DummyAutomationRuleRepo::default());
     let webhook_deliveries = Arc::new(DummyWebhookDeliveryRepo::default());
