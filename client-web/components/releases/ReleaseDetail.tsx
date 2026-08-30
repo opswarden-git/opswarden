@@ -13,6 +13,7 @@ import {
   useUnlinkIncident,
   useValidateStep,
 } from "@/lib/queries/releases";
+import { isExecutableRelease, isTerminalRelease } from "@/components/releases/release-views";
 import { useTeamMembers } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 
@@ -64,8 +65,8 @@ export function ReleaseDetail({
   const linkIncident = useLinkIncident();
   const unlinkIncident = useUnlinkIncident();
   const capabilities = deriveCapabilities(role);
-  const terminal = release.state === "completed" || release.state === "cancelled";
-  const validatable = release.state === "created" || release.state === "in_progress";
+  const terminal = isTerminalRelease(release);
+  const validatable = isExecutableRelease(release);
   const steps = [...release.steps].sort((left, right) => left.position - right.position);
   const nextStepIndex = steps.findIndex((step) => !step.validated);
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));

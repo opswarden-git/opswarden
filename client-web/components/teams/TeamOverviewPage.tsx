@@ -7,6 +7,7 @@ import { SeverityChip } from "@/components/incidents/SeverityChip";
 import { StateChip } from "@/components/incidents/StateChip";
 import { PageContent, type PageContentState } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { isOngoingRelease } from "@/components/releases/release-views";
 import { ReleaseStateChip } from "@/components/releases/ReleaseStateChip";
 import { Alert } from "@/components/ui/Alert";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -160,9 +161,7 @@ export function TeamOverviewPage({ teamId }: { teamId: string }) {
   const activeIncidents = (incidents.data?.items ?? []).filter(
     (incident) => incident.status !== "resolved",
   );
-  const activeReleases = (releases.data ?? []).filter(
-    (release) => release.state !== "completed" && release.state !== "cancelled",
-  );
+  const activeReleases = (releases.data ?? []).filter(isOngoingRelease);
   const ruleNames = new Map((rules.data ?? []).map((rule) => [rule.id, rule.name]));
   const calendarEvents: OperationsCalendarEvent[] = [
     ...(incidents.data?.items ?? []).map((incident) => ({

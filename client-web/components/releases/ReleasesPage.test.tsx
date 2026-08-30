@@ -92,8 +92,8 @@ describe("ReleasesPage", () => {
     expect(screen.queryByRole("heading", { name: "title" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "createRelease" })).toBeInTheDocument();
     expect(screen.getAllByText("Production deployment")).toHaveLength(2);
-    expect(screen.queryByText("Emergency rollout")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("progressbar")).toHaveLength(2);
+    expect(screen.getAllByText("Emergency rollout")).toHaveLength(2);
+    expect(screen.getAllByRole("progressbar")).toHaveLength(4);
     const table = screen.getByRole("table", { name: "tableLabel" });
     expect(
       within(table)
