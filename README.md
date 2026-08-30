@@ -25,7 +25,8 @@ connects your stack—from GitHub and GitLab to custom webhooks—to instantly c
 CI events, new tags, and pull requests into automated incident triage, release
 controls, and escalation workflows with enterprise-grade security and deduplication.
 
-### Incident response
+<details>
+<summary><strong>Incident response</strong></summary>
 
 OpsWarden gives responders one shared operational record for an incident: its
 severity and lifecycle, current owner, live participant presence, editable
@@ -41,7 +42,10 @@ lifecycle invariants are central to this multi-user server.
   </a>
 </p>
 
-### Safe release coordination
+</details>
+
+<details>
+<summary><strong>Safe release coordination</strong></summary>
 
 Release coordination turns a deployment into an ordered, accountable sequence:
 responders validate each step, progress remains visible to the team, and linked
@@ -54,7 +58,10 @@ This keeps release state and operational risk in the same workspace.
   </a>
 </p>
 
-### Team operations
+</details>
+
+<details>
+<summary><strong>Team operations</strong></summary>
 
 Teams are the security and collaboration boundary: membership, join codes,
 presence and Observer/Responder/Manager permissions govern every operation.
@@ -68,7 +75,10 @@ leaving their shared operational context.
   </a>
 </p>
 
-### Integrations and automations
+</details>
+
+<details>
+<summary><strong>Integrations and automations</strong></summary>
 
 Team-scoped connections cover GitHub, GitLab, Alertmanager, Generic Webhook,
 HTTP and Email. Active and inactive integrations remain visibly separate while
@@ -80,6 +90,8 @@ Action -> REAction rule engine.
     <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/readme/integrations.png" alt="OpsWarden integration catalogue" width="900" />
   </a>
 </p>
+
+</details>
 
 The tested alpha ships as a Next.js web app and an installable Tauri desktop
 client backed by a Rust/Axum server and PostgreSQL. Rust keeps lifecycle rules
