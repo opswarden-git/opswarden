@@ -193,10 +193,11 @@ impl ReleaseRepo for PgReleaseRepo {
         insert_event(&mut transaction, event).await?;
         sqlx::query(
             r#"
-            INSERT INTO release_incidents (release_id, incident_id)
-            VALUES ($1, $2)
+            INSERT INTO release_incidents (team_id, release_id, incident_id)
+            VALUES ($1, $2, $3)
             "#,
         )
+        .bind(incident.team_id)
         .bind(release_id)
         .bind(incident.id)
         .execute(&mut *transaction)
@@ -334,15 +335,17 @@ impl ReleaseRepo for PgReleaseRepo {
 
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let linked = sqlx::query!(
+        let linked = sqlx::query(
             r#"
-            INSERT INTO release_incidents (release_id, incident_id)
-            VALUES ($1, $2)
+            INSERT INTO release_incidents (team_id, release_id, incident_id)
+            SELECT release.team_id, release.id, $2
+            FROM releases release
+            WHERE release.id = $1
             ON CONFLICT DO NOTHING
             "#,
-            release_id,
-            incident_id,
         )
+        .bind(release_id)
+        .bind(incident_id)
         .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;

@@ -60,6 +60,10 @@ async fn clear_assignee_for_member_unassigns_their_incidents(pool: PgPool) {
     let email = Email::new(format!("assignee_{}@opswarden.com", Uuid::new_v4())).unwrap();
     let assignee = User::new(email, "hash");
     users.save(&assignee).await.unwrap();
+    PgTeamRepo::new(pool.clone())
+        .add_member(team_id, assignee.id, Role::Responder)
+        .await
+        .unwrap();
 
     let mut incident = Incident::new(team_id, "owned by a member", Severity::High).unwrap();
     incident.assign(assignee.id);
