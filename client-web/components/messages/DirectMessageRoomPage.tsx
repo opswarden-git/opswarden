@@ -11,7 +11,7 @@ import {
 import { useTeamMembers } from "@/lib/queries/teams";
 import { usePrivateMessageTypingUsers, usePrivateMessageWatchers } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
-import { WarRoomNavigation } from "@/components/incidents/WarRoomNavigation";
+import { RoomNavigation } from "@/components/messages/RoomNavigation";
 import { PageContent } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { RailToggle } from "@/components/layout/RailToggle";
@@ -118,7 +118,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
     );
   }
 
-  const roomNavigation = <WarRoomNavigation teamId={teamId} inDialog={isRoomsOpen} />;
+  const roomNavigation = <RoomNavigation teamId={teamId} inDialog={isRoomsOpen} />;
   const peopleNavigation = (
     <aside
       aria-label={tTeams("members")}
