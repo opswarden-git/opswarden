@@ -223,8 +223,10 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     if len(teams) == 0 and target == "local":
         team_id = str(uuid4())
         database.execute(
-            """insert into teams (id, name, invitation_code, created_at) values (:'team_id'::uuid, :'team_name', 'DEMO-' || upper(substring(md5(random()::text) from 1 for 6)), now());
-               insert into team_members (team_id, user_id, role, joined_at) values (:'team_id'::uuid, :'manager_id'::uuid, 'manager', now());""",
+            """begin;
+               insert into teams (id, name, invitation_code, created_at) values (:'team_id'::uuid, :'team_name', 'DEMO-' || upper(substring(md5(random()::text) from 1 for 6)), now());
+               insert into team_members (team_id, user_id, role, joined_at) values (:'team_id'::uuid, :'manager_id'::uuid, 'manager', now());
+               commit;""",
             {"team_id": team_id, "team_name": team_name, "manager_id": variables["manager_id"]},
         )
         teams = [team_id]
