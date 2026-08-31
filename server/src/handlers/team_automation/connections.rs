@@ -21,8 +21,8 @@ use crate::app::automation::{
     TeamConnectionUseCase, TeamConnectionView, TestConnectionCommand,
 };
 use crate::domain::error::DomainError;
-use crate::handlers::middleware::AuthenticatedSession;
 use crate::handlers::auth::{disable_oauth_response_caching, oauth_cookie_secure_suffix};
+use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
 
 #[derive(Deserialize)]
