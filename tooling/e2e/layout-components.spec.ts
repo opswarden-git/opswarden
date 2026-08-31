@@ -1,15 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const INCIDENT_ID = "51000000-0000-4000-8000-000000000001";
 const RELEASE_ID = "54000000-0000-4000-8000-000000000001";
 
 async function login(page: Page) {
   await page.goto("/en/login", { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Email").fill("manager@opswarden.local");
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Email").fill(demo.DEMO_MANAGER_EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//, { timeout: 15_000 });
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN, { timeout: 15_000 });
+  await demo.finishGuidedTour(page);
 }
 
 test("detail chrome preserves Release hierarchy and leaves the War Room immersive", async ({
@@ -53,7 +55,7 @@ test("incident records switch morphology without losing operational context", as
       await expect(record.locator('[data-incident-field="identity"]')).toContainText("ID:");
       await expect(record.locator('[data-incident-field="status"]')).toContainText("Escalated");
       await expect(record.locator('[data-incident-field="assignee"]')).toContainText(
-        "responder@opswarden.local",
+        demo.DEMO_RESPONDER_EMAIL,
       );
       await expect(record.locator('[data-incident-field="age"]')).not.toBeEmpty();
       await expect(record.getByRole("link")).toHaveCount(1);

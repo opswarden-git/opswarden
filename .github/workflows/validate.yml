@@ -295,6 +295,12 @@ jobs:
         run: npm ci
       - name: Lint source
         run: npm run lint --workspace client-web
+      - name: Lint styles
+        run: npm run lint:css
+      - name: Reject dead source and production dependency drift
+        run: |
+          npm run knip
+          npm run knip:production
       - name: Check formatting
         run: npm run format:check --workspace client-web
       - name: Check types

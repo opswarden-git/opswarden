@@ -1,19 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const membersUrl = `/en/teams/${TEAM_ID}/team#members`;
 
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 test.describe("Team roster and members", () => {
   test("Manager can manage members across 4 viewports", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
 
     for (const width of [320, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
@@ -27,14 +29,14 @@ test.describe("Team roster and members", () => {
       await expect(page.getByRole("textbox", { name: "Search by email or role" })).toBeVisible();
 
       // Find the observer row
-      const observerRow = page.locator("li").filter({ hasText: "observer@opswarden.local" });
+      const observerRow = page.locator("li").filter({ hasText: demo.DEMO_OBSERVER_EMAIL });
       await expect(observerRow).toBeVisible();
 
       // Manager should see the "Chat with" link and "Team actions" buttons for other users
       // Note: Because we duplicated the DOM for responsiveness (md:hidden / md:block),
       // we just check that at least one visible instance exists.
       const messageLink = observerRow.getByRole("link", {
-        name: "Chat with observer@opswarden.local",
+        name: `Chat with ${demo.DEMO_OBSERVER_EMAIL}`,
       });
       const actionsBtn = observerRow.getByRole("button", { name: "Team actions" });
 
@@ -46,16 +48,18 @@ test.describe("Team roster and members", () => {
   });
 
   test("Responder can view members and send DM but cannot manage members", async ({ page }) => {
-    await login(page, "responder@opswarden.local");
+    await login(page, demo.DEMO_RESPONDER_EMAIL);
     await page.goto(membersUrl);
 
     await expect(page.getByRole("heading", { name: "Active members", exact: true })).toBeVisible();
 
-    const managerRow = page.locator("li").filter({ hasText: "manager@opswarden.local" });
+    const managerRow = page.locator("li").filter({ hasText: demo.DEMO_MANAGER_EMAIL });
     await expect(managerRow).toBeVisible();
 
     // Responder can message the manager
-    const messageLink = managerRow.getByRole("link", { name: "Chat with manager@opswarden.local" });
+    const messageLink = managerRow.getByRole("link", {
+      name: `Chat with ${demo.DEMO_MANAGER_EMAIL}`,
+    });
     await expect(messageLink).toHaveCount(1);
 
     // Responder CANNOT see management actions
@@ -64,17 +68,17 @@ test.describe("Team roster and members", () => {
   });
 
   test("Observer can view members and send DM but cannot manage members", async ({ page }) => {
-    await login(page, "observer@opswarden.local");
+    await login(page, demo.DEMO_OBSERVER_EMAIL);
     await page.goto(membersUrl);
 
     await expect(page.getByRole("heading", { name: "Active members", exact: true })).toBeVisible();
 
-    const responderRow = page.locator("li").filter({ hasText: "responder@opswarden.local" });
+    const responderRow = page.locator("li").filter({ hasText: demo.DEMO_RESPONDER_EMAIL });
     await expect(responderRow).toBeVisible();
 
     // Observer can message the responder
     const messageLink = responderRow.getByRole("link", {
-      name: "Chat with responder@opswarden.local",
+      name: `Chat with ${demo.DEMO_RESPONDER_EMAIL}`,
     });
     await expect(messageLink).toHaveCount(1);
 

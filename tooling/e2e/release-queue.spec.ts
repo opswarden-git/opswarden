@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const releasesUrl = `/en/teams/${TEAM_ID}/releases`;
 const BLOCKED_RELEASE_ID = "54000000-0000-4000-8000-000000000001";
 const ACTIVE_RELEASE_ID = "54000000-0000-4000-8000-000000000003";
@@ -8,9 +9,10 @@ const ACTIVE_RELEASE_ID = "54000000-0000-4000-8000-000000000003";
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 async function selectReleaseView(page: Page, width: number, value: string) {
@@ -28,7 +30,7 @@ test.describe("Release queue", () => {
   for (const width of [320, 768, 1280, 1920]) {
     test(`Manager understands a blocked release from the list at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      await login(page, "manager@opswarden.local");
+      await login(page, demo.DEMO_MANAGER_EMAIL);
       await page.goto(releasesUrl);
 
       await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
@@ -84,7 +86,7 @@ test.describe("Release queue", () => {
   }
 
   test("Observer gets a read-only queue without document overflow", async ({ page }) => {
-    await login(page, "observer@opswarden.local");
+    await login(page, demo.DEMO_OBSERVER_EMAIL);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`${releasesUrl}?view=all`);
 
@@ -106,7 +108,7 @@ test.describe("Release queue", () => {
   });
 
   test("Observer understands blockers without action controls", async ({ page }) => {
-    await login(page, "observer@opswarden.local");
+    await login(page, demo.DEMO_OBSERVER_EMAIL);
     await page.goto(`${releasesUrl}/${BLOCKED_RELEASE_ID}`);
 
     await expect(page.getByRole("link", { name: "Blocked by 1 active incident" })).toBeVisible();
@@ -120,7 +122,7 @@ test.describe("Release queue", () => {
   });
 
   test("Responder validates only the next ordered step", async ({ page }) => {
-    await login(page, "responder@opswarden.local");
+    await login(page, demo.DEMO_RESPONDER_EMAIL);
     await page.goto(`${releasesUrl}/${ACTIVE_RELEASE_ID}`);
 
     await expect(page.getByText("Publish dashboards", { exact: true }).first()).toBeVisible();
@@ -132,7 +134,7 @@ test.describe("Release queue", () => {
   });
 
   test("Manager creates a release from keyboard-reordered steps", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     await page.goto(releasesUrl);
     await page.getByRole("button", { name: "New release" }).click();
 

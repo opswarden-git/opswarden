@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AutomationService, TeamConnection } from "@/lib/queries/automations";
+import type { AutomationRule, AutomationService, TeamConnection } from "@/lib/queries/automations";
 import { ConnectionsView } from "./ConnectionsView";
 
 vi.mock("next-intl", () => ({
@@ -160,6 +160,76 @@ describe("ConnectionsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "reconfigure" }));
     expect(screen.getByRole("button", { name: "Authorize with GitHub" })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "reconfigureService GitHub" })).toBeInTheDocument();
+  });
+
+  it("explains a blocked disconnect only after the user tries it", () => {
+    const service = {
+      name: "github",
+      label: "GitHub",
+      actions: [],
+      reactions: [],
+      connection: {
+        description: "Receive GitHub events",
+        fields: [],
+        oauth: null,
+        testable: false,
+      },
+    } satisfies AutomationService;
+    const connection = {
+      id: "connection-1",
+      team_id: "team-1",
+      service: "github",
+      secret_configured: true,
+      token_configured: false,
+      oauth_configured: false,
+      oauth_refresh_configured: false,
+      endpoint_configured: false,
+      created_at: "2026-08-31T00:00:00Z",
+      updated_at: "2026-08-31T00:00:00Z",
+      verified_at: "2026-08-31T00:00:00Z",
+      last_delivery_at: null,
+      last_error_code: null,
+      webhook_path: "/api/webhooks/github/connection-1",
+    } satisfies TeamConnection;
+    const rule = {
+      id: "rule-1",
+      team_id: "team-1",
+      name: "GitHub failure",
+      enabled: true,
+      trigger_connection_id: connection.id,
+      trigger_kind: "ci_failed",
+      trigger_config: {},
+      reaction_kind: "create_incident",
+      reaction_connection_id: null,
+      reaction_config: {},
+      created_by: null,
+      created_at: "2026-08-31T00:00:00Z",
+      updated_at: "2026-08-31T00:00:00Z",
+      next_run_at: null,
+    } satisfies AutomationRule;
+
+    render(
+      <ConnectionsView
+        catalog={[service]}
+        connections={[connection]}
+        rules={[rule]}
+        teamId="team-1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "manageService GitHub" }));
+    const disconnect = screen.getByRole("button", { name: "disconnect" });
+    expect(disconnect).toBeEnabled();
+    expect(screen.queryByText("connectionInUse")).not.toBeInTheDocument();
+    expect(disconnect).not.toHaveAttribute("aria-describedby");
+
+    fireEvent.click(disconnect);
+
+    expect(screen.getByText("connectionInUse")).toBeInTheDocument();
+    expect(disconnect).toHaveAttribute(
+      "aria-describedby",
+      "integration-panel-github-disconnect-blocked",
+    );
   });
 
   it("labels an untested outbound connection as ready instead of awaiting an event", () => {

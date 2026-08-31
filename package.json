@@ -10,7 +10,8 @@
     "format:check": "prettier --check .",
     "test:e2e": "playwright test",
     "lint:css": "stylelint \"client-web/**/*.css\" --config client-web/stylelint.config.mjs",
-    "knip": "knip --config client-web/knip.json"
+    "knip": "knip --config client-web/knip.json",
+    "knip:production": "knip --config client-web/knip.json --production --workspace client-web --include dependencies,unlisted,binaries,unresolved"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const RESPONDER_TEAM_ID = "6d1e8c20-b622-4d21-9b1b-111111111111";
 const OBSERVER_TEAM_ID = "8b2f9d30-c733-4e32-8c2c-222222222222";
 const INCIDENT_ID = "51000000-0000-4000-8000-000000000001";
@@ -71,10 +72,11 @@ const routes: RouteContract[] = [
 
 async function login(page: Page) {
   await page.goto("/en/login", { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Email").fill("manager@opswarden.local");
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Email").fill(demo.DEMO_MANAGER_EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//, { timeout: 15_000 });
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN, { timeout: 15_000 });
+  await demo.finishGuidedTour(page);
 }
 
 test("Team route boundary rejects malformed identifiers", async ({ page }) => {

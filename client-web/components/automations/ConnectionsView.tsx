@@ -1,10 +1,8 @@
 "use client";
 
-import { CheckCircle2, ChevronRight, Clock3, Globe2, Unplug, Webhook } from "lucide-react";
-import Image from "next/image";
+import { CheckCircle2, ChevronRight, Clock3, Unplug } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import React, { useState, useSyncExternalStore } from "react";
-import { MdAlternateEmail, MdHttp } from "react-icons/md";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -29,37 +27,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useErrorText } from "@/lib/useErrorText";
-
-const providerMarks: Record<string, string> = {
-  alertmanager: "/assets/alertmanager.svg",
-  github: "/assets/github-patched.webp",
-  gitlab: "/assets/gitlab.webp",
-};
-
-/**
- * The mark of a connector: its brand asset when we ship one, a shape otherwise.
- * `inline` is the smaller size used on the button that signs into the service,
- * where the label sits next to it. Decorative in both cases — the surrounding
- * row or button already names the service — and the one place that decides what
- * a service looks like.
- */
-function ServiceMark({ inline, service }: { inline?: boolean; service: AutomationService }) {
-  const box = inline ? "h-[18px] w-[18px]" : "h-7 w-7";
-  const asset = providerMarks[service.name];
-  if (asset) {
-    const side = inline ? 18 : 28;
-    return (
-      <Image src={asset} alt="" width={side} height={side} className={`${box} object-contain`} />
-    );
-  }
-  if (service.name === "email") {
-    return <MdAlternateEmail className={box} aria-hidden="true" />;
-  }
-  if (service.name === "http")
-    return <MdHttp className={inline ? box : "h-8 w-8"} aria-hidden="true" />;
-  if (service.name === "generic") return <Webhook className={box} aria-hidden="true" />;
-  return <Globe2 className={box} aria-hidden="true" />;
-}
+import { ServiceMark } from "./ServiceMark";
 
 function ConnectionStatus({ connection }: { connection: TeamConnection }) {
   const t = useTranslations("Automations");
@@ -239,6 +207,7 @@ export function ConnectionsView({
   const [editing, setEditing] = useState<string | null>(null);
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TeamConnection | null>(null);
+  const [disconnectBlocked, setDisconnectBlocked] = useState<string | null>(null);
   const testConnection = useTestTeamConnection(teamId);
   const refreshOAuth = useRefreshServiceOAuth(teamId);
   const deleteConnection = useDeleteTeamConnection(teamId);
@@ -287,6 +256,7 @@ export function ConnectionsView({
               <div className="surface divide-border-muted divide-y overflow-hidden rounded-md">
                 {group.items.map(({ connection, service }) => {
                   const panelId = `integration-panel-${service.name}`;
+                  const disconnectBlockedId = `${panelId}-disconnect-blocked`;
                   const isExpanded = editing === service.name;
                   const usedBy = connection
                     ? rules.filter(
@@ -319,6 +289,7 @@ export function ConnectionsView({
                           onClick={() => {
                             setEditing(isExpanded ? null : service.name);
                             setConfiguring(null);
+                            setDisconnectBlocked(null);
                           }}
                         >
                           <ChevronRight
@@ -345,6 +316,13 @@ export function ConnectionsView({
                                     variant="ghost"
                                   />
                                 </div>
+                              ) : null}
+                              {usedBy > 0 && disconnectBlocked === connection.id ? (
+                                <Alert tone="warning">
+                                  <span id={disconnectBlockedId}>
+                                    {t("connectionInUse", { count: usedBy })}
+                                  </span>
+                                </Alert>
                               ) : null}
                               <div className="flex flex-wrap items-end justify-between gap-4">
                                 <dl className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
@@ -407,11 +385,17 @@ export function ConnectionsView({
                                   ) : null}
                                   <Button
                                     size="sm"
-                                    onClick={() => setDeleting(connection)}
-                                    disabled={usedBy > 0}
-                                    title={
-                                      usedBy > 0
-                                        ? t("connectionInUse", { count: usedBy })
+                                    onClick={() => {
+                                      if (usedBy > 0) {
+                                        setDisconnectBlocked(connection.id);
+                                        return;
+                                      }
+                                      setDisconnectBlocked(null);
+                                      setDeleting(connection);
+                                    }}
+                                    aria-describedby={
+                                      usedBy > 0 && disconnectBlocked === connection.id
+                                        ? disconnectBlockedId
                                         : undefined
                                     }
                                   >

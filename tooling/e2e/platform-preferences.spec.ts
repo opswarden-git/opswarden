@@ -1,13 +1,15 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 
 async function login(page: Page) {
   await page.goto("/en/login");
-  await page.getByLabel("Email").fill("manager@opswarden.local");
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Email").fill(demo.DEMO_MANAGER_EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 async function renderedContrast(locator: Locator, pseudoElement?: "::placeholder") {
