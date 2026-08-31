@@ -30,11 +30,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { MemberAvatar, memberDisplayName } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
-import {
-  RosterConfirmDialogs,
-  type BanDuration,
-  type Dialog,
-} from "./RosterConfirmDialogs";
+import { RosterConfirmDialogs, type BanDuration, type Dialog } from "./RosterConfirmDialogs";
 
 type RoleFilter = "all" | TeamRole;
 
