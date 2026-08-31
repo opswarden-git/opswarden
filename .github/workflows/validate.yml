@@ -389,7 +389,7 @@ jobs:
     env:
       JWT_SECRET: CI_CONFIG_ONLY
       OPSWARDEN_VAULT_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
-      DEMO_LOCAL_PASSWORD: "OpsWarden"
+      DEMO_LOCAL_PASSWORD: "sudo"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
