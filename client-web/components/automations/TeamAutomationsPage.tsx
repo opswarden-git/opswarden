@@ -153,7 +153,12 @@ export function TeamAutomationsPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = resource === "integrations" ? "connections" : resource;
-  const { activeTeam: team, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
+  const {
+    activeTeam: team,
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const canManage = capabilities.canManageAutomations;
   const needsConfiguration = canManage && resource !== "runs";
   const catalog = useAutomationCatalog(needsConfiguration);
@@ -179,10 +184,7 @@ export function TeamAutomationsPage({
     searchParams.get("sort") ?? "",
   )
     ? (searchParams.get("sort") as
-        | "duration_asc"
-        | "duration_desc"
-        | "started_asc"
-        | "started_desc")
+        "duration_asc" | "duration_desc" | "started_asc" | "started_desc")
     : "started_desc";
   const setParam = (name: string, value?: string) => {
     const params = new URLSearchParams(searchParams.toString());

@@ -37,7 +37,13 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { teams, role = "observer", capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
+  const {
+    teams,
+    role = "observer",
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const { data: releases, isLoading, error } = useReleases(teamId);
   const view = normalizeReleaseView(searchParams.get("view"));
   const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";

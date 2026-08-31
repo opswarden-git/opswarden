@@ -9,7 +9,10 @@ export function useConversationSend({
   signalTyping,
   tCommonError,
 }: {
-  onSend: (content: string, attachments?: PendingConversationAttachment[]) => Promise<unknown> | void;
+  onSend: (
+    content: string,
+    attachments?: PendingConversationAttachment[],
+  ) => Promise<unknown> | void;
   signalTyping?: () => void;
   tCommonError?: string;
 }) {

@@ -198,9 +198,7 @@ export function RulesView({
 
   const projectedRules = useMemo(() => {
     const disabledText = t("disabled");
-    return visibleRules.map((rule) =>
-      projectRule(rule, actions, reactions, locale, disabledText),
-    );
+    return visibleRules.map((rule) => projectRule(rule, actions, reactions, locale, disabledText));
   }, [visibleRules, actions, reactions, locale, t]);
 
   if (rules.length === 0) {
@@ -306,44 +304,44 @@ export function RulesView({
             </tr>
           </OperationalTableHead>
           <OperationalTableBody>
-            {projectedRules.map(({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
-              <OperationalTableRow key={rule.id}>
-                <OperationalTableRowHeader className="text-text font-medium">
-                  {rule.name}
-                </OperationalTableRowHeader>
-                <OperationalTableCell>
-                  <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
-                    <RuleStatus enabled={rule.enabled} />
-                  </span>
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted">
-                  {triggerLabel}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted">
-                  {reactionLabel}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted whitespace-nowrap">
-                  {nextRunLabel}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-muted whitespace-nowrap">
-                  {updatedAtLabel}
-                </OperationalTableCell>
-                <OperationalTableCell className="text-right">
-                  <RuleActionMenu
-                    rule={rule}
-                    disabled={updateRule.isPending}
-                    label={t("actionsMenu")}
-                    enableLabel={t("enable")}
-                    disableLabel={t("disable")}
-                    editLabel={t("edit")}
-                    deleteLabel={t("delete")}
-                    onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
-                    onEdit={setEditing}
-                    onDelete={setDeleting}
-                  />
-                </OperationalTableCell>
-              </OperationalTableRow>
-            ))}
+            {projectedRules.map(
+              ({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
+                <OperationalTableRow key={rule.id}>
+                  <OperationalTableRowHeader className="text-text font-medium">
+                    {rule.name}
+                  </OperationalTableRowHeader>
+                  <OperationalTableCell>
+                    <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
+                      <RuleStatus enabled={rule.enabled} />
+                    </span>
+                  </OperationalTableCell>
+                  <OperationalTableCell className="text-muted">{triggerLabel}</OperationalTableCell>
+                  <OperationalTableCell className="text-muted">
+                    {reactionLabel}
+                  </OperationalTableCell>
+                  <OperationalTableCell className="text-muted whitespace-nowrap">
+                    {nextRunLabel}
+                  </OperationalTableCell>
+                  <OperationalTableCell className="text-muted whitespace-nowrap">
+                    {updatedAtLabel}
+                  </OperationalTableCell>
+                  <OperationalTableCell className="text-right">
+                    <RuleActionMenu
+                      rule={rule}
+                      disabled={updateRule.isPending}
+                      label={t("actionsMenu")}
+                      enableLabel={t("enable")}
+                      disableLabel={t("disable")}
+                      editLabel={t("edit")}
+                      deleteLabel={t("delete")}
+                      onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
+                      onEdit={setEditing}
+                      onDelete={setDeleting}
+                    />
+                  </OperationalTableCell>
+                </OperationalTableRow>
+              ),
+            )}
           </OperationalTableBody>
         </OperationalTable>
       </div>
@@ -351,64 +349,64 @@ export function RulesView({
       {/* Mobile view */}
       <div className="surface overflow-hidden rounded-md lg:hidden">
         <ul aria-label={t("rulesList")} className="divide-border-muted divide-y">
-          {projectedRules.map(({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
-            <li key={rule.id} className="flex flex-col gap-3 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-text font-medium">{rule.name}</h3>
-                  <div className="mt-1 flex flex-wrap text-sm">
-                    <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
-                      <RuleStatus enabled={rule.enabled} />
-                    </span>
+          {projectedRules.map(
+            ({ rule, triggerLabel, reactionLabel, nextRunLabel, updatedAtLabel }) => (
+              <li key={rule.id} className="flex flex-col gap-3 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-text font-medium">{rule.name}</h3>
+                    <div className="mt-1 flex flex-wrap text-sm">
+                      <span data-rule-state={rule.enabled ? "enabled" : "disabled"}>
+                        <RuleStatus enabled={rule.enabled} />
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <RuleActionMenu
+                      rule={rule}
+                      disabled={updateRule.isPending}
+                      label={t("actionsMenu")}
+                      enableLabel={t("enable")}
+                      disableLabel={t("disable")}
+                      editLabel={t("edit")}
+                      deleteLabel={t("delete")}
+                      onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
+                      onEdit={setEditing}
+                      onDelete={setDeleting}
+                    />
                   </div>
                 </div>
-                <div className="shrink-0">
-                  <RuleActionMenu
-                    rule={rule}
-                    disabled={updateRule.isPending}
-                    label={t("actionsMenu")}
-                    enableLabel={t("enable")}
-                    disableLabel={t("disable")}
-                    editLabel={t("edit")}
-                    deleteLabel={t("delete")}
-                    onToggle={(r) => updateRule.mutate({ ruleId: r.id, enabled: !r.enabled })}
-                    onEdit={setEditing}
-                    onDelete={setDeleting}
-                  />
-                </div>
-              </div>
-              <div className="surface-subtle border-border rounded border px-3 py-2 text-sm">
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">{t("colTrigger")}</span>
-                    <span className="text-text truncate text-right">
-                      {triggerLabel}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">
-                      {t("colResponse")}
-                    </span>
-                    <span className="text-text truncate text-right">
-                      {reactionLabel}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">{t("colNextRun")}</span>
-                    <span className="text-text text-right">
-                      {nextRunLabel}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span className="text-muted shrink-0 text-xs uppercase">{t("colUpdated")}</span>
-                    <span className="text-text text-right">
-                      {updatedAtLabel}
-                    </span>
+                <div className="surface-subtle border-border rounded border px-3 py-2 text-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted shrink-0 text-xs uppercase">
+                        {t("colTrigger")}
+                      </span>
+                      <span className="text-text truncate text-right">{triggerLabel}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted shrink-0 text-xs uppercase">
+                        {t("colResponse")}
+                      </span>
+                      <span className="text-text truncate text-right">{reactionLabel}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted shrink-0 text-xs uppercase">
+                        {t("colNextRun")}
+                      </span>
+                      <span className="text-text text-right">{nextRunLabel}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted shrink-0 text-xs uppercase">
+                        {t("colUpdated")}
+                      </span>
+                      <span className="text-text text-right">{updatedAtLabel}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            ),
+          )}
         </ul>
       </div>
 

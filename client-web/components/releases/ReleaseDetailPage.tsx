@@ -130,9 +130,7 @@ export function ReleaseDetailPage({ teamId, releaseId }: { teamId: string; relea
           </Alert>
         }
       >
-        {release ? (
-          <ReleaseDetail release={release} teamId={teamId} role={role} />
-        ) : null}
+        {release ? <ReleaseDetail release={release} teamId={teamId} role={role} /> : null}
       </PageContent>
 
       {release ? (

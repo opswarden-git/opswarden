@@ -30,9 +30,12 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { MemberAvatar, memberDisplayName } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
+import {
+  RosterConfirmDialogs,
+  type BanDuration,
+  type Dialog,
+} from "./RosterConfirmDialogs";
 
-type Dialog = "makeManager" | "kick" | "ban" | null;
-type BanDuration = "permanent" | "1h" | "24h" | "7d";
 type RoleFilter = "all" | TeamRole;
 
 export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
@@ -63,99 +66,6 @@ function durationToBan(duration: BanDuration): BanKindInput {
     kind: "temporary",
     expires_at: new Date(Date.now() + hours * 3_600_000).toISOString(),
   };
-}
-
-/** Searchable operational roster. Team-level ownership and danger actions live
- * in Settings; row-level member actions stay beside the member they affect. */
-function RosterConfirmDialogs({
-  banDuration,
-  banError,
-  banPending,
-  dialog,
-  kickError,
-  kickPending,
-  onBanConfirm,
-  onClose,
-  onKickConfirm,
-  onSetBanDuration,
-  onTransferConfirm,
-  target,
-  transferError,
-  transferPending,
-}: {
-  banDuration: BanDuration;
-  banError: string | null;
-  banPending: boolean;
-  dialog: Dialog;
-  kickError: string | null;
-  kickPending: boolean;
-  onBanConfirm: () => void;
-  onClose: () => void;
-  onKickConfirm: () => void;
-  onSetBanDuration: (duration: BanDuration) => void;
-  onTransferConfirm: () => void;
-  target: TeamMember | null;
-  transferError: string | null;
-  transferPending: boolean;
-}) {
-  const t = useTranslations("Teams");
-  return (
-    <>
-      <ConfirmDialog
-        open={dialog === "makeManager"}
-        title={t("makeManager")}
-        description={t("transferConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("makeManager")}
-        cancelLabel={t("cancel")}
-        intent="standard"
-        pendingLabel={t("processing")}
-        pending={transferPending}
-        error={transferError}
-        onConfirm={onTransferConfirm}
-        onClose={onClose}
-      />
-      <ConfirmDialog
-        open={dialog === "kick"}
-        title={t("kick")}
-        description={t("kickConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("kick")}
-        cancelLabel={t("cancel")}
-        intent="destructive"
-        pendingLabel={t("processing")}
-        pending={kickPending}
-        error={kickError}
-        onConfirm={onKickConfirm}
-        onClose={onClose}
-      />
-      <ConfirmDialog
-        open={dialog === "ban"}
-        title={t("banMember")}
-        description={t("banConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("ban")}
-        cancelLabel={t("cancel")}
-        intent="destructive"
-        pendingLabel={t("processing")}
-        pending={banPending}
-        error={banError}
-        onConfirm={onBanConfirm}
-        onClose={onClose}
-      >
-        <label className="space-y-2">
-          <span className="text-muted text-sm">{t("banDuration")}</span>
-          <select
-            value={banDuration}
-            onChange={(event) => onSetBanDuration(event.target.value as BanDuration)}
-            className="ow-input h-10 w-full rounded-md px-3 text-sm"
-          >
-            <option value="permanent">{t("banPermanent")}</option>
-            <option value="1h">{t("ban1h")}</option>
-            <option value="24h">{t("ban24h")}</option>
-            <option value="7d">{t("ban7d")}</option>
-          </select>
-        </label>
-      </ConfirmDialog>
-    </>
-  );
 }
 
 function useTeamRosterData(team: Team, query: string, roleFilter: RoleFilter) {
@@ -477,12 +387,26 @@ export function TeamRoster({ team }: { team: Team }) {
       ) : null}
 
       <RosterConfirmDialogs
-        banDuration={banDuration} banError={ban.error ? errorText(ban.error.message) : null} banPending={ban.isPending}
-        dialog={dialog} kickError={kick.error ? errorText(kick.error.message) : null} kickPending={kick.isPending}
-        onBanConfirm={() => target && ban.mutate({ userId: target.user_id, ban: durationToBan(banDuration) }, { onSuccess: close })}
-        onClose={close} onKickConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
-        onSetBanDuration={setBanDuration} onTransferConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
-        target={target} transferError={transfer.error ? errorText(transfer.error.message) : null} transferPending={transfer.isPending}
+        banDuration={banDuration}
+        banError={ban.error ? errorText(ban.error.message) : null}
+        banPending={ban.isPending}
+        dialog={dialog}
+        kickError={kick.error ? errorText(kick.error.message) : null}
+        kickPending={kick.isPending}
+        onBanConfirm={() =>
+          target &&
+          ban.mutate(
+            { userId: target.user_id, ban: durationToBan(banDuration) },
+            { onSuccess: close },
+          )
+        }
+        onClose={close}
+        onKickConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
+        onSetBanDuration={setBanDuration}
+        onTransferConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
+        target={target}
+        transferError={transfer.error ? errorText(transfer.error.message) : null}
+        transferPending={transfer.isPending}
       />
     </section>
   );

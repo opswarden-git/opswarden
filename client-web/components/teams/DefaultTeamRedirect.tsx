@@ -34,7 +34,7 @@ export function DefaultTeamRedirect() {
           </div>
         }
         errorFallback={
-          <Alert tone="danger" className="mx-auto max-w-md my-8">
+          <Alert tone="danger" className="mx-auto my-8 max-w-md">
             {tTeams("failedToLoad")}
           </Alert>
         }

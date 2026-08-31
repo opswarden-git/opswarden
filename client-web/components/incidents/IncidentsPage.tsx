@@ -43,7 +43,13 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { teams, activeTeam, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
+  const {
+    teams,
+    activeTeam,
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const { data: members } = useTeamMembers(teamId);
   const hasNoTeams = teams.length === 0;
 

@@ -177,13 +177,8 @@ function OverviewIncidentsSection({
                 className="block px-4 py-2 transition-colors hover:bg-white/[0.04]"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
-                  <span className="text-text truncate text-sm font-medium">
-                    {incident.title}
-                  </span>
-                  <time
-                    className="text-muted shrink-0 text-xs"
-                    dateTime={incident.created_at}
-                  >
+                  <span className="text-text truncate text-sm font-medium">{incident.title}</span>
+                  <time className="text-muted shrink-0 text-xs" dateTime={incident.created_at}>
                     {formatRelativeAge(incident.created_at, locale)}
                   </time>
                 </div>
@@ -196,9 +191,7 @@ function OverviewIncidentsSection({
           ))}
         </ul>
       ) : (
-        <p className="text-muted px-4 py-6 text-center text-sm">
-          {t("overviewEmpty.incidents")}
-        </p>
+        <p className="text-muted px-4 py-6 text-center text-sm">{t("overviewEmpty.incidents")}</p>
       )}
     </OverviewSection>
   );
@@ -236,13 +229,8 @@ function OverviewReleasesSection({
                 className="block px-4 py-2 transition-colors hover:bg-white/[0.04]"
               >
                 <div className="flex min-w-0 items-start justify-between gap-3">
-                  <span className="text-text truncate text-sm font-medium">
-                    {release.title}
-                  </span>
-                  <time
-                    className="text-muted shrink-0 text-xs"
-                    dateTime={release.created_at}
-                  >
+                  <span className="text-text truncate text-sm font-medium">{release.title}</span>
+                  <time className="text-muted shrink-0 text-xs" dateTime={release.created_at}>
                     {formatRelativeAge(release.created_at, locale)}
                   </time>
                 </div>
@@ -257,9 +245,7 @@ function OverviewReleasesSection({
           ))}
         </ul>
       ) : (
-        <p className="text-muted px-4 py-6 text-center text-sm">
-          {t("overviewEmpty.releases")}
-        </p>
+        <p className="text-muted px-4 py-6 text-center text-sm">{t("overviewEmpty.releases")}</p>
       )}
     </OverviewSection>
   );
@@ -299,9 +285,7 @@ function OverviewRunsSection({
             <li key={run.id} className="px-4 py-2">
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <span className="text-text truncate text-sm font-medium">
-                  {run.rule_id
-                    ? (ruleNames.get(run.rule_id) ?? ta("deletedRule"))
-                    : ta("noRule")}
+                  {run.rule_id ? (ruleNames.get(run.rule_id) ?? ta("deletedRule")) : ta("noRule")}
                 </span>
                 <time className="text-muted shrink-0 text-xs" dateTime={run.started_at}>
                   {formatRelativeAge(run.started_at, locale)}
@@ -317,10 +301,7 @@ function OverviewRunsSection({
                     {ta("openIncident")}
                   </Link>
                 ) : run.error_code ? (
-                  <span
-                    className="text-sev-critical truncate"
-                    title={errorText(run.error_code)}
-                  >
+                  <span className="text-sev-critical truncate" title={errorText(run.error_code)}>
                     {errorText(run.error_code)}
                   </span>
                 ) : null}
@@ -329,9 +310,7 @@ function OverviewRunsSection({
           ))}
         </ul>
       ) : (
-        <p className="text-muted px-4 py-6 text-center text-sm">
-          {t("overviewEmpty.runs")}
-        </p>
+        <p className="text-muted px-4 py-6 text-center text-sm">{t("overviewEmpty.runs")}</p>
       )}
     </OverviewSection>
   );
@@ -339,7 +318,12 @@ function OverviewRunsSection({
 
 function useTeamOverviewData(teamId: string) {
   const ta = useTranslations("Automations");
-  const { activeTeam: team, capabilities, isLoading: isLoadingTeams, error: teamsError } = useTeamScope();
+  const {
+    activeTeam: team,
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const incidents = useIncidentQueue(teamId, { sort: "severity" });
   const releases = useReleases(teamId);
   const canViewRuns = capabilities.canManageAutomations;
