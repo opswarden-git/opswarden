@@ -306,8 +306,8 @@ test("Team scope menu preserves legitimate Manager, Responder and Observer navig
 
   for (const team of [
     { id: TEAM_ID, name: "OpsWarden Demo", settings: ["Team", "Rules", "Integrations"] },
-    { id: RESPONDER_TEAM_ID, name: "Production Europe", settings: ["Team", "Rules"] },
-    { id: OBSERVER_TEAM_ID, name: "Security Lab", settings: ["Team"] },
+    { id: RESPONDER_TEAM_ID, name: "Production Europe", settings: ["Team", "Rules", "Integrations"] },
+    { id: OBSERVER_TEAM_ID, name: "Security Lab", settings: ["Team", "Rules", "Integrations"] },
   ]) {
     await page.goto(`/en/teams/${team.id}/overview`);
     const navigation = page.getByRole("navigation", { name: "Primary navigation" });
