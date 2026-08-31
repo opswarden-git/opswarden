@@ -46,18 +46,18 @@ Process-level variables override values loaded from `.env`.
 
 ### Provider narrative and authentication
 
-| Variable                           | Required | Purpose                                                                          |
-| ---------------------------------- | -------- | -------------------------------------------------------------------------------- |
-| `DEMO_GITHUB_REPOSITORY`           | Both     | Exact GitHub `owner/repository` matched by the CI rule.                          |
-| `DEMO_GITHUB_BRANCH`               | Both     | GitHub branch matched by the rule.                                               |
-| `DEMO_GITHUB_WORKFLOW`             | Both     | Exact GitHub Actions workflow name.                                              |
-| `DEMO_GITLAB_PROJECT`              | Both     | Exact GitLab `namespace/project` matched by the CI rule.                         |
-| `DEMO_GITLAB_BRANCH`               | Both     | GitLab branch matched by the rule.                                               |
-| `DEMO_GITLAB_PIPELINE`             | Both     | Pipeline name used by the normalized event.                                      |
-| `DEMO_GITHUB_WEBHOOK_SECRET`       | Both     | Independent HMAC secret configured in OpsWarden and GitHub; not an OAuth secret. |
-| `DEMO_GITLAB_WEBHOOK_SECRET`       | Both     | Token configured in OpsWarden and GitLab webhook settings.                       |
-| `DEMO_GENERIC_WEBHOOK_SECRET`      | Both     | Shared token carried in `X-OpsWarden-Token`.                                     |
-| `DEMO_ALERTMANAGER_WEBHOOK_SECRET` | Both     | Bearer token sent by Alertmanager.                                               |
+| Variable                           | Required | Purpose                                                                            |
+| ---------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `DEMO_GITHUB_REPOSITORY`           | Both     | Exact GitHub `owner/repository` matched by the CI rule.                            |
+| `DEMO_GITHUB_BRANCH`               | Both     | GitHub branch matched by the rule.                                                 |
+| `DEMO_GITHUB_WORKFLOW`             | Both     | Exact GitHub Actions workflow name.                                                |
+| `DEMO_GITLAB_PROJECT`              | Both     | Exact GitLab `namespace/project` matched by the CI rule.                           |
+| `DEMO_GITLAB_BRANCH`               | Both     | GitLab branch matched by the rule.                                                 |
+| `DEMO_GITLAB_PIPELINE`             | Optional | Stable pipeline name, only when the GitLab webhook emits one; blank on GitLab.com. |
+| `DEMO_GITHUB_WEBHOOK_SECRET`       | Both     | Independent HMAC secret configured in OpsWarden and GitHub; not an OAuth secret.   |
+| `DEMO_GITLAB_WEBHOOK_SECRET`       | Both     | Token configured in OpsWarden and GitLab webhook settings.                         |
+| `DEMO_GENERIC_WEBHOOK_SECRET`      | Both     | Shared token carried in `X-OpsWarden-Token`.                                       |
+| `DEMO_ALERTMANAGER_WEBHOOK_SECRET` | Both     | Bearer token sent by Alertmanager.                                                 |
 
 Generate four different values with `openssl rand -hex 32`. Never reuse Google
 or GitHub OAuth client secrets for webhook authentication.

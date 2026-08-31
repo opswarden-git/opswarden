@@ -75,6 +75,23 @@ def target_value(config: dict[str, str], target: str, name: str, default: str = 
     return value(config, f"DEMO_{target.upper()}_{name}") or value(config, f"DEMO_{name}", fallback)
 
 
+def gitlab_trigger_config(config: dict[str, str]) -> dict[str, str]:
+    trigger = {
+        "repository": value(
+            config,
+            "DEMO_GITLAB_PROJECT",
+            "your-gitlab-namespace/opswarden-demo",
+        ),
+        "branch": value(config, "DEMO_GITLAB_BRANCH", "main"),
+        "conclusion": "failed",
+    }
+    # GitLab.com sends object_attributes.name as null for ordinary pipelines.
+    # Only filter it when a provider/project demonstrably emits a stable name.
+    if pipeline := value(config, "DEMO_GITLAB_PIPELINE"):
+        trigger["workflow"] = pipeline
+    return trigger
+
+
 def require(config: dict[str, str], *names: str) -> None:
     missing = [name for name in names if not value(config, name)]
     if missing:
@@ -356,7 +373,7 @@ def configure_integrations(config: dict[str, str], origin: str, team_id: str, to
     }
     definitions: list[dict[str, object]] = [
         {"name": "Demo: GitHub CI failure creates an incident", "trigger_connection_id": connections["github"]["id"], "trigger_kind": "ci_failed", "trigger_config": github_filter, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitHub CI failed: {{repository}} / {{workflow}}"}},
-        {"name": "Demo: GitLab CI failure creates an incident", "trigger_connection_id": connections["gitlab"]["id"], "trigger_kind": "ci_failed", "trigger_config": {"repository": value(config, "DEMO_GITLAB_PROJECT", "your-gitlab-namespace/opswarden-demo"), "workflow": value(config, "DEMO_GITLAB_PIPELINE", "CI"), "branch": value(config, "DEMO_GITLAB_BRANCH", "main"), "conclusion": "failed"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitLab CI failed: {{repository}} / {{workflow}}"}},
+        {"name": "Demo: GitLab CI failure creates an incident", "trigger_connection_id": connections["gitlab"]["id"], "trigger_kind": "ci_failed", "trigger_config": gitlab_trigger_config(config), "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "high", "title": "GitLab CI failed: {{repository}} / {{workflow}}"}},
         {"name": "Demo: Generic deployment failure creates an incident", "trigger_connection_id": connections["generic"]["id"], "trigger_kind": "generic_event", "trigger_config": {"event_type": "deployment_failed", "source": "opswarden-demo", "severity": "critical"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "critical", "title": "{{title}} ({{external_id}})"}},
         {"name": "Demo: Alertmanager firing creates an incident", "trigger_connection_id": connections["alertmanager"]["id"], "trigger_kind": "alert_firing", "trigger_config": {"severity": "critical", "receiver": "opswarden"}, "reaction_kind": "create_incident", "reaction_connection_id": None, "reaction_config": {"severity": "critical", "title": "Alertmanager: {{summary}}"}},
     ]
