@@ -39,6 +39,24 @@ class DemoCliTests(unittest.TestCase):
         args = argparse.Namespace(target="local", confirm="")
         demo.require_confirmation(args, "seed")
 
+    def test_gitlab_pipeline_name_is_an_optional_filter(self) -> None:
+        base = {
+            "DEMO_GITLAB_PROJECT": "romeo.cavazza/opswarden-demo",
+            "DEMO_GITLAB_BRANCH": "demo/ci-failure",
+        }
+        self.assertEqual(
+            demo.gitlab_trigger_config(base),
+            {
+                "repository": "romeo.cavazza/opswarden-demo",
+                "branch": "demo/ci-failure",
+                "conclusion": "failed",
+            },
+        )
+        self.assertEqual(
+            demo.gitlab_trigger_config({**base, "DEMO_GITLAB_PIPELINE": "named"})["workflow"],
+            "named",
+        )
+
     def test_psql_variables_are_separate_arguments(self) -> None:
         self.assertEqual(
             demo.Database.variable_args({"team_id": "one", "manager_id": "two"}),
