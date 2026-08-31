@@ -477,26 +477,12 @@ export function TeamRoster({ team }: { team: Team }) {
       ) : null}
 
       <RosterConfirmDialogs
-        banDuration={banDuration}
-        banError={ban.error ? errorText(ban.error.message) : null}
-        banPending={ban.isPending}
-        dialog={dialog}
-        kickError={kick.error ? errorText(kick.error.message) : null}
-        kickPending={kick.isPending}
-        onBanConfirm={() =>
-          target &&
-          ban.mutate(
-            { userId: target.user_id, ban: durationToBan(banDuration) },
-            { onSuccess: close },
-          )
-        }
-        onClose={close}
-        onKickConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
-        onSetBanDuration={setBanDuration}
-        onTransferConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
-        target={target}
-        transferError={transfer.error ? errorText(transfer.error.message) : null}
-        transferPending={transfer.isPending}
+        banDuration={banDuration} banError={ban.error ? errorText(ban.error.message) : null} banPending={ban.isPending}
+        dialog={dialog} kickError={kick.error ? errorText(kick.error.message) : null} kickPending={kick.isPending}
+        onBanConfirm={() => target && ban.mutate({ userId: target.user_id, ban: durationToBan(banDuration) }, { onSuccess: close })}
+        onClose={close} onKickConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
+        onSetBanDuration={setBanDuration} onTransferConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
+        target={target} transferError={transfer.error ? errorText(transfer.error.message) : null} transferPending={transfer.isPending}
       />
     </section>
   );

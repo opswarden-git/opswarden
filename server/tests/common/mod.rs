@@ -52,6 +52,7 @@ pub struct TestContext {
 include!("automation.rs");
 include!("auth.rs");
 include!("teams_incidents.rs");
+include!("teams_timeline.rs");
 include!("team_helpers.rs");
 include!("messaging.rs");
 include!("app.rs");

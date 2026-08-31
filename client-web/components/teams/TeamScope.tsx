@@ -22,8 +22,8 @@ const TeamScopeContext = React.createContext<TeamScopeValue | null>(null);
 const NO_TEAMS: Team[] = [];
 
 export function TeamScopeProvider({ children }: { children: React.ReactNode }) {
-  const pathname = routing.usePathname();
-  const router = routing.useRouter();
+  const pathname = routing.usePathname?.() ?? "";
+  const router = routing.useRouter?.() ?? { push: () => {}, replace: () => {} };
   const { data, isLoading, error } = useTeams();
   const teams = data ?? NO_TEAMS;
   const route = React.useMemo(() => parseTeamPath(pathname), [pathname]);
@@ -68,19 +68,9 @@ export function useTeamScope(): TeamScopeValue {
 
 function useFallbackTeamScope(): TeamScopeValue {
   const teamsQuery = useTeams();
-  let pathname = "";
-  try {
-    pathname = routing.usePathname() ?? "";
-  } catch {
-    pathname = "";
-  }
-
-  let router: ReturnType<typeof routing.useRouter> | null = null;
-  try {
-    router = routing.useRouter();
-  } catch {
-    router = null;
-  }
+  const rawPathname = routing.usePathname?.() ?? "";
+  const router = routing.useRouter?.() ?? { push: () => {}, replace: () => {} };
+  const pathname = rawPathname ?? "";
 
   const route = React.useMemo(() => parseTeamPath(pathname), [pathname]);
   const fallbackTeams = teamsQuery.data ?? NO_TEAMS;
@@ -101,7 +91,7 @@ function useFallbackTeamScope(): TeamScopeValue {
     isLoading: teamsQuery.isLoading,
     error: (teamsQuery.error as Error) ?? null,
     isValidScope: Boolean(!route || fallbackActiveTeam),
-    switchTeam: (teamId) => router?.push?.(pathForTeamSwitch(pathname, teamId)),
+    switchTeam: (teamId) => router.push(pathForTeamSwitch(pathname, teamId)),
     hrefFor: (section, resourceId) =>
       fallbackActiveTeam ? teamPath(fallbackActiveTeam.team_id, section, resourceId) : "/teams",
   };

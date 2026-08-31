@@ -8,6 +8,7 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("@/i18n/routing", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/teams/team-1/automations",
 }));
 
 const loadingQuery = { data: undefined, error: null, isLoading: true, isFetching: false };

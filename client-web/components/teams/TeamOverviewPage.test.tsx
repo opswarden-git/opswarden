@@ -10,6 +10,7 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("@/i18n/routing", () => ({
   usePathname: () => "/teams/team-1/overview",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   Link: ({ children, href, ...props }: React.ComponentProps<"a">) => (
     <a href={String(href)} {...props}>
       {children}

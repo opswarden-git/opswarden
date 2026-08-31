@@ -26,7 +26,11 @@ impl MockTeamRepo {
 
 #[async_trait]
 impl TeamRepo for MockTeamRepo {
-    async fn save_team(&self, _team: &crate::domain::team::Team) -> Result<(), DomainError> {
+    async fn create_team_with_manager(
+        &self,
+        _team: &crate::domain::team::Team,
+        _manager_id: Uuid,
+    ) -> Result<(), DomainError> {
         Ok(())
     }
 
@@ -130,6 +134,15 @@ impl TeamRepo for MockTeamRepo {
         Ok(())
     }
 
+    async fn kick_member_and_clear_assignments(
+        &self,
+        _team_id: Uuid,
+        _requester_id: Uuid,
+        _target_user_id: Uuid,
+    ) -> Result<(), DomainError> {
+        Ok(())
+    }
+
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError> {
         Ok(self.roles.keys().filter(|(t, _)| *t == team_id).count() as u64)
     }
@@ -161,6 +174,14 @@ impl TeamRepo for MockTeamRepo {
         Ok(())
     }
 
+    async fn ban_member_and_clear_assignments(
+        &self,
+        _ban: &crate::domain::team::TeamBan,
+        _requester_id: Uuid,
+    ) -> Result<bool, DomainError> {
+        Ok(false)
+    }
+
     async fn find_ban(
         &self,
         _team_id: Uuid,
@@ -174,6 +195,26 @@ impl TeamRepo for MockTeamRepo {
     }
 
     async fn remove_ban(&self, _team_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
+        Ok(())
+    }
+
+    async fn save_team_image(
+        &self,
+        _team_id: Uuid,
+        _image: &crate::domain::team::TeamImage,
+    ) -> Result<(), DomainError> {
+        Ok(())
+    }
+
+    async fn find_team_image_for_member(
+        &self,
+        _team_id: Uuid,
+        _user_id: Uuid,
+    ) -> Result<Option<crate::domain::team::TeamImage>, DomainError> {
+        Ok(None)
+    }
+
+    async fn delete_team_image(&self, _team_id: Uuid) -> Result<(), DomainError> {
         Ok(())
     }
 }
