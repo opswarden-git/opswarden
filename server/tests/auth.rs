@@ -342,7 +342,18 @@ async fn google_start_redirects_and_sets_state_cookie() {
         .to_str()
         .unwrap();
     assert!(location.starts_with("https://accounts.google.test/auth?state="));
+    assert_eq!(
+        response.headers().get(header::CACHE_CONTROL).unwrap(),
+        "no-store, max-age=0"
+    );
     assert!(response.headers().get(header::SET_COOKIE).is_some());
+    assert!(!response
+        .headers()
+        .get(header::SET_COOKIE)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("; Secure"));
 }
 
 #[tokio::test]
@@ -362,6 +373,10 @@ async fn google_callback_exchanges_code_and_redirects_with_token() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        response.headers().get(header::CACHE_CONTROL).unwrap(),
+        "no-store, max-age=0"
+    );
     let location = response
         .headers()
         .get(header::LOCATION)
@@ -397,6 +412,10 @@ async fn github_start_redirects_and_sets_provider_scoped_state_cookie() {
         .to_str()
         .unwrap();
     assert!(location.starts_with("https://github.test/login/oauth/authorize?state="));
+    assert_eq!(
+        response.headers().get(header::CACHE_CONTROL).unwrap(),
+        "no-store, max-age=0"
+    );
     let cookie = response
         .headers()
         .get(header::SET_COOKIE)
@@ -405,6 +424,7 @@ async fn github_start_redirects_and_sets_provider_scoped_state_cookie() {
         .unwrap();
     assert!(cookie.starts_with("opswarden_github_auth_state="));
     assert!(cookie.contains("Path=/api/auth/github"));
+    assert!(!cookie.contains("; Secure"));
 }
 
 #[tokio::test]

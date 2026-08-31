@@ -80,7 +80,7 @@ test.describe("Team automations", () => {
       const githubForm = page.getByRole("form", { name: "Connect GitHub" });
       await githubForm.getByLabel("Signing secret").fill("e2e-automation-secret");
       await githubForm.getByRole("button", { name: "Connect", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Configure GitHub" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Manage GitHub" })).toBeVisible();
 
       await openDirectDestination(page, "Rules", 1280);
       await page.getByRole("button", { name: "New rule" }).click();

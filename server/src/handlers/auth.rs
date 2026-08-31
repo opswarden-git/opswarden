@@ -14,6 +14,45 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     Json,
 };
+
+/// OAuth state cookies may remain usable over plain HTTP on loopback during
+/// development, but must never be sent over an unencrypted production callback.
+pub(crate) fn oauth_cookie_secure_suffix(callback_uri: &str) -> &'static str {
+    if callback_uri.starts_with("https://") {
+        "; Secure"
+    } else {
+        ""
+    }
+}
+
+/// OAuth redirects contain per-request state and, after login, a bearer token.
+/// Explicitly prevent CDNs and browsers from retaining either response.
+pub(crate) fn disable_oauth_response_caching(response: &mut Response) {
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, max-age=0"),
+    );
+    response
+        .headers_mut()
+        .insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+}
+
+#[cfg(test)]
+mod oauth_cookie_tests {
+    use super::oauth_cookie_secure_suffix;
+
+    #[test]
+    fn oauth_state_cookie_is_secure_exactly_for_https_callbacks() {
+        assert_eq!(
+            oauth_cookie_secure_suffix("https://app.opswarden.dev/api/auth/google/callback"),
+            "; Secure"
+        );
+        assert_eq!(
+            oauth_cookie_secure_suffix("http://localhost:8080/api/auth/google/callback"),
+            ""
+        );
+    }
+}
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -224,11 +263,7 @@ pub async fn google_start(
     };
     let state_token = format!("{}:{locale}", Uuid::new_v4());
     let auth_url = state.oauth.authorization_url(&state_token)?;
-    let secure = state
-        .config
-        .google_oauth_redirect_uri
-        .starts_with("https://");
-
+    let secure = oauth_cookie_secure_suffix(&state.config.google_oauth_redirect_uri);
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
@@ -237,9 +272,10 @@ pub async fn google_start(
             &state_token,
             "/api/auth/google",
             600,
-            secure,
+            secure == "; Secure",
         )?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -290,15 +326,13 @@ pub async fn google_callback(
         state.config.web_origin.trim_end_matches('/'),
         result.token
     );
-    let secure = state
-        .config
-        .google_oauth_redirect_uri
-        .starts_with("https://");
+    let secure = oauth_cookie_secure_suffix(&state.config.google_oauth_redirect_uri);
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        oauth_cookie_header("opswarden_oauth_state", "", "/api/auth/google", 0, secure)?,
+        oauth_cookie_header("opswarden_oauth_state", "", "/api/auth/google", 0, secure == "; Secure")?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -316,10 +350,7 @@ pub async fn github_start(
     };
     let state_token = format!("{}:{locale}", Uuid::new_v4());
     let auth_url = state.github_auth_oauth.authorization_url(&state_token)?;
-    let secure = state
-        .config
-        .github_auth_redirect_uri
-        .starts_with("https://");
+    let secure = oauth_cookie_secure_suffix(&state.config.github_auth_redirect_uri);
 
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
@@ -329,9 +360,10 @@ pub async fn github_start(
             &state_token,
             "/api/auth/github",
             600,
-            secure,
+            secure == "; Secure",
         )?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
@@ -373,10 +405,7 @@ pub async fn github_callback(
         state.config.web_origin.trim_end_matches('/'),
         result.token
     );
-    let secure = state
-        .config
-        .github_auth_redirect_uri
-        .starts_with("https://");
+    let secure = oauth_cookie_secure_suffix(&state.config.github_auth_redirect_uri);
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
@@ -385,9 +414,10 @@ pub async fn github_callback(
             "",
             "/api/auth/github",
             0,
-            secure,
+            secure == "; Secure",
         )?,
     );
+    disable_oauth_response_caching(&mut response);
     Ok(response)
 }
 
