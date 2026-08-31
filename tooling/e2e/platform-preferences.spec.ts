@@ -139,7 +139,7 @@ test("browser-composited incident text remains above 4.5:1", async ({ page }) =>
     await page.goto(sample.path);
     const element = page
       .locator("[data-incident-layout]:visible")
-      .locator("[data-status-badge]")
+      .locator("[data-status-badge], [data-severity-badge], [data-badge]")
       .filter({ hasText: sample.label })
       .first();
     await expect(element).toBeVisible();
