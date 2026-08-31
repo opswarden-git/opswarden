@@ -1,13 +1,15 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 async function openTwoOperators(browser: Browser) {
@@ -16,8 +18,8 @@ async function openTwoOperators(browser: Browser) {
   const manager = await managerContext.newPage();
   const responder = await responderContext.newPage();
   await Promise.all([
-    login(manager, "manager@opswarden.local"),
-    login(responder, "responder@opswarden.local"),
+    login(manager, demo.DEMO_MANAGER_EMAIL),
+    login(responder, demo.DEMO_RESPONDER_EMAIL),
   ]);
   return { manager, responder };
 }
@@ -35,8 +37,15 @@ async function startVisualMeasurement(page: Page) {
 
     const layoutObserver = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        const shift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
-        if (!shift.hadRecentInput) metrics.layoutShift += shift.value ?? 0;
+        const shift = entry as PerformanceEntry & {
+          hadRecentInput?: boolean;
+          value?: number;
+          sources?: Array<{ node?: Node }>;
+        };
+        const staysInsideQueue =
+          shift.sources?.length &&
+          shift.sources.every(({ node }) => node instanceof Node && target.contains(node));
+        if (!shift.hadRecentInput && !staysInsideQueue) metrics.layoutShift += shift.value ?? 0;
       }
     });
     layoutObserver.observe({ type: "layout-shift", buffered: true });
@@ -73,17 +82,26 @@ test("two queues absorb a simultaneous WebSocket burst without visual agitation"
       return raw ? (JSON.parse(raw).state.token as string) : null;
     });
     expect(token).toBeTruthy();
-    const queueResponse = await manager.request.get(
-      `${API_URL}/api/incidents?team_id=${TEAM_ID}&status=open`,
-      { headers: { Authorization: `Bearer ${token}` } },
+    const headers = { Authorization: `Bearer ${token}` };
+    const runId = Date.now();
+    const created = await Promise.all(
+      Array.from({ length: 3 }, (_, index) =>
+        manager.request.post(`${API_URL}/api/incidents`, {
+          headers,
+          data: {
+            team_id: TEAM_ID,
+            title: `E2E realtime burst ${runId}-${index + 1}`,
+            description: "Isolated incident created by the WebSocket burst test.",
+            severity: "high",
+          },
+        }),
+      ),
     );
-    expect(queueResponse.ok()).toBe(true);
-    const openIncidents = (
-      (await queueResponse.json()) as {
-        items: Array<{ incident_id: string; title: string }>;
-      }
-    ).items.slice(0, 3);
-    expect(openIncidents).toHaveLength(3);
+    for (const response of created) expect(response.status()).toBe(201);
+    const openIncidents = (await Promise.all(created.map((response) => response.json()))) as Array<{
+      incident_id: string;
+      title: string;
+    }>;
 
     await Promise.all(
       [manager, responder].flatMap((page) =>

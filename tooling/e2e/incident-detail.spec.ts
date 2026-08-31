@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const LINKED_INCIDENT_ID = "51000000-0000-4000-8000-000000000001";
 const OPEN_INCIDENT_ID = "51000000-0000-4000-8000-000000000005";
 const UNASSIGNED_INCIDENT_ID = "51000000-0000-4000-8000-000000000005";
@@ -11,14 +12,15 @@ const incidentUrl = (incidentId: string) => `/en/teams/${TEAM_ID}/incidents/${in
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 test.describe("Incident detail", () => {
   test("Responder can acknowledge and write an operational note", async ({ page }) => {
-    await login(page, "responder@opswarden.local");
+    await login(page, demo.DEMO_RESPONDER_EMAIL);
     await page.goto(incidentUrl(OPEN_INCIDENT_ID));
 
     await expect(page.locator('[data-system-event="created"]')).toBeVisible();
@@ -49,7 +51,7 @@ test.describe("Incident detail", () => {
   });
 
   test("Observer sees context without false commands", async ({ page }) => {
-    await login(page, "observer@opswarden.local");
+    await login(page, demo.DEMO_OBSERVER_EMAIL);
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
@@ -64,7 +66,7 @@ test.describe("Incident detail", () => {
   });
 
   test("War room separates incident context from actionable Team presence", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
@@ -90,23 +92,23 @@ test.describe("Incident detail", () => {
       "aria-expanded",
       "true",
     );
-    await context.getByRole("link", { name: "Chat with responder@opswarden.local" }).click();
+    await context.getByRole("link", { name: `Chat with ${demo.DEMO_RESPONDER_EMAIL}` }).click();
     await expect(page).toHaveURL(new RegExp(`/messages/[0-9a-f-]+$`));
-    await expect(page.getByRole("region", { name: "responder@opswarden.local" })).toBeVisible();
+    await expect(page.getByRole("region", { name: demo.DEMO_RESPONDER_EMAIL })).toBeVisible();
     await expect(page.getByRole("complementary", { name: "Members" })).toBeVisible();
   });
 
   test("Manager can assign, inspect delete safely, and follow the linked Release", async ({
     page,
   }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     await page.goto(incidentUrl(UNASSIGNED_INCIDENT_ID));
 
     await page.getByRole("button", { name: /^Assignee/ }).click();
-    await page.getByLabel("Change assignee").selectOption({ label: "responder@opswarden.local" });
+    await page.getByLabel("Change assignee").selectOption({ label: demo.DEMO_RESPONDER_EMAIL });
     await page.getByRole("button", { name: "Assign", exact: true }).click();
     await expect(page.getByLabel("Change assignee").locator("option:checked")).toHaveText(
-      "responder@opswarden.local",
+      demo.DEMO_RESPONDER_EMAIL,
     );
 
     await page.getByRole("button", { name: /^Actions/ }).click();
@@ -127,7 +129,7 @@ test.describe("Incident detail", () => {
   });
 
   test("layout stays ordered and has no horizontal overflow", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
 
     for (const width of [320, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
@@ -161,7 +163,7 @@ test.describe("Incident detail", () => {
   });
 
   test("context opens as a sheet on narrow viewports", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
@@ -184,10 +186,10 @@ test("two clients see identified incident watchers", async ({ browser }) => {
   for (const context of [managerContext, responderContext]) {
     const members = context.getByRole("region", { name: "Members" });
     await expect(
-      members.locator('[aria-label*="manager@opswarden.local"][aria-label$="Online"]'),
+      members.locator(`[aria-label*="${demo.DEMO_MANAGER_EMAIL}"][aria-label$="Online"]`),
     ).toBeVisible();
     await expect(
-      members.locator('[aria-label*="responder@opswarden.local"][aria-label$="Online"]'),
+      members.locator(`[aria-label*="${demo.DEMO_RESPONDER_EMAIL}"][aria-label$="Online"]`),
     ).toBeVisible();
   }
 
@@ -211,7 +213,7 @@ async function openTwoOperators(browser: Browser) {
   const responderContext = await browser.newContext();
   const manager = await managerContext.newPage();
   const responder = await responderContext.newPage();
-  await login(manager, "manager@opswarden.local");
-  await login(responder, "responder@opswarden.local");
+  await login(manager, demo.DEMO_MANAGER_EMAIL);
+  await login(responder, demo.DEMO_RESPONDER_EMAIL);
   return { manager, responder };
 }

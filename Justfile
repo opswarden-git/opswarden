@@ -304,6 +304,9 @@ ci-backend-coverage: (_require "cargo")
 # job "Web · Quality & test"
 ci-web: (_require "npm")
     npm run lint --workspace client-web
+    npm run lint:css
+    npm run knip
+    npm run knip:production
     npm run format:check --workspace client-web
     npm run typecheck --workspace client-web
     npm run test:coverage --workspace client-web

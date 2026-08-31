@@ -27,6 +27,9 @@ DEMO_DELIVERY_IDS = {
     "generic": "opswarden-demo-deployment-failure-v1",
     "alertmanager": "sha256:d3acde02ddffbdb72461e544f436c5f6448d2c9a26aacedc53256310498722ff",
 }
+DEFAULT_LOCAL_TEAM_ID = "50000000-0000-4000-8000-000000000001"
+
+
 class DemoError(RuntimeError):
     pass
 
@@ -227,7 +230,7 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     if configured_team:
         teams = [team for team in teams if team == configured_team]
     if len(teams) == 0 and target == "local":
-        team_id = "50000000-0000-4000-8000-000000000001"
+        team_id = configured_team or DEFAULT_LOCAL_TEAM_ID
         database.execute(
             """begin;
                insert into teams (id, name, invitation_code, created_at) values (:'team_id'::uuid, :'team_name', 'DEMO-' || upper(substring(md5(random()::text) from 1 for 6)), now());
@@ -244,6 +247,22 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     UUID(teams[0])
     variables["team_id"] = teams[0]
     return variables
+
+
+def persist_demo_locale(
+    config: dict[str, str], database: Database, target: str, variables: dict[str, str]
+) -> None:
+    locale = target_value(config, target, "LOCALE", "en")
+    if locale not in {"en", "fr"}:
+        raise DemoError("DEMO_LOCALE must be either en or fr")
+    database.execute(
+        """update users set locale = :'locale'
+           where id in (
+             :'manager_id'::uuid, :'responder_id'::uuid,
+             :'observer_id'::uuid, :'contractor_id'::uuid
+           )""",
+        {**variables, "locale": locale},
+    )
 
 
 def manager_token(config: dict[str, str], target: str, origin: str, prompt: bool) -> str:
@@ -475,6 +494,7 @@ def main() -> int:
     if args.command == "seed":
         bootstrap_accounts(config, args.target, origin)
         variables = identity_variables(config, database, args.target)
+        persist_demo_locale(config, database, args.target, variables)
         token = ""
         if not args.data_only:
             require(

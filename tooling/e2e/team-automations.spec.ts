@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const rulesUrl = `/en/teams/${TEAM_ID}/rules`;
 const integrationsUrl = `/en/teams/${TEAM_ID}/integrations`;
 
@@ -20,9 +21,10 @@ async function openDirectDestination(page: Page, name: "Integrations" | "Rules",
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 async function managerToken(page: Page) {
@@ -56,7 +58,7 @@ test.describe("Team automations", () => {
   for (const width of [320, 768, 1280, 1920]) {
     test(`Manager can navigate Rules and Connections at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
-      await login(page, "manager@opswarden.local");
+      await login(page, demo.DEMO_MANAGER_EMAIL);
       await page.goto(rulesUrl);
       await expect(page.getByRole("heading", { name: "Rules", level: 1 })).toBeVisible();
       await openDirectDestination(page, "Integrations", width);
@@ -70,7 +72,7 @@ test.describe("Team automations", () => {
   test("Manager connects a service and enables a rule", async ({ page }) => {
     test.setTimeout(45_000);
     await page.setViewportSize({ width: 1280, height: 800 });
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     const token = await managerToken(page);
     await clearAutomations(page, token);
 
@@ -101,7 +103,7 @@ test.describe("Team automations", () => {
   });
 
   test("non-Managers do not receive configuration controls", async ({ page }) => {
-    await login(page, "responder@opswarden.local");
+    await login(page, demo.DEMO_RESPONDER_EMAIL);
     await page.goto(`/en/teams/${TEAM_ID}/overview`);
     await expect(page.getByRole("link", { name: "Rules", exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Integrations", exact: true })).toHaveCount(0);
@@ -112,7 +114,7 @@ test.describe("Team automations", () => {
   });
 
   test("global Settings no longer exposes ownerless connectors", async ({ page }) => {
-    await login(page, "manager@opswarden.local");
+    await login(page, demo.DEMO_MANAGER_EMAIL);
     await page.goto("/en/settings");
 
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();

@@ -397,6 +397,7 @@ Release step validations.
 Work from a short-lived branch and keep changes focused on the core platform. Formatting, linting, type checks, tests and the production build must pass before a squash merge into `main`.
 
 Please follow the rules and design standards stated in:
+
 - [Technical documentation](https://opswarden-git.github.io/opswarden/)
 - [WebSocket protocol](docs/WEBSOCKET_SPEC.md)
 - [Design system](docs/DESIGN_SYSTEM.md)

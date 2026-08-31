@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
 async function login(page: Page) {
   await page.goto("/en/login");
-  await page.getByLabel("Email").fill("manager@opswarden.local");
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Email").fill(demo.DEMO_MANAGER_EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
 }
 
 test("account settings stays account-scoped and retires the duplicate connector view", async ({
@@ -16,7 +18,7 @@ test("account settings stays account-scoped and retires the duplicate connector 
 
   await expect(page).toHaveURL(/\/en\/settings(\?view=connectors)?$/);
   await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Manager", exact: true })).toBeVisible();
+  await expect(page.getByText(demo.DEMO_MANAGER_EMAIL, { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Connectors", exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "GitHub", exact: true })).toHaveCount(0);
 

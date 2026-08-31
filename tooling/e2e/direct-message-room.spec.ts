@@ -6,17 +6,19 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import * as demo from "./demo-env";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const MEMBERS_URL = `/en/teams/${TEAM_ID}/team#members`;
 
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
   await page.goto(MEMBERS_URL);
 }
 
@@ -32,7 +34,7 @@ async function openConversation(page: Page, peerEmail: string) {
 
 async function signIn(request: APIRequestContext, email: string) {
   const response = await request.post(`${API_URL}/api/auth/sign-in`, {
-    data: { email, password: "sudo" },
+    data: { email, password: demo.DEMO_PASSWORD },
   });
   expect(response.ok()).toBe(true);
   return ((await response.json()) as { token: string }).token;
@@ -51,8 +53,8 @@ async function openMemberConversationInContext(
 }
 
 test("a Team member opens a full routed conversation", async ({ page }) => {
-  await login(page, "manager@opswarden.local");
-  const room = await openConversation(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_RESPONDER_EMAIL);
 
   await expect(room).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Rooms" })).toHaveCount(0);
@@ -63,8 +65,8 @@ test("a Team member opens a full routed conversation", async ({ page }) => {
 });
 
 test("Observer sends a real private message", async ({ page }) => {
-  await login(page, "observer@opswarden.local");
-  const room = await openConversation(page, "manager@opswarden.local");
+  await login(page, demo.DEMO_OBSERVER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_MANAGER_EMAIL);
   const content = `E2E direct message send ${Date.now()}`;
 
   await room.getByPlaceholder("Write a message…").fill(content);
@@ -92,8 +94,8 @@ test("a direct conversation sends and renders a GIF", async ({ page }) => {
       ]),
     });
   });
-  await login(page, "manager@opswarden.local");
-  const room = await openConversation(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_RESPONDER_EMAIL);
 
   await room.getByRole("button", { name: "Search GIFs" }).click();
   await room.getByPlaceholder("Search…").fill("deploy");
@@ -103,16 +105,16 @@ test("a direct conversation sends and renders a GIF", async ({ page }) => {
 });
 
 test("only the open peer conversation announces a received message", async ({ page, request }) => {
-  await login(page, "manager@opswarden.local");
-  const room = await openConversation(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_RESPONDER_EMAIL);
 
-  const responderToken = await signIn(request, "responder@opswarden.local");
+  const responderToken = await signIn(request, demo.DEMO_RESPONDER_EMAIL);
   const membersResponse = await request.get(`${API_URL}/api/teams/${TEAM_ID}/members`, {
     headers: { Authorization: `Bearer ${responderToken}` },
   });
   expect(membersResponse.ok()).toBe(true);
   const members = (await membersResponse.json()) as Array<{ user_id: string; email: string }>;
-  const managerId = members.find((member) => member.email === "manager@opswarden.local")?.user_id;
+  const managerId = members.find((member) => member.email === demo.DEMO_MANAGER_EMAIL)?.user_id;
   expect(managerId).toBeTruthy();
   const content = `E2E direct message receive ${Date.now()}`;
 
@@ -122,14 +124,16 @@ test("only the open peer conversation announces a received message", async ({ pa
   });
   expect(sendResponse.ok()).toBe(true);
 
-  await expect(room.getByRole("status")).toHaveText("New message from responder@opswarden.local.");
+  await expect(room.getByRole("status")).toHaveText(
+    `New message from ${demo.DEMO_RESPONDER_EMAIL}.`,
+  );
   await expect(room.getByText(content, { exact: true })).toBeVisible();
 });
 
 test("the transcript owns scrolling on a narrow viewport", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 420 });
-  await login(page, "manager@opswarden.local");
-  const room = await openConversation(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_RESPONDER_EMAIL);
 
   await expect(page.getByRole("button", { name: "Rooms" })).toBeVisible();
   const geometry = await room.evaluate((element) => {
@@ -153,8 +157,8 @@ test("the transcript owns scrolling on a narrow viewport", async ({ page }) => {
 });
 
 test("a rich direct message supports a file and edit without reactions", async ({ page }) => {
-  await login(page, "manager@opswarden.local");
-  const room = await openConversation(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
+  const room = await openConversation(page, demo.DEMO_RESPONDER_EMAIL);
   const original = `DM parity ${Date.now()}`;
   const edited = `${original} verified`;
 
@@ -184,24 +188,24 @@ test("a rich direct message supports a file and edit without reactions", async (
 test("presence and typing are live only inside the shared conversation", async ({ browser }) => {
   const manager = await openMemberConversationInContext(
     browser,
-    "manager@opswarden.local",
-    "responder@opswarden.local",
+    demo.DEMO_MANAGER_EMAIL,
+    demo.DEMO_RESPONDER_EMAIL,
   );
   const responder = await openMemberConversationInContext(
     browser,
-    "responder@opswarden.local",
-    "manager@opswarden.local",
+    demo.DEMO_RESPONDER_EMAIL,
+    demo.DEMO_MANAGER_EMAIL,
   );
 
   await expect(
-    manager.page.getByLabel("Chat with responder@opswarden.local — Online"),
+    manager.page.getByLabel(`Chat with ${demo.DEMO_RESPONDER_EMAIL} — Online`),
   ).toBeVisible();
   await responder.page.getByPlaceholder("Write a message…").fill("typing signal");
-  await expect(manager.page.getByText("responder@opswarden.local typing…")).toBeVisible();
+  await expect(manager.page.getByText(`${demo.DEMO_RESPONDER_EMAIL} typing…`)).toBeVisible();
 
   await responder.context.close();
   await expect(
-    manager.page.getByLabel("Chat with responder@opswarden.local — Offline"),
+    manager.page.getByLabel(`Chat with ${demo.DEMO_RESPONDER_EMAIL} — Offline`),
   ).toBeVisible();
   await manager.context.close();
 });

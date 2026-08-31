@@ -57,8 +57,14 @@ done < <(git diff --name-only --diff-filter=AM "$merge_base" --)
 bypasses=$(
   git ls-files -- 'client-web' 'client-desktop' |
     grep --extended-regexp '\.(ts|tsx|js|jsx|mjs|cjs)$' |
-    xargs --no-run-if-empty grep --line-number --extended-regexp \
-      '\bas any\b|@ts-ignore|@ts-nocheck' || true
+    while IFS= read -r source_file; do
+      # `git ls-files` includes paths deleted from the working tree until the
+      # change is committed. Skip those paths instead of emitting misleading
+      # grep errors on every legitimate source deletion.
+      [[ -f "$source_file" ]] || continue
+      grep --line-number --with-filename --extended-regexp \
+        '\bas any\b|@ts-ignore|@ts-nocheck' "$source_file" || true
+    done
 )
 if [[ -n "$bypasses" ]]; then
   echo "$bypasses" >&2

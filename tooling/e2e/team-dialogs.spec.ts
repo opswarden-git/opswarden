@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
 const TEAMS_URL = "/en/teams";
@@ -6,15 +7,16 @@ const TEAMS_URL = "/en/teams";
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
   await page.goto(TEAMS_URL);
 }
 
 async function managerToken(request: APIRequestContext) {
   const response = await request.post(`${API_URL}/api/auth/sign-in`, {
-    data: { email: "manager@opswarden.local", password: "sudo" },
+    data: { email: demo.DEMO_MANAGER_EMAIL, password: demo.DEMO_PASSWORD },
   });
   expect(response.ok()).toBe(true);
   return ((await response.json()) as { token: string }).token;
@@ -36,7 +38,7 @@ async function createJoinableTeam(request: APIRequestContext) {
 }
 
 test("Create team owns focus, Escape, restoration and fresh state", async ({ page }) => {
-  await login(page, "manager@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
   const trigger = page.getByRole("button", { name: "Create team", exact: true });
   await trigger.click();
 
@@ -54,7 +56,7 @@ test("Create team owns focus, Escape, restoration and fresh state", async ({ pag
 });
 
 test("Manager creates a Team from the Workspace controls", async ({ page }) => {
-  await login(page, "manager@opswarden.local");
+  await login(page, demo.DEMO_MANAGER_EMAIL);
   const name = `E2E team dialog create ${Date.now()}`;
   await page.getByRole("button", { name: "Create team", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Create new team" });
@@ -68,7 +70,7 @@ test("Manager creates a Team from the Workspace controls", async ({ page }) => {
 
 test("Responder joins a Team with a real invitation code", async ({ page, request }) => {
   const team = await createJoinableTeam(request);
-  await login(page, "responder@opswarden.local");
+  await login(page, demo.DEMO_RESPONDER_EMAIL);
   await page.getByRole("button", { name: "Join team", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Join existing team" });
 
@@ -84,7 +86,7 @@ test("Responder joins a Team with a real invitation code", async ({ page, reques
 });
 
 test("Join Team announces errors and clears them on a new open", async ({ page }) => {
-  await login(page, "observer@opswarden.local");
+  await login(page, demo.DEMO_OBSERVER_EMAIL);
   const trigger = page.getByRole("button", { name: "Join team", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Join existing team" });

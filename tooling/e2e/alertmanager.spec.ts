@@ -1,17 +1,19 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import * as demo from "./demo-env";
 
-const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const TEAM_ID = demo.DEMO_TEAM_ID;
 const SECRET = "e2e-alertmanager-secret";
 const runtimeConfig = resolve(__dirname, "../../target/e2e-alertmanager/alertmanager.yml");
 
 async function login(page: Page) {
   await page.goto("/en/login");
-  await page.getByLabel("Email").fill("manager@opswarden.local");
-  await page.getByLabel("Password", { exact: true }).fill("sudo");
+  await page.getByLabel("Email").fill(demo.DEMO_MANAGER_EMAIL);
+  await page.getByLabel("Password", { exact: true }).fill(demo.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/en\/teams\//);
+  await expect(page).toHaveURL(demo.TEAM_URL_PATTERN);
+  await demo.finishGuidedTour(page);
   return page.evaluate(() => {
     const raw = localStorage.getItem("opswarden-auth-storage");
     return raw ? (JSON.parse(raw).state.token as string) : "";

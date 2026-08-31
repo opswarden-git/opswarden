@@ -20,9 +20,11 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       include: [
+        "app/**/*.{ts,tsx}",
         "components/**/*.{ts,tsx}",
         "i18n/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
+        "proxy.ts",
         "store/**/*.{ts,tsx}",
       ],
       exclude: ["**/*.test.*", "**/types.ts"],

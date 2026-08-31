@@ -116,8 +116,6 @@ export function RoomNavigation({
   );
 }
 
-export { RoomNavigation as WarRoomNavigation };
-
 function IncidentRow({
   active,
   incident,

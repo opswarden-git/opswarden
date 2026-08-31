@@ -45,6 +45,43 @@ class DemoCliTests(unittest.TestCase):
             ["-v", "team_id=one", "-v", "manager_id=two"],
         )
 
+    def test_fresh_local_team_uses_the_configured_id(self) -> None:
+        class FakeDatabase:
+            def __init__(self) -> None:
+                self.user_ids = iter(
+                    [
+                        "10000000-0000-4000-8000-000000000001",
+                        "10000000-0000-4000-8000-000000000002",
+                        "10000000-0000-4000-8000-000000000003",
+                        "10000000-0000-4000-8000-000000000004",
+                    ]
+                )
+                self.executed_variables: dict[str, str] | None = None
+
+            def query(self, sql: str, _variables: dict[str, str]) -> list[str]:
+                if "select id from users" in sql:
+                    return [next(self.user_ids)]
+                return []
+
+            def execute(self, _sql: str, variables: dict[str, str]) -> None:
+                self.executed_variables = variables
+
+        configured_team_id = "39aa8884-22cc-4764-a9e7-7df7c7619ba6"
+        database = FakeDatabase()
+        config = {
+            "DEMO_LOCAL_TEAM_ID": configured_team_id,
+            "DEMO_LOCAL_TEAM_NAME": "OpsWarden Demo",
+            "DEMO_LOCAL_MANAGER_EMAIL": "manager@example.com",
+            "DEMO_RESPONDER_EMAIL": "responder@example.com",
+            "DEMO_OBSERVER_EMAIL": "observer@example.com",
+            "DEMO_CONTRACTOR_EMAIL": "contractor@example.com",
+        }
+
+        variables = demo.identity_variables(config, database, "local")
+
+        self.assertEqual(variables["team_id"], configured_team_id)
+        self.assertEqual(database.executed_variables["team_id"], configured_team_id)
+
     def test_presentation_delivery_ids_are_stable_and_provider_safe(self) -> None:
         self.assertEqual(
             demo.DEMO_DELIVERY_IDS["github"],
@@ -55,6 +92,30 @@ class DemoCliTests(unittest.TestCase):
             "sha256:d3acde02ddffbdb72461e544f436c5f6448d2c9a26aacedc53256310498722ff",
         )
         self.assertTrue(all(len(delivery_id) <= 255 for delivery_id in demo.DEMO_DELIVERY_IDS.values()))
+
+    def test_seed_locale_is_validated_and_persisted_for_every_demo_identity(self) -> None:
+        class FakeDatabase:
+            def __init__(self) -> None:
+                self.sql = ""
+                self.variables: dict[str, str] = {}
+
+            def execute(self, sql: str, variables: dict[str, str]) -> None:
+                self.sql = sql
+                self.variables = variables
+
+        identities = {
+            "manager_id": "manager",
+            "responder_id": "responder",
+            "observer_id": "observer",
+            "contractor_id": "contractor",
+        }
+        database = FakeDatabase()
+        demo.persist_demo_locale({"DEMO_LOCALE": "fr"}, database, "local", identities)
+        self.assertIn("update users set locale", database.sql)
+        self.assertEqual(database.variables["locale"], "fr")
+
+        with self.assertRaisesRegex(demo.DemoError, "either en or fr"):
+            demo.persist_demo_locale({"DEMO_LOCALE": "de"}, database, "local", identities)
 
     def test_wait_for_demo_runs_requires_every_rule_to_finish(self) -> None:
         class FakeDatabase:
