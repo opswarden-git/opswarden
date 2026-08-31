@@ -51,8 +51,19 @@ def value(config: dict[str, str], name: str, default: str = "") -> str:
     return config.get(name, default).strip()
 
 
+DEFAULT_DEMO_VALUES = {
+    "PASSWORD": "OpsWarden",
+    "MANAGER_EMAIL": "manager.demo@opswarden.local",
+    "RESPONDER_EMAIL": "responder.demo@opswarden.local",
+    "OBSERVER_EMAIL": "observer.demo@opswarden.local",
+    "CONTRACTOR_EMAIL": "contractor.demo@opswarden.local",
+    "TEAM_NAME": "OpsWarden",
+}
+
+
 def target_value(config: dict[str, str], target: str, name: str, default: str = "") -> str:
-    return value(config, f"DEMO_{target.upper()}_{name}") or value(config, f"DEMO_{name}", default)
+    fallback = default or DEFAULT_DEMO_VALUES.get(name, "")
+    return value(config, f"DEMO_{target.upper()}_{name}") or value(config, f"DEMO_{name}", fallback)
 
 
 def require(config: dict[str, str], *names: str) -> None:
