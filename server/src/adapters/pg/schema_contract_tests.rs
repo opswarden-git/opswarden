@@ -15,7 +15,8 @@ fn quoted_values(constraint: &str) -> BTreeSet<String> {
     constraint
         .split('\'')
         .enumerate()
-        .filter_map(|(index, value)| (index % 2 == 1).then(|| value.to_owned()))
+        .filter(|&(index, _)| index % 2 == 1)
+        .map(|(_, value)| value.to_owned())
         .collect()
 }
 

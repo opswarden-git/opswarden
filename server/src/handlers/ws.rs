@@ -284,9 +284,12 @@ async fn authenticate(text: &str, state: &AppState) -> Option<AuthenticatedSocke
     {
         return None;
     }
-    if state.users.find_by_id(claims.user_id).await.ok()?.is_none() {
-        return None;
-    }
+    state
+        .users
+        .find_by_id(claims.user_id)
+        .await
+        .ok()?
+        .as_ref()?;
     Some(AuthenticatedSocket {
         claims,
         token: auth.token,
