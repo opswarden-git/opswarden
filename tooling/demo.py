@@ -154,11 +154,17 @@ class Database:
 
     def execute(self, sql: str, variables: dict[str, str] | None = None) -> None:
         command = self.command + self.variable_args(variables or {}) + ["-v", "ON_ERROR_STOP=1"]
-        subprocess.run(command, input=sql, check=True, text=True, capture_output=True)
+        result = subprocess.run(command, input=sql, text=True, capture_output=True)
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or result.stdout.strip()
+            raise DemoError(f"Database execute error: {stderr}")
 
     def apply(self, path: Path, variables: dict[str, str]) -> None:
         command = self.command + self.variable_args(variables) + ["-v", "ON_ERROR_STOP=1"]
-        subprocess.run(command, input=path.read_text(encoding="utf-8"), text=True, check=True)
+        result = subprocess.run(command, input=path.read_text(encoding="utf-8"), text=True, capture_output=True)
+        if result.returncode != 0:
+            stderr = result.stderr.strip() or result.stdout.strip()
+            raise DemoError(f"Failed to apply {path.name}: {stderr}")
 
 
 def ensure_health(origin: str) -> None:
@@ -217,7 +223,7 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     if len(teams) == 0 and target == "local":
         team_id = str(uuid4())
         database.execute(
-            """insert into teams (id, name, created_at, updated_at) values (:'team_id'::uuid, :'team_name', now(), now());
+            """insert into teams (id, name, invitation_code, created_at) values (:'team_id'::uuid, :'team_name', 'DEMO-' || upper(substring(md5(random()::text) from 1 for 6)), now());
                insert into team_members (team_id, user_id, role, joined_at) values (:'team_id'::uuid, :'manager_id'::uuid, 'manager', now());""",
             {"team_id": team_id, "team_name": team_name, "manager_id": variables["manager_id"]},
         )
