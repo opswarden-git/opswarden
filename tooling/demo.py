@@ -52,7 +52,7 @@ def value(config: dict[str, str], name: str, default: str = "") -> str:
 
 
 DEFAULT_DEMO_VALUES = {
-    "PASSWORD": "OpsWarden",
+    "PASSWORD": "sudo",
     "MANAGER_EMAIL": "manager@opswarden.local",
     "RESPONDER_EMAIL": "responder@opswarden.local",
     "OBSERVER_EMAIL": "observer@opswarden.local",
