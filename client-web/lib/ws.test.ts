@@ -201,6 +201,7 @@ describe("WebSocket contract consumers", () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["incidents"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-runs"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-connections"] });
   });
 
   it("consumes the canonical failed-rule error code", () => {
@@ -218,6 +219,7 @@ describe("WebSocket contract consumers", () => {
     );
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-runs"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["team-automation-connections"] });
     expect(log).toHaveBeenCalledWith(
       "[Automation] Rule failed for http: Notify responder - reaction_http_5xx",
     );
