@@ -1,4 +1,4 @@
-use super::{automation_catalog, resolve_client_ip};
+use super::{automation_catalog, localize_capability, localize_field, resolve_client_ip};
 use axum::http::{HeaderMap, HeaderValue};
 use std::net::IpAddr;
 
@@ -125,4 +125,23 @@ fn every_server_owned_catalog_sentence_has_a_french_variant() {
             }
         }
     }
+}
+
+#[test]
+fn catalog_localization_is_keyed_by_stable_identifiers() {
+    assert_eq!(
+        localize_capability("gitlab", "ci_failed", "fr", "rewritten English", true),
+        "Échec d’une pipeline CI"
+    );
+    assert_eq!(
+        localize_field(
+            "gitlab",
+            "connection",
+            "webhook_signing_secret",
+            "fr",
+            "rewritten English",
+            false,
+        ),
+        "Obligatoire à la première connexion ; envoyé par GitLab dans X-Gitlab-Token"
+    );
 }

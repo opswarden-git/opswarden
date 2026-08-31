@@ -3,7 +3,8 @@
 import React from "react";
 import { ChevronDown, ChevronUp, Crown, UserMinus, Ban } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { TeamMember } from "@/lib/queries/teams";
+import type { AssignableTeamRole } from "@/lib/capabilities";
+import type { TeamMember } from "@/lib/queries/teams";
 import { ActionMenu, type ActionMenuEntry } from "@/components/ui/ActionMenu";
 
 /**
@@ -20,7 +21,7 @@ export function MemberRowActions({
 }: {
   member: TeamMember;
   pending: boolean;
-  onSetRole: (role: "observer" | "responder") => void;
+  onSetRole: (role: AssignableTeamRole) => void;
   onMakeManager: () => void;
   onKick: () => void;
   onBan: () => void;

@@ -60,7 +60,7 @@ pub(crate) mod tests {
         pub team: Option<Team>,
         /// Preset memberships consulted by `find_member_role` (user → role).
         pub roles: HashMap<Uuid, Role>,
-        pub saved: Mutex<Vec<Team>>,
+        pub created: Mutex<Vec<(Uuid, Uuid)>>,
         pub added: Mutex<Vec<(Uuid, Uuid, Role)>>,
         pub transfers: Mutex<Vec<(Uuid, Uuid, Uuid)>>,
         pub deleted: Mutex<Vec<Uuid>>,
@@ -90,8 +90,12 @@ pub(crate) mod tests {
 
     #[async_trait]
     impl TeamRepo for MockTeamRepo {
-        async fn save_team(&self, team: &Team) -> Result<(), DomainError> {
-            self.saved.lock().unwrap().push(team.clone());
+        async fn create_team_with_manager(
+            &self,
+            team: &Team,
+            manager_id: Uuid,
+        ) -> Result<(), DomainError> {
+            self.created.lock().unwrap().push((team.id, manager_id));
             Ok(())
         }
 
@@ -184,6 +188,16 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn kick_member_and_clear_assignments(
+            &self,
+            team_id: Uuid,
+            _requester_id: Uuid,
+            target_user_id: Uuid,
+        ) -> Result<(), DomainError> {
+            self.removed.lock().unwrap().push((team_id, target_user_id));
+            Ok(())
+        }
+
         async fn count_members(&self, _team_id: Uuid) -> Result<u64, DomainError> {
             Ok(self.roles.len() as u64)
         }
@@ -222,6 +236,22 @@ pub(crate) mod tests {
             Ok(())
         }
 
+        async fn ban_member_and_clear_assignments(
+            &self,
+            ban: &TeamBan,
+            _requester_id: Uuid,
+        ) -> Result<bool, DomainError> {
+            let removed_membership = self.roles.contains_key(&ban.user_id);
+            self.add_ban(ban).await?;
+            if removed_membership {
+                self.removed
+                    .lock()
+                    .unwrap()
+                    .push((ban.team_id, ban.user_id));
+            }
+            Ok(removed_membership)
+        }
+
         async fn find_ban(
             &self,
             _team_id: Uuid,
@@ -256,6 +286,26 @@ pub(crate) mod tests {
                 .lock()
                 .unwrap()
                 .retain(|ban| ban.user_id != user_id);
+            Ok(())
+        }
+
+        async fn save_team_image(
+            &self,
+            _team_id: Uuid,
+            _image: &crate::domain::team::TeamImage,
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn find_team_image_for_member(
+            &self,
+            _team_id: Uuid,
+            _user_id: Uuid,
+        ) -> Result<Option<crate::domain::team::TeamImage>, DomainError> {
+            Ok(None)
+        }
+
+        async fn delete_team_image(&self, _team_id: Uuid) -> Result<(), DomainError> {
             Ok(())
         }
     }

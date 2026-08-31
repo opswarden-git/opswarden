@@ -14,6 +14,46 @@ const SMTP_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, Default)]
 pub struct SmtpEmailSender;
 
+use std::net::IpAddr;
+
+/// Validates that an SMTP host is not a private, loopback, or link-local network destination.
+fn validate_smtp_host(host: &str) -> Result<(), DomainError> {
+    let trimmed = host.trim().to_lowercase();
+    if trimmed.is_empty()
+        || trimmed == "localhost"
+        || trimmed.ends_with(".local")
+        || trimmed.ends_with(".localhost")
+        || trimmed.ends_with(".internal")
+    {
+        error!("SMTP host {} is a local or internal destination", host);
+        return Err(DomainError::EmailTransportError);
+    }
+
+    if let Ok(ip) = trimmed.parse::<IpAddr>() {
+        match ip {
+            IpAddr::V4(ipv4) => {
+                if ipv4.is_loopback()
+                    || ipv4.is_private()
+                    || ipv4.is_link_local()
+                    || ipv4.is_unspecified()
+                    || ipv4.is_broadcast()
+                {
+                    error!("SMTP IP address {} is private or loopback", ip);
+                    return Err(DomainError::EmailTransportError);
+                }
+            }
+            IpAddr::V6(ipv6) => {
+                if ipv6.is_loopback() || ipv6.is_unspecified() {
+                    error!("SMTP IPv6 address {} is private or loopback", ip);
+                    return Err(DomainError::EmailTransportError);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 impl SmtpEmailSender {
     pub fn new() -> Self {
         Self
@@ -24,6 +64,7 @@ impl SmtpEmailSender {
     /// STARTTLS. Shared by the connection test and the reaction so both exercise
     /// the same handshake.
     fn transport(config: &SmtpConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, DomainError> {
+        validate_smtp_host(&config.host)?;
         let credentials = Credentials::new(config.username.clone(), config.password.clone());
         let builder = if matches!(config.port, 465 | 2465) {
             AsyncSmtpTransport::<Tokio1Executor>::relay(&config.host)
@@ -110,7 +151,7 @@ mod tests {
 
     fn config() -> SmtpConfig {
         SmtpConfig {
-            host: "localhost".to_string(),
+            host: "smtp.example.com".to_string(),
             port: 587,
             username: "user".to_string(),
             password: "pass".to_string(),
@@ -124,6 +165,39 @@ mod tests {
             subject: "Subj".to_string(),
             body: "Body".to_string(),
         }
+    }
+
+    #[test]
+    fn ssrf_hosts_are_rejected() {
+        assert_eq!(
+            validate_smtp_host("localhost"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("127.0.0.1"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("10.0.0.1"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("192.168.1.1"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("169.254.169.254"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("server.local"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert_eq!(
+            validate_smtp_host("internal.localhost"),
+            Err(DomainError::EmailTransportError)
+        );
+        assert!(validate_smtp_host("smtp.example.com").is_ok());
     }
 
     #[tokio::test]

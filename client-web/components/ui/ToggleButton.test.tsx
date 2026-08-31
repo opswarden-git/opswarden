@@ -44,7 +44,9 @@ describe("CopyButton", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
 
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("OPS-123"));
-    expect(screen.getByRole("button", { name: "Code copied" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Code copied" })).toBeInTheDocument(),
+    );
+    expect(writeText).toHaveBeenCalledWith("OPS-123");
   });
 });

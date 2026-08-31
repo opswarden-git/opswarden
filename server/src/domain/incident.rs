@@ -13,15 +13,50 @@ pub enum IncidentStatus {
     Resolved,
 }
 
+impl IncidentStatus {
+    pub const ALL: &'static [Self] = &[
+        Self::Open,
+        Self::Acknowledged,
+        Self::Escalated,
+        Self::Resolved,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Acknowledged => "acknowledged",
+            Self::Escalated => "escalated",
+            Self::Resolved => "resolved",
+        }
+    }
+
+    pub const fn allowed_transitions(self) -> &'static [Self] {
+        match self {
+            Self::Open => &[Self::Acknowledged],
+            Self::Acknowledged => &[Self::Escalated, Self::Resolved],
+            Self::Escalated => &[Self::Resolved],
+            Self::Resolved => &[],
+        }
+    }
+}
+
+impl TryFrom<&str> for IncidentStatus {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "open" => Ok(Self::Open),
+            "acknowledged" => Ok(Self::Acknowledged),
+            "escalated" => Ok(Self::Escalated),
+            "resolved" => Ok(Self::Resolved),
+            _ => Err(DomainError::InvalidIncidentStatus),
+        }
+    }
+}
+
 impl fmt::Display for IncidentStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            IncidentStatus::Open => "open",
-            IncidentStatus::Acknowledged => "acknowledged",
-            IncidentStatus::Escalated => "escalated",
-            IncidentStatus::Resolved => "resolved",
-        };
-        f.write_str(value)
+        f.write_str(self.as_str())
     }
 }
 
@@ -33,15 +68,36 @@ pub enum Severity {
     Critical,
 }
 
+impl Severity {
+    pub const ALL: &'static [Self] = &[Self::Low, Self::Medium, Self::High, Self::Critical];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+}
+
+impl TryFrom<&str> for Severity {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "critical" => Ok(Self::Critical),
+            _ => Err(DomainError::InvalidSeverity),
+        }
+    }
+}
+
 impl fmt::Display for Severity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            Severity::Low => "low",
-            Severity::Medium => "medium",
-            Severity::High => "high",
-            Severity::Critical => "critical",
-        };
-        f.write_str(value)
+        f.write_str(self.as_str())
     }
 }
 
@@ -123,43 +179,27 @@ impl Incident {
     }
 
     pub fn acknowledge(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Open => {
-                self.status = IncidentStatus::Acknowledged;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Acknowledged => Ok(false),
-            IncidentStatus::Escalated | IncidentStatus::Resolved => {
-                Err(DomainError::InvalidIncidentTransition)
-            }
-        }
+        self.transition_to(IncidentStatus::Acknowledged)
     }
 
     pub fn escalate(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Acknowledged => {
-                self.status = IncidentStatus::Escalated;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Escalated => Ok(false),
-            IncidentStatus::Open | IncidentStatus::Resolved => {
-                Err(DomainError::InvalidIncidentTransition)
-            }
-        }
+        self.transition_to(IncidentStatus::Escalated)
     }
 
     pub fn resolve(&mut self) -> Result<bool, DomainError> {
-        match self.status {
-            IncidentStatus::Acknowledged | IncidentStatus::Escalated => {
-                self.status = IncidentStatus::Resolved;
-                self.updated_at = Utc::now();
-                Ok(true)
-            }
-            IncidentStatus::Resolved => Ok(false),
-            IncidentStatus::Open => Err(DomainError::InvalidIncidentTransition),
+        self.transition_to(IncidentStatus::Resolved)
+    }
+
+    pub fn transition_to(&mut self, status: IncidentStatus) -> Result<bool, DomainError> {
+        if self.status == status && status != IncidentStatus::Open {
+            return Ok(false);
         }
+        if !self.status.allowed_transitions().contains(&status) {
+            return Err(DomainError::InvalidIncidentTransition);
+        }
+        self.status = status;
+        self.updated_at = Utc::now();
+        Ok(true)
     }
 }
 

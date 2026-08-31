@@ -15,7 +15,7 @@ use crate::domain::event::DomainEvent;
 use crate::domain::team::validate_member_moderation;
 #[cfg(test)]
 use crate::domain::team::Role;
-use crate::ports::{EventPublisher, IncidentRepo, TeamRepo};
+use crate::ports::{EventPublisher, TeamRepo};
 
 pub struct KickMemberCommand {
     pub team_id: Uuid,
@@ -25,21 +25,12 @@ pub struct KickMemberCommand {
 
 pub struct KickMemberUseCase {
     teams: Arc<dyn TeamRepo>,
-    incidents: Arc<dyn IncidentRepo>,
     events: Arc<dyn EventPublisher>,
 }
 
 impl KickMemberUseCase {
-    pub fn new(
-        teams: Arc<dyn TeamRepo>,
-        incidents: Arc<dyn IncidentRepo>,
-        events: Arc<dyn EventPublisher>,
-    ) -> Self {
-        Self {
-            teams,
-            incidents,
-            events,
-        }
+    pub fn new(teams: Arc<dyn TeamRepo>, events: Arc<dyn EventPublisher>) -> Self {
+        Self { teams, events }
     }
 
     pub async fn kick_member(&self, cmd: KickMemberCommand) -> Result<(), DomainError> {
@@ -63,12 +54,7 @@ impl KickMemberUseCase {
         validate_member_moderation(cmd.requester_id, cmd.target_user_id, Some(target_role))?;
 
         self.teams
-            .remove_member(cmd.team_id, cmd.target_user_id)
-            .await?;
-
-        // No incident may stay assigned to the removed member.
-        self.incidents
-            .clear_assignee_for_member(cmd.team_id, cmd.target_user_id)
+            .kick_member_and_clear_assignments(cmd.team_id, cmd.requester_id, cmd.target_user_id)
             .await?;
 
         // Notify the team's live clients: peers refresh the roster, the removed
@@ -88,23 +74,12 @@ impl KickMemberUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::incident::tests::{MockEventPublisher, MockIncidentRepo};
+    use crate::app::incident::tests::MockEventPublisher;
     use crate::app::team::tests::MockTeamRepo;
 
-    fn build(
-        teams: Arc<MockTeamRepo>,
-    ) -> (
-        KickMemberUseCase,
-        Arc<MockIncidentRepo>,
-        Arc<MockEventPublisher>,
-    ) {
-        let incidents = Arc::new(MockIncidentRepo::default());
+    fn build(teams: Arc<MockTeamRepo>) -> (KickMemberUseCase, Arc<MockEventPublisher>) {
         let events = Arc::new(MockEventPublisher::default());
-        (
-            KickMemberUseCase::new(teams, incidents.clone(), events.clone()),
-            incidents,
-            events,
-        )
+        (KickMemberUseCase::new(teams, events.clone()), events)
     }
 
     fn cmd(team: Uuid, requester: Uuid, target: Uuid) -> KickMemberCommand {
@@ -125,7 +100,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(observer, Role::Observer),
         );
-        let (use_case, incidents, events) = build(repo.clone());
+        let (use_case, events) = build(repo.clone());
 
         use_case
             .kick_member(cmd(team, manager, observer))
@@ -133,12 +108,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(repo.removed.lock().unwrap().as_slice(), &[(team, observer)]);
-        // The kicked member's assignments are cleared.
-        assert_eq!(
-            incidents.cleared.lock().unwrap().as_slice(),
-            &[(team, observer)]
-        );
-        // And the team's live clients are notified.
+        // The team's live clients are notified after the atomic write.
         assert!(matches!(
             events.published.lock().unwrap().as_slice(),
             [DomainEvent::MemberKicked {
@@ -159,7 +129,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(responder, Role::Responder),
         );
-        let (use_case, _incidents, _events) = build(repo.clone());
+        let (use_case, _events) = build(repo.clone());
 
         use_case
             .kick_member(cmd(team, manager, responder))
@@ -182,7 +152,7 @@ mod tests {
                 .with_member(responder, Role::Responder)
                 .with_member(observer, Role::Observer),
         );
-        let (use_case, _incidents, _events) = build(repo.clone());
+        let (use_case, _events) = build(repo.clone());
 
         let result = use_case.kick_member(cmd(team, responder, observer)).await;
 
@@ -195,7 +165,7 @@ mod tests {
         let team = Uuid::new_v4();
         let manager = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::default().with_member(manager, Role::Manager));
-        let (use_case, _incidents, _events) = build(repo.clone());
+        let (use_case, _events) = build(repo.clone());
 
         let result = use_case.kick_member(cmd(team, manager, manager)).await;
 
@@ -215,7 +185,7 @@ mod tests {
                 .with_member(manager, Role::Manager)
                 .with_member(other_manager, Role::Manager),
         );
-        let (use_case, _incidents, _events) = build(repo.clone());
+        let (use_case, _events) = build(repo.clone());
 
         let result = use_case
             .kick_member(cmd(team, manager, other_manager))
@@ -230,7 +200,7 @@ mod tests {
         let team = Uuid::new_v4();
         let manager = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::default().with_member(manager, Role::Manager));
-        let (use_case, _incidents, _events) = build(repo.clone());
+        let (use_case, _events) = build(repo.clone());
 
         let result = use_case
             .kick_member(cmd(team, manager, Uuid::new_v4()))

@@ -3,11 +3,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use super::team_access::require_manager;
-use super::team_connection::{TeamConnectionView, GITHUB_SERVICE};
+use super::team_connection::TeamConnectionView;
+use crate::domain::automation_catalog::GITHUB_SERVICE;
 use crate::domain::automation_config::{CredentialKind, ServiceConnection};
 use crate::domain::error::DomainError;
 use crate::ports::{
-    ConnectionCredentialVault, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo,
+    ConnectionCredentialVault, ConnectionHealthMutation, CredentialMutation, ServiceConnectionRepo,
+    ServiceOAuthClient, TeamRepo,
 };
 
 pub struct StartGithubOAuthCommand {
@@ -72,34 +74,27 @@ impl TeamConnectionOAuthUseCase {
             .oauth
             .exchange_code(&cmd.code, &cmd.code_verifier)
             .await?;
+        let candidate = match self
+            .connections
+            .find_connection_by_service(cmd.team_id, GITHUB_SERVICE)
+            .await?
+        {
+            Some(connection) => connection,
+            None => ServiceConnection::new(cmd.team_id, GITHUB_SERVICE, cmd.requester_id)?,
+        };
+        let mutations = [
+            CredentialMutation {
+                kind: CredentialKind::OAuthAccessToken,
+                secret: Some(tokens.access_token),
+            },
+            CredentialMutation {
+                kind: CredentialKind::OAuthRefreshToken,
+                secret: tokens.refresh_token,
+            },
+        ];
         let connection = self
-            .github_connection(cmd.team_id, cmd.requester_id)
-            .await?;
-
-        self.credentials
-            .store_credential(
-                connection.id,
-                CredentialKind::OAuthAccessToken,
-                &tokens.access_token,
-            )
-            .await?;
-        if let Some(refresh_token) = tokens.refresh_token {
-            self.credentials
-                .store_credential(
-                    connection.id,
-                    CredentialKind::OAuthRefreshToken,
-                    &refresh_token,
-                )
-                .await?;
-        } else {
-            // Reauthorization must not leave an old refresh token paired with a
-            // newly issued access token that cannot be refreshed with it.
-            self.credentials
-                .delete_credential(connection.id, CredentialKind::OAuthRefreshToken)
-                .await?;
-        }
-        self.connections
-            .record_reaction_result(connection.id, None)
+            .credentials
+            .configure_connection(&candidate, &mutations, ConnectionHealthMutation::Verified)
             .await?;
         self.connection_view(cmd.team_id, connection.id).await
     }
@@ -122,45 +117,21 @@ impl TeamConnectionOAuthUseCase {
             .ok_or(DomainError::OAuthFailed)?;
         let tokens = self.oauth.refresh_access_token(&current_refresh).await?;
 
-        self.credentials
-            .store_credential(
-                connection.id,
-                CredentialKind::OAuthAccessToken,
-                &tokens.access_token,
-            )
-            .await?;
+        let mut mutations = vec![CredentialMutation {
+            kind: CredentialKind::OAuthAccessToken,
+            secret: Some(tokens.access_token),
+        }];
         if let Some(rotated_refresh) = tokens.refresh_token {
-            self.credentials
-                .store_credential(
-                    connection.id,
-                    CredentialKind::OAuthRefreshToken,
-                    &rotated_refresh,
-                )
-                .await?;
+            mutations.push(CredentialMutation {
+                kind: CredentialKind::OAuthRefreshToken,
+                secret: Some(rotated_refresh),
+            });
         }
-        self.connections
-            .record_reaction_result(connection.id, None)
+        let connection = self
+            .credentials
+            .configure_connection(&connection, &mutations, ConnectionHealthMutation::Verified)
             .await?;
         self.connection_view(cmd.team_id, connection.id).await
-    }
-
-    async fn github_connection(
-        &self,
-        team_id: Uuid,
-        requester_id: Uuid,
-    ) -> Result<ServiceConnection, DomainError> {
-        match self
-            .connections
-            .find_connection_by_service(team_id, GITHUB_SERVICE)
-            .await?
-        {
-            Some(connection) => Ok(connection),
-            None => {
-                let connection = ServiceConnection::new(team_id, GITHUB_SERVICE, requester_id)?;
-                self.connections.insert_connection(&connection).await?;
-                Ok(connection)
-            }
-        }
     }
 
     async fn connection_view(

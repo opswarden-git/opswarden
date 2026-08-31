@@ -92,8 +92,8 @@ describe("ReleasesPage", () => {
     expect(screen.queryByRole("heading", { name: "title" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "createRelease" })).toBeInTheDocument();
     expect(screen.getAllByText("Production deployment")).toHaveLength(2);
-    expect(screen.queryByText("Emergency rollout")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("progressbar")).toHaveLength(2);
+    expect(screen.getAllByText("Emergency rollout")).toHaveLength(2);
+    expect(screen.getAllByRole("progressbar")).toHaveLength(4);
     const table = screen.getByRole("table", { name: "tableLabel" });
     expect(
       within(table)
@@ -109,13 +109,12 @@ describe("ReleasesPage", () => {
     expect(push).toHaveBeenCalledWith("/teams/team-1/releases?view=blocked");
   });
 
-  it("preserves the selected view and redirects legacy detail URLs", () => {
-    params = new URLSearchParams("view=blocked&release=release-2");
+  it("preserves the selected view filter", () => {
+    params = new URLSearchParams("view=blocked");
     render(<ReleasesPage teamId="team-1" />);
 
     expect(screen.getAllByText("Emergency rollout")).toHaveLength(2);
     expect(screen.getAllByText("Database outage")).toHaveLength(2);
-    expect(replace).toHaveBeenCalledWith("/teams/team-1/releases/release-2?view=blocked");
   });
 
   it("searches releases by title and preserves collection state in the URL", async () => {

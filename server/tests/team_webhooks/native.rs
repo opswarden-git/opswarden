@@ -5,6 +5,12 @@ async fn github_event_validates_the_next_release_step_and_records_the_run() {
     let release =
         Release::new(team_id, "v1.1.0", vec!["build".into(), "production".into()]).unwrap();
     ctx.releases.save_release(&release).await.unwrap();
+    let linked_incident = Incident::new(team_id, "Deployment risk", Severity::High).unwrap();
+    ctx.incidents.save_incident(&linked_incident).await.unwrap();
+    ctx.releases
+        .link_incident(release.id, linked_incident.id)
+        .await
+        .unwrap();
     let (connection, rule) = seed_github_reaction(
         &ctx,
         team_id,
@@ -34,10 +40,17 @@ async fn github_event_validates_the_next_release_step_and_records_the_run() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.base_state, ReleaseState::InProgress);
+    assert_eq!(stored.base_state, ReleaseBaseState::InProgress);
     assert_eq!(stored.steps[0].validated_by, rule.created_by);
     assert!(stored.steps[0].validated_at.is_some());
     assert!(stored.steps[1].validated_at.is_none());
+    let history = ctx
+        .incidents
+        .list_events_for_incident(linked_incident.id, None, 10)
+        .await
+        .unwrap();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].kind, IncidentEventKind::ReleaseStepValidated);
     assert_eq!(
         ctx.automation_runs.all()[0].status,
         AutomationRunStatus::Succeeded
@@ -200,7 +213,7 @@ async fn native_reactions_cannot_mutate_another_teams_release() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(stored.base_state, ReleaseState::Created);
+    assert_eq!(stored.base_state, ReleaseBaseState::Created);
     assert!(stored.steps.iter().all(|step| !step.is_validated()));
     assert_eq!(
         ctx.automation_runs.all()[0].status,

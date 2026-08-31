@@ -15,9 +15,14 @@ async fn signed_delivery_creates_incident_and_durable_run_then_duplicate_is_noop
         "severity": "critical",
         "title": "[{{repository}}] {{workflow}} failed"
     });
+    let expected_updated_at = rule.updated_at;
     rule.replace_definition(definition).unwrap();
-    assert!(ctx.automation_rules.update_rule(&rule).await.unwrap());
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    assert!(ctx
+        .automation_rules
+        .update_rule(&rule, expected_updated_at)
+        .await
+        .unwrap());
+    let (tx, mut rx) = mpsc::channel(256);
     ctx.events
         .register(Uuid::new_v4(), HashSet::from([team_id]), tx);
     while rx.try_recv().is_ok() {}

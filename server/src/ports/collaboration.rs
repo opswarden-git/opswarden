@@ -6,7 +6,7 @@ use crate::domain::error::DomainError;
 use crate::domain::incident::Incident;
 use crate::domain::incident_event::IncidentEvent;
 use crate::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
-use crate::domain::release::{Release, ReleaseState};
+use crate::domain::release::{Release, ReleaseBaseState};
 use crate::domain::team::{
     Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamImage, TeamMemberView,
 };
@@ -29,8 +29,12 @@ pub trait UserRepo: Send + Sync {
 
 #[async_trait]
 pub trait TeamRepo: Send + Sync {
-    /// Persist a newly created team.
-    async fn save_team(&self, team: &Team) -> Result<(), DomainError>;
+    /// Persist a team and its initial Manager in one transaction.
+    async fn create_team_with_manager(
+        &self,
+        team: &Team,
+        manager_id: Uuid,
+    ) -> Result<(), DomainError>;
     /// Resolve a team from a (human-typed) invitation code.
     async fn find_by_invitation_code(&self, code: &str) -> Result<Option<Team>, DomainError>;
     /// The role a user holds in a team, or `None` if they are not a member.
@@ -69,6 +73,14 @@ pub trait TeamRepo: Send + Sync {
     async fn delete_team(&self, team_id: Uuid) -> Result<(), DomainError>;
     /// Remove a user from a team.
     async fn remove_member(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
+    /// Revalidate moderation roles, remove the member and clear their Incident
+    /// assignments in one transaction.
+    async fn kick_member_and_clear_assignments(
+        &self,
+        team_id: Uuid,
+        requester_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<(), DomainError>;
     /// Count how many members a team has.
     async fn count_members(&self, team_id: Uuid) -> Result<u64, DomainError>;
     /// Every member of a team, enriched with the user's email and role. Powers
@@ -85,6 +97,13 @@ pub trait TeamRepo: Send + Sync {
     /// Record (or replace) a moderation ban. Upserts on `(team_id, user_id)` so
     /// re-banning a user updates the existing row rather than duplicating it.
     async fn add_ban(&self, ban: &TeamBan) -> Result<(), DomainError>;
+    /// Revalidate moderation roles, upsert the ban and atomically remove any
+    /// membership and Incident assignments. Returns whether membership existed.
+    async fn ban_member_and_clear_assignments(
+        &self,
+        ban: &TeamBan,
+        requester_id: Uuid,
+    ) -> Result<bool, DomainError>;
     /// The ban currently recorded for a user on a team, if any. The row may be
     /// expired; the caller decides via `TeamBan::is_active`.
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError>;
@@ -94,23 +113,14 @@ pub trait TeamRepo: Send + Sync {
     /// moderation history intentional rather than silently reactivatable.
     async fn remove_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
     /// Replace the single bounded identity image attached to a Team.
-    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError> {
-        let _ = (team_id, image);
-        Err(DomainError::Storage)
-    }
+    async fn save_team_image(&self, team_id: Uuid, image: &TeamImage) -> Result<(), DomainError>;
     /// Load image bytes only for a current member of the Team.
     async fn find_team_image_for_member(
         &self,
         team_id: Uuid,
         user_id: Uuid,
-    ) -> Result<Option<TeamImage>, DomainError> {
-        let _ = (team_id, user_id);
-        Err(DomainError::Storage)
-    }
-    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError> {
-        let _ = team_id;
-        Err(DomainError::Storage)
-    }
+    ) -> Result<Option<TeamImage>, DomainError>;
+    async fn delete_team_image(&self, team_id: Uuid) -> Result<(), DomainError>;
 }
 
 #[async_trait]
@@ -124,19 +134,13 @@ pub trait IncidentRepo: Send + Sync {
     ) -> Result<(), DomainError>;
     async fn find_incident_by_id(&self, incident_id: Uuid)
         -> Result<Option<Incident>, DomainError>;
-    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError>;
     /// Persist a mutation and the event describing it in one transaction.
     async fn update_incident_with_event(
         &self,
         incident: &Incident,
         event: &IncidentEvent,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError>;
-    /// Append audit events describing something that happened *outside* the
-    /// incidents themselves — a release they block moving a step forward. This
-    /// is the one writer that does not pair an event with a change to
-    /// `incidents`; all of them land together or not at all, so a war room
-    /// never shows a release advancing on one incident but not its sibling.
-    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError>;
     /// Newest first. `before` is a `(created_at, id)` keyset cursor: only rows
     /// strictly older than it are returned, so a war room can walk back through
     /// a long incident without the page boundary shifting under it.
@@ -249,12 +253,6 @@ pub trait PrivateMessageRepo: Send + Sync {
         content: &str,
         edited_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError>;
-    async fn toggle_reaction(
-        &self,
-        message_id: Uuid,
-        user_id: Uuid,
-        emoji: &str,
-    ) -> Result<bool, DomainError>;
     async fn find_attachment_for_participant(
         &self,
         attachment_id: Uuid,
@@ -275,12 +273,41 @@ pub trait PrivateMessageRepo: Send + Sync {
 pub trait ReleaseRepo: Send + Sync {
     /// Persist a new release and all its (unvalidated) steps.
     async fn save_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Persist a release and its normalized internal event atomically.
+    async fn create_release(
+        &self,
+        release: &Release,
+        delivery_id: &str,
+        event: &crate::domain::automation::ExternalEvent,
+    ) -> Result<(), DomainError>;
+    /// Create an incident, its audit event and its Release link in one
+    /// transaction, provided the Release snapshot is still current.
+    async fn create_blocking_incident(
+        &self,
+        release_id: Uuid,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError>;
     /// Load a release with its ordered steps, or `None`.
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError>;
     /// Every release of a team (with steps), newest first.
     async fn list_releases_for_team(&self, team_id: Uuid) -> Result<Vec<Release>, DomainError>;
-    /// Persist a mutated release: its `base_state` and the validation of its steps.
-    async fn update_release(&self, release: &Release) -> Result<(), DomainError>;
+    /// Persist a mutated release and its steps only if the loaded snapshot is
+    /// still current.
+    async fn update_release(
+        &self,
+        release: &Release,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), DomainError>;
+    /// Persist a validated Release step and every linked Incident audit event
+    /// in the same transaction.
+    async fn update_release_with_incident_events(
+        &self,
+        release: &Release,
+        expected_updated_at: chrono::DateTime<chrono::Utc>,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError>;
     /// Link an incident to a release (idempotent on the pair).
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError>;
     /// Unlink an incident from a release (idempotent: unlinking a missing pair is
@@ -298,5 +325,5 @@ pub trait ReleaseRepo: Send + Sync {
     async fn list_release_states_linked_to_incident(
         &self,
         incident_id: Uuid,
-    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError>;
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError>;
 }

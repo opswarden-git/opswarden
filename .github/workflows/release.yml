@@ -97,8 +97,8 @@ jobs:
     needs: release-gate
     runs-on: ubuntu-latest
     env:
-      OPSWARDEN_KICKOFF_TOKEN: CI_CONFIG_ONLY
       JWT_SECRET: CI_CONFIG_ONLY
+      OPSWARDEN_VAULT_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -387,7 +387,7 @@ jobs:
             release-artifacts/*-setup.exe \
             release-artifacts/*.dmg \
             release-artifacts/SHA256SUMS \
-            --title "OpsWarden ${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
             --notes-file "$RELEASE_NOTES" \
             --verify-tag
       - name: Publish release summary

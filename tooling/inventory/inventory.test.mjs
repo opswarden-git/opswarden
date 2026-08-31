@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatBytes } from "./extract-server.mjs";
+import { formatBytes, websocket } from "./extract-server.mjs";
 import { METHOD_TONE, statusLabel, statusTone } from "./render-helpers.mjs";
 
 test("formats body limits as operator-readable sizes", () => {
@@ -23,4 +23,18 @@ test("keeps HTTP methods neutral except for destructive requests", () => {
   assert.equal(METHOD_TONE.DELETE, "danger");
   assert.equal(METHOD_TONE.GET, undefined);
   assert.equal(METHOD_TONE.POST, undefined);
+});
+
+test("keeps the WebSocket specification exact and free of obsolete entries", () => {
+  const contract = websocket();
+  assert.deepEqual(
+    contract.documentedCommands.toSorted(),
+    contract.commands.map(({ type }) => type).toSorted(),
+  );
+  assert.deepEqual(
+    contract.documentedFrames.toSorted(),
+    contract.frames.map(({ frame }) => frame).toSorted(),
+  );
+  assert.ok(contract.commands.every(({ documented }) => documented));
+  assert.ok(contract.frames.every(({ documented }) => documented));
 });

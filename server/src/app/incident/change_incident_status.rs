@@ -68,13 +68,9 @@ impl ChangeIncidentStatusUseCase {
             return Err(DomainError::Forbidden);
         }
 
+        let expected_updated_at = incident.updated_at;
         let previous_status = incident.status;
-        let changed = match cmd.new_status {
-            IncidentStatus::Open => Err(DomainError::InvalidIncidentTransition),
-            IncidentStatus::Acknowledged => incident.acknowledge(),
-            IncidentStatus::Escalated => incident.escalate(),
-            IncidentStatus::Resolved => incident.resolve(),
-        }?;
+        let changed = incident.transition_to(cmd.new_status)?;
 
         if changed {
             // Snapshot the effective state of releases linked to this incident
@@ -90,7 +86,7 @@ impl ChangeIncidentStatusUseCase {
                 incident.status,
             );
             self.incidents
-                .update_incident_with_event(&incident, &event)
+                .update_incident_with_event(&incident, &event, expected_updated_at)
                 .await?;
             self.events
                 .publish(DomainEvent::IncidentStateChanged {

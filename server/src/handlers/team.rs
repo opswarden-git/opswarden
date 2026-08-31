@@ -68,6 +68,7 @@ pub struct TeamMemberResponse {
     pub user_id: Uuid,
     pub email: String,
     pub role: String,
+    pub can_be_assigned_incident: bool,
     pub joined_at: DateTime<Utc>,
 }
 
@@ -92,6 +93,7 @@ pub async fn list_members(
                 user_id: member.user_id,
                 email: member.email,
                 role: member.role.to_string(),
+                can_be_assigned_incident: member.role.can_act_as(Role::Responder),
                 joined_at: member.joined_at,
             })
             .collect(),
@@ -99,6 +101,7 @@ pub async fn list_members(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AddMemberPayload {
     pub user_id: Uuid,
 }
@@ -109,13 +112,17 @@ pub async fn add_member(
     Path(team_id): Path<Uuid>,
     Json(payload): Json<AddMemberPayload>,
 ) -> Result<StatusCode, DomainError> {
-    AddMemberUseCase::new(state.teams.clone(), state.users.clone())
-        .add_member(AddMemberCommand {
-            team_id,
-            requester_id: session.user_id,
-            target_user_id: payload.user_id,
-        })
-        .await?;
+    AddMemberUseCase::new(
+        state.teams.clone(),
+        state.users.clone(),
+        state.clock.clone(),
+    )
+    .add_member(AddMemberCommand {
+        team_id,
+        requester_id: session.user_id,
+        target_user_id: payload.user_id,
+    })
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -144,6 +151,7 @@ pub async fn get_invitation_code(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SetMemberRolePayload {
     pub role: String,
 }
@@ -151,10 +159,9 @@ pub struct SetMemberRolePayload {
 /// Only Observer and Responder are settable here; "manager" (and anything else)
 /// is rejected — the Manager seat moves through `transfer_manager`, not this route.
 fn parse_assignable_role(value: &str) -> Result<Role, DomainError> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "observer" => Ok(Role::Observer),
-        "responder" => Ok(Role::Responder),
-        _ => Err(DomainError::InvalidRole),
+    match Role::try_from(value.trim().to_ascii_lowercase().as_str())? {
+        role @ (Role::Observer | Role::Responder) => Ok(role),
+        Role::Manager => Err(DomainError::InvalidRole),
     }
 }
 
@@ -179,6 +186,7 @@ pub async fn set_member_role(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateTeamPayload {
     pub name: String,
 }
@@ -214,6 +222,7 @@ pub async fn create_team(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct JoinTeamPayload {
     pub invitation_code: String,
 }
@@ -229,7 +238,7 @@ pub async fn join_team(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<JoinTeamPayload>,
 ) -> Result<Json<JoinTeamResponse>, DomainError> {
-    let use_case = JoinTeamUseCase::new(state.teams.clone());
+    let use_case = JoinTeamUseCase::new(state.teams.clone(), state.clock.clone());
     let result = use_case
         .join_team(JoinTeamCommand {
             invitation_code: payload.invitation_code,
@@ -244,6 +253,7 @@ pub async fn join_team(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransferManagerPayload {
     pub new_manager_id: Uuid,
 }
@@ -287,6 +297,7 @@ pub async fn delete_team(
             requester_id: session.user_id,
         })
         .await?;
+    state.events.disconnect_team(team_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -303,6 +314,9 @@ pub async fn leave_team(
             requester_id: session.user_id,
         })
         .await?;
+    state
+        .events
+        .disconnect_team_member(team_id, session.user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -314,11 +328,7 @@ pub async fn kick_member(
     Extension(session): Extension<AuthenticatedSession>,
     Path((team_id, user_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, DomainError> {
-    let use_case = KickMemberUseCase::new(
-        state.teams.clone(),
-        state.incidents.clone(),
-        state.events.clone(),
-    );
+    let use_case = KickMemberUseCase::new(state.teams.clone(), state.events.clone());
     use_case
         .kick_member(KickMemberCommand {
             team_id,
@@ -326,11 +336,13 @@ pub async fn kick_member(
             target_user_id: user_id,
         })
         .await?;
+    state.events.disconnect_team_member(team_id, user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BanMemberPayload {
     pub user_id: Uuid,
     /// "temporary" (requires `expires_at`) or "permanent".
@@ -364,9 +376,9 @@ pub async fn ban_member(
 
     let use_case = BanMemberUseCase::new(
         state.teams.clone(),
-        state.incidents.clone(),
         state.users.clone(),
         state.events.clone(),
+        state.clock.clone(),
     );
     let result = use_case
         .ban_member(BanMemberCommand {
@@ -377,6 +389,9 @@ pub async fn ban_member(
             reason: payload.reason,
         })
         .await?;
+    state
+        .events
+        .disconnect_team_member(team_id, payload.user_id);
 
     Ok((
         StatusCode::CREATED,

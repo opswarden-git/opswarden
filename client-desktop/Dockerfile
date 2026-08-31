@@ -12,8 +12,10 @@
 # signature bytes are cleared. This changes only the build tool's ELF launch
 # metadata; the produced client.AppImage keeps its required Type 2 signature.
 #
-# The shell is URL-mode (loads http://localhost:8081), so no web frontend is
-# built here. The build-only service copies the artifact to a /out bind mount.
+# The shell is explicitly URL-mode (loads the local Compose Next origin at
+# http://localhost:8081), so no web frontend is built here. Its Tauri capability
+# grants that exact origin only the three notification commands the UI calls.
+# The build-only service copies the artifact to a /out bind mount.
 
 FROM ubuntu:22.04@sha256:0e0a0fc6d18feda9db1590da249ac93e8d5abfea8f4c3c0c849ce512b5ef8982
 

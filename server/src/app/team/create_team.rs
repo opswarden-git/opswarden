@@ -3,7 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
-use crate::domain::team::{Role, Team};
+use crate::domain::team::Team;
 use crate::ports::TeamRepo;
 
 pub struct CreateTeamCommand {
@@ -34,9 +34,8 @@ impl CreateTeamUseCase {
         cmd: CreateTeamCommand,
     ) -> Result<CreateTeamResult, DomainError> {
         let team = Team::new(cmd.name)?;
-        self.teams.save_team(&team).await?;
         self.teams
-            .add_member(team.id, cmd.creator_id, Role::Manager)
+            .create_team_with_manager(&team, cmd.creator_id)
             .await?;
         Ok(CreateTeamResult {
             team_id: team.id,
@@ -67,11 +66,8 @@ mod tests {
 
         assert_eq!(result.name, "SRE Core");
         assert!(result.invitation_code.starts_with("OPS-"));
-        let added = repo.added.lock().unwrap();
-        assert_eq!(
-            added.as_slice(),
-            &[(result.team_id, creator, Role::Manager)]
-        );
+        let created = repo.created.lock().unwrap();
+        assert_eq!(created.as_slice(), &[(result.team_id, creator)]);
     }
 
     #[tokio::test]
@@ -87,6 +83,6 @@ mod tests {
             .await;
 
         assert_eq!(result.unwrap_err(), DomainError::InvalidTeamName);
-        assert!(repo.added.lock().unwrap().is_empty());
+        assert!(repo.created.lock().unwrap().is_empty());
     }
 }

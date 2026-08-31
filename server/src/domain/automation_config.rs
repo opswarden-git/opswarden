@@ -58,6 +58,10 @@ fn now() -> DateTime<Utc> {
         .expect("a truncated nanosecond value is always valid")
 }
 
+fn next_revision(current: DateTime<Utc>) -> DateTime<Utc> {
+    now().max(current + chrono::Duration::microseconds(1))
+}
+
 /// Non-secret metadata for a provider connection owned by exactly one Team.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServiceConnection {
@@ -225,13 +229,13 @@ impl AutomationRule {
         self.reaction_kind = definition.reaction_kind;
         self.reaction_connection_id = definition.reaction_connection_id;
         self.reaction_config = definition.reaction_config;
-        self.updated_at = now();
+        self.updated_at = next_revision(self.updated_at);
         Ok(())
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
-        self.updated_at = now();
+        self.updated_at = next_revision(self.updated_at);
     }
 }
 

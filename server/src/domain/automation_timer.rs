@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::{automation::ExternalEvent, error::DomainError};
 
-pub const TIMER_SERVICE: &str = "timer";
+use crate::domain::automation_catalog::TIMER_SERVICE;
 pub const DAILY_AT_KIND: &str = "daily_at";
 pub const EVERY_MINUTES_KIND: &str = "every_minutes";
 pub const MIN_INTERVAL_MINUTES: u16 = 5;
@@ -24,16 +24,6 @@ pub struct TimerOccurrence {
     pub rule_id: Uuid,
     pub scheduled_for: DateTime<Utc>,
     pub event: ExternalEvent,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TimerScheduleProjection {
-    pub rule_id: Uuid,
-    pub connection_id: Uuid,
-    pub schedule: TimerSchedule,
-    pub next_run_at: DateTime<Utc>,
-    pub rule_updated_at: DateTime<Utc>,
-    pub last_claimed_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -33,7 +33,9 @@ fn build_context(
     let revoked_tokens = Arc::new(DummyTokenRevocationRepo::default());
     let events = Arc::new(WsHub::new());
     let service_connections = Arc::new(DummyServiceConnectionRepo::default());
-    let connection_credentials = Arc::new(DummyConnectionCredentialVault::default());
+    let connection_credentials = Arc::new(DummyConnectionCredentialVault::new(
+        &service_connections,
+    ));
     let service_oauth = Arc::new(DummyServiceOAuthClient::default());
     let automation_rules = Arc::new(DummyAutomationRuleRepo::default());
     let webhook_deliveries = Arc::new(DummyWebhookDeliveryRepo::default());
@@ -42,7 +44,27 @@ fn build_context(
     let email_sender = Arc::new(DummyEmailSender::default());
     let alertmanager_metrics =
         Arc::new(opswarden_server::adapters::metrics::AlertmanagerWebhookMetrics::default());
-    let mut config = Config::from_env();
+    let webhook_ingress = Arc::new(
+        opswarden_server::app::automation::IngestTeamWebhookUseCase::new(
+            opswarden_server::app::automation::TeamWebhookDependencies {
+                connections: service_connections.clone(),
+                credentials: connection_credentials.clone(),
+                verifier: Arc::new(HmacSha256Verifier),
+                parser: Arc::new(
+                    opswarden_server::adapters::webhook::CompositeWebhookParser::new(),
+                ),
+                deliveries: webhook_deliveries.clone(),
+                rules: automation_rules.clone(),
+                runs: automation_runs.clone(),
+                incidents: incidents.clone(),
+                releases: releases.clone(),
+                notifier: notifier.clone(),
+                events: events.clone(),
+                email_sender: email_sender.clone(),
+            },
+        ),
+    );
+    let mut config = Config::for_test();
     // HTTP tests inject ConnectInfo explicitly and must not inherit a developer
     // machine's reverse-proxy trust setting.
     config.trusted_proxy_hops = 0;
@@ -64,10 +86,7 @@ fn build_context(
         token_revocations: revoked_tokens.clone(),
         events: events.clone(),
         clock: Arc::new(DummyClock),
-        webhook_verifier: Arc::new(HmacSha256Verifier),
-        webhook_parser: Arc::new(
-            opswarden_server::adapters::webhook::CompositeWebhookParser::new(),
-        ),
+        webhook_ingress,
         alertmanager_metrics: alertmanager_metrics.clone(),
         service_connections: service_connections.clone(),
         connection_credentials: connection_credentials.clone(),

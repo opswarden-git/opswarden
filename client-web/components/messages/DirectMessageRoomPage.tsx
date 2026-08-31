@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useAvailableReactions } from "@/lib/queries/incidents";
 import {
   useMarkPrivateMessageRead,
   usePrivateMessages,
@@ -12,7 +11,7 @@ import {
 import { useTeamMembers } from "@/lib/queries/teams";
 import { usePrivateMessageTypingUsers, usePrivateMessageWatchers } from "@/lib/ws";
 import { useAuthStore } from "@/store/auth";
-import { WarRoomNavigation } from "@/components/incidents/WarRoomNavigation";
+import { RoomNavigation } from "@/components/messages/RoomNavigation";
 import { PageContent } from "@/components/layout/PageContent";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { RailToggle } from "@/components/layout/RailToggle";
@@ -48,7 +47,6 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
   );
   const send = useSendPrivateMessage();
   const markRead = useMarkPrivateMessageRead();
-  const { data: availableReactions = [] } = useAvailableReactions();
   const watchers = usePrivateMessageWatchers(peerId);
   const typingUsers = usePrivateMessageTypingUsers(peerId);
   const [announcement, setAnnouncement] = useState("");
@@ -120,7 +118,7 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
     );
   }
 
-  const roomNavigation = <WarRoomNavigation teamId={teamId} inDialog={isRoomsOpen} />;
+  const roomNavigation = <RoomNavigation teamId={teamId} inDialog={isRoomsOpen} />;
   const peopleNavigation = (
     <aside
       aria-label={tTeams("members")}
@@ -221,7 +219,6 @@ export function DirectMessageRoomPage({ peerId, teamId }: { peerId: string; team
                   loadEarlierLabel={tCommon("loadEarlier")}
                   renderItem={(message, _index, continuesAbove) => (
                     <DirectMessageItem
-                      availableReactions={availableReactions}
                       continuesAbove={continuesAbove}
                       message={message}
                       mine={message.sender_id === currentUserId}

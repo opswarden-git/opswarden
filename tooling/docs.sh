@@ -28,17 +28,18 @@ cp -R "$wiki_source/docs-source/." "$portal/docs/"
 rm -f "$portal/docs/assets/logo.png"
 cp "$REPOSITORY_ROOT/client-web/public/assets/heroicon.png" "$portal/docs/assets/logo.png"
 
-# Root contracts are canonical and included by MkDocs snippets. ADRs used by a
-# public page are copied into the same assembly without creating a second source.
-for contract in README.md DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md WEBSOCKET_SPEC.md; do
-  cp "$REPOSITORY_ROOT/$contract" "$portal/$contract"
+# Root contracts are canonical and included by MkDocs snippets.
+cp "$REPOSITORY_ROOT/README.md" "$portal/README.md"
+for contract in DESIGN_SYSTEM.md UI_GUIDELINES.md HOWTOCONTRIBUTE.md WEBSOCKET_SPEC.md INTEGRATION_GUIDE.md; do
+  cp "$REPOSITORY_ROOT/docs/$contract" "$portal/$contract"
 done
-mkdir -p "$portal/repository-docs/adr"
-cp "$REPOSITORY_ROOT/docs/adr/"*.md "$portal/repository-docs/adr/"
 
 OPSWARDEN_API_URL=${OPSWARDEN_API_URL:-https://api.opswarden.dev} \
   OPSWARDEN_INVENTORY_DOCS_DIR="$portal/docs/inventory" \
   node "$REPOSITORY_ROOT/tooling/inventory/build.mjs"
+
+# Strip local dev file URIs from markdown docs so link checkers pass cleanly
+find "$portal" -type f -name '*.md' -exec sed -i -E 's|file:///[^)]*/opswarden/|https://github.com/opswarden-git/opswarden/tree/main/|g' {} +
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \

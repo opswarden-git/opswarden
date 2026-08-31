@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AutomationRule, AutomationService, TeamConnection } from "@/lib/queries/automations";
-import { RulesView } from "./RulesView";
+import { projectRule, RulesView } from "./RulesView";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",

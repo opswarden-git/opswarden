@@ -243,7 +243,7 @@ async fn filter_mismatch_creates_no_run_and_unsupported_reaction_records_failure
     let failing_team = Uuid::new_v4();
     let (failing_connection, _) =
         seed_automation(&ctx, failing_team, SECRET_B, json!({}), "http_notify").await;
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (tx, mut rx) = mpsc::channel(256);
     ctx.events
         .register(Uuid::new_v4(), HashSet::from([failing_team]), tx);
     while rx.try_recv().is_ok() {}

@@ -230,10 +230,26 @@ export function websocket() {
   expectAtLeast("ws server frames", frames.length, 20);
 
   // A frame the spec never names is a contract the client cannot rely on.
-  const spec = read("WEBSOCKET_SPEC.md");
+  const spec = read("docs/WEBSOCKET_SPEC.md");
+  const commandSection = spec.slice(
+    spec.indexOf("## Client commands"),
+    spec.indexOf("## Delivery scopes"),
+  );
+  const eventSection = spec.slice(
+    spec.indexOf("## Server events"),
+    spec.indexOf("## Change policy"),
+  );
+  const documentedCommands = [...commandSection.matchAll(/^\| `([a-z_]+)`\s*\|/gm)].map(
+    (match) => match[1],
+  );
+  const documentedFrames = [...eventSection.matchAll(/^\| `([a-z_]+)`\s*\|/gm)].map(
+    (match) => match[1],
+  );
   return {
     commands: commands.map((command) => ({ ...command, documented: spec.includes(command.type) })),
     frames: frames.map((frame) => ({ frame, documented: spec.includes(frame) })),
+    documentedCommands,
+    documentedFrames,
   };
 }
 

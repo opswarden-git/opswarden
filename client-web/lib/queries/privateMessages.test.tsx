@@ -6,7 +6,6 @@ import {
   useEditPrivateMessage,
   usePrivateMessages,
   useSendPrivateMessage,
-  useTogglePrivateMessageReaction,
 } from "./privateMessages";
 
 vi.mock("../api", () => ({
@@ -134,29 +133,19 @@ describe("private message mutations", () => {
     );
   });
 
-  it("edits and reacts through peer-scoped cache invalidation", async () => {
+  it("edits through peer-scoped cache invalidation", async () => {
     const queryClient = createTestQueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
-    mockedApiFetch
-      .mockResolvedValueOnce(jsonResponse({ content: "edited", edited_at: "now" }))
-      .mockResolvedValueOnce(jsonResponse({ active: true }));
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse({ content: "edited", edited_at: "now" }));
     const wrapper = queryClientWrapper(queryClient);
     const { result: edit } = renderHook(() => useEditPrivateMessage("peer-1"), { wrapper });
-    const { result: reaction } = renderHook(() => useTogglePrivateMessageReaction("peer-1"), {
-      wrapper,
-    });
 
     await act(async () => edit.current.mutateAsync({ messageId: "message-1", content: "edited" }));
-    await act(async () => reaction.current.mutateAsync({ messageId: "message-1", emoji: "✅" }));
 
-    expect(mockedApiFetch).toHaveBeenNthCalledWith(1, "/api/private-messages/message-1", {
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/private-messages/message-1", {
       method: "PATCH",
       body: JSON.stringify({ content: "edited" }),
     });
-    expect(mockedApiFetch).toHaveBeenNthCalledWith(2, "/api/private-messages/message-1/reactions", {
-      method: "POST",
-      body: JSON.stringify({ emoji: "✅" }),
-    });
-    expect(invalidate).toHaveBeenCalledTimes(2);
+    expect(invalidate).toHaveBeenCalledOnce();
   });
 });

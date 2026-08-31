@@ -1,5 +1,6 @@
 // --- server/src/main.rs ---
 
+use axum::extract::MatchedPath;
 use opentelemetry::{trace::TracerProvider as _, KeyValue};
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 use opswarden_server::adapters::clock::SystemClock;
@@ -21,6 +22,7 @@ use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
 use opswarden_server::adapters::pg::automation::timer::PgAutomationTimerRepo;
+use opswarden_server::adapters::pg::automation::webhook_job::PgWebhookJobRepo;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::private_message::PgPrivateMessageRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
@@ -30,7 +32,10 @@ use opswarden_server::adapters::pg::token_revocation::PgTokenRevocationRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::adapters::webhook::CompositeWebhookParser;
 use opswarden_server::adapters::ws::WsHub;
-use opswarden_server::app::automation::{TimerWorker, TimerWorkerDependencies};
+use opswarden_server::app::automation::{
+    DurableTeamWebhookIngress, TeamWebhookDependencies, TimerWorker, TimerWorkerDependencies,
+    WebhookWorker,
+};
 use opswarden_server::ports::Clock;
 use opswarden_server::{build_app, config::Config, AppState};
 use tower_http::trace::TraceLayer;
@@ -39,9 +44,15 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
+use tokio::task::JoinHandle;
+use tokio::time::Instant;
 
 const DATABASE_CONNECT_ATTEMPTS: usize = 30;
 const DATABASE_CONNECT_RETRY_DELAY: Duration = Duration::from_secs(2);
+const WEBHOOK_POLL_INTERVAL: Duration = Duration::from_secs(1);
+/// Kubernetes grants the pod 30 seconds; keep five seconds for runtime and
+/// container teardown after application tasks have been cancelled.
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(25);
 
 #[tokio::main]
 async fn main() {
@@ -86,8 +97,7 @@ async fn main() {
     let pool = connect_database(&database_url).await;
 
     if !skip_migrations {
-        let mut migrator = sqlx::migrate!();
-        migrator.set_ignore_missing(true);
+        let migrator = sqlx::migrate!();
         migrator
             .run(&pool)
             .await
@@ -99,15 +109,51 @@ async fn main() {
         return;
     }
 
-    let config = Config::from_env();
+    let config = Config::from_env().unwrap_or_else(|error| {
+        eprintln!("OpsWarden configuration error: {error}");
+        std::process::exit(78);
+    });
+
+    let incidents = Arc::new(PgIncidentRepo::new(pool.clone()));
+    let releases = Arc::new(PgReleaseRepo::new(pool.clone()));
+    let events = Arc::new(WsHub::new());
+    let service_connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
+    let connection_credentials = Arc::new(PgConnectionCredentialVault::new(
+        pool.clone(),
+        config.vault_key,
+    ));
+    let automation_rules = Arc::new(PgAutomationRuleRepo::new(pool.clone()));
+    let webhook_deliveries = Arc::new(PgWebhookDeliveryRepo::new(pool.clone()));
+    let automation_runs = Arc::new(PgAutomationRunRepo::new(pool.clone()));
+    let notifier = Arc::new(HttpNotifier::new());
+    let email_sender = Arc::new(SmtpEmailSender::new());
+    let webhook_jobs = Arc::new(PgWebhookJobRepo::new(pool.clone()));
+    let webhook_dependencies = TeamWebhookDependencies {
+        connections: service_connections.clone(),
+        credentials: connection_credentials.clone(),
+        verifier: Arc::new(HmacSha256Verifier),
+        parser: Arc::new(CompositeWebhookParser::new()),
+        deliveries: webhook_deliveries.clone(),
+        rules: automation_rules.clone(),
+        runs: automation_runs.clone(),
+        incidents: incidents.clone(),
+        releases: releases.clone(),
+        notifier: notifier.clone(),
+        events: events.clone(),
+        email_sender: email_sender.clone(),
+    };
+    let webhook_ingress = Arc::new(DurableTeamWebhookIngress::new(
+        webhook_dependencies.clone(),
+        webhook_jobs.clone(),
+    ));
 
     let state = AppState {
         users: Arc::new(PgUserRepo::new(pool.clone())),
         teams: Arc::new(PgTeamRepo::new(pool.clone())),
-        incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
+        incidents: incidents.clone(),
         timeline: Arc::new(PgTimelineRepo::new(pool.clone())),
         private_messages: Arc::new(PgPrivateMessageRepo::new(pool.clone())),
-        releases: Arc::new(PgReleaseRepo::new(pool.clone())),
+        releases: releases.clone(),
         hasher: Arc::new(Argon2Hasher),
         tokens: Arc::new(JwtTokenService::new(config.jwt_secret.clone())),
         oauth: Arc::new(GoogleOAuthClient::new(
@@ -126,21 +172,17 @@ async fn main() {
             config.github_oauth_redirect_uri.clone(),
         )),
         token_revocations: Arc::new(PgTokenRevocationRepo::new(pool.clone())),
-        events: Arc::new(WsHub::new()),
+        events: events.clone(),
         clock: Arc::new(SystemClock),
-        webhook_verifier: Arc::new(HmacSha256Verifier),
-        webhook_parser: Arc::new(CompositeWebhookParser::new()),
+        webhook_ingress,
         alertmanager_metrics: Arc::new(AlertmanagerWebhookMetrics::default()),
-        service_connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
-        connection_credentials: Arc::new(PgConnectionCredentialVault::new(
-            pool.clone(),
-            config.vault_key,
-        )),
-        automation_rules: Arc::new(PgAutomationRuleRepo::new(pool.clone())),
-        webhook_deliveries: Arc::new(PgWebhookDeliveryRepo::new(pool.clone())),
-        automation_runs: Arc::new(PgAutomationRunRepo::new(pool.clone())),
-        notifier: Arc::new(HttpNotifier::new()),
-        email_sender: Arc::new(SmtpEmailSender::new()),
+        service_connections,
+        connection_credentials,
+        automation_rules,
+        webhook_deliveries,
+        automation_runs,
+        notifier,
+        email_sender,
         gifs: Arc::new(GiphyClient::new(
             config.giphy_api_key.clone(),
             "https://api.giphy.com".to_string(),
@@ -163,17 +205,19 @@ async fn main() {
         timers: Arc::new(PgAutomationTimerRepo::new(pool.clone())),
         connections: state.service_connections.clone(),
         credentials: state.connection_credentials.clone(),
-        deliveries: state.webhook_deliveries.clone(),
         rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
         incidents: state.incidents.clone(),
         releases: state.releases.clone(),
         notifier: state.notifier.clone(),
         events: state.events.clone(),
         email_sender: state.email_sender.clone(),
     }));
+    let webhook_worker = Arc::new(WebhookWorker::new(webhook_dependencies, webhook_jobs));
 
-    let app = build_app(state).layer(TraceLayer::new_for_http());
+    let app = build_app(state).layer(
+        TraceLayer::new_for_http()
+            .make_span_with(|request: &axum::http::Request<_>| http_request_span(request)),
+    );
 
     let addr = bind_addr;
     let listener = match tokio::net::TcpListener::bind(&addr).await {
@@ -201,15 +245,123 @@ async fn main() {
         timer_poll,
         shutdown_rx,
     ));
-    let server_result = axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal())
-    .await;
+    let webhook_task = tokio::spawn(run_webhook_worker(
+        webhook_worker,
+        WEBHOOK_POLL_INTERVAL,
+        shutdown_tx.subscribe(),
+    ));
+    let server_shutdown = shutdown_tx.subscribe();
+    let server_task = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(wait_for_shutdown(server_shutdown))
+        .await
+    });
+
+    supervise_shutdown(shutdown_tx, server_task, timer_task, webhook_task).await;
+}
+
+async fn supervise_shutdown(
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
+    mut server_task: JoinHandle<std::io::Result<()>>,
+    mut timer_task: JoinHandle<()>,
+    mut webhook_task: JoinHandle<()>,
+) {
+    let mut server_result = None;
+    tokio::select! {
+        _ = shutdown_signal() => {}
+        result = &mut server_task => server_result = Some(result),
+    }
+
     let _ = shutdown_tx.send(true);
-    let _ = timer_task.await;
-    server_result.expect("server error");
+    let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+
+    let server_wait = async {
+        match server_result {
+            Some(result) => Some(result),
+            None => wait_for_component("HTTP/WebSocket server", &mut server_task, deadline).await,
+        }
+    };
+    let (server_result, _, _) = tokio::join!(
+        server_wait,
+        wait_for_component("timer worker", &mut timer_task, deadline),
+        wait_for_component("webhook worker", &mut webhook_task, deadline),
+    );
+
+    if let Some(result) = server_result {
+        result.expect("server task failed").expect("server error");
+    }
+}
+
+async fn wait_for_component<T>(
+    component: &'static str,
+    task: &mut JoinHandle<T>,
+    deadline: Instant,
+) -> Option<Result<T, tokio::task::JoinError>> {
+    match tokio::time::timeout_at(deadline, &mut *task).await {
+        Ok(result) => Some(result),
+        Err(_) => {
+            tracing::error!(component, "shutdown deadline exceeded; aborting task");
+            task.abort();
+            let _ = task.await;
+            None
+        }
+    }
+}
+
+async fn wait_for_shutdown(mut shutdown: tokio::sync::watch::Receiver<bool>) {
+    while !*shutdown.borrow() {
+        if shutdown.changed().await.is_err() {
+            break;
+        }
+    }
+}
+
+fn http_request_span<B>(request: &axum::http::Request<B>) -> tracing::Span {
+    let route = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(MatchedPath::as_str)
+        .unwrap_or("<unmatched>");
+    tracing::info_span!(
+        "http.request",
+        http.request.method = %request.method(),
+        http.route = route,
+    )
+}
+
+async fn run_webhook_worker(
+    worker: Arc<WebhookWorker>,
+    poll_interval: Duration,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+) {
+    let mut interval = tokio::time::interval(poll_interval);
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                match worker.tick().await {
+                    Ok(result) if result.claimed > 0 => tracing::info!(
+                        claimed = result.claimed,
+                        completed = result.completed,
+                        retried = result.retried,
+                        "webhook jobs processed"
+                    ),
+                    Ok(_) => {}
+                    Err(error) => tracing::error!(
+                        error_code = error.code(),
+                        "webhook worker failed"
+                    ),
+                }
+            }
+            changed = shutdown.changed() => {
+                if changed.is_err() || *shutdown.borrow() {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 async fn run_timer_worker(
@@ -223,11 +375,20 @@ async fn run_timer_worker(
         tokio::select! {
             _ = interval.tick() => {
                 let now = clock.now();
-                if let Err(error) = worker.reconcile(now).await {
-                    tracing::error!(
-                        error_code = error.code(),
-                        "timer reconciliation failed"
-                    );
+                match worker.reconcile(now).await {
+                    Ok(result) if result.recovered > 0
+                        || result.retried > 0
+                        || result.stale_runs_finalized > 0 => tracing::info!(
+                            recovered = result.recovered,
+                            retried = result.retried,
+                            stale_runs_finalized = result.stale_runs_finalized,
+                            "timer reconciliation completed"
+                        ),
+                    Ok(_) => {}
+                    Err(error) => tracing::error!(
+                            error_code = error.code(),
+                            "timer reconciliation failed"
+                        ),
                 }
                 match worker.tick(now).await {
                     Ok(result) if result.claimed > 0 => tracing::info!(
@@ -235,6 +396,7 @@ async fn run_timer_worker(
                         succeeded = result.succeeded,
                         failed = result.failed,
                         skipped = result.skipped,
+                        retried = result.retried,
                         "timer tick completed"
                     ),
                     Ok(_) => {}
@@ -301,3 +463,8 @@ async fn connect_database(database_url: &str) -> PgPool {
 
     unreachable!("the bounded database connection loop always returns or panics")
 }
+
+#[cfg(test)]
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;

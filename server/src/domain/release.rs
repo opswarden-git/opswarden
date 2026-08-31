@@ -22,10 +22,55 @@ pub const MAX_RELEASE_STEPS: usize = 50;
 pub const MAX_STEP_NAME_LEN: usize = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReleaseBaseState {
+    Created,
+    InProgress,
+    Completed,
+    Cancelled,
+}
+
+impl ReleaseBaseState {
+    pub const ALL: &'static [Self] = &[
+        Self::Created,
+        Self::InProgress,
+        Self::Completed,
+        Self::Cancelled,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Created => "created",
+            Self::InProgress => "in_progress",
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+impl TryFrom<&str> for ReleaseBaseState {
+    type Error = DomainError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "created" => Ok(Self::Created),
+            "in_progress" => Ok(Self::InProgress),
+            "completed" => Ok(Self::Completed),
+            "cancelled" => Ok(Self::Cancelled),
+            _ => Err(DomainError::Storage),
+        }
+    }
+}
+
+impl fmt::Display for ReleaseBaseState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReleaseState {
     Created,
     InProgress,
-    /// Effective-only: never persisted, computed from active linked incidents.
     Blocked,
     Completed,
     Cancelled,
@@ -33,38 +78,34 @@ pub enum ReleaseState {
 
 impl fmt::Display for ReleaseState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let value = match self {
-            ReleaseState::Created => "created",
-            ReleaseState::InProgress => "in_progress",
-            ReleaseState::Blocked => "blocked",
-            ReleaseState::Completed => "completed",
-            ReleaseState::Cancelled => "cancelled",
-        };
-        f.write_str(value)
+        f.write_str(match self {
+            Self::Created => "created",
+            Self::InProgress => "in_progress",
+            Self::Blocked => "blocked",
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
+        })
     }
 }
 
-impl ReleaseState {
-    /// Parse a *stored* base state. `blocked` is never stored, so it (and any
-    /// unknown value) is rejected — the adapter treats it as a storage fault.
-    pub fn from_base_str(value: &str) -> Result<Self, DomainError> {
-        match value {
-            "created" => Ok(ReleaseState::Created),
-            "in_progress" => Ok(ReleaseState::InProgress),
-            "completed" => Ok(ReleaseState::Completed),
-            "cancelled" => Ok(ReleaseState::Cancelled),
-            _ => Err(DomainError::Storage),
+impl From<ReleaseBaseState> for ReleaseState {
+    fn from(state: ReleaseBaseState) -> Self {
+        match state {
+            ReleaseBaseState::Created => Self::Created,
+            ReleaseBaseState::InProgress => Self::InProgress,
+            ReleaseBaseState::Completed => Self::Completed,
+            ReleaseBaseState::Cancelled => Self::Cancelled,
         }
     }
 }
 
 /// The effective state given the stored base and whether a blocking incident is
 /// active. Pure and total — the single source of truth for "is it blocked?".
-pub fn effective_release_state(base: ReleaseState, has_active_incident: bool) -> ReleaseState {
-    if base == ReleaseState::InProgress && has_active_incident {
+pub fn effective_release_state(base: ReleaseBaseState, has_active_incident: bool) -> ReleaseState {
+    if base == ReleaseBaseState::InProgress && has_active_incident {
         ReleaseState::Blocked
     } else {
-        base
+        base.into()
     }
 }
 
@@ -87,8 +128,7 @@ pub struct Release {
     pub id: Uuid,
     pub team_id: Uuid,
     pub title: String,
-    /// Stored lifecycle, never `Blocked` (that is computed via `effective_state`).
-    pub base_state: ReleaseState,
+    pub base_state: ReleaseBaseState,
     pub steps: Vec<ReleaseStep>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -131,7 +171,7 @@ impl Release {
             id: Uuid::new_v4(),
             team_id,
             title: trimmed.to_string(),
-            base_state: ReleaseState::Created,
+            base_state: ReleaseBaseState::Created,
             steps,
             created_at: now,
             updated_at: now,
@@ -153,10 +193,9 @@ impl Release {
         has_active_incident: bool,
     ) -> Result<(), DomainError> {
         match self.base_state {
-            ReleaseState::Completed | ReleaseState::Cancelled => {
+            ReleaseBaseState::Completed | ReleaseBaseState::Cancelled => {
                 return Err(DomainError::InvalidReleaseTransition);
             }
-            // `Blocked` is never a stored base; only Created/InProgress remain.
             _ => {}
         }
 
@@ -177,11 +216,11 @@ impl Release {
         self.steps[next].validated_by = Some(by);
         self.steps[next].validated_at = Some(Utc::now());
 
-        if self.base_state == ReleaseState::Created {
-            self.base_state = ReleaseState::InProgress;
+        if self.base_state == ReleaseBaseState::Created {
+            self.base_state = ReleaseBaseState::InProgress;
         }
         if self.steps.iter().all(ReleaseStep::is_validated) {
-            self.base_state = ReleaseState::Completed;
+            self.base_state = ReleaseBaseState::Completed;
         }
         self.updated_at = Utc::now();
         Ok(())
@@ -190,11 +229,11 @@ impl Release {
     /// Cancel the release. Terminal states cannot be cancelled.
     pub fn cancel(&mut self) -> Result<(), DomainError> {
         match self.base_state {
-            ReleaseState::Completed | ReleaseState::Cancelled => {
+            ReleaseBaseState::Completed | ReleaseBaseState::Cancelled => {
                 Err(DomainError::InvalidReleaseTransition)
             }
             _ => {
-                self.base_state = ReleaseState::Cancelled;
+                self.base_state = ReleaseBaseState::Cancelled;
                 self.updated_at = Utc::now();
                 Ok(())
             }
@@ -218,7 +257,7 @@ mod tests {
     #[test]
     fn new_release_starts_created_with_unvalidated_steps() {
         let r = release();
-        assert_eq!(r.base_state, ReleaseState::Created);
+        assert_eq!(r.base_state, ReleaseBaseState::Created);
         assert_eq!(r.steps.len(), 3);
         assert!(r.steps.iter().all(|s| !s.is_validated()));
     }
@@ -246,19 +285,23 @@ mod tests {
     #[test]
     fn effective_state_is_blocked_only_when_in_progress_with_active_incident() {
         assert_eq!(
-            effective_release_state(ReleaseState::Created, true),
+            ReleaseBaseState::try_from("blocked"),
+            Err(DomainError::Storage)
+        );
+        assert_eq!(
+            effective_release_state(ReleaseBaseState::Created, true),
             ReleaseState::Created
         );
         assert_eq!(
-            effective_release_state(ReleaseState::InProgress, true),
+            effective_release_state(ReleaseBaseState::InProgress, true),
             ReleaseState::Blocked
         );
         assert_eq!(
-            effective_release_state(ReleaseState::InProgress, false),
+            effective_release_state(ReleaseBaseState::InProgress, false),
             ReleaseState::InProgress
         );
         assert_eq!(
-            effective_release_state(ReleaseState::Completed, true),
+            effective_release_state(ReleaseBaseState::Completed, true),
             ReleaseState::Completed
         );
     }
@@ -271,14 +314,14 @@ mod tests {
         r.updated_at = stale;
 
         r.validate_step("build", by, false).unwrap();
-        assert_eq!(r.base_state, ReleaseState::InProgress);
+        assert_eq!(r.base_state, ReleaseBaseState::InProgress);
         assert!(r.steps[0].is_validated());
         assert_eq!(r.steps[0].validated_by, Some(by));
         assert!(r.updated_at > stale);
 
         r.validate_step("staging", by, false).unwrap();
         r.validate_step("production", by, false).unwrap();
-        assert_eq!(r.base_state, ReleaseState::Completed);
+        assert_eq!(r.base_state, ReleaseBaseState::Completed);
     }
 
     #[test]
@@ -323,7 +366,7 @@ mod tests {
         let stale = r.updated_at - chrono::Duration::seconds(1);
         r.updated_at = stale;
         r.cancel().unwrap();
-        assert_eq!(r.base_state, ReleaseState::Cancelled);
+        assert_eq!(r.base_state, ReleaseBaseState::Cancelled);
         assert!(r.updated_at > stale);
         assert_eq!(
             r.cancel().unwrap_err(),

@@ -9,7 +9,9 @@ use crate::domain::automation_config::{
     AutomationRun, AutomationRunStatus, WebhookDelivery, WebhookDeliveryStatus,
 };
 use crate::domain::error::DomainError;
-use crate::ports::{AutomationRunRepo, WebhookDeliveryRepo};
+use crate::ports::{
+    AutomationRunRepo, AutomationRunReservation, WebhookDeliveryClaim, WebhookDeliveryRepo,
+};
 
 pub struct PgWebhookDeliveryRepo {
     pool: PgPool,
@@ -50,18 +52,28 @@ impl TryFrom<WebhookDeliveryRow> for WebhookDelivery {
 
 #[async_trait]
 impl WebhookDeliveryRepo for PgWebhookDeliveryRepo {
-    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
+    async fn claim_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+    ) -> Result<Option<WebhookDeliveryClaim>, DomainError> {
         if delivery.status != WebhookDeliveryStatus::Received || delivery.error_code.is_some() {
             return Err(DomainError::InvalidWebhookDelivery);
         }
-        let result = sqlx::query(
+        let token = Uuid::new_v4();
+        let delivery_id = sqlx::query_scalar::<_, Uuid>(
             r#"
             INSERT INTO webhook_deliveries (
                 id, connection_id, provider_delivery_id, provider_event,
-                status, error_code, received_at
+                status, error_code, received_at, claim_token, claim_expires_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (connection_id, provider_delivery_id) DO NOTHING
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + interval '15 minutes')
+            ON CONFLICT (connection_id, provider_delivery_id) DO UPDATE
+            SET claim_token = EXCLUDED.claim_token,
+                claim_expires_at = EXCLUDED.claim_expires_at
+            WHERE webhook_deliveries.status = 'received'
+              AND webhook_deliveries.provider_event = EXCLUDED.provider_event
+              AND webhook_deliveries.claim_expires_at <= now()
+            RETURNING webhook_deliveries.id
             "#,
         )
         .bind(delivery.id)
@@ -71,6 +83,33 @@ impl WebhookDeliveryRepo for PgWebhookDeliveryRepo {
         .bind(delivery.status.to_string())
         .bind(&delivery.error_code)
         .bind(delivery.received_at)
+        .bind(token)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        Ok(delivery_id.map(|delivery_id| WebhookDeliveryClaim { delivery_id, token }))
+    }
+
+    async fn complete_claimed_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<bool, DomainError> {
+        if delivery.id != claim.delivery_id || delivery.status == WebhookDeliveryStatus::Received {
+            return Err(DomainError::InvalidWebhookDelivery);
+        }
+        let result = sqlx::query(
+            r#"
+            UPDATE webhook_deliveries
+            SET status = $2, error_code = $3,
+                claim_token = NULL, claim_expires_at = NULL
+            WHERE id = $1 AND status = 'received' AND claim_token = $4
+            "#,
+        )
+        .bind(delivery.id)
+        .bind(delivery.status.to_string())
+        .bind(&delivery.error_code)
+        .bind(claim.token)
         .execute(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
@@ -160,7 +199,11 @@ impl TryFrom<AutomationRunRow> for AutomationRun {
 
 #[async_trait]
 impl AutomationRunRepo for PgAutomationRunRepo {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
+    async fn reserve_run(
+        &self,
+        run: &AutomationRun,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<AutomationRunReservation, DomainError> {
         if run.status != AutomationRunStatus::Running
             || run.incident_id.is_some()
             || run.error_code.is_some()
@@ -184,6 +227,8 @@ impl AutomationRunRepo for PgAutomationRunRepo {
               ON r.id = $3
              AND r.trigger_connection_id = d.connection_id
             WHERE d.id = $2
+              AND d.claim_token = $9 AND d.claim_expires_at > now()
+            ON CONFLICT (delivery_id, rule_id) DO NOTHING
             "#,
         )
         .bind(run.id)
@@ -194,13 +239,28 @@ impl AutomationRunRepo for PgAutomationRunRepo {
         .bind(&run.error_code)
         .bind(run.started_at)
         .bind(run.finished_at)
+        .bind(claim.token)
         .execute(&self.pool)
         .await
         .map_err(|_| DomainError::Storage)?;
-        if result.rows_affected() != 1 {
-            return Err(DomainError::Storage);
+        if result.rows_affected() == 1 {
+            return Ok(AutomationRunReservation::New(run.clone()));
         }
-        Ok(())
+        let existing = sqlx::query_as::<_, AutomationRunRow>(
+            r#"
+            SELECT id, delivery_id, rule_id, status, incident_id, error_code,
+                   started_at, finished_at
+            FROM automation_runs
+            WHERE delivery_id = $1 AND rule_id = $2
+            "#,
+        )
+        .bind(run.delivery_id)
+        .bind(rule_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .ok_or(DomainError::Storage)?;
+        Ok(AutomationRunReservation::Existing(existing.try_into()?))
     }
 
     async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError> {
@@ -223,6 +283,29 @@ impl AutomationRunRepo for PgAutomationRunRepo {
         .await
         .map_err(|_| DomainError::Storage)?;
         Ok(result.rows_affected() == 1)
+    }
+
+    async fn interrupt_running_for_delivery(
+        &self,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<u64, DomainError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE automation_runs AS run
+            SET status = 'failed', error_code = 'interrupted', finished_at = now()
+            FROM webhook_deliveries AS delivery
+            WHERE run.delivery_id = delivery.id
+              AND delivery.id = $1 AND delivery.claim_token = $2
+              AND delivery.claim_expires_at > now()
+              AND run.status = 'running'
+            "#,
+        )
+        .bind(claim.delivery_id)
+        .bind(claim.token)
+        .execute(&self.pool)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        Ok(result.rows_affected())
     }
 
     async fn list_runs_for_team(
@@ -252,114 +335,5 @@ impl AutomationRunRepo for PgAutomationRunRepo {
 }
 
 #[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::super::rule::PgAutomationRuleRepo;
-    use super::super::service_connection::PgServiceConnectionRepo;
-    use super::super::test_support::seed_team;
-    use super::*;
-    use crate::domain::automation_config::{AutomationRule, ServiceConnection};
-    use crate::ports::{AutomationRuleRepo, ServiceConnectionRepo};
-
-    async fn setup_rule(pool: &PgPool, suffix: &str) -> (Uuid, ServiceConnection, AutomationRule) {
-        let (team_id, user_id) = seed_team(pool, suffix).await;
-        let connections = PgServiceConnectionRepo::new(pool.clone());
-        let connection = ServiceConnection::new(team_id, "github", user_id).unwrap();
-        connections.insert_connection(&connection).await.unwrap();
-        let mut rule = AutomationRule::new(
-            team_id,
-            format!("Rule {suffix}"),
-            connection.id,
-            "ci_failed",
-            json!({}),
-            "create_incident",
-            None,
-            json!({"severity": "high"}),
-            user_id,
-        )
-        .unwrap();
-        rule.set_enabled(true);
-        PgAutomationRuleRepo::new(pool.clone())
-            .insert_rule(&rule)
-            .await
-            .unwrap();
-        (team_id, connection, rule)
-    }
-
-    #[sqlx::test]
-    async fn provider_delivery_is_reserved_once_per_connection(pool: PgPool) {
-        let (team_a, connection_a, _) = setup_rule(&pool, "delivery-a").await;
-        let (team_b, connection_b, _) = setup_rule(&pool, "delivery-b").await;
-        let repo = PgWebhookDeliveryRepo::new(pool);
-        let delivery_a =
-            WebhookDelivery::new(connection_a.id, "github-delivery-42", "workflow_run").unwrap();
-        let delivery_b =
-            WebhookDelivery::new(connection_b.id, "github-delivery-42", "workflow_run").unwrap();
-
-        assert!(repo.reserve_delivery(&delivery_a).await.unwrap());
-        assert!(!repo.reserve_delivery(&delivery_a).await.unwrap());
-        assert!(repo.reserve_delivery(&delivery_b).await.unwrap());
-
-        let mut processed_a = delivery_a.clone();
-        processed_a.mark_processed().unwrap();
-        assert!(repo.update_delivery(&processed_a).await.unwrap());
-        assert!(!repo.update_delivery(&processed_a).await.unwrap());
-
-        let mut already_terminal =
-            WebhookDelivery::new(connection_a.id, "already-terminal", "workflow_run").unwrap();
-        already_terminal.mark_ignored().unwrap();
-        assert_eq!(
-            repo.reserve_delivery(&already_terminal).await.unwrap_err(),
-            DomainError::InvalidWebhookDelivery
-        );
-        assert_eq!(
-            repo.list_deliveries_for_team(team_a, 20).await.unwrap(),
-            vec![processed_a]
-        );
-        assert_eq!(
-            repo.list_deliveries_for_team(team_b, 20).await.unwrap(),
-            vec![delivery_b]
-        );
-    }
-
-    #[sqlx::test]
-    async fn runs_persist_terminal_state_and_remain_team_scoped(pool: PgPool) {
-        let (team_a, connection_a, rule_a) = setup_rule(&pool, "run-a").await;
-        let (team_b, _, _) = setup_rule(&pool, "run-b").await;
-        let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
-        let delivery =
-            WebhookDelivery::new(connection_a.id, "run-delivery", "workflow_run").unwrap();
-        deliveries.reserve_delivery(&delivery).await.unwrap();
-
-        let runs = PgAutomationRunRepo::new(pool);
-        let mut run = AutomationRun::new(delivery.id, rule_a.id);
-        runs.insert_run(&run).await.unwrap();
-        assert_eq!(runs.list_runs_for_team(team_b, 20).await.unwrap(), vec![]);
-
-        run.mark_succeeded(None).unwrap();
-        assert!(runs.update_run(&run).await.unwrap());
-        assert!(!runs.update_run(&run).await.unwrap());
-        assert_eq!(
-            runs.list_runs_for_team(team_a, 20).await.unwrap(),
-            vec![run]
-        );
-    }
-
-    #[sqlx::test]
-    async fn run_cannot_pair_delivery_with_rule_from_another_connection(pool: PgPool) {
-        let (_, connection_a, _) = setup_rule(&pool, "run-cross-a").await;
-        let (_, _, rule_b) = setup_rule(&pool, "run-cross-b").await;
-        let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
-        let delivery =
-            WebhookDelivery::new(connection_a.id, "cross-delivery", "workflow_run").unwrap();
-        deliveries.reserve_delivery(&delivery).await.unwrap();
-
-        let runs = PgAutomationRunRepo::new(pool);
-        let run = AutomationRun::new(delivery.id, rule_b.id);
-        assert_eq!(
-            runs.insert_run(&run).await.unwrap_err(),
-            DomainError::Storage
-        );
-    }
-}
+#[path = "execution_tests.rs"]
+mod tests;

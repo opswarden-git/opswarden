@@ -6,6 +6,7 @@
 use serde_json::Value;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::GITHUB_SERVICE;
 use crate::ports::WebhookParser;
 
 /// Parser for the GitHub webhook events exposed by the automation catalog.
@@ -13,7 +14,7 @@ pub struct GithubParser;
 
 impl WebhookParser for GithubParser {
     fn parse(&self, service: &str, provider_event: &str, body: &[u8]) -> Option<ExternalEvent> {
-        if service != "github" {
+        if service != GITHUB_SERVICE {
             return None;
         }
 
@@ -34,7 +35,7 @@ fn workflow_run_event(payload: &Value) -> Option<ExternalEvent> {
         "success" => "ci_succeeded",
         _ => return None,
     };
-    Some(ExternalEvent::new("github", kind).with_attributes(workflow_attributes(payload)))
+    Some(ExternalEvent::new(GITHUB_SERVICE, kind).with_attributes(workflow_attributes(payload)))
 }
 
 fn tag_push_event(payload: &Value) -> Option<ExternalEvent> {
@@ -56,7 +57,7 @@ fn tag_push_event(payload: &Value) -> Option<ExternalEvent> {
     insert_string(&mut attributes, "commit_sha", payload.get("after"));
     insert_string(&mut attributes, "actor", payload.pointer("/sender/login"));
     insert_string(&mut attributes, "event_url", payload.get("compare"));
-    Some(ExternalEvent::new("github", "tag_pushed").with_attributes(attributes))
+    Some(ExternalEvent::new(GITHUB_SERVICE, "tag_pushed").with_attributes(attributes))
 }
 
 fn merged_pull_request_event(payload: &Value) -> Option<ExternalEvent> {
@@ -104,7 +105,7 @@ fn merged_pull_request_event(payload: &Value) -> Option<ExternalEvent> {
         "event_url",
         payload.pointer("/pull_request/html_url"),
     );
-    Some(ExternalEvent::new("github", "pr_merged").with_attributes(attributes))
+    Some(ExternalEvent::new(GITHUB_SERVICE, "pr_merged").with_attributes(attributes))
 }
 
 fn workflow_attributes(payload: &Value) -> serde_json::Map<String, Value> {

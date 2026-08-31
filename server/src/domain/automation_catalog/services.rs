@@ -2,6 +2,9 @@ use super::alertmanager;
 use super::capabilities::*;
 use super::{
     AutomationServiceDefinition, CatalogCapability, CatalogConnection, CatalogField, CatalogOAuth,
+    ConnectionConfigurator, ConnectionProbe, ReactionExecutor, WebhookAuthentication,
+    EMAIL_SERVICE, GENERIC_SERVICE, GITHUB_SERVICE, GITLAB_SERVICE, HTTP_SERVICE,
+    OPSWARDEN_SERVICE, TIMER_SERVICE,
 };
 
 const GITHUB_CONNECTION_FIELDS: &[CatalogField] = &[
@@ -107,7 +110,7 @@ const EMAIL_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
     kind: "email_notify",
     label: "Send email",
     description: "Send an email to a configured recipient",
-    connection_service: Some("email"),
+    connection_service: Some(EMAIL_SERVICE),
     fields: &[
         CatalogField {
             name: "to",
@@ -137,11 +140,12 @@ const EMAIL_REACTIONS: &[CatalogCapability] = &[CatalogCapability {
             options: NO_OPTIONS,
         },
     ],
+    executor: Some(ReactionExecutor::EmailNotify),
 }];
 
 pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
     AutomationServiceDefinition {
-        service: "github",
+        service: GITHUB_SERVICE,
         label: "GitHub",
         actions: GITHUB_ACTIONS,
         reactions: &[],
@@ -152,11 +156,14 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
                 label: "Authorize with GitHub",
                 description: "Access and refresh tokens remain encrypted on the server",
             }),
-            testable: false,
+            configurator: ConnectionConfigurator::Github,
+            webhook_authentication: Some(WebhookAuthentication::Signature),
+            probe: None,
         }),
+        internal: false,
     },
     AutomationServiceDefinition {
-        service: "gitlab",
+        service: GITLAB_SERVICE,
         label: "GitLab",
         actions: GITLAB_ACTIONS,
         reactions: &[],
@@ -164,11 +171,14 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
             description: "Verify incoming GitLab webhooks with their secret token",
             fields: GITLAB_CONNECTION_FIELDS,
             oauth: None,
-            testable: false,
+            configurator: ConnectionConfigurator::TokenWebhook,
+            webhook_authentication: Some(WebhookAuthentication::Token),
+            probe: None,
         }),
+        internal: false,
     },
     AutomationServiceDefinition {
-        service: "generic",
+        service: GENERIC_SERVICE,
         label: "Generic Webhook",
         actions: GENERIC_ACTIONS,
         reactions: &[],
@@ -176,26 +186,31 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
             description: "Receive bounded JSON webhooks authenticated with a shared token",
             fields: GENERIC_CONNECTION_FIELDS,
             oauth: None,
-            testable: false,
+            configurator: ConnectionConfigurator::TokenWebhook,
+            webhook_authentication: Some(WebhookAuthentication::Token),
+            probe: None,
         }),
+        internal: false,
     },
     alertmanager::DEFINITION,
     AutomationServiceDefinition {
-        service: "opswarden",
+        service: OPSWARDEN_SERVICE,
         label: "OpsWarden",
         actions: OPSWARDEN_ACTIONS,
         reactions: OPSWARDEN_REACTIONS,
         connection: None,
+        internal: true,
     },
     AutomationServiceDefinition {
-        service: "timer",
+        service: TIMER_SERVICE,
         label: "Timer",
         actions: TIMER_ACTIONS,
         reactions: &[],
         connection: None,
+        internal: true,
     },
     AutomationServiceDefinition {
-        service: "http",
+        service: HTTP_SERVICE,
         label: "HTTP",
         actions: &[],
         reactions: HTTP_REACTIONS,
@@ -203,11 +218,14 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
             description: "Send bounded notifications to a public HTTPS endpoint",
             fields: HTTP_CONNECTION_FIELDS,
             oauth: None,
-            testable: true,
+            configurator: ConnectionConfigurator::Http,
+            webhook_authentication: None,
+            probe: Some(ConnectionProbe::Http),
         }),
+        internal: false,
     },
     AutomationServiceDefinition {
-        service: "email",
+        service: EMAIL_SERVICE,
         label: "Email",
         actions: &[],
         reactions: EMAIL_REACTIONS,
@@ -215,7 +233,10 @@ pub const AUTOMATION_CATALOG: &[AutomationServiceDefinition] = &[
             description: "Send emails via an external SMTP server",
             fields: EMAIL_CONNECTION_FIELDS,
             oauth: None,
-            testable: true,
+            configurator: ConnectionConfigurator::Email,
+            webhook_authentication: None,
+            probe: Some(ConnectionProbe::Email),
         }),
+        internal: false,
     },
 ];

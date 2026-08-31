@@ -12,7 +12,7 @@ async fn seed_user(pool: &PgPool) -> Uuid {
 }
 
 #[sqlx::test]
-async fn hydrates_attachment_metadata_and_viewer_reactions(pool: PgPool) {
+async fn hydrates_attachment_metadata(pool: PgPool) {
     let repo = PgPrivateMessageRepo::new(pool.clone());
     let alice = seed_user(&pool).await;
     let bob = seed_user(&pool).await;
@@ -29,13 +29,9 @@ async fn hydrates_attachment_metadata_and_viewer_reactions(pool: PgPool) {
     .unwrap();
     let attachment_id = message.attachments[0].id;
     repo.save(&message).await.unwrap();
-    assert!(repo.toggle_reaction(message.id, alice, "✅").await.unwrap());
-
     let page = repo.list_conversation(alice, bob, None, 50).await.unwrap();
     assert_eq!(page[0].attachments[0].size_bytes, 3);
     assert!(page[0].attachments[0].content.is_empty());
-    assert_eq!(page[0].reactions[0].count, 1);
-    assert!(page[0].reactions[0].reacted);
 
     let download = repo
         .find_attachment_for_participant(attachment_id, bob)

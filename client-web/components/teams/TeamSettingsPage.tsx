@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
-import { type Team, useDeleteTeam, useLeaveTeam, useTeams } from "@/lib/queries/teams";
+import { type Team, useDeleteTeam, useLeaveTeam } from "@/lib/queries/teams";
+import { useTeamScope } from "./TeamScope";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -183,8 +184,7 @@ function TeamPage({ team }: { team: Team }) {
 
 export function TeamSettingsPage({ teamId }: { teamId: string }) {
   const t = useTranslations("Teams");
-  const { data: teams, isLoading, error } = useTeams();
-  const team = teams?.find((candidate) => candidate.team_id === teamId);
+  const { activeTeam: team, isLoading, error } = useTeamScope();
   const state: PageContentState = isLoading ? "loading" : error || !team ? "error" : "ready";
 
   return (

@@ -47,14 +47,12 @@ let messagesQuery: {
         created_at: string;
         edited_at: null;
         attachments: never[];
-        reactions: never[];
       }>;
       next_cursor: null;
       features: Array<
         | "send_text"
         | "send_gif"
         | "edit_own_message"
-        | "react"
         | "attach_files"
         | "paginated_history"
         | "presence"
@@ -81,7 +79,6 @@ let messagesQuery: {
             created_at: "2026-08-10T10:01:00Z",
             edited_at: null,
             attachments: [],
-            reactions: [],
           },
           {
             id: "theirs",
@@ -91,7 +88,6 @@ let messagesQuery: {
             created_at: "2026-08-10T10:00:00Z",
             edited_at: null,
             attachments: [],
-            reactions: [],
           },
           {
             id: "gif",
@@ -101,7 +97,6 @@ let messagesQuery: {
             created_at: "2026-08-10T09:59:00Z",
             edited_at: null,
             attachments: [],
-            reactions: [],
           },
         ],
         next_cursor: null,
@@ -109,7 +104,6 @@ let messagesQuery: {
           "send_text",
           "send_gif",
           "edit_own_message",
-          "react",
           "attach_files",
           "paginated_history",
           "presence",
@@ -135,14 +129,9 @@ vi.mock("@/lib/queries/privateMessages", () => ({
   usePrivateMessages: () => messagesQuery,
   useSendPrivateMessage: () => send,
   useEditPrivateMessage: () => ({ error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() }),
-  useTogglePrivateMessageReaction: () => ({ isPending: false, mutate: vi.fn() }),
   useMarkPrivateMessageRead: () => ({ mutate: vi.fn() }),
   useUnreadPrivateMessages: () => ({ data: { unread_peer_ids: [] } }),
   downloadPrivateMessageAttachment: vi.fn(),
-}));
-
-vi.mock("@/lib/queries/incidents", () => ({
-  useAvailableReactions: () => ({ data: ["👍", "✅"] }),
 }));
 
 afterEach(() => {

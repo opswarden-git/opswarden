@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   CollectionSearch,
   MobileCollectionFilters,
@@ -24,14 +25,16 @@ import {
   type IncidentStatus,
   useIncidentQueue,
 } from "@/lib/queries/incidents";
-import { useTeamMembers, useTeams } from "@/lib/queries/teams";
+import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from "@/lib/incident-contract";
+import { useTeamMembers } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 
 type IncidentView = "all" | IncidentStatus;
 type IncidentSort = "newest" | "oldest" | "severity";
 
-const VIEWS: IncidentView[] = ["open", "acknowledged", "escalated", "resolved", "all"];
-const SEVERITIES: IncidentSeverity[] = ["critical", "high", "medium", "low"];
+const VIEWS: IncidentView[] = [...INCIDENT_STATUSES, "all"];
+const SEVERITIES = [...INCIDENT_SEVERITIES].reverse();
 const SORTS: IncidentSort[] = ["newest", "oldest", "severity"];
 
 export function IncidentsPage({ teamId }: { teamId: string }) {
@@ -40,11 +43,15 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
+  const {
+    teams,
+    activeTeam,
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const { data: members } = useTeamMembers(teamId);
-  const activeTeam = teams?.find((team) => team.team_id === teamId);
-  const capabilities = deriveCapabilities(activeTeam?.role ?? "observer");
-  const hasNoTeams = teams?.length === 0;
+  const hasNoTeams = teams.length === 0;
 
   const requestedView = searchParams.get("view") as IncidentView | null;
   const view = requestedView && VIEWS.includes(requestedView) ? requestedView : "open";
@@ -109,9 +116,7 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
           : "ready";
 
   const clearFilters = () => router.push(`${pathname}?view=all`);
-  const assignableMembers = (members ?? []).filter(
-    (member) => member.role === "manager" || member.role === "responder",
-  );
+  const assignableMembers = (members ?? []).filter((member) => member.can_be_assigned_incident);
   const viewLabel = (value: IncidentView) => t(`view${value[0].toUpperCase()}${value.slice(1)}`);
   const severityLabel = (value: IncidentSeverity) =>
     t(`severity${value[0].toUpperCase()}${value.slice(1)}`);
@@ -272,29 +277,28 @@ export function IncidentsPage({ teamId }: { teamId: string }) {
         errorFallback={<Alert tone="danger">{t("failedToLoad")}</Alert>}
         emptyFallback={
           hasNoTeams ? (
-            <div className="surface rounded-md p-12 text-center">
-              <Shield className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">{t("noTeamsYet")}</h3>
-              <p className="text-muted mt-2 mb-6 text-sm">{t("noTeamsDesc")}</p>
-              <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
-                {t("goToTeams")}
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Shield className="h-6 w-6" />}
+              title={t("noTeamsYet")}
+              description={t("noTeamsDesc")}
+              action={
+                <Link
+                  href="/teams"
+                  className={buttonClassNames({ variant: "primary", size: "lg" })}
+                >
+                  {t("goToTeams")}
+                </Link>
+              }
+            />
           ) : (
-            <div className="surface rounded-md p-12 text-center">
-              <AlertCircle className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">
-                {hasIncidents ? t("noMatchingIncidents") : t("noIncidentsYet")}
-              </h3>
-              <p className="text-muted mt-2 text-sm">
-                {hasIncidents ? t("noMatchingIncidentsDesc") : t("noIncidentsDesc")}
-              </p>
-              {hasIncidents ? (
-                <Button className="mt-6" onClick={clearFilters}>
-                  {t("clearFilters")}
-                </Button>
-              ) : null}
-            </div>
+            <EmptyState
+              icon={<AlertCircle className="h-6 w-6" />}
+              title={hasIncidents ? t("noMatchingIncidents") : t("noIncidentsYet")}
+              description={hasIncidents ? t("noMatchingIncidentsDesc") : t("noIncidentsDesc")}
+              action={
+                hasIncidents ? <Button onClick={clearFilters}>{t("clearFilters")}</Button> : null
+              }
+            />
           )
         }
       >

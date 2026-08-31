@@ -4,8 +4,9 @@
   "version": "1.0.19",
   "description": "Thin Tauri v2 shell around the OpsWarden web client (URL mode: loads the running Next app).",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "node scripts/tauri-dev.mjs",
     "build": "tauri build",
+    "test": "node --test scripts/*.test.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {

@@ -2,7 +2,7 @@ import React from "react";
 import { CircleDashed, Ban, CheckCircle2, Loader, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { ReleaseState } from "@/lib/queries/releases";
+import type { ReleaseState } from "@/lib/release-contract";
 
 /** Read-only state panel for a release, mirroring the incident StateChip style. */
 export function ReleaseStateChip({ state }: { state: ReleaseState }) {

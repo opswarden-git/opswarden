@@ -8,21 +8,20 @@ use opswarden_server::domain::automation_config::{
 use opswarden_server::domain::error::DomainError;
 use opswarden_server::domain::incident::{Incident, IncidentStatus};
 use opswarden_server::domain::incident_event::IncidentEvent;
-use opswarden_server::domain::private_message::{
-    PrivateMessage, PrivateMessageAttachment, PrivateMessageReaction,
-};
-use opswarden_server::domain::release::{Release, ReleaseState};
+use opswarden_server::domain::private_message::{PrivateMessage, PrivateMessageAttachment};
+use opswarden_server::domain::release::{Release, ReleaseBaseState};
 use opswarden_server::domain::team::{
     Role, Team, TeamBan, TeamBanView, TeamDirectoryItem, TeamMemberView,
 };
 use opswarden_server::domain::timeline::{ReactionRecord, TimelineEntry};
 use opswarden_server::domain::user::{Locale, User};
 use opswarden_server::ports::{
-    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailMessage,
-    EmailSender, GifResult, GifSearch, IncidentRepo, Notifier, OAuthClient, OAuthProfile,
-    PasswordHasher, PrivateMessageRepo, ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient,
-    ServiceOAuthTokens, SmtpConfig, TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo,
-    TokenService, UserRepo, WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault,
+    ConnectionHealthMutation, CredentialMutation, EmailMessage, EmailSender, GifResult, GifSearch,
+    IncidentRepo, Notifier, OAuthClient, OAuthProfile, PasswordHasher, PrivateMessageRepo,
+    ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, ServiceOAuthTokens, SmtpConfig,
+    TeamRepo, TimelineRepo, TokenClaims, TokenRevocationRepo, TokenService, UserRepo,
+    WebhookDeliveryRepo,
 };
 use opswarden_server::{build_app, config::Config, AppState};
 use std::collections::{HashMap, HashSet};
@@ -53,6 +52,7 @@ pub struct TestContext {
 include!("automation.rs");
 include!("auth.rs");
 include!("teams_incidents.rs");
+include!("teams_timeline.rs");
 include!("team_helpers.rs");
 include!("messaging.rs");
 include!("app.rs");

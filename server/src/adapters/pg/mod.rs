@@ -8,3 +8,9 @@ pub mod team;
 pub mod timeline;
 pub mod token_revocation;
 pub mod user;
+
+#[cfg(test)]
+mod schema_contract_tests;
+
+#[cfg(test)]
+mod team_boundary_tests;

@@ -1,4 +1,4 @@
-import type { IncidentTransition } from "@/lib/capabilities";
+import type { IncidentTransition } from "@/lib/queries/incidents";
 
 export interface IncidentHeaderActions {
   primary: IncidentTransition | null;

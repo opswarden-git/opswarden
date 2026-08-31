@@ -8,12 +8,18 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use sqlx::PgPool;
+use chrono::{DateTime, Utc};
+use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
+use crate::domain::automation_catalog::OPSWARDEN_SERVICE;
 use crate::domain::error::DomainError;
-use crate::domain::release::{Release, ReleaseState, ReleaseStep};
+use crate::domain::incident::Incident;
+use crate::domain::incident_event::IncidentEvent;
+use crate::domain::release::{Release, ReleaseBaseState, ReleaseStep};
 use crate::ports::ReleaseRepo;
+
+use super::incident::{insert_event, insert_incident};
 
 pub struct PgReleaseRepo {
     pool: PgPool,
@@ -23,25 +29,11 @@ impl PgReleaseRepo {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
 
-fn base_state_to_str(state: ReleaseState) -> &'static str {
-    match state {
-        ReleaseState::Created => "created",
-        ReleaseState::InProgress => "in_progress",
-        ReleaseState::Completed => "completed",
-        ReleaseState::Cancelled => "cancelled",
-        // `Blocked` is a derived effective state, never a stored base; map it back
-        // to its underlying base defensively so a leak can never corrupt the row.
-        ReleaseState::Blocked => "in_progress",
-    }
-}
-
-#[async_trait]
-impl ReleaseRepo for PgReleaseRepo {
-    async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
-        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-
+    async fn insert_release(
+        transaction: &mut Transaction<'_, Postgres>,
+        release: &Release,
+    ) -> Result<(), DomainError> {
         sqlx::query!(
             r#"
             INSERT INTO releases (id, team_id, title, base_state, created_at, updated_at)
@@ -50,11 +42,11 @@ impl ReleaseRepo for PgReleaseRepo {
             release.id,
             release.team_id,
             release.title,
-            base_state_to_str(release.base_state),
+            release.base_state.as_str(),
             release.created_at,
             release.updated_at,
         )
-        .execute(&mut *tx)
+        .execute(&mut **transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
 
@@ -70,13 +62,149 @@ impl ReleaseRepo for PgReleaseRepo {
                 step.validated_by,
                 step.validated_at,
             )
-            .execute(&mut *tx)
+            .execute(&mut **transaction)
             .await
             .map_err(|_| DomainError::Storage)?;
         }
+        Ok(())
+    }
 
+    async fn update_release_rows(
+        transaction: &mut Transaction<'_, Postgres>,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
+        let updated = sqlx::query(
+            r#"
+            UPDATE releases SET base_state = $2, updated_at = $3
+            WHERE id = $1 AND updated_at = $4
+            "#,
+        )
+        .bind(release.id)
+        .bind(release.base_state.as_str())
+        .bind(release.updated_at)
+        .bind(expected_updated_at)
+        .execute(&mut **transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if updated.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
+
+        for step in &release.steps {
+            let updated = sqlx::query(
+                r#"
+                UPDATE release_steps SET validated_by = $3, validated_at = $4
+                WHERE release_id = $1 AND position = $2
+                "#,
+            )
+            .bind(release.id)
+            .bind(step.position)
+            .bind(step.validated_by)
+            .bind(step.validated_at)
+            .execute(&mut **transaction)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+            if updated.rows_affected() != 1 {
+                return Err(DomainError::ConcurrentModification);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ReleaseRepo for PgReleaseRepo {
+    async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
+        let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::insert_release(&mut tx, release).await?;
         tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
+    }
+
+    async fn create_release(
+        &self,
+        release: &Release,
+        delivery_id: &str,
+        event: &crate::domain::automation::ExternalEvent,
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::insert_release(&mut transaction, release).await?;
+        let body = serde_json::to_vec(event).map_err(|_| DomainError::Storage)?;
+        let result = sqlx::query(
+            r#"
+            INSERT INTO webhook_jobs (
+                id, connection_id, expected_service, provider_delivery_id,
+                provider_event, body
+            )
+            SELECT $1, connection.id, $2, $3, $4, $5
+            FROM service_connections AS connection
+            WHERE connection.team_id = $6 AND connection.service = $2
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(OPSWARDEN_SERVICE)
+        .bind(delivery_id)
+        .bind(&event.kind)
+        .bind(body)
+        .bind(release.team_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if result.rows_affected() != 1 {
+            return Err(DomainError::Storage);
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(())
+    }
+
+    async fn create_blocking_incident(
+        &self,
+        release_id: Uuid,
+        expected_updated_at: DateTime<Utc>,
+        incident: &Incident,
+        event: &IncidentEvent,
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let locked = sqlx::query(
+            r#"
+            UPDATE releases
+            SET updated_at = GREATEST(clock_timestamp(), updated_at + interval '1 microsecond')
+            WHERE id = $1
+              AND team_id = $2
+              AND base_state = 'in_progress'
+              AND updated_at = $3
+            "#,
+        )
+        .bind(release_id)
+        .bind(incident.team_id)
+        .bind(expected_updated_at)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+        if locked.rows_affected() != 1 {
+            return Err(DomainError::ConcurrentModification);
+        }
+
+        insert_incident(&mut transaction, incident).await?;
+        insert_event(&mut transaction, event).await?;
+        sqlx::query(
+            r#"
+            INSERT INTO release_incidents (team_id, release_id, incident_id)
+            VALUES ($1, $2, $3)
+            "#,
+        )
+        .bind(incident.team_id)
+        .bind(release_id)
+        .bind(incident.id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?;
+
+        transaction.commit().await.map_err(|_| DomainError::Storage)
     }
 
     async fn find_release_by_id(&self, release_id: Uuid) -> Result<Option<Release>, DomainError> {
@@ -109,7 +237,7 @@ impl ReleaseRepo for PgReleaseRepo {
             id: row.id,
             team_id: row.team_id,
             title: row.title,
-            base_state: ReleaseState::from_base_str(&row.base_state)?,
+            base_state: ReleaseBaseState::try_from(row.base_state.as_str())?,
             steps: steps
                 .into_iter()
                 .map(|s| ReleaseStep {
@@ -171,7 +299,7 @@ impl ReleaseRepo for PgReleaseRepo {
                     id: row.id,
                     team_id: row.team_id,
                     title: row.title,
-                    base_state: ReleaseState::from_base_str(&row.base_state)?,
+                    base_state: ReleaseBaseState::try_from(row.base_state.as_str())?,
                     steps: steps_by_release.remove(&row.id).unwrap_or_default(),
                     created_at: row.created_at,
                     updated_at: row.updated_at,
@@ -180,50 +308,44 @@ impl ReleaseRepo for PgReleaseRepo {
             .collect()
     }
 
-    async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+    async fn update_release(
+        &self,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-
-        sqlx::query!(
-            r#"UPDATE releases SET base_state = $2, updated_at = $3 WHERE id = $1"#,
-            release.id,
-            base_state_to_str(release.base_state),
-            release.updated_at,
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        for step in &release.steps {
-            sqlx::query!(
-                r#"
-                UPDATE release_steps SET validated_by = $3, validated_at = $4
-                WHERE release_id = $1 AND position = $2
-                "#,
-                release.id,
-                step.position,
-                step.validated_by,
-                step.validated_at,
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(|_| DomainError::Storage)?;
-        }
-
+        Self::update_release_rows(&mut tx, release, expected_updated_at).await?;
         tx.commit().await.map_err(|_| DomainError::Storage)?;
         Ok(())
     }
 
+    async fn update_release_with_incident_events(
+        &self,
+        release: &Release,
+        expected_updated_at: DateTime<Utc>,
+        events: &[IncidentEvent],
+    ) -> Result<(), DomainError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        Self::update_release_rows(&mut transaction, release, expected_updated_at).await?;
+        for event in events {
+            insert_event(&mut transaction, event).await?;
+        }
+        transaction.commit().await.map_err(|_| DomainError::Storage)
+    }
+
     async fn link_incident(&self, release_id: Uuid, incident_id: Uuid) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let linked = sqlx::query!(
+        let linked = sqlx::query(
             r#"
-            INSERT INTO release_incidents (release_id, incident_id)
-            VALUES ($1, $2)
+            INSERT INTO release_incidents (team_id, release_id, incident_id)
+            SELECT release.team_id, release.id, $2
+            FROM releases release
+            WHERE release.id = $1
             ON CONFLICT DO NOTHING
             "#,
-            release_id,
-            incident_id,
         )
+        .bind(release_id)
+        .bind(incident_id)
         .execute(&mut *tx)
         .await
         .map_err(|_| DomainError::Storage)?;
@@ -297,7 +419,7 @@ impl ReleaseRepo for PgReleaseRepo {
     async fn list_release_states_linked_to_incident(
         &self,
         incident_id: Uuid,
-    ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+    ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError> {
         let rows = sqlx::query!(
             r#"
             SELECT r.id, r.team_id, r.base_state
@@ -316,7 +438,7 @@ impl ReleaseRepo for PgReleaseRepo {
                 Ok((
                     row.id,
                     row.team_id,
-                    ReleaseState::from_base_str(&row.base_state)?,
+                    ReleaseBaseState::try_from(row.base_state.as_str())?,
                 ))
             })
             .collect()
@@ -324,159 +446,6 @@ impl ReleaseRepo for PgReleaseRepo {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::adapters::pg::incident::PgIncidentRepo;
-    use crate::adapters::pg::team::PgTeamRepo;
-    use crate::adapters::pg::user::PgUserRepo;
-    use crate::domain::incident::{Incident, Severity};
-    use crate::domain::team::{Role, Team};
-    use crate::domain::user::{Email, User};
-    use crate::ports::{IncidentRepo, TeamRepo, UserRepo};
-
-    async fn seed_team(pool: &PgPool) -> (Uuid, Uuid) {
-        let users = PgUserRepo::new(pool.clone());
-        let teams = PgTeamRepo::new(pool.clone());
-        let email = Email::new(format!("release_it_{}@opswarden.com", Uuid::new_v4())).unwrap();
-        let user = User::new(email, "hash");
-        users.save(&user).await.unwrap();
-        let team = Team::new("Release Team").unwrap();
-        teams.save_team(&team).await.unwrap();
-        teams
-            .add_member(team.id, user.id, Role::Manager)
-            .await
-            .unwrap();
-        (team.id, user.id)
-    }
-
-    #[sqlx::test]
-    async fn it_saves_loads_and_validates_a_release(pool: PgPool) {
-        let repo = PgReleaseRepo::new(pool.clone());
-        let (team_id, user_id) = seed_team(&pool).await;
-
-        let mut release =
-            Release::new(team_id, "v1.0.0", vec!["build".into(), "prod".into()]).unwrap();
-        repo.save_release(&release).await.unwrap();
-
-        let loaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
-        assert_eq!(loaded.base_state, ReleaseState::Created);
-        assert_eq!(loaded.steps.len(), 2);
-        assert_eq!(loaded.steps[0].name, "build");
-
-        release.validate_step("build", user_id, false).unwrap();
-        repo.update_release(&release).await.unwrap();
-
-        let reloaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
-        assert_eq!(reloaded.base_state, ReleaseState::InProgress);
-        assert!(reloaded.steps[0].is_validated());
-        assert_eq!(reloaded.steps[0].validated_by, Some(user_id));
-        assert!(!reloaded.steps[1].is_validated());
-
-        let listed = repo.list_releases_for_team(team_id).await.unwrap();
-        assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].steps.len(), 2);
-    }
-
-    #[sqlx::test]
-    async fn linked_active_incident_blocks_and_resolving_unblocks(pool: PgPool) {
-        let releases = PgReleaseRepo::new(pool.clone());
-        let incidents = PgIncidentRepo::new(pool.clone());
-        let (team_id, _user) = seed_team(&pool).await;
-
-        let release = Release::new(team_id, "v2.0.0", vec!["build".into()]).unwrap();
-        releases.save_release(&release).await.unwrap();
-
-        let mut incident = Incident::new(team_id, "DB down", Severity::Critical).unwrap();
-        incident.acknowledge().unwrap(); // active (not resolved)
-        incidents.save_incident(&incident).await.unwrap();
-
-        releases
-            .link_incident(release.id, incident.id)
-            .await
-            .unwrap();
-        let linked_at = releases
-            .find_release_by_id(release.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .updated_at;
-        assert!(linked_at > release.updated_at);
-        // idempotent re-link
-        releases
-            .link_incident(release.id, incident.id)
-            .await
-            .unwrap();
-        assert_eq!(
-            releases
-                .find_release_by_id(release.id)
-                .await
-                .unwrap()
-                .unwrap()
-                .updated_at,
-            linked_at
-        );
-
-        assert_eq!(
-            releases
-                .count_active_linked_incidents(release.id)
-                .await
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            releases
-                .list_linked_incident_ids(release.id)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
-        let linked = releases
-            .list_release_states_linked_to_incident(incident.id)
-            .await
-            .unwrap();
-        assert_eq!(linked, vec![(release.id, team_id, ReleaseState::Created)]);
-
-        // Resolve the incident → the active count drops to zero (auto-unblock).
-        incident.resolve().unwrap();
-        incidents.update_incident(&incident).await.unwrap();
-        assert_eq!(
-            releases
-                .count_active_linked_incidents(release.id)
-                .await
-                .unwrap(),
-            0
-        );
-
-        // Unlink is idempotent and removes the link.
-        releases
-            .unlink_incident(release.id, incident.id)
-            .await
-            .unwrap();
-        let unlinked_at = releases
-            .find_release_by_id(release.id)
-            .await
-            .unwrap()
-            .unwrap()
-            .updated_at;
-        assert!(unlinked_at > linked_at);
-        releases
-            .unlink_incident(release.id, incident.id)
-            .await
-            .unwrap();
-        assert_eq!(
-            releases
-                .find_release_by_id(release.id)
-                .await
-                .unwrap()
-                .unwrap()
-                .updated_at,
-            unlinked_at
-        );
-        assert!(releases
-            .list_linked_incident_ids(release.id)
-            .await
-            .unwrap()
-            .is_empty());
-    }
-}
+#[cfg(test)]
+#[path = "release_tests.rs"]
+mod tests;

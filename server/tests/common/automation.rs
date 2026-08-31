@@ -1,6 +1,6 @@
 #[derive(Default)]
 pub struct DummyServiceConnectionRepo {
-    connections: Mutex<HashMap<Uuid, ServiceConnection>>,
+    connections: Arc<Mutex<HashMap<Uuid, ServiceConnection>>>,
 }
 
 #[async_trait]
@@ -133,10 +133,18 @@ impl ServiceConnectionRepo for DummyServiceConnectionRepo {
 #[derive(Default)]
 pub struct DummyConnectionCredentialVault {
     credentials: Mutex<HashMap<(Uuid, CredentialKind), String>>,
+    connections: Arc<Mutex<HashMap<Uuid, ServiceConnection>>>,
 }
 
 #[allow(dead_code)]
 impl DummyConnectionCredentialVault {
+    pub fn new(connections: &DummyServiceConnectionRepo) -> Self {
+        Self {
+            credentials: Mutex::new(HashMap::new()),
+            connections: connections.connections.clone(),
+        }
+    }
+
     pub fn raw_values(&self) -> Vec<String> {
         self.credentials.lock().unwrap().values().cloned().collect()
     }
@@ -144,6 +152,60 @@ impl DummyConnectionCredentialVault {
 
 #[async_trait]
 impl ConnectionCredentialVault for DummyConnectionCredentialVault {
+    async fn configure_connection(
+        &self,
+        connection: &ServiceConnection,
+        credentials: &[CredentialMutation],
+        health: ConnectionHealthMutation,
+    ) -> Result<ServiceConnection, DomainError> {
+        if credentials.iter().any(|mutation| {
+            mutation
+                .secret
+                .as_ref()
+                .is_some_and(|secret| secret.trim().is_empty())
+        }) {
+            return Err(DomainError::InvalidServiceSecret);
+        }
+        let mut connections = self.connections.lock().unwrap();
+        let connection_id = connections
+            .values()
+            .find(|stored| {
+                stored.team_id == connection.team_id && stored.service == connection.service
+            })
+            .map(|stored| stored.id)
+            .unwrap_or(connection.id);
+        let stored = connections
+            .entry(connection_id)
+            .or_insert_with(|| connection.clone());
+        let now = Utc::now();
+        match health {
+            ConnectionHealthMutation::Preserve => {}
+            ConnectionHealthMutation::Reset => {
+                stored.verified_at = None;
+                stored.last_error_code = None;
+            }
+            ConnectionHealthMutation::Verified => {
+                stored.verified_at.get_or_insert(now);
+                stored.last_error_code = None;
+            }
+        }
+        stored.updated_at = now;
+        let stored = stored.clone();
+
+        let mut values = self.credentials.lock().unwrap();
+        for mutation in credentials {
+            match mutation.secret.as_deref() {
+                Some(secret) => {
+                    values.insert((stored.id, mutation.kind), secret.to_string());
+                }
+                None => {
+                    values.remove(&(stored.id, mutation.kind));
+                }
+            }
+        }
+        Ok(stored)
+    }
+
     async fn store_credential(
         &self,
         connection_id: Uuid,
@@ -213,11 +275,19 @@ impl AutomationRuleRepo for DummyAutomationRuleRepo {
         Ok(())
     }
 
-    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError> {
+    async fn update_rule(
+        &self,
+        rule: &AutomationRule,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError> {
         let mut rules = self.rules.lock().unwrap();
-        let exists = rules
+        let stored = rules
             .get(&rule.id)
-            .is_some_and(|stored| stored.team_id == rule.team_id);
+            .filter(|stored| stored.team_id == rule.team_id);
+        if stored.is_some_and(|stored| stored.updated_at != expected_updated_at) {
+            return Err(DomainError::ConcurrentModification);
+        }
+        let exists = stored.is_some();
         if exists {
             rules.insert(rule.id, rule.clone());
         }
@@ -279,11 +349,20 @@ impl AutomationRuleRepo for DummyAutomationRuleRepo {
         }
         Ok(belongs_to_team)
     }
+
+    async fn next_run_at(
+        &self,
+        _team_id: Uuid,
+        _rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError> {
+        Ok(None)
+    }
 }
 
 #[derive(Default)]
 pub struct DummyWebhookDeliveryRepo {
     deliveries: Mutex<HashMap<(Uuid, String), WebhookDelivery>>,
+    claims: Mutex<HashMap<Uuid, Uuid>>,
 }
 
 #[allow(dead_code)]
@@ -295,17 +374,40 @@ impl DummyWebhookDeliveryRepo {
 
 #[async_trait]
 impl WebhookDeliveryRepo for DummyWebhookDeliveryRepo {
-    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
+    async fn claim_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+    ) -> Result<Option<opswarden_server::ports::WebhookDeliveryClaim>, DomainError> {
         let key = (
             delivery.connection_id,
             delivery.provider_delivery_id.clone(),
         );
         let mut deliveries = self.deliveries.lock().unwrap();
         if deliveries.contains_key(&key) {
-            return Ok(false);
+            return Ok(None);
         }
         deliveries.insert(key, delivery.clone());
-        Ok(true)
+        let token = Uuid::new_v4();
+        self.claims.lock().unwrap().insert(delivery.id, token);
+        Ok(Some(opswarden_server::ports::WebhookDeliveryClaim {
+            delivery_id: delivery.id,
+            token,
+        }))
+    }
+
+    async fn complete_claimed_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: opswarden_server::ports::WebhookDeliveryClaim,
+    ) -> Result<bool, DomainError> {
+        if self.claims.lock().unwrap().get(&delivery.id) != Some(&claim.token) {
+            return Ok(false);
+        }
+        let updated = self.update_delivery(delivery).await?;
+        if updated {
+            self.claims.lock().unwrap().remove(&delivery.id);
+        }
+        Ok(updated)
     }
 
     async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError> {
@@ -335,154 +437,4 @@ impl WebhookDeliveryRepo for DummyWebhookDeliveryRepo {
     }
 }
 
-#[derive(Default)]
-pub struct DummyAutomationRunRepo {
-    runs: Mutex<HashMap<Uuid, AutomationRun>>,
-}
-
-#[allow(dead_code)]
-impl DummyAutomationRunRepo {
-    pub fn all(&self) -> Vec<AutomationRun> {
-        self.runs.lock().unwrap().values().cloned().collect()
-    }
-}
-
-#[async_trait]
-impl AutomationRunRepo for DummyAutomationRunRepo {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
-        self.runs.lock().unwrap().insert(run.id, run.clone());
-        Ok(())
-    }
-
-    async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError> {
-        let mut runs = self.runs.lock().unwrap();
-        let can_update = runs
-            .get(&run.id)
-            .is_some_and(|stored| stored.status.to_string() == "running");
-        if can_update {
-            runs.insert(run.id, run.clone());
-        }
-        Ok(can_update)
-    }
-
-    async fn list_runs_for_team(
-        &self,
-        _team_id: Uuid,
-        limit: u32,
-    ) -> Result<Vec<AutomationRun>, DomainError> {
-        let mut runs: Vec<_> = self.runs.lock().unwrap().values().cloned().collect();
-        runs.sort_by_key(|run| std::cmp::Reverse(run.started_at));
-        runs.truncate(limit.clamp(1, 200) as usize);
-        Ok(runs)
-    }
-}
-
-#[derive(Default)]
-pub struct DummyNotifier {
-    calls: Mutex<Vec<(String, String)>>,
-    should_fail: Mutex<bool>,
-}
-
-#[allow(dead_code)]
-impl DummyNotifier {
-    pub fn calls(&self) -> Vec<(String, String)> {
-        self.calls.lock().unwrap().clone()
-    }
-
-    pub fn fail_requests(&self) {
-        *self.should_fail.lock().unwrap() = true;
-    }
-}
-
-#[async_trait]
-impl Notifier for DummyNotifier {
-    async fn validate_endpoint(&self, _url: &str) -> Result<(), DomainError> {
-        Ok(())
-    }
-
-    async fn notify(&self, url: &str, message: &str) -> Result<(), DomainError> {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((url.to_string(), message.to_string()));
-        if *self.should_fail.lock().unwrap() {
-            Err(DomainError::ReactionHttp5xx)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-/// `DomainError` is deliberately not `Clone`, so the injected failure is stored
-/// as a constructor the double can call on every attempt.
-#[derive(Default)]
-pub struct DummyEmailSender {
-    sent: Mutex<Vec<(SmtpConfig, EmailMessage)>>,
-    validated: Mutex<Vec<SmtpConfig>>,
-    failure: Mutex<Option<fn() -> DomainError>>,
-}
-
-#[allow(dead_code)]
-impl DummyEmailSender {
-    pub fn sent(&self) -> Vec<(SmtpConfig, EmailMessage)> {
-        self.sent.lock().unwrap().clone()
-    }
-
-    pub fn validated(&self) -> Vec<SmtpConfig> {
-        self.validated.lock().unwrap().clone()
-    }
-
-    pub fn fail_with(&self, error: fn() -> DomainError) {
-        *self.failure.lock().unwrap() = Some(error);
-    }
-
-    fn outcome(&self) -> Result<(), DomainError> {
-        match *self.failure.lock().unwrap() {
-            Some(error) => Err(error()),
-            None => Ok(()),
-        }
-    }
-}
-
-#[async_trait]
-impl EmailSender for DummyEmailSender {
-    async fn validate_smtp(&self, config: &SmtpConfig) -> Result<(), DomainError> {
-        self.validated.lock().unwrap().push(config.clone());
-        self.outcome()
-    }
-
-    async fn send_email(
-        &self,
-        config: &SmtpConfig,
-        message: &EmailMessage,
-    ) -> Result<(), DomainError> {
-        // Record before failing so a test can assert what the executor built even
-        // on the error path.
-        self.sent
-            .lock()
-            .unwrap()
-            .push((config.clone(), message.clone()));
-        self.outcome()
-    }
-}
-
-pub struct DummyGifSearch;
-
-#[async_trait]
-impl GifSearch for DummyGifSearch {
-    async fn search(
-        &self,
-        query: &str,
-        _limit: u32,
-        _rating: &str,
-    ) -> Result<Vec<GifResult>, DomainError> {
-        Ok(vec![GifResult {
-            id: "demo".to_string(),
-            title: format!("result for {query}"),
-            url: "https://media.giphy.com/media/demo/giphy.gif".to_string(),
-            preview_url: "https://media.giphy.com/media/demo/200w_s.gif".to_string(),
-            width: 200,
-            height: 150,
-        }])
-    }
-}
+include!("automation_extra.rs");

@@ -23,9 +23,7 @@ pub use automation_config::{
     AutomationRule, AutomationRuleDefinition, AutomationRun, AutomationRunStatus, CredentialKind,
     ServiceConnection, WebhookDelivery, WebhookDeliveryStatus,
 };
-pub use automation_timer::{
-    ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule, TimerScheduleProjection,
-};
+pub use automation_timer::{ClaimedTimerOccurrence, TimerOccurrence, TimerSchedule};
 pub use capabilities::{derive_capabilities, TeamCapabilities};
 pub use conversation::{ConversationFeature, ConversationScope};
 pub use error::DomainError;
@@ -33,11 +31,11 @@ pub use event::DomainEvent;
 pub use incident::{Incident, IncidentStatus, Severity};
 pub use incident_event::{IncidentEvent, IncidentEventKind};
 pub use private_message::{
-    PrivateMessage, PrivateMessageAttachment, PrivateMessageReaction,
-    MAX_PRIVATE_MESSAGE_ATTACHMENTS, MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES,
-    MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES, MAX_PRIVATE_MESSAGE_LEN,
+    PrivateMessage, PrivateMessageAttachment, MAX_PRIVATE_MESSAGE_ATTACHMENTS,
+    MAX_PRIVATE_MESSAGE_ATTACHMENTS_TOTAL_BYTES, MAX_PRIVATE_MESSAGE_ATTACHMENT_BYTES,
+    MAX_PRIVATE_MESSAGE_LEN,
 };
-pub use release::{effective_release_state, Release, ReleaseState, ReleaseStep};
+pub use release::{effective_release_state, Release, ReleaseBaseState, ReleaseState, ReleaseStep};
 pub use team::{
     plan_manager_transfer, InvitationCode, ManagerTransfer, Role, RoleChange, Team, TeamMember,
 };

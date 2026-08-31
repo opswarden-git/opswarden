@@ -1,4 +1,6 @@
-import type { AutomationService, CatalogField } from "./queries/automations";
+import type { AutomationService, CatalogCapability, CatalogField } from "./queries/automations";
+
+export type CapabilityWithService = CatalogCapability & { service: string; builtIn: boolean };
 
 export function connectableServices(catalog: AutomationService[]) {
   return catalog.filter((service) => service.connection !== null);

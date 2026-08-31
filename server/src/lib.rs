@@ -8,6 +8,9 @@ pub mod config;
 pub mod domain;
 pub mod handlers;
 pub mod ports;
+pub const DEFAULT_BODY_LIMIT_BYTES: usize = 1024 * 1024; // 1 MiB
+pub const UPLOAD_BODY_LIMIT_BYTES: usize = 14 * 1024 * 1024; // 14 MiB
+pub const WEBHOOK_BODY_LIMIT_BYTES: usize = 1024 * 1024; // 1 MiB
 
 use axum::{
     extract::DefaultBodyLimit,
@@ -16,12 +19,12 @@ use axum::{
 };
 
 use crate::adapters::{metrics::AlertmanagerWebhookMetrics, ws::WsHub};
+use crate::app::automation::TeamWebhookIngress;
 use crate::ports::{
     AutomationRuleRepo, AutomationRunRepo, Clock, ConnectionCredentialVault, EmailSender,
     GifSearch, IncidentRepo, Notifier, OAuthClient, PasswordHasher, PrivateMessageRepo,
     ReleaseRepo, ServiceConnectionRepo, ServiceOAuthClient, TeamRepo, TimelineRepo,
-    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo, WebhookParser,
-    WebhookVerifier,
+    TokenRevocationRepo, TokenService, UserRepo, WebhookDeliveryRepo,
 };
 use std::sync::Arc;
 
@@ -41,8 +44,7 @@ pub struct AppState {
     /// directly by the `/ws` handler to register/unregister connections.
     pub events: Arc<WsHub>,
     pub clock: Arc<dyn Clock + Send + Sync>,
-    pub webhook_verifier: Arc<dyn WebhookVerifier + Send + Sync>,
-    pub webhook_parser: Arc<dyn WebhookParser + Send + Sync>,
+    pub webhook_ingress: Arc<dyn TeamWebhookIngress + Send + Sync>,
     pub alertmanager_metrics: Arc<AlertmanagerWebhookMetrics>,
     /// Team-scoped automation resources. Connections own every credential and
     /// every inbound webhook resolves through an opaque connection id.
@@ -82,7 +84,7 @@ pub fn build_app(state: AppState) -> Router {
             "/api/private-messages",
             post(handlers::private_message::send_private_message)
                 .get(handlers::private_message::list_private_messages)
-                .layer(DefaultBodyLimit::max(14 * 1024 * 1024)),
+                .layer(DefaultBodyLimit::max(UPLOAD_BODY_LIMIT_BYTES)),
         )
         .route(
             "/api/private-messages/read",
@@ -95,10 +97,6 @@ pub fn build_app(state: AppState) -> Router {
         .route(
             "/api/private-messages/{id}",
             patch(handlers::private_message::edit_private_message),
-        )
-        .route(
-            "/api/private-messages/{id}/reactions",
-            post(handlers::private_message::toggle_private_message_reaction),
         )
         .route(
             "/api/private-message-attachments/{id}",
@@ -286,13 +284,15 @@ pub fn build_app(state: AppState) -> Router {
         // Public: authenticated by the provider webhook credential, not a JWT.
         .route(
             "/webhooks/github/{connection_id}",
-            post(handlers::webhook::receive_github_for_connection)
-                .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
+            post(handlers::webhook::receive_github_for_connection).layer(
+                axum::extract::DefaultBodyLimit::max(WEBHOOK_BODY_LIMIT_BYTES),
+            ),
         )
         .route(
             "/webhooks/gitlab/{connection_id}",
-            post(handlers::webhook::receive_gitlab_for_connection)
-                .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)),
+            post(handlers::webhook::receive_gitlab_for_connection).layer(
+                axum::extract::DefaultBodyLimit::max(WEBHOOK_BODY_LIMIT_BYTES),
+            ),
         )
         .route(
             "/webhooks/generic/{connection_id}",

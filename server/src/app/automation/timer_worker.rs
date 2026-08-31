@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
 
-use crate::domain::automation_config::{AutomationRun, WebhookDelivery, WebhookDeliveryStatus};
-use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_catalog::TIMER_SERVICE;
+use crate::domain::automation_config::AutomationRun;
+use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::domain::event::{AutomationRuleResult, DomainEvent};
 use crate::ports::{
-    AutomationRuleRepo, AutomationRunRepo, AutomationTimerRepo, ConnectionCredentialVault,
-    EmailSender, EventPublisher, IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo,
-    WebhookDeliveryRepo,
+    AutomationRuleRepo, AutomationTimerRepo, ConnectionCredentialVault, EmailSender,
+    EventPublisher, IncidentRepo, Notifier, ReleaseRepo, ServiceConnectionRepo,
 };
 
 use super::AutomationReactionExecutor;
@@ -24,11 +24,13 @@ pub struct TimerTickResult {
     pub succeeded: usize,
     pub failed: usize,
     pub skipped: usize,
+    pub retried: usize,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct TimerReconcileResult {
     pub recovered: usize,
+    pub retried: usize,
     pub stale_runs_finalized: u64,
 }
 
@@ -36,9 +38,7 @@ pub struct TimerWorkerDependencies {
     pub timers: Arc<dyn AutomationTimerRepo>,
     pub connections: Arc<dyn ServiceConnectionRepo>,
     pub credentials: Arc<dyn ConnectionCredentialVault>,
-    pub deliveries: Arc<dyn WebhookDeliveryRepo>,
     pub rules: Arc<dyn AutomationRuleRepo>,
-    pub runs: Arc<dyn AutomationRunRepo>,
     pub incidents: Arc<dyn IncidentRepo>,
     pub releases: Arc<dyn ReleaseRepo>,
     pub notifier: Arc<dyn Notifier>,
@@ -62,10 +62,14 @@ impl TimerWorker {
                 break;
             };
             result.claimed += 1;
-            match self.execute_claim(&claim, now).await? {
-                ClaimResult::Succeeded => result.succeeded += 1,
-                ClaimResult::Failed => result.failed += 1,
-                ClaimResult::Skipped => result.skipped += 1,
+            match self.execute_claim(&claim, now).await {
+                Ok(ClaimResult::Succeeded) => result.succeeded += 1,
+                Ok(ClaimResult::Failed) => result.failed += 1,
+                Ok(ClaimResult::Skipped) => result.skipped += 1,
+                Err(error) => {
+                    result.retried += 1;
+                    log_deferred_claim(&claim, &error);
+                }
             }
         }
         Ok(result)
@@ -86,12 +90,19 @@ impl TimerWorker {
             )
             .await?;
         let mut recovered = 0;
+        let mut retried = 0;
         for claim in claims {
-            self.execute_claim(&claim, now).await?;
-            recovered += 1;
+            match self.execute_claim(&claim, now).await {
+                Ok(_) => recovered += 1,
+                Err(error) => {
+                    retried += 1;
+                    log_deferred_claim(&claim, &error);
+                }
+            }
         }
         Ok(TimerReconcileResult {
             recovered,
+            retried,
             stale_runs_finalized,
         })
     }
@@ -145,9 +156,7 @@ impl TimerWorker {
             Ok(created_incident) => {
                 let incident_id = created_incident.map(|(id, _)| id);
                 run.mark_succeeded(incident_id)?;
-                self.persist_run(&run).await?;
-                self.finish_delivery(claim, WebhookDeliveryStatus::Processed, None)
-                    .await?;
+                self.finish_execution(claim, &run).await?;
                 if let Some((incident_id, severity)) = created_incident {
                     self.dependencies
                         .events
@@ -177,9 +186,7 @@ impl TimerWorker {
             Err(error) => {
                 let code = error.code();
                 run.mark_failed(code)?;
-                self.persist_run(&run).await?;
-                self.finish_delivery(claim, WebhookDeliveryStatus::Failed, Some(code))
-                    .await?;
+                self.finish_execution(claim, &run).await?;
                 self.dependencies
                     .events
                     .publish(DomainEvent::RuleFailed {
@@ -194,40 +201,19 @@ impl TimerWorker {
         }
     }
 
-    async fn persist_run(&self, run: &AutomationRun) -> Result<(), DomainError> {
-        if !self.dependencies.runs.update_run(run).await? {
-            return Err(DomainError::InvalidAutomationTransition);
-        }
-        Ok(())
-    }
-
-    async fn finish_delivery(
+    async fn finish_execution(
         &self,
         claim: &ClaimedTimerOccurrence,
-        status: WebhookDeliveryStatus,
-        error_code: Option<&str>,
+        run: &AutomationRun,
     ) -> Result<(), DomainError> {
-        let delivery = WebhookDelivery {
-            id: claim.delivery_id,
-            connection_id: claim.connection_id,
-            provider_delivery_id: claim.provider_delivery_id(),
-            provider_event: claim.schedule.kind().to_string(),
-            status,
-            error_code: error_code.map(str::to_string),
-            received_at: claim.claimed_at,
-        };
         if !self
             .dependencies
-            .deliveries
-            .update_delivery(&delivery)
+            .timers
+            .finish_execution(claim, run)
             .await?
         {
             return Err(DomainError::InvalidAutomationTransition);
         }
-        self.dependencies
-            .connections
-            .record_delivery_result(claim.connection_id, error_code)
-            .await?;
         Ok(())
     }
 }
@@ -236,4 +222,13 @@ enum ClaimResult {
     Succeeded,
     Failed,
     Skipped,
+}
+
+fn log_deferred_claim(claim: &ClaimedTimerOccurrence, error: &DomainError) {
+    tracing::error!(
+        rule_id = %claim.rule_id,
+        delivery_id = %claim.delivery_id,
+        error_code = error.code(),
+        "timer occurrence deferred"
+    );
 }

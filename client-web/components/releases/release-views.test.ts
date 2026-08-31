@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ReleaseListItem, ReleaseState } from "@/lib/queries/releases";
-import { normalizeReleaseView, releaseBelongsToView, releaseViewCounts } from "./release-views";
+import {
+  isExecutableRelease,
+  isOngoingRelease,
+  isTerminalRelease,
+  normalizeReleaseView,
+  releaseBelongsToView,
+  releaseViewCounts,
+} from "./release-views";
 
 function release(state: ReleaseState): ReleaseListItem {
   return {
@@ -26,16 +33,22 @@ describe("release views", () => {
     release("cancelled"),
   ];
 
-  it("keeps Active focused on executable work and separates blocked releases", () => {
-    expect(releases.filter((item) => releaseBelongsToView(item, "active"))).toHaveLength(2);
+  it("includes all non-terminal releases in Active view", () => {
+    expect(releases.filter((item) => releaseBelongsToView(item, "active"))).toHaveLength(3);
     expect(releases.filter((item) => releaseBelongsToView(item, "blocked"))).toEqual([
       expect.objectContaining({ state: "blocked" }),
     ]);
   });
 
+  it("correctly identifies ongoing, executable and terminal releases", () => {
+    expect(isOngoingRelease(release("blocked"))).toBe(true);
+    expect(isExecutableRelease(release("blocked"))).toBe(false);
+    expect(isTerminalRelease(release("completed"))).toBe(true);
+  });
+
   it("returns stable counters for every URL-backed view", () => {
     expect(releaseViewCounts(releases)).toEqual({
-      active: 2,
+      active: 3,
       blocked: 1,
       completed: 1,
       cancelled: 1,

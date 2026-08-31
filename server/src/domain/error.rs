@@ -77,6 +77,9 @@ pub enum DomainError {
     /// transfer the Manager role (or delete the station) first.
     MustTransferManagerFirst,
     Forbidden,
+    /// A command was computed from an aggregate snapshot that another writer
+    /// changed before persistence.
+    ConcurrentModification,
     /// Webhook HMAC signature missing or invalid (Phase 2).
     InvalidSignature,
     /// No secret/config registered for the targeted webhook service (Phase 2).
@@ -187,6 +190,7 @@ impl DomainError {
             DomainError::ManagerCannotLeave => "manager_cannot_leave",
             DomainError::MustTransferManagerFirst => "must_transfer_manager_first",
             DomainError::Forbidden => "forbidden",
+            DomainError::ConcurrentModification => "concurrent_modification",
             DomainError::InvalidSignature => "invalid_signature",
             DomainError::UnknownService => "unknown_service",
             DomainError::InvalidServiceSecret => "invalid_service_secret",
@@ -298,6 +302,9 @@ impl std::fmt::Display for DomainError {
             DomainError::ManagerCannotLeave => write!(f, "The team manager cannot leave the team, transfer the role or delete the team instead"),
             DomainError::MustTransferManagerFirst => write!(f, "Transfer the Manager role (or delete the station) before deleting your account"),
             DomainError::Forbidden => write!(f, "You are not allowed to perform this action"),
+            DomainError::ConcurrentModification => {
+                write!(f, "The resource was modified by another request")
+            }
             DomainError::InvalidSignature => write!(f, "Invalid webhook signature"),
             DomainError::UnknownService => write!(f, "Unknown webhook service"),
             DomainError::InvalidServiceSecret => write!(f, "Service secret cannot be empty"),

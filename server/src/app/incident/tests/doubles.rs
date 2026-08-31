@@ -20,6 +20,7 @@ pub struct MockIncidentRepo {
     pub incident_events: Mutex<Vec<IncidentEvent>>,
     pub deleted: Mutex<Vec<Uuid>>,
     pub cleared: Mutex<Vec<(Uuid, Uuid)>>,
+    pub reject_update: bool,
 }
 impl MockIncidentRepo {
     pub fn with_incident(incident: Incident) -> Self {
@@ -32,6 +33,14 @@ impl MockIncidentRepo {
     pub fn with_incidents(incidents: Vec<Incident>) -> Self {
         Self {
             incidents,
+            ..Self::default()
+        }
+    }
+
+    pub fn rejecting_update(incident: Incident) -> Self {
+        Self {
+            incidents: vec![incident],
+            reject_update: true,
             ..Self::default()
         }
     }
@@ -65,24 +74,17 @@ impl IncidentRepo for MockIncidentRepo {
             .cloned())
     }
 
-    async fn update_incident(&self, incident: &Incident) -> Result<(), DomainError> {
-        self.updated.lock().unwrap().push(incident.clone());
-        Ok(())
-    }
-
     async fn update_incident_with_event(
         &self,
         incident: &Incident,
         event: &IncidentEvent,
+        _expected_updated_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), DomainError> {
+        if self.reject_update {
+            return Err(DomainError::ConcurrentModification);
+        }
         self.updated.lock().unwrap().push(incident.clone());
         self.incident_events.lock().unwrap().push(event.clone());
-        Ok(())
-    }
-
-    async fn record_events(&self, events: &[IncidentEvent]) -> Result<(), DomainError> {
-        let mut recorded = self.incident_events.lock().unwrap();
-        recorded.extend(events.iter().cloned());
         Ok(())
     }
 

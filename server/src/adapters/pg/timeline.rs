@@ -297,7 +297,7 @@ mod tests {
     use crate::adapters::pg::team::PgTeamRepo;
     use crate::adapters::pg::user::PgUserRepo;
     use crate::domain::incident::{Incident, Severity};
-    use crate::domain::team::{Role, Team};
+    use crate::domain::team::Team;
     use crate::domain::timeline::TimelineEntry;
     use crate::domain::user::{Email, User};
     use crate::ports::{IncidentRepo, TeamRepo, UserRepo};
@@ -311,9 +311,8 @@ mod tests {
         users.save(&user).await.unwrap();
 
         let team = Team::new("Timeline Team").unwrap();
-        teams.save_team(&team).await.unwrap();
         teams
-            .add_member(team.id, user.id, Role::Manager)
+            .create_team_with_manager(&team, user.id)
             .await
             .unwrap();
 

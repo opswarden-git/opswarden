@@ -3,13 +3,14 @@
 use serde_json::Value;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::GITLAB_SERVICE;
 use crate::ports::WebhookParser;
 
 pub struct GitlabParser;
 
 impl WebhookParser for GitlabParser {
     fn parse(&self, service: &str, provider_event: &str, body: &[u8]) -> Option<ExternalEvent> {
-        if service != "gitlab" {
+        if service != GITLAB_SERVICE {
             return None;
         }
 
@@ -30,7 +31,10 @@ impl WebhookParser for GitlabParser {
                     _ => return None,
                 };
 
-                Some(ExternalEvent::new("gitlab", kind).with_attributes(gitlab_attributes(&json)))
+                Some(
+                    ExternalEvent::new(GITLAB_SERVICE, kind)
+                        .with_attributes(gitlab_attributes(&json)),
+                )
             }
             "Tag Push Hook" => tag_push_event(&json),
             _ => None,
@@ -84,7 +88,7 @@ fn tag_push_event(payload: &Value) -> Option<ExternalEvent> {
         "event_url",
         payload.pointer("/project/web_url"),
     );
-    Some(ExternalEvent::new("gitlab", "tag_pushed").with_attributes(attributes))
+    Some(ExternalEvent::new(GITLAB_SERVICE, "tag_pushed").with_attributes(attributes))
 }
 
 fn is_git_oid(value: &str, zero: bool) -> bool {

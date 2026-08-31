@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
+import type { IncidentSeverity, IncidentStatus, IncidentTransition } from "../incident-contract";
 import {
   downloadConversationAttachment,
   type ConversationAttachment,
@@ -7,8 +8,7 @@ import {
   type PendingConversationAttachment,
 } from "../conversations";
 
-export type IncidentStatus = "open" | "acknowledged" | "escalated" | "resolved";
-export type IncidentSeverity = "low" | "medium" | "high" | "critical";
+export type { IncidentSeverity, IncidentStatus, IncidentTransition } from "../incident-contract";
 
 export interface Incident {
   id: string;
@@ -21,6 +21,15 @@ export interface Incident {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+}
+
+export interface IncidentDetail extends Incident {
+  actions: {
+    canAssign: boolean;
+    canDelete: boolean;
+    canWriteTimeline: boolean;
+    transitions: IncidentTransition[];
+  };
 }
 
 export interface IncidentAssignee {
@@ -65,6 +74,12 @@ interface IncidentViewResponse {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+  actions: {
+    can_assign: boolean;
+    can_delete: boolean;
+    can_write_timeline: boolean;
+    transitions: IncidentTransition[];
+  };
 }
 
 interface IncidentListItemResponse extends Omit<IncidentViewResponse, "assignee_id"> {
@@ -110,7 +125,7 @@ export type IncidentActivityItem =
       reactions: TimelineReaction[];
     };
 
-function normalizeIncident(incident: IncidentViewResponse): Incident {
+function normalizeIncident(incident: IncidentViewResponse): IncidentDetail {
   return {
     id: incident.incident_id,
     team_id: incident.team_id,
@@ -122,6 +137,12 @@ function normalizeIncident(incident: IncidentViewResponse): Incident {
     created_at: incident.created_at,
     created_by: incident.created_by,
     updated_at: incident.updated_at,
+    actions: {
+      canAssign: incident.actions.can_assign,
+      canDelete: incident.actions.can_delete,
+      canWriteTimeline: incident.actions.can_write_timeline,
+      transitions: incident.actions.transitions,
+    },
   };
 }
 
@@ -178,7 +199,7 @@ export function useIncidents(teamId?: string) {
 }
 
 export function useIncident(id: string) {
-  return useQuery<Incident>({
+  return useQuery<IncidentDetail>({
     queryKey: ["incident", id],
     queryFn: async () => {
       const res = await apiFetch(`/api/incidents/${id}`);
@@ -400,7 +421,7 @@ export function useUpdateIncidentStatus() {
       status,
     }: {
       incidentId: string;
-      status: Exclude<IncidentStatus, "open">;
+      status: IncidentTransition;
     }) => {
       const res = await apiFetch(`/api/incidents/${incidentId}/status`, {
         method: "PUT",

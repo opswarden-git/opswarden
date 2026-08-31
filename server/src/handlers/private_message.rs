@@ -19,14 +19,13 @@ use crate::app::private_message::{
     EditPrivateMessageCommand, EditPrivateMessageUseCase, GetPrivateMessageAttachmentUseCase,
     ListPrivateMessagesCommand, ListPrivateMessagesUseCase, ListUnreadPrivateMessagesUseCase,
     MarkPrivateMessageReadCommand, MarkPrivateMessageReadUseCase, SendPrivateMessageCommand,
-    SendPrivateMessageResult, SendPrivateMessageUseCase, TogglePrivateMessageReactionCommand,
-    TogglePrivateMessageReactionUseCase,
+    SendPrivateMessageResult, SendPrivateMessageUseCase,
 };
 use crate::domain::error::DomainError;
 use crate::domain::private_message::PrivateMessage;
 use crate::domain::{ConversationFeature, ConversationScope};
 use crate::handlers::conversation::{
-    attachment_download_response, AttachmentResponse, ConversationCursorResponse, ReactionResponse,
+    attachment_download_response, AttachmentResponse, ConversationCursorResponse,
 };
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
@@ -56,7 +55,6 @@ pub struct PrivateMessageResponse {
     pub created_at: DateTime<Utc>,
     pub edited_at: Option<DateTime<Utc>>,
     pub attachments: Vec<AttachmentResponse>,
-    pub reactions: Vec<ReactionResponse>,
 }
 
 impl From<PrivateMessage> for PrivateMessageResponse {
@@ -69,7 +67,6 @@ impl From<PrivateMessage> for PrivateMessageResponse {
             created_at: message.created_at,
             edited_at: message.edited_at,
             attachments: message.attachments.into_iter().map(Into::into).collect(),
-            reactions: message.reactions.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -84,7 +81,6 @@ impl From<SendPrivateMessageResult> for PrivateMessageResponse {
             created_at: message.created_at,
             edited_at: None,
             attachments: message.attachments.into_iter().map(Into::into).collect(),
-            reactions: Vec::new(),
         }
     }
 }
@@ -94,10 +90,16 @@ pub async fn send_private_message(
     Extension(session): Extension<AuthenticatedSession>,
     Json(payload): Json<SendPrivateMessagePayload>,
 ) -> Result<(StatusCode, Json<PrivateMessageResponse>), DomainError> {
+    if payload.attachments.len() > 10 {
+        return Err(DomainError::InvalidPrivateMessageAttachment);
+    }
     let attachments = payload
         .attachments
         .into_iter()
         .map(|attachment| {
+            if attachment.data_base64.is_empty() || attachment.data_base64.len() > 15_000_000 {
+                return Err(DomainError::InvalidPrivateMessageAttachment);
+            }
             base64::engine::general_purpose::STANDARD
                 .decode(attachment.data_base64)
                 .map(|content| (attachment.file_name, attachment.media_type, content))
@@ -205,38 +207,6 @@ pub async fn edit_private_message(
     Ok(Json(EditPrivateMessageResponse {
         content: result.content,
         edited_at: result.edited_at,
-    }))
-}
-
-#[derive(Deserialize)]
-pub struct TogglePrivateMessageReactionPayload {
-    pub emoji: String,
-}
-
-#[derive(Serialize)]
-pub struct TogglePrivateMessageReactionResponse {
-    pub active: bool,
-}
-
-pub async fn toggle_private_message_reaction(
-    State(state): State<AppState>,
-    Extension(session): Extension<AuthenticatedSession>,
-    Path(message_id): Path<Uuid>,
-    Json(payload): Json<TogglePrivateMessageReactionPayload>,
-) -> Result<Json<TogglePrivateMessageReactionResponse>, DomainError> {
-    let result = TogglePrivateMessageReactionUseCase::new(
-        state.teams.clone(),
-        state.private_messages.clone(),
-        state.events.clone(),
-    )
-    .toggle(TogglePrivateMessageReactionCommand {
-        requester_id: session.user_id,
-        message_id,
-        emoji: payload.emoji,
-    })
-    .await?;
-    Ok(Json(TogglePrivateMessageReactionResponse {
-        active: result.active,
     }))
 }
 

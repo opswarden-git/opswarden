@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);

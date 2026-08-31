@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::automation::release_created_event;
 use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
@@ -51,12 +52,16 @@ impl CreateReleaseUseCase {
         }
 
         let release = Release::new(cmd.team_id, cmd.title, cmd.steps)?;
-        self.releases.save_release(&release).await?;
+        let event = release_created_event(&release);
+        let delivery_id = format!("release:{}:created", release.id);
+        self.releases
+            .create_release(&release, &delivery_id, &event)
+            .await?;
         self.events
             .publish(DomainEvent::ReleaseStateChanged {
                 team_id: release.team_id,
                 release_id: release.id,
-                new_state: release.base_state,
+                new_state: release.base_state.into(),
             })
             .await;
         load_detail(&self.releases, release).await

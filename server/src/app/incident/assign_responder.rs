@@ -72,11 +72,12 @@ impl AssignResponderUseCase {
             return Err(DomainError::AssigneeNotResponder);
         }
 
+        let expected_updated_at = incident.updated_at;
         let changed = incident.assign(cmd.assignee_id);
         if changed {
             let event = IncidentEvent::assigned(incident.id, cmd.requester_id, cmd.assignee_id);
             self.incidents
-                .update_incident_with_event(&incident, &event)
+                .update_incident_with_event(&incident, &event, expected_updated_at)
                 .await?;
             self.events
                 .publish(DomainEvent::IncidentAssigned {
@@ -164,6 +165,35 @@ mod tests {
 
         assert!(!result.changed);
         assert!(incidents.updated.lock().unwrap().is_empty());
+        assert!(events.published.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn stale_assignment_publishes_no_event() {
+        let team_id = Uuid::new_v4();
+        let manager = Uuid::new_v4();
+        let responder = Uuid::new_v4();
+        let incident = Incident::new(team_id, "Worker panic", Severity::High).unwrap();
+        let teams = Arc::new(
+            MockTeamRepo::default()
+                .with_member(team_id, manager, Role::Manager)
+                .with_member(team_id, responder, Role::Responder),
+        );
+        let incidents = Arc::new(MockIncidentRepo::rejecting_update(incident.clone()));
+        let events = Arc::new(MockEventPublisher::default());
+        let use_case = AssignResponderUseCase::new(teams, incidents.clone(), events.clone());
+
+        let error = use_case
+            .assign(AssignResponderCommand {
+                incident_id: incident.id,
+                requester_id: manager,
+                assignee_id: responder,
+            })
+            .await
+            .unwrap_err();
+
+        assert_eq!(error, DomainError::ConcurrentModification);
+        assert!(incidents.incident_events.lock().unwrap().is_empty());
         assert!(events.published.lock().unwrap().is_empty());
     }
 

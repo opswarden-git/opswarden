@@ -12,6 +12,7 @@ import {
   useIncidentActivity,
   useMarkIncidentRead,
 } from "@/lib/queries/incidents";
+import { isIncidentSeverity, isIncidentStatus } from "@/lib/incident-contract";
 import { useAuthStore } from "@/store/auth";
 import { useCollaboratorCursors, useTypingUsers, useWsStore } from "@/lib/ws";
 import { Alert } from "@/components/ui/Alert";
@@ -32,13 +33,11 @@ function valueAsString(data: Record<string, unknown>, key: string) {
 }
 
 function incidentStatus(value: string): IncidentStatus | null {
-  return ["open", "acknowledged", "escalated", "resolved"].includes(value)
-    ? (value as IncidentStatus)
-    : null;
+  return isIncidentStatus(value) ? value : null;
 }
 
 function incidentSeverity(value: string): IncidentSeverity | null {
-  return ["low", "medium", "high", "critical"].includes(value) ? (value as IncidentSeverity) : null;
+  return isIncidentSeverity(value) ? value : null;
 }
 
 function SystemEventItem({

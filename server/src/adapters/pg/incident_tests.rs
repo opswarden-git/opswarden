@@ -12,9 +12,8 @@ async fn seed_team(pool: &PgPool) -> Uuid {
     users.save(&user).await.unwrap();
 
     let team = Team::new("Incident Team").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, user.id, Role::Manager)
+        .create_team_with_manager(&team, user.id)
         .await
         .unwrap();
     team.id
@@ -36,8 +35,12 @@ async fn it_saves_finds_and_updates_incidents_in_postgres(pool: PgPool) {
     assert_eq!(found.title, "API saturation");
     assert_eq!(found.status, IncidentStatus::Open);
 
+    let expected_updated_at = incident.updated_at;
     incident.acknowledge().unwrap();
-    repo.update_incident(&incident).await.unwrap();
+    let event = IncidentEvent::created(&incident, None);
+    repo.update_incident_with_event(&incident, &event, expected_updated_at)
+        .await
+        .unwrap();
 
     let updated = repo
         .find_incident_by_id(incident.id)
@@ -57,6 +60,10 @@ async fn clear_assignee_for_member_unassigns_their_incidents(pool: PgPool) {
     let email = Email::new(format!("assignee_{}@opswarden.com", Uuid::new_v4())).unwrap();
     let assignee = User::new(email, "hash");
     users.save(&assignee).await.unwrap();
+    PgTeamRepo::new(pool.clone())
+        .add_member(team_id, assignee.id, Role::Responder)
+        .await
+        .unwrap();
 
     let mut incident = Incident::new(team_id, "owned by a member", Severity::High).unwrap();
     incident.assign(assignee.id);
@@ -130,6 +137,7 @@ async fn a_failed_event_rolls_back_the_incident_update(pool: PgPool) {
     let team_id = seed_team(&pool).await;
     let mut incident = Incident::new(team_id, "Stable state", Severity::High).unwrap();
     repo.save_incident(&incident).await.unwrap();
+    let expected_updated_at = incident.updated_at;
     incident.acknowledge().unwrap();
     let invalid_event = IncidentEvent::status_changed(
         Uuid::new_v4(),
@@ -139,7 +147,7 @@ async fn a_failed_event_rolls_back_the_incident_update(pool: PgPool) {
     );
 
     assert_eq!(
-        repo.update_incident_with_event(&incident, &invalid_event)
+        repo.update_incident_with_event(&incident, &invalid_event, expected_updated_at)
             .await
             .unwrap_err(),
         DomainError::Storage
@@ -155,6 +163,44 @@ async fn a_failed_event_rolls_back_the_incident_update(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn concurrent_incident_updates_have_one_winner_and_one_audit_event(pool: PgPool) {
+    let repo = PgIncidentRepo::new(pool.clone());
+    let team_id = seed_team(&pool).await;
+    let incident = Incident::new(team_id, "Concurrent mutation", Severity::High).unwrap();
+    repo.save_incident(&incident).await.unwrap();
+
+    let expected_updated_at = incident.updated_at;
+    let mut first = incident.clone();
+    let mut second = incident.clone();
+    first.acknowledge().unwrap();
+    second.acknowledge().unwrap();
+    first.updated_at = expected_updated_at + chrono::Duration::seconds(1);
+    second.updated_at = expected_updated_at + chrono::Duration::seconds(2);
+    let first_event = IncidentEvent::created(&first, None);
+    let second_event = IncidentEvent::created(&second, None);
+
+    let (first_result, second_result) = tokio::join!(
+        repo.update_incident_with_event(&first, &first_event, expected_updated_at),
+        repo.update_incident_with_event(&second, &second_event, expected_updated_at),
+    );
+
+    let results = [first_result, second_result];
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| **result == Err(DomainError::ConcurrentModification))
+            .count(),
+        1
+    );
+    let events = repo
+        .list_events_for_incident(incident.id, None, 10)
+        .await
+        .unwrap();
+    assert_eq!(events.len(), 1);
+}
+
+#[sqlx::test]
 async fn incident_read_position_clears_unread_and_never_moves_backwards(pool: PgPool) {
     let incidents = PgIncidentRepo::new(pool.clone());
     let users = PgUserRepo::new(pool.clone());
@@ -166,13 +212,12 @@ async fn incident_read_position_clears_unread_and_never_moves_backwards(pool: Pg
     let actor = User::new(actor_email, "hash");
     users.save(&actor).await.unwrap();
     let team = Team::new("Unread Team").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, viewer.id, Role::Observer)
+        .create_team_with_manager(&team, actor.id)
         .await
         .unwrap();
     teams
-        .add_member(team.id, actor.id, Role::Responder)
+        .add_member(team.id, viewer.id, Role::Observer)
         .await
         .unwrap();
 

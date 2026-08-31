@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 const teamUrl = `/en/teams/${TEAM_ID}/team`;
 
 async function login(page: Page, email: string) {
@@ -22,7 +22,7 @@ test.describe("Team", () => {
     await expect(page.getByRole("heading", { name: "Active members", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Inactive members" })).toBeVisible();
     await expect(page.getByLabel("Roles")).toBeAttached();
-    await expect(page.getByRole("heading", { name: "Banned members" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Banned members" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Danger", level: 2 })).toBeVisible();
   });
 

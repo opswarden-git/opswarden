@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { notifyDesktop } from "./desktopNotify";
+import {
+  getNotificationPermission,
+  notifyDesktop,
+  requestNotificationPermission,
+} from "./desktopNotify";
 
 const notificationPlugin = vi.hoisted(() => ({
   isPermissionGranted: vi.fn(),
@@ -67,16 +71,28 @@ describe("desktop notification bridge", () => {
     Reflect.deleteProperty(window, "Notification");
   });
 
-  it("stays silent while the application has the user's attention", async () => {
-    Object.defineProperty(document, "visibilityState", {
+  it("queries and requests notification permission in Tauri vs Web", async () => {
+    notificationPlugin.isPermissionGranted.mockResolvedValue(false);
+    notificationPlugin.requestPermission.mockResolvedValue("granted");
+
+    const tauriPerm = await getNotificationPermission();
+    expect(tauriPerm).toBe("default");
+
+    const reqPerm = await requestNotificationPermission();
+    expect(reqPerm).toBe("granted");
+
+    Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+    class BrowserNotification {
+      static permission: NotificationPermission = "granted";
+      static requestPermission = vi.fn(async () => "granted" as NotificationPermission);
+    }
+    Object.defineProperty(window, "Notification", {
       configurable: true,
-      value: "visible",
+      value: BrowserNotification,
     });
-    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
 
-    await notifyDesktop("New message", "Already visible");
-
-    expect(notificationPlugin.sendNotification).not.toHaveBeenCalled();
-    focus.mockRestore();
+    const webPerm = await getNotificationPermission();
+    expect(webPerm).toBe("granted");
+    Reflect.deleteProperty(window, "Notification");
   });
 });

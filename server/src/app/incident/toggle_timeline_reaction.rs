@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::domain::capabilities::derive_capabilities;
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::timeline::validate_reaction_emoji;
@@ -56,10 +57,14 @@ impl ToggleReactionUseCase {
             .await?
             .ok_or(DomainError::IncidentNotFound)?;
 
-        self.teams
+        let role = self
+            .teams
             .find_member_role(incident.team_id, cmd.user_id)
             .await?
             .ok_or(DomainError::Forbidden)?;
+        if !derive_capabilities(role).can_react_timeline {
+            return Err(DomainError::Forbidden);
+        }
 
         let entry = self
             .timeline

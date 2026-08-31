@@ -133,7 +133,11 @@ async fn list_members_returns_the_roster_for_a_team_member() {
     assert!(members.iter().all(|m| m["joined_at"].is_string()));
     assert!(members
         .iter()
-        .any(|m| m["user_id"] == teammate.to_string() && m["role"] == "responder"));
+        .any(|m| {
+            m["user_id"] == teammate.to_string()
+                && m["role"] == "responder"
+                && m["can_be_assigned_incident"] == true
+        }));
 }
 
 #[tokio::test]

@@ -1,12 +1,11 @@
 // --- server/src/app/team/join_team.rs ---
 use std::sync::Arc;
 
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::team::Role;
-use crate::ports::TeamRepo;
+use crate::ports::{Clock, TeamRepo};
 
 pub struct JoinTeamCommand {
     pub invitation_code: String,
@@ -21,6 +20,7 @@ pub struct JoinTeamResult {
 
 pub struct JoinTeamUseCase {
     teams: Arc<dyn TeamRepo>,
+    clock: Arc<dyn Clock>,
 }
 
 /// Role granted to anyone joining via invitation code: least privilege first.
@@ -28,8 +28,8 @@ pub struct JoinTeamUseCase {
 const JOIN_ROLE: Role = Role::Observer;
 
 impl JoinTeamUseCase {
-    pub fn new(teams: Arc<dyn TeamRepo>) -> Self {
-        Self { teams }
+    pub fn new(teams: Arc<dyn TeamRepo>, clock: Arc<dyn Clock>) -> Self {
+        Self { teams, clock }
     }
 
     /// Join a team from its invitation code as an `Observer`. Unknown codes are
@@ -45,7 +45,7 @@ impl JoinTeamUseCase {
         // An active ban blocks (re)joining. An expired temporary ban does not —
         // the row may linger, but `is_active` gates on its expiry.
         if let Some(ban) = self.teams.find_ban(team.id, cmd.user_id).await? {
-            if ban.is_active(Utc::now()) {
+            if ban.is_active(self.clock.now()) {
                 return Err(DomainError::UserBanned);
             }
         }
@@ -72,9 +72,14 @@ impl JoinTeamUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::clock::SystemClock;
     use crate::app::team::tests::MockTeamRepo;
     use crate::domain::team::{BanKind, Team, TeamBan};
-    use chrono::Duration;
+    use chrono::{Duration, Utc};
+
+    fn clock() -> Arc<SystemClock> {
+        Arc::new(SystemClock)
+    }
 
     #[tokio::test]
     async fn join_team_adds_member_as_observer() {
@@ -82,7 +87,7 @@ mod tests {
         let code = team.invitation_code.as_str().to_string();
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()));
         let user = Uuid::new_v4();
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -101,7 +106,7 @@ mod tests {
     #[tokio::test]
     async fn join_team_rejects_unknown_invitation_code() {
         let repo = Arc::new(MockTeamRepo::default());
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -120,7 +125,7 @@ mod tests {
         let code = team.invitation_code.as_str().to_string();
         let user = Uuid::new_v4();
         let repo = Arc::new(MockTeamRepo::with_team(team).with_member(user, Role::Responder));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -140,7 +145,7 @@ mod tests {
         let user = Uuid::new_v4();
         let ban = TeamBan::permanent(team.id, user, Uuid::new_v4(), None);
         let repo = Arc::new(MockTeamRepo::with_team(team).with_ban(ban));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -171,7 +176,7 @@ mod tests {
             created_at: Utc::now() - Duration::hours(2),
         };
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()).with_ban(expired));
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {
@@ -195,7 +200,7 @@ mod tests {
         let dirty_code = format!("  {}  ", raw_code.to_lowercase());
         let repo = Arc::new(MockTeamRepo::with_team(team.clone()));
         let user = Uuid::new_v4();
-        let use_case = JoinTeamUseCase::new(repo.clone());
+        let use_case = JoinTeamUseCase::new(repo.clone(), clock());
 
         let result = use_case
             .join_team(JoinTeamCommand {

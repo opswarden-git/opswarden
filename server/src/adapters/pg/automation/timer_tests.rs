@@ -7,26 +7,19 @@ use super::super::rule::PgAutomationRuleRepo;
 use super::super::test_support::seed_team;
 use super::*;
 use crate::adapters::notify::HttpNotifier;
-use crate::adapters::pg::automation::execution::{PgAutomationRunRepo, PgWebhookDeliveryRepo};
 use crate::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
 use crate::adapters::pg::incident::PgIncidentRepo;
 use crate::adapters::pg::release::PgReleaseRepo;
-use crate::adapters::pg::team::PgTeamRepo;
 use crate::adapters::ws::WsHub;
 use crate::app::automation::{TimerWorker, TimerWorkerDependencies};
 use crate::domain::automation_config::AutomationRule;
 use crate::domain::automation_timer::{DAILY_AT_KIND, EVERY_MINUTES_KIND};
-use crate::domain::team::Role;
-use crate::ports::{AutomationRuleRepo, TeamRepo};
+use crate::ports::AutomationRuleRepo;
 
 async fn timer_rule(pool: &PgPool, suffix: &str) -> (AutomationRule, TimerSchedule) {
     let (team_id, user_id) = seed_team(pool, suffix).await;
-    PgTeamRepo::new(pool.clone())
-        .add_member(team_id, user_id, Role::Manager)
-        .await
-        .unwrap();
     let connection_id = sqlx::query_scalar::<_, Uuid>(
         "SELECT id FROM service_connections WHERE team_id = $1 AND service = 'timer'",
     )
@@ -61,9 +54,7 @@ fn timer_worker(pool: &PgPool, timers: Arc<PgAutomationTimerRepo>) -> TimerWorke
         timers,
         connections: Arc::new(PgServiceConnectionRepo::new(pool.clone())),
         credentials: Arc::new(PgConnectionCredentialVault::new(pool.clone(), [7; 32])),
-        deliveries: Arc::new(PgWebhookDeliveryRepo::new(pool.clone())),
         rules: Arc::new(PgAutomationRuleRepo::new(pool.clone())),
-        runs: Arc::new(PgAutomationRunRepo::new(pool.clone())),
         incidents: Arc::new(PgIncidentRepo::new(pool.clone())),
         releases: Arc::new(PgReleaseRepo::new(pool.clone())),
         notifier: Arc::new(HttpNotifier::new()),
@@ -74,12 +65,7 @@ fn timer_worker(pool: &PgPool, timers: Arc<PgAutomationTimerRepo>) -> TimerWorke
 
 #[sqlx::test]
 async fn manager_membership_creates_one_internal_timer_connection(pool: PgPool) {
-    let (team_id, user_id) = seed_team(&pool, "timer-connection").await;
-    let teams = PgTeamRepo::new(pool.clone());
-    teams
-        .add_member(team_id, user_id, Role::Manager)
-        .await
-        .unwrap();
+    let (team_id, _) = seed_team(&pool, "timer-connection").await;
 
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT count(*) FROM service_connections WHERE team_id = $1 AND service = 'timer'",
@@ -110,9 +96,10 @@ async fn projection_requires_current_enabled_timer_rule(pool: PgPool) {
         .await
         .unwrap());
 
+    let expected_updated_at = rule.updated_at;
     rule.set_enabled(false);
     PgAutomationRuleRepo::new(pool.clone())
-        .update_rule(&rule)
+        .update_rule(&rule, expected_updated_at)
         .await
         .unwrap();
     assert!(!repo
@@ -122,12 +109,59 @@ async fn projection_requires_current_enabled_timer_rule(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn invalid_timer_rule_and_projection_roll_back_together(pool: PgPool) {
-    let (team_id, user_id) = seed_team(&pool, "invalid-atomic").await;
-    PgTeamRepo::new(pool.clone())
-        .add_member(team_id, user_id, Role::Manager)
+async fn concurrent_timer_edits_keep_only_the_winning_projection(pool: PgPool) {
+    let (rule, _) = timer_rule(&pool, "concurrent-edit").await;
+    let expected_updated_at = rule.updated_at;
+    let mut ten_minutes = rule.clone();
+    let mut fifteen_minutes = rule.clone();
+    let mut ten_definition = ten_minutes.definition();
+    ten_definition.trigger_config = json!({"minutes": "10", "timezone": "Europe/Paris"});
+    ten_minutes.replace_definition(ten_definition).unwrap();
+    let mut fifteen_definition = fifteen_minutes.definition();
+    fifteen_definition.trigger_config = json!({"minutes": "15", "timezone": "Europe/Paris"});
+    fifteen_minutes
+        .replace_definition(fifteen_definition)
+        .unwrap();
+
+    let rules = PgAutomationRuleRepo::new(pool.clone());
+    let (ten_result, fifteen_result) = tokio::join!(
+        rules.update_rule(&ten_minutes, expected_updated_at),
+        rules.update_rule(&fifteen_minutes, expected_updated_at),
+    );
+
+    let results = [ten_result, fifteen_result];
+    assert_eq!(
+        results.iter().filter(|result| result == &&Ok(true)).count(),
+        1
+    );
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| **result == Err(DomainError::ConcurrentModification))
+            .count(),
+        1
+    );
+    let (config, rule_revision, interval, projection_revision) =
+        sqlx::query_as::<_, (serde_json::Value, DateTime<Utc>, i32, DateTime<Utc>)>(
+            r#"
+            SELECT r.trigger_config, r.updated_at, s.interval_minutes, s.rule_updated_at
+            FROM automation_rules r
+            JOIN automation_timer_schedules s ON s.rule_id = r.id
+            WHERE r.id = $1
+            "#,
+        )
+        .bind(rule.id)
+        .fetch_one(&pool)
         .await
         .unwrap();
+    let configured_minutes = config["minutes"].as_str().unwrap().parse::<i32>().unwrap();
+    assert_eq!(interval, configured_minutes);
+    assert_eq!(projection_revision, rule_revision);
+}
+
+#[sqlx::test]
+async fn invalid_timer_rule_and_projection_roll_back_together(pool: PgPool) {
+    let (team_id, user_id) = seed_team(&pool, "invalid-atomic").await;
     let connection_id = sqlx::query_scalar::<_, Uuid>(
         "SELECT id FROM service_connections WHERE team_id = $1 AND service = 'timer'",
     )
@@ -258,6 +292,111 @@ async fn claimed_occurrence_executes_one_incident_and_one_successful_run(pool: P
 }
 
 #[sqlx::test]
+async fn one_broken_occurrence_does_not_stop_the_timer_batch(pool: PgPool) {
+    let (first_rule, first_schedule) = timer_rule(&pool, "batch-first").await;
+    let (second_rule, second_schedule) = timer_rule(&pool, "batch-second").await;
+    let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
+    let timers = Arc::new(PgAutomationTimerRepo::new(pool.clone()));
+    for (rule, schedule) in [
+        (&first_rule, &first_schedule),
+        (&second_rule, &second_schedule),
+    ] {
+        assert!(timers
+            .upsert_schedule(rule.id, schedule, now, rule.updated_at)
+            .await
+            .unwrap());
+    }
+    let failing_rule_id = first_rule.id.min(second_rule.id);
+    sqlx::query("CREATE TABLE injected_timer_failures (rule_id uuid PRIMARY KEY)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        r#"
+        CREATE FUNCTION fail_selected_timer_start() RETURNS trigger AS $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM injected_timer_failures WHERE rule_id = NEW.rule_id
+            ) THEN
+                RAISE EXCEPTION 'injected timer start failure';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        r#"
+        CREATE TRIGGER fail_selected_timer_start
+        BEFORE UPDATE OF execution_started_at ON automation_timer_occurrences
+        FOR EACH ROW EXECUTE FUNCTION fail_selected_timer_start()
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO injected_timer_failures (rule_id) VALUES ($1)")
+        .bind(failing_rule_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let result = timer_worker(&pool, timers).tick(now).await.unwrap();
+
+    assert_eq!(result.claimed, 2);
+    assert_eq!(result.succeeded, 1);
+    assert_eq!(result.retried, 1);
+    assert_eq!((result.failed, result.skipped), (0, 0));
+    let successful_runs = sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM automation_runs WHERE status = 'succeeded'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(successful_runs, 1);
+}
+
+#[sqlx::test]
+async fn timer_completion_rolls_back_if_the_delivery_cannot_finish(pool: PgPool) {
+    let (rule, schedule) = timer_rule(&pool, "finish-rollback").await;
+    let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
+    let timers = PgAutomationTimerRepo::new(pool.clone());
+    assert!(timers
+        .upsert_schedule(rule.id, &schedule, now, rule.updated_at)
+        .await
+        .unwrap());
+    let claim = timers.claim_due(now).await.unwrap().unwrap();
+    let mut run = AutomationRun::new(claim.delivery_id, claim.rule_id);
+    assert!(timers.start_execution(&claim, &run).await.unwrap());
+    sqlx::query("UPDATE webhook_deliveries SET status = 'ignored' WHERE id = $1")
+        .bind(claim.delivery_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    run.mark_succeeded(None).unwrap();
+
+    assert!(!timers.finish_execution(&claim, &run).await.unwrap());
+
+    let states = sqlx::query_as::<_, (String, String, Option<DateTime<Utc>>)>(
+        r#"
+        SELECT run.status, delivery.status, connection.last_delivery_at
+        FROM automation_runs run
+        JOIN webhook_deliveries delivery ON delivery.id = run.delivery_id
+        JOIN service_connections connection ON connection.id = delivery.connection_id
+        WHERE run.id = $1
+        "#,
+    )
+    .bind(run.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(states, ("running".into(), "ignored".into(), None));
+}
+
+#[sqlx::test]
 async fn reconciliation_recovers_an_unstarted_claim_once(pool: PgPool) {
     let (rule, schedule) = timer_rule(&pool, "recover-claim").await;
     let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
@@ -300,9 +439,10 @@ async fn disabled_rule_turns_an_unstarted_claim_into_a_skipped_run(pool: PgPool)
         .await
         .unwrap();
     timers.claim_due(now).await.unwrap().unwrap();
+    let expected_updated_at = rule.updated_at;
     rule.set_enabled(false);
     PgAutomationRuleRepo::new(pool.clone())
-        .update_rule(&rule)
+        .update_rule(&rule, expected_updated_at)
         .await
         .unwrap();
 
@@ -326,49 +466,4 @@ async fn disabled_rule_turns_an_unstarted_claim_into_a_skipped_run(pool: PgPool)
     assert_eq!(status, ("skipped".to_string(), "ignored".to_string()));
 }
 
-#[sqlx::test]
-async fn stale_running_timer_run_is_failed_without_replay(pool: PgPool) {
-    let (rule, schedule) = timer_rule(&pool, "stale-run").await;
-    let now = Utc.with_ymd_and_hms(2026, 7, 29, 12, 0, 0).unwrap();
-    let timers = Arc::new(PgAutomationTimerRepo::new(pool.clone()));
-    timers
-        .upsert_schedule(rule.id, &schedule, now, rule.updated_at)
-        .await
-        .unwrap();
-    let claim = timers.claim_due(now).await.unwrap().unwrap();
-    let run = AutomationRun::new(claim.delivery_id, claim.rule_id);
-    assert!(timers.start_execution(&claim, &run).await.unwrap());
-    sqlx::query("UPDATE automation_runs SET started_at = $2 WHERE id = $1")
-        .bind(run.id)
-        .bind(now)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-    let worker = timer_worker(&pool, timers);
-    let result = worker
-        .reconcile(now + chrono::Duration::minutes(6))
-        .await
-        .unwrap();
-    assert_eq!(result.stale_runs_finalized, 1);
-    let state = sqlx::query_as::<_, (String, Option<String>, String)>(
-        r#"
-        SELECT r.status, r.error_code, d.status
-        FROM automation_runs r
-        JOIN webhook_deliveries d ON d.id = r.delivery_id
-        WHERE r.id = $1
-        "#,
-    )
-    .bind(run.id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(
-        state,
-        (
-            "failed".to_string(),
-            Some("timer_worker_interrupted".to_string()),
-            "failed".to_string()
-        )
-    );
-}
+include!("timer_extra_tests.rs");

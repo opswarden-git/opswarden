@@ -24,6 +24,7 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("@/i18n/routing", () => ({
   useRouter: () => ({ replace }),
+  usePathname: () => "/teams/team-1/releases/release-1",
   Link: ({ children, href, ...props }: React.ComponentProps<"a">) => (
     <a href={String(href)} {...props}>
       {children}
@@ -70,7 +71,9 @@ const baseRelease: Release = {
       validated_at: null,
     },
   ],
-  linked_incident_ids: [],
+  linked_incidents: [],
+  blockers: [],
+  linkable_incidents: [],
   created_at: "2026-07-25T09:00:00Z",
   updated_at: "2026-07-25T10:00:00Z",
 };

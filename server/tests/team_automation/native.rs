@@ -1,5 +1,5 @@
 #[tokio::test]
-async fn release_creation_triggers_a_durable_native_opswarden_rule() {
+async fn release_creation_returns_before_native_rule_execution() {
     let ctx = test_context();
     let team_id = Uuid::new_v4();
     ctx.teams.seed_member(team_id, REQUESTER, Role::Manager);
@@ -67,15 +67,7 @@ async fn release_creation_triggers_a_durable_native_opswarden_rule() {
         .list_incidents_for_team(team_id)
         .await
         .unwrap();
-    assert_eq!(incidents.len(), 1);
-    assert_eq!(incidents[0].title, "Release v2.0.0 requires coordination");
-    assert_eq!(incidents[0].severity.to_string(), "high");
-    let deliveries = ctx.webhook_deliveries.all();
-    assert_eq!(deliveries.len(), 1);
-    assert_eq!(deliveries[0].provider_event, "release_created");
-    assert_eq!(deliveries[0].status.to_string(), "processed");
-    let runs = ctx.automation_runs.all();
-    assert_eq!(runs.len(), 1);
-    assert_eq!(runs[0].status.to_string(), "succeeded");
-    assert_eq!(runs[0].incident_id, Some(incidents[0].id));
+    assert!(incidents.is_empty());
+    assert!(ctx.webhook_deliveries.all().is_empty());
+    assert!(ctx.automation_runs.all().is_empty());
 }

@@ -10,7 +10,9 @@ use common::test_context;
 use opswarden_server::domain::user::Locale;
 use opswarden_server::ports::UserRepo;
 use serde_json::json;
+use std::collections::HashSet;
 use std::net::SocketAddr;
+use tokio::sync::mpsc;
 use tower::ServiceExt;
 
 /// The auth routes carry a per-caller budget, so every request must arrive with
@@ -174,6 +176,8 @@ async fn signin_returns_unauthorized_for_unknown_user() {
 #[tokio::test]
 async fn logout_revokes_the_bearer_token() {
     let ctx = test_context();
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events.register(uuid::Uuid::nil(), HashSet::new(), tx);
 
     let logout = ctx
         .app
@@ -191,6 +195,7 @@ async fn logout_revokes_the_bearer_token() {
         .unwrap();
 
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    assert!(rx.recv().await.is_none());
 
     let me = ctx
         .app
@@ -292,7 +297,11 @@ async fn locale_update_rejects_values_outside_english_and_french() {
 
 #[tokio::test]
 async fn delete_me_removes_the_authenticated_account() {
-    let response = test_context()
+    let ctx = test_context();
+    let (tx, mut rx) = mpsc::channel(8);
+    ctx.events.register(uuid::Uuid::nil(), HashSet::new(), tx);
+
+    let response = ctx
         .app
         .oneshot(
             Request::builder()
@@ -307,6 +316,7 @@ async fn delete_me_removes_the_authenticated_account() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(rx.recv().await.is_none());
 }
 
 #[tokio::test]

@@ -13,11 +13,11 @@ use crate::app::incident::{
     AssignResponderCommand, AssignResponderUseCase, ChangeIncidentStatusCommand,
     ChangeIncidentStatusUseCase, CreateIncidentCommand, CreateIncidentUseCase,
     EditTimelineEntryCommand, EditTimelineEntryResult, EditTimelineEntryUseCase,
-    GetIncidentCommand, GetIncidentUseCase, IncidentAssigneeFilter, IncidentCounts,
-    IncidentListItem, IncidentSort, ListIncidentsCommand, ListIncidentsUseCase,
+    GetIncidentCommand, GetIncidentResult, GetIncidentUseCase, IncidentActions,
+    IncidentAssigneeFilter, IncidentCounts, IncidentListItem, IncidentSort, ListIncidentsCommand,
+    ListIncidentsUseCase,
 };
 use crate::domain::error::DomainError;
-use crate::domain::incident::Incident;
 use crate::handlers::conversation::{AttachmentResponse, ReactionResponse};
 use crate::handlers::middleware::AuthenticatedSession;
 use crate::AppState;
@@ -36,10 +36,12 @@ pub struct IncidentView {
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub actions: IncidentActionsView,
 }
 
-impl From<Incident> for IncidentView {
-    fn from(incident: Incident) -> Self {
+impl From<GetIncidentResult> for IncidentView {
+    fn from(result: GetIncidentResult) -> Self {
+        let incident = result.incident;
         Self {
             incident_id: incident.id,
             team_id: incident.team_id,
@@ -51,6 +53,30 @@ impl From<Incident> for IncidentView {
             created_by: incident.created_by,
             created_at: incident.created_at,
             updated_at: incident.updated_at,
+            actions: result.actions.into(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct IncidentActionsView {
+    pub can_assign: bool,
+    pub can_delete: bool,
+    pub can_write_timeline: bool,
+    pub transitions: Vec<String>,
+}
+
+impl From<IncidentActions> for IncidentActionsView {
+    fn from(actions: IncidentActions) -> Self {
+        Self {
+            can_assign: actions.can_assign,
+            can_delete: actions.can_delete,
+            can_write_timeline: actions.can_write_timeline,
+            transitions: actions
+                .transitions
+                .into_iter()
+                .map(|status| status.to_string())
+                .collect(),
         }
     }
 }
@@ -193,7 +219,7 @@ pub async fn get_incident(
         })
         .await?;
 
-    Ok(Json(IncidentView::from(result.incident)))
+    Ok(Json(IncidentView::from(result)))
 }
 
 #[derive(Deserialize)]
@@ -394,10 +420,16 @@ pub async fn add_timeline_entry(
     Path(incident_id): Path<Uuid>,
     Json(payload): Json<AddTimelineEntryPayload>,
 ) -> Result<(StatusCode, Json<TimelineEntryResponse>), DomainError> {
+    if payload.attachments.len() > 10 {
+        return Err(DomainError::InvalidTimelineAttachment);
+    }
     let attachments = payload
         .attachments
         .into_iter()
         .map(|attachment| {
+            if attachment.data_base64.is_empty() || attachment.data_base64.len() > 15_000_000 {
+                return Err(DomainError::InvalidTimelineAttachment);
+            }
             base64::engine::general_purpose::STANDARD
                 .decode(attachment.data_base64)
                 .map(|content| (attachment.file_name, attachment.media_type, content))

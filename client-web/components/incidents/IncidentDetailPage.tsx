@@ -4,9 +4,13 @@ import React, { useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
-import { type IncidentTransition, deriveIncidentActions } from "@/lib/capabilities";
-import { useDeleteIncident, useIncident, useUpdateIncidentStatus } from "@/lib/queries/incidents";
-import { useTeamMembers, useTeams } from "@/lib/queries/teams";
+import {
+  type IncidentTransition,
+  useDeleteIncident,
+  useIncident,
+  useUpdateIncidentStatus,
+} from "@/lib/queries/incidents";
+import { useTeamMembers } from "@/lib/queries/teams";
 import { teamPath } from "@/lib/team-routing";
 import { useWatchers } from "@/lib/ws";
 import { IncidentActivity } from "@/components/incidents/IncidentActivity";
@@ -30,7 +34,6 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
   const tErr = useTranslations("errors");
   const router = useRouter();
   const { data: incident, isLoading, error } = useIncident(incidentId);
-  const { data: teams } = useTeams();
   const { data: members } = useTeamMembers(incident?.team_id);
   const updateStatus = useUpdateIncidentStatus();
   const deleteIncident = useDeleteIncident();
@@ -69,8 +72,7 @@ export function IncidentDetailPage({ incidentId, teamId }: { incidentId: string;
     );
   }
 
-  const currentTeam = teams?.find((team) => team.team_id === incident.team_id);
-  const actions = deriveIncidentActions(currentTeam?.role ?? "observer", incident.status);
+  const actions = incident.actions;
   const headerActions = deriveIncidentHeaderActions(actions.transitions);
   const people = Object.fromEntries(
     (members ?? []).map((member) => [member.user_id, member.email]),

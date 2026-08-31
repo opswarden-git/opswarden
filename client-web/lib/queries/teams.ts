@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { useWsStore } from "../ws";
-import type { TeamRole } from "../capabilities";
+import type { AssignableTeamRole, TeamRole } from "../capabilities";
 import { fileAsBase64 } from "../conversations";
 
 /** Tell the server to re-resolve this connection's team scope after the current
@@ -28,6 +28,7 @@ export interface TeamMember {
   user_id: string;
   email: string;
   role: TeamRole;
+  can_be_assigned_incident: boolean;
   joined_at: string;
 }
 
@@ -258,7 +259,7 @@ export function useTransferManager(teamId: string) {
 export function useSetMemberRole(teamId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: "observer" | "responder" }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: AssignableTeamRole }) => {
       const res = await apiFetch(`/api/teams/${teamId}/members/${userId}/role`, {
         method: "PUT",
         body: JSON.stringify({ role }),

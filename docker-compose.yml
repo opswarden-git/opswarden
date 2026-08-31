@@ -24,11 +24,10 @@ services:
       dockerfile: server/Dockerfile
     environment:
       DATABASE_URL: postgres://opswarden:opswarden@db:5432/opswarden
-      OPSWARDEN_KICKOFF_TOKEN: ${OPSWARDEN_KICKOFF_TOKEN:?required}
       JWT_SECRET: ${JWT_SECRET:?required}
       # Team connection credentials are configured through the Manager UI and
       # encrypted with this single server-side vault key.
-      OPSWARDEN_VAULT_KEY: ${OPSWARDEN_VAULT_KEY:-}
+      OPSWARDEN_VAULT_KEY: ${OPSWARDEN_VAULT_KEY:?required}
       # The browser-facing web origin in Compose is the client_web service on
       # :8081 (used for the OAuth post-login redirect). Dev runs keep :4242.
       OPSWARDEN_WEB_ORIGIN: ${OPSWARDEN_COMPOSE_WEB_ORIGIN:-http://localhost:8081}

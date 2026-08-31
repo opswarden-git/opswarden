@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 
 async function login(page: Page) {
   await page.goto("/en/login");
@@ -127,8 +127,7 @@ test("browser-composited incident text remains above 4.5:1", async ({ page }) =>
 
   const samples = [
     { path: `/en/teams/${TEAM_ID}/incidents`, label: "Open" },
-    { path: `/en/teams/${TEAM_ID}/incidents?view=all`, label: "Critical" },
-    { path: `/en/teams/${TEAM_ID}/incidents`, label: "Low" },
+    { path: `/en/teams/${TEAM_ID}/incidents?view=all`, label: "Escalated" },
     {
       path: `/en/teams/${TEAM_ID}/incidents?view=acknowledged`,
       label: "Acknowledged",

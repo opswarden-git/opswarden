@@ -9,6 +9,20 @@ use crate::domain::automation_config::{
 use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionHealthMutation {
+    Preserve,
+    Reset,
+    Verified,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CredentialMutation {
+    pub kind: CredentialKind,
+    /// `Some` stores/replaces the secret; `None` removes it.
+    pub secret: Option<String>,
+}
+
 /// Non-secret metadata for provider connections owned by a Team. Every lookup
 /// used by authenticated application code carries `team_id` explicitly so an
 /// unscoped list cannot be called by accident.
@@ -63,6 +77,14 @@ pub trait ServiceConnectionRepo: Send + Sync {
 /// returning credential material.
 #[async_trait]
 pub trait ConnectionCredentialVault: Send + Sync {
+    /// Create or reuse the Team/service connection and apply every credential
+    /// and health mutation in one transaction.
+    async fn configure_connection(
+        &self,
+        connection: &ServiceConnection,
+        credentials: &[CredentialMutation],
+        health: ConnectionHealthMutation,
+    ) -> Result<ServiceConnection, DomainError>;
     async fn store_credential(
         &self,
         connection_id: Uuid,
@@ -89,7 +111,11 @@ pub trait ConnectionCredentialVault: Send + Sync {
 #[async_trait]
 pub trait AutomationRuleRepo: Send + Sync {
     async fn insert_rule(&self, rule: &AutomationRule) -> Result<(), DomainError>;
-    async fn update_rule(&self, rule: &AutomationRule) -> Result<bool, DomainError>;
+    async fn update_rule(
+        &self,
+        rule: &AutomationRule,
+        expected_updated_at: DateTime<Utc>,
+    ) -> Result<bool, DomainError>;
     async fn find_rule_for_team(
         &self,
         team_id: Uuid,
@@ -105,11 +131,9 @@ pub trait AutomationRuleRepo: Send + Sync {
     async fn delete_rule(&self, team_id: Uuid, rule_id: Uuid) -> Result<bool, DomainError>;
     async fn next_run_at(
         &self,
-        _team_id: Uuid,
-        _rule_id: Uuid,
-    ) -> Result<Option<DateTime<Utc>>, DomainError> {
-        Ok(None)
-    }
+        team_id: Uuid,
+        rule_id: Uuid,
+    ) -> Result<Option<DateTime<Utc>>, DomainError>;
 }
 
 /// Durable Timer projection and cross-replica occurrence claims.
@@ -142,6 +166,13 @@ pub trait AutomationTimerRepo: Send + Sync {
         run: &AutomationRun,
     ) -> Result<bool, DomainError>;
 
+    /// Atomically terminalize the run, its delivery and connection health.
+    async fn finish_execution(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        run: &AutomationRun,
+    ) -> Result<bool, DomainError>;
+
     async fn list_unstarted_claims(
         &self,
         claimed_before: DateTime<Utc>,
@@ -162,11 +193,26 @@ pub trait AutomationTimerRepo: Send + Sync {
 }
 
 /// Idempotency ledger for inbound provider deliveries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WebhookDeliveryClaim {
+    pub delivery_id: Uuid,
+    pub token: Uuid,
+}
+
 #[async_trait]
 pub trait WebhookDeliveryRepo: Send + Sync {
-    /// Atomically reserve a provider delivery. Returns false when this
-    /// connection already received the same provider id.
-    async fn reserve_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
+    /// Atomically claims a new delivery or reclaims an expired attempt.
+    /// Returns `None` while another attempt owns the lease or after the
+    /// delivery reached a terminal state.
+    async fn claim_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+    ) -> Result<Option<WebhookDeliveryClaim>, DomainError>;
+    async fn complete_claimed_delivery(
+        &self,
+        delivery: &WebhookDelivery,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<bool, DomainError>;
     async fn update_delivery(&self, delivery: &WebhookDelivery) -> Result<bool, DomainError>;
     async fn list_deliveries_for_team(
         &self,
@@ -175,10 +221,54 @@ pub trait WebhookDeliveryRepo: Send + Sync {
     ) -> Result<Vec<WebhookDelivery>, DomainError>;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WebhookJob {
+    pub id: Uuid,
+    pub connection_id: Uuid,
+    pub expected_service: String,
+    pub provider_delivery_id: String,
+    pub provider_event: String,
+    pub body: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClaimedWebhookJob {
+    pub job: WebhookJob,
+    pub token: Uuid,
+}
+
+#[async_trait]
+pub trait WebhookJobRepo: Send + Sync {
+    async fn enqueue(&self, job: &WebhookJob) -> Result<bool, DomainError>;
+    async fn enqueue_batch(&self, jobs: &[WebhookJob]) -> Result<Vec<bool>, DomainError>;
+    async fn claim(&self, limit: u32) -> Result<Vec<ClaimedWebhookJob>, DomainError>;
+    async fn complete(&self, claim: &ClaimedWebhookJob) -> Result<bool, DomainError>;
+    async fn retry(&self, claim: &ClaimedWebhookJob, error_code: &str)
+        -> Result<bool, DomainError>;
+}
+
 /// Durable result of running one rule for one delivery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AutomationRunReservation {
+    New(AutomationRun),
+    Existing(AutomationRun),
+}
+
 #[async_trait]
 pub trait AutomationRunRepo: Send + Sync {
-    async fn insert_run(&self, run: &AutomationRun) -> Result<(), DomainError>;
+    /// Insert a new run or return the run already reserved for this
+    /// `(delivery, rule)` pair after a worker restart.
+    async fn reserve_run(
+        &self,
+        run: &AutomationRun,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<AutomationRunReservation, DomainError>;
+    /// Terminalize runs left `running` by an expired delivery attempt, even if
+    /// their rule has since been disabled or deleted.
+    async fn interrupt_running_for_delivery(
+        &self,
+        claim: WebhookDeliveryClaim,
+    ) -> Result<u64, DomainError>;
     async fn update_run(&self, run: &AutomationRun) -> Result<bool, DomainError>;
     async fn list_runs_for_team(
         &self,

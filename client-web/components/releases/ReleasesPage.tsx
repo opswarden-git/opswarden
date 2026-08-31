@@ -18,6 +18,7 @@ import {
 } from "@/components/releases/release-views";
 import { Alert } from "@/components/ui/Alert";
 import { Button, buttonClassNames } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   CollectionSearch,
   MobileCollectionFilters,
@@ -27,7 +28,7 @@ import {
 import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { deriveCapabilities } from "@/lib/capabilities";
 import { useReleases } from "@/lib/queries/releases";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 
 export function ReleasesPage({ teamId }: { teamId: string }) {
@@ -36,17 +37,18 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
-  const { data: teams, isLoading: isLoadingTeams, error: teamsError } = useTeams();
+  const {
+    teams,
+    role = "observer",
+    capabilities,
+    isLoading: isLoadingTeams,
+    error: teamsError,
+  } = useTeamScope();
   const { data: releases, isLoading, error } = useReleases(teamId);
-  const selectedReleaseId = searchParams.get("release") ?? "";
   const view = normalizeReleaseView(searchParams.get("view"));
   const sort = searchParams.get("sort") === "oldest" ? "oldest" : "newest";
   const urlQuery = searchParams.get("q") ?? "";
-
-  const activeTeam = teams?.find((team) => team.team_id === teamId);
-  const role = activeTeam?.role ?? "observer";
-  const capabilities = deriveCapabilities(role);
-  const hasNoTeams = teams?.length === 0;
+  const hasNoTeams = teams.length === 0;
   const counts = releaseViewCounts(releases ?? []);
   const visibleReleases = (releases ?? [])
     .filter((release) => releaseBelongsToView(release, view))
@@ -78,12 +80,7 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
     const detailPath = teamPath(teamId, "releases", releaseId);
     return view === "active" ? detailPath : `${detailPath}?view=${view}`;
   };
-  const legacyDetailHref = selectedReleaseId ? releaseHref(selectedReleaseId) : null;
 
-  React.useEffect(() => {
-    if (!legacyDetailHref) return;
-    router.replace(legacyDetailHref);
-  }, [legacyDetailHref, router]);
   const setParam = (name: string, value?: string) => router.push(paramsWith({ [name]: value }));
   const commitSearch = React.useCallback(
     (value: string) => {
@@ -191,29 +188,28 @@ export function ReleasesPage({ teamId }: { teamId: string }) {
         errorFallback={<Alert tone="danger">{t("failedToLoad")}</Alert>}
         emptyFallback={
           hasNoTeams ? (
-            <div className="surface rounded-md p-12 text-center">
-              <Shield className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">{t("noTeamsYet")}</h3>
-              <p className="text-muted mt-2 mb-6 text-sm">{t("noTeamsDesc")}</p>
-              <Link href="/teams" className={buttonClassNames({ variant: "primary", size: "lg" })}>
-                {t("goToTeams")}
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Shield className="h-6 w-6" />}
+              title={t("noTeamsYet")}
+              description={t("noTeamsDesc")}
+              action={
+                <Link
+                  href="/teams"
+                  className={buttonClassNames({ variant: "primary", size: "lg" })}
+                >
+                  {t("goToTeams")}
+                </Link>
+              }
+            />
           ) : (
-            <div className="surface rounded-md p-12 text-center">
-              <Rocket className="text-muted/50 mx-auto mb-4 h-12 w-12" />
-              <h3 className="text-text text-lg font-medium">
-                {hasReleases ? t("noMatchingReleases") : t("noReleasesYet")}
-              </h3>
-              <p className="text-muted mt-2 text-sm">
-                {hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
-              </p>
-              {hasReleases ? (
-                <Button className="mt-6" onClick={clearFilters}>
-                  {t("clearFilters")}
-                </Button>
-              ) : null}
-            </div>
+            <EmptyState
+              icon={<Rocket className="h-6 w-6" />}
+              title={hasReleases ? t("noMatchingReleases") : t("noReleasesYet")}
+              description={hasReleases ? t("noMatchingReleasesDesc") : t("noReleasesDesc")}
+              action={
+                hasReleases ? <Button onClick={clearFilters}>{t("clearFilters")}</Button> : null
+              }
+            />
           )
         }
       >

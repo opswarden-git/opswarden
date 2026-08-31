@@ -12,11 +12,11 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { Alert } from "@/components/ui/Alert";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Link } from "@/i18n/routing";
-import { useTeams } from "@/lib/queries/teams";
+import { useTeamScope } from "@/components/teams/TeamScope";
 import { teamPath } from "@/lib/team-routing";
 
 export default function TeamsPage() {
-  const { data: teams, isLoading, error } = useTeams();
+  const { teams, isLoading, error } = useTeamScope();
   const t = useTranslations("Teams");
   const [query, setQuery] = useState("");
   const visibleTeams = useMemo(() => {

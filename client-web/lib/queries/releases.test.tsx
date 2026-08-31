@@ -35,7 +35,9 @@ function release(overrides: Partial<Release> = {}): Release {
     steps: [
       { position: 0, name: "build", validated: false, validated_by: null, validated_at: null },
     ],
-    linked_incident_ids: [],
+    linked_incidents: [],
+    blockers: [],
+    linkable_incidents: [],
     created_at: "2026-06-26T00:00:00Z",
     updated_at: "2026-06-26T00:00:00Z",
     ...overrides,

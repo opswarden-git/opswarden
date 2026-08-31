@@ -19,7 +19,7 @@ import {
 import { useTeamOnline } from "@/lib/ws";
 import { useUnreadPrivateMessages } from "@/lib/queries/privateMessages";
 import { useAuthStore } from "@/store/auth";
-import { deriveCapabilities } from "@/lib/capabilities";
+import { deriveCapabilities, TEAM_ROLES, type TeamRole } from "@/lib/capabilities";
 import { teamPath } from "@/lib/team-routing";
 import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/Alert";
@@ -30,10 +30,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { MemberAvatar, memberDisplayName } from "./MemberAvatar";
 import { MemberRowActions } from "./MemberRowActions";
 import { RoleChip } from "./RoleChip";
+import { RosterConfirmDialogs, type BanDuration, type Dialog } from "./RosterConfirmDialogs";
 
-type Dialog = "makeManager" | "kick" | "ban" | null;
-type BanDuration = "permanent" | "1h" | "24h" | "7d";
-type RoleFilter = "all" | "manager" | "responder" | "observer";
+type RoleFilter = "all" | TeamRole;
 
 export function TeamRosterRowsSkeleton({ rows = 3 }: { rows?: number }) {
   return (
@@ -65,35 +64,18 @@ function durationToBan(duration: BanDuration): BanKindInput {
   };
 }
 
-/** Searchable operational roster. Team-level ownership and danger actions live
- * in Settings; row-level member actions stay beside the member they affect. */
-export function TeamRoster({ team }: { team: Team }) {
-  const t = useTranslations("Teams");
-  const tDm = useTranslations("DirectMessages");
-  const tErr = useTranslations("errors");
-  const locale = useLocale();
+function useTeamRosterData(team: Team, query: string, roleFilter: RoleFilter) {
   const currentUserId = useAuthStore((state) => state.user?.id);
   const { data: members, isLoading, error } = useTeamMembers(team.team_id);
   const onlineSet = new Set(useTeamOnline(team.team_id));
   const capabilities = deriveCapabilities(team.role);
-  const { data: unreadData } = useUnreadPrivateMessages(capabilities.canSendPrivateMessage);
+  const { data: unreadData } = useUnreadPrivateMessages();
   const unreadPeerSet = useMemo(
     () => new Set(unreadData?.unread_peer_ids ?? []),
     [unreadData?.unread_peer_ids],
   );
 
-  const setRole = useSetMemberRole(team.team_id);
-  const transfer = useTransferManager(team.team_id);
-  const kick = useKickMember(team.team_id);
-  const ban = useBanMember(team.team_id);
   const bans = useTeamBans(team.team_id, capabilities.canManageMembers);
-  const unban = useUnbanMember(team.team_id);
-
-  const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [dialog, setDialog] = useState<Dialog>(null);
-  const [target, setTarget] = useState<TeamMember | null>(null);
-  const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
 
   const visibleMembers = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -105,6 +87,7 @@ export function TeamRoster({ team }: { team: Team }) {
           member.role.toLocaleLowerCase().includes(normalized)),
     );
   }, [members, query, roleFilter]);
+
   const visibleActiveMembers = visibleMembers.filter(
     (member) => member.user_id === currentUserId || onlineSet.has(member.user_id),
   );
@@ -119,7 +102,60 @@ export function TeamRoster({ team }: { team: Team }) {
         entry.active && (!normalized || entry.user.email.toLocaleLowerCase().includes(normalized)),
     );
   }, [bans.data, capabilities.canManageMembers, query]);
+
   const hasBans = (bans.data ?? []).some((entry) => entry.active);
+
+  return {
+    bans,
+    capabilities,
+    currentUserId,
+    error,
+    hasBans,
+    isLoading,
+    onlineSet,
+    unreadPeerSet,
+    visibleActiveMembers,
+    visibleBans,
+    visibleInactiveMembers,
+    visibleMembers,
+  };
+}
+
+/** Searchable operational roster. Team-level ownership and danger actions live
+ * in Settings; row-level member actions stay beside the member they affect. */
+export function TeamRoster({ team }: { team: Team }) {
+  const t = useTranslations("Teams");
+  const tDm = useTranslations("DirectMessages");
+  const tErr = useTranslations("errors");
+  const locale = useLocale();
+
+  const setRole = useSetMemberRole(team.team_id);
+  const transfer = useTransferManager(team.team_id);
+  const kick = useKickMember(team.team_id);
+  const ban = useBanMember(team.team_id);
+  const unban = useUnbanMember(team.team_id);
+
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [target, setTarget] = useState<TeamMember | null>(null);
+  const [banDuration, setBanDuration] = useState<BanDuration>("permanent");
+
+  const {
+    bans,
+    capabilities,
+    currentUserId,
+    error,
+    hasBans,
+    isLoading,
+    onlineSet,
+    unreadPeerSet,
+    visibleActiveMembers,
+    visibleBans,
+    visibleInactiveMembers,
+    visibleMembers,
+  } = useTeamRosterData(team, query, roleFilter);
+
   const errorText = (code: string) => (tErr.has(code) ? tErr(code) : t("actionFailed"));
   const close = () => setDialog(null);
 
@@ -137,7 +173,7 @@ export function TeamRoster({ team }: { team: Team }) {
           const hasUnread = unreadPeerSet.has(member.user_id);
           const displayName = memberDisplayName(member.email);
           const conversationHref =
-            member.user_id !== currentUserId && capabilities.canSendPrivateMessage
+            member.user_id !== currentUserId
               ? teamPath(team.team_id, "messages", member.user_id)
               : null;
           const rowActions = capabilities.canManageMembers ? (
@@ -247,9 +283,10 @@ export function TeamRoster({ team }: { team: Team }) {
             onChange={(value) => setRoleFilter((value || "all") as RoleFilter)}
             options={[
               { value: "", label: t("allRoles") },
-              { value: "manager", label: t("roleManager") },
-              { value: "responder", label: t("roleResponder") },
-              { value: "observer", label: t("roleObserver") },
+              ...[...TEAM_ROLES].reverse().map((role) => ({
+                value: role,
+                label: t(`role${role[0].toUpperCase()}${role.slice(1)}`),
+              })),
             ]}
           />
         </div>
@@ -345,43 +382,14 @@ export function TeamRoster({ team }: { team: Team }) {
         </section>
       ) : null}
 
-      <ConfirmDialog
-        open={dialog === "makeManager"}
-        title={t("makeManager")}
-        description={t("transferConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("makeManager")}
-        cancelLabel={t("cancel")}
-        intent="standard"
-        pendingLabel={t("processing")}
-        pending={transfer.isPending}
-        error={transfer.error ? errorText(transfer.error.message) : null}
-        onConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
-        onClose={close}
-      />
-      <ConfirmDialog
-        open={dialog === "kick"}
-        title={t("kick")}
-        description={t("kickConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("kick")}
-        cancelLabel={t("cancel")}
-        intent="destructive"
-        pendingLabel={t("processing")}
-        pending={kick.isPending}
-        error={kick.error ? errorText(kick.error.message) : null}
-        onConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
-        onClose={close}
-      />
-      <ConfirmDialog
-        open={dialog === "ban"}
-        title={t("banMember")}
-        description={t("banConfirm", { email: target?.email ?? "" })}
-        confirmLabel={t("ban")}
-        cancelLabel={t("cancel")}
-        intent="destructive"
-        pendingLabel={t("processing")}
-        pending={ban.isPending}
-        error={ban.error ? errorText(ban.error.message) : null}
-        onConfirm={() =>
+      <RosterConfirmDialogs
+        banDuration={banDuration}
+        banError={ban.error ? errorText(ban.error.message) : null}
+        banPending={ban.isPending}
+        dialog={dialog}
+        kickError={kick.error ? errorText(kick.error.message) : null}
+        kickPending={kick.isPending}
+        onBanConfirm={() =>
           target &&
           ban.mutate(
             { userId: target.user_id, ban: durationToBan(banDuration) },
@@ -389,21 +397,13 @@ export function TeamRoster({ team }: { team: Team }) {
           )
         }
         onClose={close}
-      >
-        <label className="space-y-2">
-          <span className="text-muted text-sm">{t("banDuration")}</span>
-          <select
-            value={banDuration}
-            onChange={(event) => setBanDuration(event.target.value as BanDuration)}
-            className="ow-input h-10 w-full rounded-md px-3 text-sm"
-          >
-            <option value="permanent">{t("banPermanent")}</option>
-            <option value="1h">{t("ban1h")}</option>
-            <option value="24h">{t("ban24h")}</option>
-            <option value="7d">{t("ban7d")}</option>
-          </select>
-        </label>
-      </ConfirmDialog>
+        onKickConfirm={() => target && kick.mutate(target.user_id, { onSuccess: close })}
+        onSetBanDuration={setBanDuration}
+        onTransferConfirm={() => target && transfer.mutate(target.user_id, { onSuccess: close })}
+        target={target}
+        transferError={transfer.error ? errorText(transfer.error.message) : null}
+        transferPending={transfer.isPending}
+      />
     </section>
   );
 }

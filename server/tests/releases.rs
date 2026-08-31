@@ -161,7 +161,13 @@ async fn linking_an_active_incident_blocks_then_resolving_unblocks() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(linked["state"], "blocked");
-    assert_eq!(linked["linked_incident_ids"].as_array().unwrap().len(), 1);
+    assert_eq!(linked["linked_incidents"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        linked["linked_incidents"][0]["incident_id"],
+        incident_id.to_string()
+    );
+    assert_eq!(linked["blockers"].as_array().unwrap().len(), 1);
+    assert!(linked["linkable_incidents"].as_array().unwrap().is_empty());
 
     let (status, list) = send(
         &ctx,

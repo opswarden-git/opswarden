@@ -5,11 +5,14 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::domain::automation_catalog::TIMER_SERVICE;
 use crate::domain::automation_config::{AutomationRun, AutomationRunStatus, WebhookDeliveryStatus};
-use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule, TIMER_SERVICE};
+use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::ports::AutomationTimerRepo;
 
+#[path = "timer_ops.rs"]
+mod timer_ops;
 #[path = "timer_rows.rs"]
 mod timer_rows;
 
@@ -92,143 +95,7 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         &self,
         now: DateTime<Utc>,
     ) -> Result<Option<ClaimedTimerOccurrence>, DomainError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let row = sqlx::query_as::<_, DueScheduleRow>(
-            r#"
-            SELECT s.rule_id,
-                   r.team_id,
-                   r.trigger_connection_id AS connection_id,
-                   s.schedule_kind,
-                   s.timezone,
-                   s.local_time,
-                   s.interval_minutes,
-                   s.next_run_at AS scheduled_for,
-                   s.rule_updated_at
-            FROM automation_timer_schedules s
-            JOIN automation_rules r ON r.id = s.rule_id
-            JOIN service_connections c
-              ON c.id = r.trigger_connection_id
-             AND c.team_id = r.team_id
-            WHERE s.next_run_at <= $1
-              AND s.rule_updated_at = r.updated_at
-              AND r.enabled
-              AND r.trigger_kind = s.schedule_kind
-              AND c.service = $2
-            ORDER BY s.next_run_at, s.rule_id
-            FOR UPDATE OF s SKIP LOCKED
-            LIMIT 1
-            "#,
-        )
-        .bind(now)
-        .bind(TIMER_SERVICE)
-        .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        let Some(row) = row else {
-            transaction
-                .commit()
-                .await
-                .map_err(|_| DomainError::Storage)?;
-            return Ok(None);
-        };
-
-        let schedule = row.schedule()?;
-        let Some(scheduled_for) = schedule.recovery_occurrence(row.scheduled_for, now) else {
-            let next_run_at = schedule.next_after(now);
-            sqlx::query(
-                "UPDATE automation_timer_schedules SET next_run_at = $2, updated_at = $3 WHERE rule_id = $1",
-            )
-            .bind(row.rule_id)
-            .bind(next_run_at)
-            .bind(now)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| DomainError::Storage)?;
-            transaction
-                .commit()
-                .await
-                .map_err(|_| DomainError::Storage)?;
-            return Ok(None);
-        };
-        // A delayed worker emits one recovery occurrence, then resumes from
-        // the current instant. It never drains an unbounded missed backlog.
-        let next_run_at = schedule.next_after(now.max(scheduled_for));
-        let delivery_id = Uuid::new_v4();
-        let provider_delivery_id = format!("timer:{}:{}", row.rule_id, scheduled_for.timestamp());
-
-        sqlx::query(
-            r#"
-            INSERT INTO webhook_deliveries (
-                id, connection_id, provider_delivery_id, provider_event,
-                status, error_code, received_at
-            )
-            VALUES ($1, $2, $3, $4, $5, null, $6)
-            "#,
-        )
-        .bind(delivery_id)
-        .bind(row.connection_id)
-        .bind(provider_delivery_id)
-        .bind(schedule.kind())
-        .bind(WebhookDeliveryStatus::Received.to_string())
-        .bind(now)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        sqlx::query(
-            r#"
-            INSERT INTO automation_timer_occurrences (
-                rule_id, scheduled_for, delivery_id, schedule_kind, timezone,
-                local_time, interval_minutes, rule_updated_at, claimed_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            "#,
-        )
-        .bind(row.rule_id)
-        .bind(scheduled_for)
-        .bind(delivery_id)
-        .bind(schedule.kind())
-        .bind(schedule.timezone().to_string())
-        .bind(row.local_time)
-        .bind(row.interval_minutes)
-        .bind(row.rule_updated_at)
-        .bind(now)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        sqlx::query(
-            r#"
-            UPDATE automation_timer_schedules
-            SET next_run_at = $2,
-                last_claimed_at = $3,
-                updated_at = $3
-            WHERE rule_id = $1
-            "#,
-        )
-        .bind(row.rule_id)
-        .bind(next_run_at)
-        .bind(now)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-
-        transaction
-            .commit()
-            .await
-            .map_err(|_| DomainError::Storage)?;
-
-        Ok(Some(ClaimedTimerOccurrence {
-            rule_id: row.rule_id,
-            team_id: row.team_id,
-            connection_id: row.connection_id,
-            delivery_id,
-            scheduled_for,
-            claimed_at: now,
-            rule_updated_at: row.rule_updated_at,
-            schedule,
-        }))
+        self.claim_due_impl(now).await
     }
 
     async fn start_execution(
@@ -236,81 +103,7 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         claim: &ClaimedTimerOccurrence,
         run: &AutomationRun,
     ) -> Result<bool, DomainError> {
-        if run.delivery_id != claim.delivery_id
-            || run.rule_id != Some(claim.rule_id)
-            || run.status != AutomationRunStatus::Running
-            || run.finished_at.is_some()
-        {
-            return Err(DomainError::InvalidAutomationRun);
-        }
-        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
-        let started = sqlx::query(
-            r#"
-            UPDATE automation_timer_occurrences o
-            SET execution_started_at = $3
-            WHERE o.rule_id = $1
-              AND o.scheduled_for = $2
-              AND o.delivery_id = $4
-              AND o.execution_started_at IS NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM automation_rules r
-                  JOIN service_connections c
-                    ON c.id = r.trigger_connection_id
-                   AND c.team_id = r.team_id
-                  WHERE r.id = o.rule_id
-                    AND r.team_id = $5
-                    AND r.trigger_connection_id = $6
-                    AND r.updated_at = $7
-                    AND r.enabled
-                    AND r.trigger_kind = $8
-                    AND c.service = $9
-              )
-            "#,
-        )
-        .bind(claim.rule_id)
-        .bind(claim.scheduled_for)
-        .bind(run.started_at)
-        .bind(claim.delivery_id)
-        .bind(claim.team_id)
-        .bind(claim.connection_id)
-        .bind(claim.rule_updated_at)
-        .bind(claim.schedule.kind())
-        .bind(TIMER_SERVICE)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?
-        .rows_affected()
-            == 1;
-        if !started {
-            transaction
-                .commit()
-                .await
-                .map_err(|_| DomainError::Storage)?;
-            return Ok(false);
-        }
-        sqlx::query(
-            r#"
-            INSERT INTO automation_runs (
-                id, delivery_id, rule_id, status, incident_id, error_code,
-                started_at, finished_at
-            )
-            VALUES ($1, $2, $3, $4, null, null, $5, null)
-            "#,
-        )
-        .bind(run.id)
-        .bind(run.delivery_id)
-        .bind(claim.rule_id)
-        .bind(run.status.to_string())
-        .bind(run.started_at)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| DomainError::Storage)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| DomainError::Storage)?;
-        Ok(true)
+        self.start_execution_impl(claim, run).await
     }
 
     async fn list_unstarted_claims(
@@ -318,53 +111,107 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         claimed_before: DateTime<Utc>,
         limit: u32,
     ) -> Result<Vec<ClaimedTimerOccurrence>, DomainError> {
-        let rows = sqlx::query_as::<_, UnstartedClaimRow>(
+        self.list_unstarted_claims_impl(claimed_before, limit).await
+    }
+
+    async fn finish_execution(
+        &self,
+        claim: &ClaimedTimerOccurrence,
+        run: &AutomationRun,
+    ) -> Result<bool, DomainError> {
+        if run.delivery_id != claim.delivery_id
+            || run.rule_id != Some(claim.rule_id)
+            || !matches!(
+                run.status,
+                AutomationRunStatus::Succeeded | AutomationRunStatus::Failed
+            )
+            || run.finished_at.is_none()
+        {
+            return Err(DomainError::InvalidAutomationRun);
+        }
+        let delivery_status = match run.status {
+            AutomationRunStatus::Succeeded => WebhookDeliveryStatus::Processed,
+            AutomationRunStatus::Failed => WebhookDeliveryStatus::Failed,
+            _ => unreachable!(),
+        };
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let updated_run = sqlx::query(
             r#"
-            SELECT o.rule_id,
-                   c.team_id,
-                   d.connection_id,
-                   o.delivery_id,
-                   o.schedule_kind,
-                   o.timezone,
-                   o.local_time,
-                   o.interval_minutes,
-                   o.scheduled_for,
-                   o.claimed_at,
-                   o.rule_updated_at
-            FROM automation_timer_occurrences o
-            JOIN webhook_deliveries d ON d.id = o.delivery_id
-            JOIN service_connections c ON c.id = d.connection_id
-            WHERE o.execution_started_at IS NULL
-              AND o.claimed_at <= $1
-              AND d.status = 'received'
-            ORDER BY o.claimed_at, o.rule_id
-            LIMIT $2
+            UPDATE automation_runs
+            SET status = $4, incident_id = $5, error_code = $6, finished_at = $7
+            WHERE id = $1 AND delivery_id = $2 AND rule_id = $3
+              AND status = 'running'
             "#,
         )
-        .bind(claimed_before)
-        .bind(i64::from(limit.clamp(1, 200)))
-        .fetch_all(&self.pool)
+        .bind(run.id)
+        .bind(claim.delivery_id)
+        .bind(claim.rule_id)
+        .bind(run.status.to_string())
+        .bind(run.incident_id)
+        .bind(&run.error_code)
+        .bind(run.finished_at)
+        .execute(&mut *transaction)
         .await
-        .map_err(|_| DomainError::Storage)?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(ClaimedTimerOccurrence {
-                    rule_id: row.rule_id,
-                    team_id: row.team_id,
-                    connection_id: row.connection_id,
-                    delivery_id: row.delivery_id,
-                    scheduled_for: row.scheduled_for,
-                    claimed_at: row.claimed_at,
-                    rule_updated_at: row.rule_updated_at,
-                    schedule: stored_schedule(
-                        &row.schedule_kind,
-                        &row.timezone,
-                        row.local_time,
-                        row.interval_minutes,
-                    )?,
-                })
-            })
-            .collect()
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_run {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        let updated_delivery = sqlx::query(
+            r#"
+            UPDATE webhook_deliveries
+            SET status = $2, error_code = $3
+            WHERE id = $1 AND connection_id = $4 AND status = 'received'
+            "#,
+        )
+        .bind(claim.delivery_id)
+        .bind(delivery_status.to_string())
+        .bind(&run.error_code)
+        .bind(claim.connection_id)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_delivery {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        let updated_connection = sqlx::query(
+            r#"
+            UPDATE service_connections
+            SET verified_at = coalesce(verified_at, now()),
+                last_delivery_at = now(), last_error_code = $2, updated_at = now()
+            WHERE id = $1
+            "#,
+        )
+        .bind(claim.connection_id)
+        .bind(&run.error_code)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| DomainError::Storage)?
+        .rows_affected()
+            == 1;
+        if !updated_connection {
+            transaction
+                .rollback()
+                .await
+                .map_err(|_| DomainError::Storage)?;
+            return Ok(false);
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(true)
     }
 
     async fn abandon_claim(
@@ -435,7 +282,8 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         started_before: DateTime<Utc>,
         finished_at: DateTime<Utc>,
     ) -> Result<u64, DomainError> {
-        let rows = sqlx::query_scalar::<_, Uuid>(
+        let mut transaction = self.pool.begin().await.map_err(|_| DomainError::Storage)?;
+        let delivery_ids = sqlx::query_scalar::<_, Uuid>(
             r#"
             WITH stale AS (
                 UPDATE automation_runs r
@@ -458,10 +306,33 @@ impl AutomationTimerRepo for PgAutomationTimerRepo {
         )
         .bind(started_before)
         .bind(finished_at)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *transaction)
         .await
         .map_err(|_| DomainError::Storage)?;
-        Ok(rows.len() as u64)
+        if !delivery_ids.is_empty() {
+            sqlx::query(
+                r#"
+                UPDATE service_connections
+                SET verified_at = coalesce(verified_at, $2),
+                    last_delivery_at = $2,
+                    last_error_code = 'timer_worker_interrupted',
+                    updated_at = $2
+                WHERE id IN (
+                    SELECT connection_id FROM webhook_deliveries WHERE id = ANY($1)
+                )
+                "#,
+            )
+            .bind(&delivery_ids)
+            .bind(finished_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        }
+        transaction
+            .commit()
+            .await
+            .map_err(|_| DomainError::Storage)?;
+        Ok(delivery_ids.len() as u64)
     }
 }
 

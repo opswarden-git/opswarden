@@ -4,6 +4,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::domain::automation::ExternalEvent;
+use crate::domain::automation_catalog::{reaction, reaction_executor, ReactionExecutor};
 use crate::domain::automation_config::{AutomationRule, CredentialKind};
 use crate::domain::automation_template::{
     interpolate, MAX_INTERPOLATED_PAYLOAD_BYTES, MAX_INTERPOLATED_TITLE_BYTES,
@@ -12,14 +13,14 @@ use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
 use crate::domain::incident::{Incident, Severity};
 use crate::domain::incident_event::IncidentEvent;
-use crate::domain::release::ReleaseState;
+use crate::domain::release::{ReleaseBaseState, ReleaseState};
 use crate::ports::{
     ConnectionCredentialVault, EmailMessage, EmailSender, EventPublisher, IncidentRepo, Notifier,
     ReleaseRepo, ServiceConnectionRepo, SmtpConfig,
 };
 
-const HTTP_SERVICE: &str = "http";
-const EMAIL_SERVICE: &str = "email";
+use crate::app::release::release_step_incident_events;
+
 const MAX_NOTIFICATION_TEXT_BYTES: usize = 1024;
 
 pub struct AutomationReactionExecutor {
@@ -59,14 +60,17 @@ impl AutomationReactionExecutor {
         rule: &AutomationRule,
         event: &ExternalEvent,
     ) -> Result<Option<(Uuid, Severity)>, DomainError> {
-        match rule.reaction_kind.as_str() {
-            "create_incident" => self.create_incident(team_id, rule, event).await,
-            "validate_release_step" => self.validate_release_step(team_id, rule, event).await,
-            "block_release" => self.block_release(team_id, rule, event).await,
-            "escalate_incident" => self.escalate_incident(team_id, rule, event).await,
-            "http_notify" | "slack_notify" => self.notify_http(team_id, rule, event).await,
-            "email_notify" => self.notify_email(team_id, rule, event).await,
-            _ => Err(DomainError::InvalidAutomationRule),
+        match reaction_executor(&rule.reaction_kind).ok_or(DomainError::InvalidAutomationRule)? {
+            ReactionExecutor::CreateIncident => self.create_incident(team_id, rule, event).await,
+            ReactionExecutor::ValidateReleaseStep => {
+                self.validate_release_step(team_id, rule, event).await
+            }
+            ReactionExecutor::BlockRelease => self.block_release(team_id, rule, event).await,
+            ReactionExecutor::EscalateIncident => {
+                self.escalate_incident(team_id, rule, event).await
+            }
+            ReactionExecutor::HttpNotify => self.notify_http(team_id, rule, event).await,
+            ReactionExecutor::EmailNotify => self.notify_email(team_id, rule, event).await,
         }
     }
 
@@ -90,9 +94,15 @@ impl AutomationReactionExecutor {
             .count_active_linked_incidents(release.id)
             .await?
             > 0;
+        let expected_updated_at = release.updated_at;
         let old_state = release.effective_state(has_active);
         release.validate_step(&step, actor, has_active)?;
-        self.releases.update_release(&release).await?;
+        let linked_incident_ids = self.releases.list_linked_incident_ids(release.id).await?;
+        let incident_events =
+            release_step_incident_events(&release, actor, &step, &linked_incident_ids);
+        self.releases
+            .update_release_with_incident_events(&release, expected_updated_at, &incident_events)
+            .await?;
         self.events
             .publish(DomainEvent::ReleaseStepValidated {
                 team_id,
@@ -133,7 +143,7 @@ impl AutomationReactionExecutor {
             .await?
             > 0;
         let old_state = release.effective_state(has_active);
-        if release.base_state != ReleaseState::InProgress {
+        if release.base_state != ReleaseBaseState::InProgress {
             return Err(DomainError::InvalidReleaseTransition);
         }
         if old_state == ReleaseState::Blocked {
@@ -146,10 +156,9 @@ impl AutomationReactionExecutor {
         let incident =
             Incident::new_with_description(team_id, title, incident_description(event), severity)?;
         let created = IncidentEvent::created(&incident, None);
-        self.incidents
-            .save_incident_with_event(&incident, &created)
+        self.releases
+            .create_blocking_incident(release.id, release.updated_at, &incident, &created)
             .await?;
-        self.releases.link_incident(release.id, incident.id).await?;
         let new_state = release.effective_state(true);
         if new_state != old_state {
             self.events
@@ -177,12 +186,13 @@ impl AutomationReactionExecutor {
             .await?
             .filter(|incident| incident.team_id == team_id)
             .ok_or(DomainError::IncidentNotFound)?;
+        let expected_updated_at = incident.updated_at;
         let previous = incident.status;
         if incident.escalate()? {
             let audit =
                 IncidentEvent::status_changed(incident.id, actor, previous, incident.status);
             self.incidents
-                .update_incident_with_event(&incident, &audit)
+                .update_incident_with_event(&incident, &audit, expected_updated_at)
                 .await?;
             self.events
                 .publish(DomainEvent::IncidentStateChanged {
@@ -236,7 +246,9 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != HTTP_SERVICE && connection.service != "slack" {
+        if reaction(&rule.reaction_kind).and_then(|reaction| reaction.connection_service)
+            != Some(connection.service.as_str())
+        {
             return Err(DomainError::InvalidAutomationRule);
         }
         let endpoint = self
@@ -278,7 +290,9 @@ impl AutomationReactionExecutor {
             .find_connection_for_team(team_id, connection_id)
             .await?
             .ok_or(DomainError::ServiceConnectionNotFound)?;
-        if connection.service != EMAIL_SERVICE {
+        if reaction(&rule.reaction_kind).and_then(|reaction| reaction.connection_service)
+            != Some(connection.service.as_str())
+        {
             return Err(DomainError::InvalidAutomationRule);
         }
 
@@ -450,48 +464,7 @@ fn notification_text(event: &ExternalEvent) -> String {
     truncate_utf8(text, MAX_NOTIFICATION_TEXT_BYTES)
 }
 
-fn event_lines(event: &ExternalEvent) -> Vec<String> {
-    [
-        ("Repository", attribute(event, "repository")),
-        ("Workflow", attribute(event, "workflow")),
-        ("Branch", attribute(event, "branch")),
-        ("Conclusion", attribute(event, "conclusion")),
-        ("Run", attribute(event, "run_url")),
-        ("Tag", attribute(event, "tag")),
-        ("Commit", attribute(event, "commit_sha")),
-        ("Pull request", attribute(event, "pull_request_number")),
-        ("Title", attribute(event, "pull_request_title")),
-        ("Source branch", attribute(event, "source_branch")),
-        ("Actor", attribute(event, "actor")),
-        ("Event", attribute(event, "event_url")),
-        ("Release", attribute(event, "release_id")),
-        ("Release title", attribute(event, "release_title")),
-        ("Release state", attribute(event, "release_state")),
-        ("Incident", attribute(event, "incident_id")),
-        ("Event type", attribute(event, "event_type")),
-        ("Source", attribute(event, "source")),
-        ("Title", attribute(event, "title")),
-        ("Message", attribute(event, "message")),
-        ("Severity", attribute(event, "severity")),
-        ("External ID", attribute(event, "external_id")),
-    ]
-    .into_iter()
-    .filter_map(|(label, value)| value.map(|value| format!("{label}: {value}")))
-    .collect()
-}
-
-fn truncate_utf8(mut value: String, max_bytes: usize) -> String {
-    if value.len() <= max_bytes {
-        return value;
-    }
-    let mut boundary = max_bytes.saturating_sub('…'.len_utf8());
-    while !value.is_char_boundary(boundary) {
-        boundary -= 1;
-    }
-    value.truncate(boundary);
-    value.push('…');
-    value
-}
+include!("reaction_executor_helpers.rs");
 
 #[cfg(test)]
 #[path = "reaction_executor_tests.rs"]

@@ -18,6 +18,7 @@ test-results/
 # Env / secrets
 .env
 .env*.local
+.presentation.env
 # Misc
 *.log
 .DS_Store
@@ -39,3 +40,7 @@ site/
 
 # Inventaire genere : reproductible par `just inventory`, jamais commite.
 /tooling/inventory/dist/
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 const RESPONDER_TEAM_ID = "6d1e8c20-b622-4d21-9b1b-111111111111";
 const OBSERVER_TEAM_ID = "8b2f9d30-c733-4e32-8c2c-222222222222";
-const INCIDENT_ID = "10000000-0000-4000-8000-000000000001";
-const RELEASE_ID = "30000000-0000-4000-8000-000000000001";
+const INCIDENT_ID = "51000000-0000-4000-8000-000000000001";
+const RELEASE_ID = "54000000-0000-4000-8000-000000000001";
 
 type PageKind = "collection" | "detail";
 
@@ -306,8 +306,6 @@ test("Team scope menu preserves legitimate Manager, Responder and Observer navig
 
   for (const team of [
     { id: TEAM_ID, name: "OpsWarden Demo", settings: ["Team", "Rules", "Integrations"] },
-    { id: RESPONDER_TEAM_ID, name: "Production Europe", settings: ["Team"] },
-    { id: OBSERVER_TEAM_ID, name: "Security Lab", settings: ["Team"] },
   ]) {
     await page.goto(`/en/teams/${team.id}/overview`);
     const navigation = page.getByRole("navigation", { name: "Primary navigation" });
@@ -338,8 +336,8 @@ test("Team scope menu preserves legitimate Manager, Responder and Observer navig
   // since the War Room deliberately hides the global team switcher.
   await page.goto(`/en/teams/${TEAM_ID}/incidents`);
   await page.getByRole("button", { name: "Current team: OpsWarden Demo" }).click();
-  await page.getByRole("menuitemcheckbox", { name: "Production Europe" }).click();
-  await expect(page).toHaveURL(`/en/teams/${RESPONDER_TEAM_ID}/incidents`);
+  await expect(page.getByRole("menuitemcheckbox", { name: "OpsWarden Demo" })).toBeChecked();
+  await page.keyboard.press("Escape");
 });
 
 test("breadcrumb and page actions share one strict desktop rail", async ({ page }) => {

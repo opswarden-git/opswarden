@@ -16,8 +16,9 @@ use serde::Serialize;
 
 use crate::adapters::metrics::AlertmanagerOutcome;
 use crate::adapters::webhook::{alertmanager, generic::validate_payload};
-use crate::app::automation::{
-    IngestTeamWebhookCommand, IngestTeamWebhookUseCase, TeamWebhookDependencies,
+use crate::app::automation::IngestTeamWebhookCommand;
+use crate::domain::automation_catalog::{
+    ALERTMANAGER_SERVICE, GENERIC_SERVICE, GITHUB_SERVICE, GITLAB_SERVICE,
 };
 use crate::domain::error::DomainError;
 use crate::AppState;
@@ -63,10 +64,11 @@ pub async fn receive_github_for_connection(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
 
-    let result = webhook_use_case(&state)
-        .ingest(IngestTeamWebhookCommand {
+    let result = state
+        .webhook_ingress
+        .accept(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "github",
+            expected_service: GITHUB_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -94,10 +96,11 @@ pub async fn receive_gitlab_for_connection(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
 
-    let result = webhook_use_case(&state)
-        .ingest(IngestTeamWebhookCommand {
+    let result = state
+        .webhook_ingress
+        .accept(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "gitlab",
+            expected_service: GITLAB_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -127,10 +130,11 @@ pub async fn receive_generic_for_connection(
     let signature = Some(required_header(&headers, "X-OpsWarden-Token")?);
     validate_payload(&body)?;
 
-    let result = webhook_use_case(&state)
-        .ingest(IngestTeamWebhookCommand {
+    let result = state
+        .webhook_ingress
+        .accept(IngestTeamWebhookCommand {
             connection_id,
-            expected_service: "generic",
+            expected_service: GENERIC_SERVICE,
             provider_delivery_id,
             provider_event,
             signature,
@@ -169,7 +173,6 @@ async fn receive_alertmanager(
     }
     let transitions = alertmanager::transitions(&body)?;
     let signature = Some(bearer_token(&headers)?);
-    let use_case = webhook_use_case(&state);
     let mut receipt = TeamWebhookReceipt {
         received: true,
         duplicate: true,
@@ -179,17 +182,19 @@ async fn receive_alertmanager(
         rules_triggered: 0,
         rules_failed: 0,
     };
-    for transition in transitions {
-        let result = use_case
-            .ingest(IngestTeamWebhookCommand {
-                connection_id,
-                expected_service: "alertmanager",
-                provider_delivery_id: transition.delivery_id,
-                provider_event: "alertmanager_webhook".to_string(),
-                signature: signature.clone(),
-                body: transition.body,
-            })
-            .await?;
+    let commands = transitions
+        .into_iter()
+        .map(|transition| IngestTeamWebhookCommand {
+            connection_id,
+            expected_service: ALERTMANAGER_SERVICE,
+            provider_delivery_id: transition.delivery_id,
+            provider_event: "alertmanager_webhook".to_string(),
+            signature: signature.clone(),
+            body: transition.body,
+        })
+        .collect();
+    let results = state.webhook_ingress.accept_batch(commands).await?;
+    for result in results {
         state.alertmanager_metrics.record(result_outcome(&result));
         receipt.transitions_duplicate += usize::from(result.duplicate);
         receipt.transitions_ignored += usize::from(result.ignored);
@@ -220,23 +225,6 @@ fn error_outcome(error: &DomainError) -> AlertmanagerOutcome {
         }
         _ => AlertmanagerOutcome::Rejected,
     }
-}
-
-fn webhook_use_case(state: &AppState) -> IngestTeamWebhookUseCase {
-    IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
-        connections: state.service_connections.clone(),
-        credentials: state.connection_credentials.clone(),
-        verifier: state.webhook_verifier.clone(),
-        parser: state.webhook_parser.clone(),
-        deliveries: state.webhook_deliveries.clone(),
-        rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
-        incidents: state.incidents.clone(),
-        releases: state.releases.clone(),
-        notifier: state.notifier.clone(),
-        events: state.events.clone(),
-        email_sender: state.email_sender.clone(),
-    })
 }
 
 fn bearer_token(headers: &HeaderMap) -> Result<String, DomainError> {

@@ -1,10 +1,10 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
-const LINKED_INCIDENT_ID = "10000000-0000-4000-8000-000000000001";
-const OPEN_INCIDENT_ID = "10000000-0000-4000-8000-000000000004";
-const UNASSIGNED_INCIDENT_ID = "10000000-0000-4000-8000-000000000007";
-const LINKED_RELEASE_ID = "30000000-0000-4000-8000-000000000001";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
+const LINKED_INCIDENT_ID = "51000000-0000-4000-8000-000000000001";
+const OPEN_INCIDENT_ID = "51000000-0000-4000-8000-000000000005";
+const UNASSIGNED_INCIDENT_ID = "51000000-0000-4000-8000-000000000005";
+const LINKED_RELEASE_ID = "54000000-0000-4000-8000-000000000001";
 
 const incidentUrl = (incidentId: string) => `/en/teams/${TEAM_ID}/incidents/${incidentId}`;
 
@@ -53,7 +53,7 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
-    await expect(page.locator("[data-system-event]")).toHaveCount(5);
+    await expect(page.locator("[data-system-event]")).toHaveCount(6);
     await expect(page.locator('[data-system-event="status_changed"]')).toHaveCount(2);
     await expect(page.getByRole("complementary", { name: "Incident details" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Activity" })).toHaveCount(0);

@@ -4,6 +4,8 @@
 // translators: authorization, the state machine and the blocking recompute all
 // live in the release use-cases.
 
+use std::collections::HashMap;
+
 use axum::{
     extract::{Extension, Path, Query, State},
     http::StatusCode,
@@ -13,15 +15,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::app::automation::{
-    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationUseCase,
-    InternalAutomationDependencies,
-};
 use crate::app::release::{
-    CancelReleaseCommand, CancelReleaseUseCase, CreateReleaseCommand, CreateReleaseUseCase,
-    GetReleaseCommand, GetReleaseUseCase, LinkIncidentCommand, LinkIncidentUseCase,
-    ListReleasesCommand, ListReleasesUseCase, ReleaseBlocker, ReleaseDetail, ReleaseListItem,
-    UnlinkIncidentCommand, UnlinkIncidentUseCase, ValidateReleaseStepCommand,
+    project_release_incidents, CancelReleaseCommand, CancelReleaseUseCase, CreateReleaseCommand,
+    CreateReleaseUseCase, GetReleaseCommand, GetReleaseUseCase, LinkIncidentCommand,
+    LinkIncidentUseCase, ListReleasesCommand, ListReleasesUseCase, ReleaseDetail, ReleaseIncident,
+    ReleaseListItem, UnlinkIncidentCommand, UnlinkIncidentUseCase, ValidateReleaseStepCommand,
     ValidateReleaseStepUseCase,
 };
 use crate::domain::error::DomainError;
@@ -45,18 +43,30 @@ pub struct ReleaseView {
     /// Effective state, with `blocked` already resolved from linked incidents.
     pub state: String,
     pub steps: Vec<ReleaseStepView>,
-    pub linked_incident_ids: Vec<Uuid>,
+    pub linked_incidents: Vec<ReleaseIncidentView>,
+    pub blockers: Vec<ReleaseIncidentView>,
+    pub linkable_incidents: Vec<ReleaseIncidentView>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-impl From<ReleaseDetail> for ReleaseView {
-    fn from(detail: ReleaseDetail) -> Self {
+impl ReleaseView {
+    fn from_detail(
+        detail: ReleaseDetail,
+        incidents_by_id: &HashMap<Uuid, crate::domain::incident::Incident>,
+    ) -> Self {
         let ReleaseDetail {
             release,
             effective_state,
             linked_incident_ids,
         } = detail;
+        let projection = project_release_incidents(&linked_incident_ids, incidents_by_id);
+        let views = |incidents: Vec<ReleaseIncident>| {
+            incidents
+                .into_iter()
+                .map(ReleaseIncidentView::from)
+                .collect()
+        };
         Self {
             release_id: release.id,
             team_id: release.team_id,
@@ -73,7 +83,9 @@ impl From<ReleaseDetail> for ReleaseView {
                     validated_at: step.validated_at,
                 })
                 .collect(),
-            linked_incident_ids,
+            linked_incidents: views(projection.linked),
+            blockers: views(projection.blockers),
+            linkable_incidents: views(projection.linkable),
             created_at: release.created_at,
             updated_at: release.updated_at,
         }
@@ -93,20 +105,20 @@ pub struct ReleaseNextStepView {
 }
 
 #[derive(Serialize)]
-pub struct ReleaseBlockerView {
+pub struct ReleaseIncidentView {
     pub incident_id: Uuid,
     pub title: String,
     pub status: String,
     pub severity: String,
 }
 
-impl From<ReleaseBlocker> for ReleaseBlockerView {
-    fn from(blocker: ReleaseBlocker) -> Self {
+impl From<ReleaseIncident> for ReleaseIncidentView {
+    fn from(incident: ReleaseIncident) -> Self {
         Self {
-            incident_id: blocker.incident_id,
-            title: blocker.title,
-            status: blocker.status.to_string(),
-            severity: blocker.severity.to_string(),
+            incident_id: incident.incident_id,
+            title: incident.title,
+            status: incident.status.to_string(),
+            severity: incident.severity.to_string(),
         }
     }
 }
@@ -119,7 +131,7 @@ pub struct ReleaseListItemView {
     pub state: String,
     pub progress: ReleaseProgressView,
     pub next_step: Option<ReleaseNextStepView>,
-    pub blockers: Vec<ReleaseBlockerView>,
+    pub blockers: Vec<ReleaseIncidentView>,
     pub linked_incident_ids: Vec<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -147,12 +159,26 @@ impl From<ReleaseListItem> for ReleaseListItemView {
                 position: step.position,
                 name: step.name,
             }),
-            blockers: blockers.into_iter().map(ReleaseBlockerView::from).collect(),
+            blockers: blockers
+                .into_iter()
+                .map(ReleaseIncidentView::from)
+                .collect(),
             linked_incident_ids: detail.linked_incident_ids,
             created_at: detail.release.created_at,
             updated_at: detail.release.updated_at,
         }
     }
+}
+
+async fn release_view(state: &AppState, detail: ReleaseDetail) -> Result<ReleaseView, DomainError> {
+    let incidents_by_id = state
+        .incidents
+        .list_incidents_for_team(detail.release.team_id)
+        .await?
+        .into_iter()
+        .map(|incident| (incident.id, incident))
+        .collect();
+    Ok(ReleaseView::from_detail(detail, &incidents_by_id))
 }
 
 #[derive(Deserialize)]
@@ -180,26 +206,10 @@ pub async fn create_release(
             requester_id: session.user_id,
         })
         .await?;
-    let release_event = release_created_event(&detail.release);
-    DispatchInternalAutomationUseCase::new(InternalAutomationDependencies {
-        connections: state.service_connections.clone(),
-        credentials: state.connection_credentials.clone(),
-        deliveries: state.webhook_deliveries.clone(),
-        rules: state.automation_rules.clone(),
-        runs: state.automation_runs.clone(),
-        incidents: state.incidents.clone(),
-        releases: state.releases.clone(),
-        notifier: state.notifier.clone(),
-        events: state.events.clone(),
-        email_sender: state.email_sender.clone(),
-    })
-    .dispatch(DispatchInternalAutomationCommand {
-        team_id: detail.release.team_id,
-        delivery_id: format!("release:{}:created", detail.release.id),
-        event: release_event,
-    })
-    .await?;
-    Ok((StatusCode::CREATED, Json(detail.into())))
+    Ok((
+        StatusCode::CREATED,
+        Json(release_view(&state, detail).await?),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -243,7 +253,7 @@ pub async fn get_release(
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(detail.into()))
+    Ok(Json(release_view(&state, detail).await?))
 }
 
 pub async fn validate_release_step(
@@ -254,7 +264,6 @@ pub async fn validate_release_step(
     let use_case = ValidateReleaseStepUseCase::new(
         state.teams.clone(),
         state.releases.clone(),
-        state.incidents.clone(),
         state.events.clone(),
     );
     let detail = use_case
@@ -264,7 +273,7 @@ pub async fn validate_release_step(
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(detail.into()))
+    Ok(Json(release_view(&state, detail).await?))
 }
 
 pub async fn link_incident(
@@ -285,7 +294,7 @@ pub async fn link_incident(
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(detail.into()))
+    Ok(Json(release_view(&state, detail).await?))
 }
 
 pub async fn unlink_incident(
@@ -305,7 +314,7 @@ pub async fn unlink_incident(
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(detail.into()))
+    Ok(Json(release_view(&state, detail).await?))
 }
 
 pub async fn cancel_release(
@@ -324,5 +333,5 @@ pub async fn cancel_release(
             requester_id: session.user_id,
         })
         .await?;
-    Ok(Json(detail.into()))
+    Ok(Json(release_view(&state, detail).await?))
 }

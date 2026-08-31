@@ -14,5 +14,6 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 include!("incidents/lifecycle.rs");
+include!("incidents/lifecycle_assignments.rs");
 include!("incidents/listing.rs");
 include!("incidents/collaboration.rs");

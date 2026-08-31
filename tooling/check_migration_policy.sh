@@ -5,7 +5,7 @@ set -euo pipefail
 # gates called `rg`, the runner image has no ripgrep, and every call site sat
 # inside an `if` or a process substitution — so "command not found" read as
 # "nothing matched" and the policy reported success without ever running.
-for tool in git grep sed; do
+for tool in cmp git grep sed; do
   command -v "$tool" >/dev/null || {
     echo "migration policy: required tool '$tool' is not installed" >&2
     exit 1
@@ -28,6 +28,17 @@ while IFS= read -r file; do
   if [[ "$status" == M* ]]; then
     echo "migration policy: applied migration '$file' is immutable; add a new migration" >&2
     failures=1
+    continue
+  fi
+
+  # A migration that reached production and was later deleted must be restored
+  # byte-for-byte so SQLx can verify its historical checksum. This is not a new
+  # migration and therefore must not gain a phase marker. Only the exact blob
+  # immediately preceding its deletion receives this narrow exception.
+  deletion_commit=$(git log --format=%H --diff-filter=D -- "$file" | head -n 1)
+  if [[ "$status" == A* && -n "$deletion_commit" ]] \
+    && git cat-file -e "$deletion_commit^:$file" 2>/dev/null \
+    && cmp --silent "$file" <(git show "$deletion_commit^:$file"); then
     continue
   fi
 

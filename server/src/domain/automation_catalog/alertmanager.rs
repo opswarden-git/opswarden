@@ -1,5 +1,8 @@
 use super::capabilities::{NO_OPTIONS, SEVERITY_OPTIONS};
-use super::{AutomationServiceDefinition, CatalogCapability, CatalogConnection, CatalogField};
+use super::{
+    AutomationServiceDefinition, CatalogCapability, CatalogConnection, CatalogField,
+    ConnectionConfigurator, WebhookAuthentication, ALERTMANAGER_SERVICE,
+};
 
 const FILTERS: &[CatalogField] = &[
     CatalogField {
@@ -36,15 +39,17 @@ const ACTIONS: &[CatalogCapability] = &[
         kind: "alert_firing",
         label: "Alert firing",
         description: "One authenticated Alertmanager alert entered the firing state",
-        connection_service: Some("alertmanager"),
+        connection_service: Some(ALERTMANAGER_SERVICE),
         fields: FILTERS,
+        executor: None,
     },
     CatalogCapability {
         kind: "alert_resolved",
         label: "Alert resolved",
         description: "One authenticated Alertmanager alert entered the resolved state",
-        connection_service: Some("alertmanager"),
+        connection_service: Some(ALERTMANAGER_SERVICE),
         fields: FILTERS,
+        executor: None,
     },
 ];
 
@@ -59,7 +64,7 @@ const CONNECTION_FIELDS: &[CatalogField] = &[CatalogField {
 }];
 
 pub(super) const DEFINITION: AutomationServiceDefinition = AutomationServiceDefinition {
-    service: "alertmanager",
+    service: ALERTMANAGER_SERVICE,
     label: "Alertmanager",
     actions: ACTIONS,
     reactions: &[],
@@ -67,6 +72,9 @@ pub(super) const DEFINITION: AutomationServiceDefinition = AutomationServiceDefi
         description: "Receive Alertmanager notification groups authenticated with a bearer token",
         fields: CONNECTION_FIELDS,
         oauth: None,
-        testable: false,
+        configurator: ConnectionConfigurator::TokenWebhook,
+        webhook_authentication: Some(WebhookAuthentication::Token),
+        probe: None,
     }),
+    internal: false,
 };

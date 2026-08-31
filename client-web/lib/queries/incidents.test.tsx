@@ -42,6 +42,12 @@ function incidentResponse(overrides: Record<string, unknown> = {}) {
     created_at: "2026-07-25T10:00:00Z",
     created_by: "user-1",
     updated_at: "2026-07-25T10:00:00Z",
+    actions: {
+      can_assign: true,
+      can_delete: true,
+      can_write_timeline: true,
+      transitions: ["acknowledged"],
+    },
     ...overrides,
   };
 }
@@ -152,7 +158,11 @@ describe("incident read models", () => {
 
     await waitFor(() => expect(detail.result.current.isSuccess).toBe(true));
     await waitFor(() => expect(timeline.result.current.isSuccess).toBe(true));
-    expect(detail.result.current.data).toMatchObject({ id: "incident-1", assignee: "user-2" });
+    expect(detail.result.current.data).toMatchObject({
+      id: "incident-1",
+      assignee: "user-2",
+      actions: { canAssign: true, transitions: ["acknowledged"] },
+    });
     expect(timeline.result.current.data).toEqual(activity);
     expect(timeline.result.current.features).toEqual(["send_text", "system_events"]);
   });

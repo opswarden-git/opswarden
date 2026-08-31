@@ -2,9 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DirectMessageItem } from "./DirectMessageItem";
 
-const { download, edit, toggle } = vi.hoisted(() => ({
+const { download, edit } = vi.hoisted(() => ({
   edit: { error: null, isPending: false, mutate: vi.fn(), reset: vi.fn() },
-  toggle: { isPending: false, mutate: vi.fn() },
   download: vi.fn(),
 }));
 
@@ -18,7 +17,6 @@ vi.mock("@/lib/queries/privateMessages", async (importOriginal) => {
   return {
     ...actual,
     useEditPrivateMessage: () => edit,
-    useTogglePrivateMessageReaction: () => toggle,
     downloadPrivateMessageAttachment: download,
   };
 });
@@ -43,14 +41,12 @@ const message = {
       size_bytes: 2048,
     },
   ],
-  reactions: [{ emoji: "✅", count: 2, reacted: true }],
 };
 
 describe("DirectMessageItem", () => {
-  it("uses the War Room interaction grammar for reactions, editing and files", async () => {
+  it("uses the War Room interaction grammar for editing and files", async () => {
     render(
       <DirectMessageItem
-        availableReactions={["✅", "👍"]}
         continuesAbove={false}
         message={message}
         mine
@@ -62,10 +58,7 @@ describe("DirectMessageItem", () => {
     const messageActions = document.querySelector("[data-conversation-actions]");
     expect(messageActions).toHaveClass("top-1", "right-full", "opacity-0");
     expect(messageActions).not.toHaveClass("bg-panel", "border");
-    expect(screen.getByRole("button", { name: "addReaction" })).toHaveClass("hover:bg-transparent");
-
-    fireEvent.click(screen.getByRole("button", { name: "✅ (2)" }));
-    expect(toggle.mutate).toHaveBeenCalledWith({ messageId: "message-1", emoji: "✅" });
+    expect(screen.queryByRole("button", { name: "addReaction" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
     const editor = screen.getByRole("textbox", { name: "editMessage" });

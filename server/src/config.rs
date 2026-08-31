@@ -1,14 +1,39 @@
 // --- server/src/config.rs ---
 
-use sha2::{Digest, Sha256};
+use std::fmt;
 
-/// Dev fallback for the AES-256 vault key (32 bytes). Override in any real
-/// environment with `OPSWARDEN_VAULT_KEY` (64 hex chars), like `JWT_SECRET`.
+/// Development-only AES-256 vault key. It is reachable only from debug builds
+/// when no key was supplied; release builds fail configuration instead.
 const DEV_VAULT_KEY: [u8; 32] = *b"opswarden-dev-vault-key-0123456!";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigError {
+    MissingJwtSecret,
+    MissingVaultKey,
+    InvalidVaultKey,
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingJwtSecret => formatter.write_str(
+                "JWT_SECRET must be set; refusing to use the public development signing key in \
+                 a release build",
+            ),
+            Self::MissingVaultKey => formatter.write_str(
+                "OPSWARDEN_VAULT_KEY must be set to 64 hexadecimal characters; refusing to use \
+                 the public development key in a release build",
+            ),
+            Self::InvalidVaultKey => formatter
+                .write_str("OPSWARDEN_VAULT_KEY must contain exactly 64 hexadecimal characters"),
+        }
+    }
+}
+
+impl std::error::Error for ConfigError {}
 
 #[derive(Clone)]
 pub struct Config {
-    pub kickoff_token_secret: String,
     pub jwt_secret: String,
     /// AES-256-GCM key for Team-owned connection credentials.
     pub vault_key: [u8; 32],
@@ -51,7 +76,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Self {
+    pub fn from_env() -> Result<Self, ConfigError> {
         load_local_env();
 
         // Every optional var goes through `optional_env`, which treats a blank or
@@ -59,31 +84,18 @@ impl Config {
         // `${VAR:-}` passes an empty string when the host hasn't set it, and an
         // empty HMAC secret / OAuth id / notify URL must mean "not configured",
         // never a meaningless `Some("")`.
-        let kickoff_token_secret =
-            optional_env("OPSWARDEN_KICKOFF_TOKEN").unwrap_or_else(|| "OpsWarden".to_string());
-
         // Fail-fast in release builds: a missing (or blank) JWT_SECRET in
         // production would silently fall back to a publicly-known key, letting
         // anyone forge tokens. Debug builds keep a dev default for zero-config work.
-        let jwt_secret = optional_env("JWT_SECRET").unwrap_or_else(|| {
-            if cfg!(debug_assertions) {
-                eprintln!(
-                    "WARNING: JWT_SECRET is unset — using an insecure development default \
-                     (allowed in debug builds only)."
-                );
-                "my_super_secret_dev_key_12345".to_string()
-            } else {
-                panic!(
-                    "JWT_SECRET must be set: refusing to start a release build with a public \
-                     default signing key."
-                );
-            }
-        });
+        let jwt_secret = resolve_jwt_secret(
+            optional_env("JWT_SECRET").as_deref(),
+            cfg!(debug_assertions),
+        )?;
 
-        // A blank OPSWARDEN_VAULT_KEY falls back to the dev key (unchanged behavior).
-        let vault_key = optional_env("OPSWARDEN_VAULT_KEY")
-            .and_then(|hex_key| decode_key(&hex_key))
-            .unwrap_or(DEV_VAULT_KEY);
+        let vault_key = resolve_vault_key(
+            optional_env("OPSWARDEN_VAULT_KEY").as_deref(),
+            cfg!(debug_assertions),
+        )?;
 
         let google_oauth_client_id = optional_env("GOOGLE_OAUTH_CLIENT_ID");
         let google_oauth_client_secret = optional_env("GOOGLE_OAUTH_CLIENT_SECRET");
@@ -135,8 +147,7 @@ impl Config {
                 .filter(|seconds| (1..=3600).contains(seconds))
                 .unwrap_or(300);
 
-        Self {
-            kickoff_token_secret,
+        Ok(Self {
             jwt_secret,
             vault_key,
             google_oauth_client_id,
@@ -157,11 +168,68 @@ impl Config {
             auth_rate_limit_attempts,
             auth_rate_limit_per_account,
             auth_rate_limit_window_seconds,
-        }
+        })
     }
 
-    pub fn kickoff_token(&self) -> String {
-        sha256_hex(&self.kickoff_token_secret)
+    /// Deterministic test configuration isolated from the host developer's `.env`.
+    pub fn for_test() -> Self {
+        Self {
+            jwt_secret: "test_jwt_secret_key_32_bytes_long_12345".to_string(),
+            vault_key: DEV_VAULT_KEY,
+            google_oauth_client_id: None,
+            google_oauth_client_secret: None,
+            google_oauth_redirect_uri: "http://localhost:4242/api/auth/google/callback".to_string(),
+            github_auth_client_id: None,
+            github_auth_client_secret: None,
+            github_auth_redirect_uri: "http://localhost:4242/api/auth/github/callback".to_string(),
+            github_oauth_client_id: None,
+            github_oauth_client_secret: None,
+            github_oauth_redirect_uri: "http://localhost:4242/api/auth/github-oauth/callback"
+                .to_string(),
+            web_origin: "http://localhost:4242".to_string(),
+            ws_allowed_origins: vec!["http://localhost:4242".to_string()],
+            trusted_proxy_hops: 0,
+            giphy_api_key: None,
+            timer_poll_seconds: 1,
+            bind_addr: "127.0.0.1:0".to_string(),
+            auth_rate_limit_attempts: 1000,
+            auth_rate_limit_per_account: 1000,
+            auth_rate_limit_window_seconds: 60,
+        }
+    }
+}
+
+fn resolve_jwt_secret(
+    configured_secret: Option<&str>,
+    allow_development_default: bool,
+) -> Result<String, ConfigError> {
+    match configured_secret {
+        Some(secret) => Ok(secret.to_string()),
+        None if allow_development_default => {
+            eprintln!(
+                "WARNING: JWT_SECRET is unset — using an insecure development default \
+                 (allowed in debug builds only)."
+            );
+            Ok("my_super_secret_dev_key_12345".to_string())
+        }
+        None => Err(ConfigError::MissingJwtSecret),
+    }
+}
+
+fn resolve_vault_key(
+    configured_key: Option<&str>,
+    allow_development_default: bool,
+) -> Result<[u8; 32], ConfigError> {
+    match configured_key {
+        Some(hex_key) => decode_key(hex_key).ok_or(ConfigError::InvalidVaultKey),
+        None if allow_development_default => {
+            eprintln!(
+                "WARNING: OPSWARDEN_VAULT_KEY is unset — using an insecure development default \
+                 (allowed in debug builds only)."
+            );
+            Ok(DEV_VAULT_KEY)
+        }
+        None => Err(ConfigError::MissingVaultKey),
     }
 }
 
@@ -191,12 +259,6 @@ fn parse_origins(value: &str) -> Vec<String> {
         .filter(|origin| origin.starts_with("https://") || origin.starts_with("http://"))
         .map(str::to_string)
         .collect()
-}
-
-pub fn sha256_hex(input: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(input.as_bytes());
-    hex::encode(hasher.finalize())
 }
 
 fn load_local_env() {
@@ -245,7 +307,49 @@ fn is_env_key(key: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_env_key, nonblank, parse_origins, sha256_hex};
+    use super::{
+        is_env_key, nonblank, parse_origins, resolve_jwt_secret, resolve_vault_key, ConfigError,
+        DEV_VAULT_KEY,
+    };
+
+    #[test]
+    fn release_mode_rejects_a_missing_jwt_secret_without_panicking() {
+        assert_eq!(
+            resolve_jwt_secret(None, false),
+            Err(ConfigError::MissingJwtSecret)
+        );
+    }
+
+    #[test]
+    fn release_mode_rejects_a_missing_vault_key() {
+        assert_eq!(
+            resolve_vault_key(None, false),
+            Err(ConfigError::MissingVaultKey)
+        );
+    }
+
+    #[test]
+    fn malformed_vault_keys_never_fall_back() {
+        assert_eq!(
+            resolve_vault_key(Some("not-hex"), true),
+            Err(ConfigError::InvalidVaultKey)
+        );
+        assert_eq!(
+            resolve_vault_key(Some(&"00".repeat(31)), true),
+            Err(ConfigError::InvalidVaultKey)
+        );
+    }
+
+    #[test]
+    fn debug_mode_allows_only_an_absent_key_to_use_the_development_default() {
+        assert_eq!(resolve_vault_key(None, true), Ok(DEV_VAULT_KEY));
+    }
+
+    #[test]
+    fn configured_vault_key_is_decoded_exactly() {
+        let encoded = "ab".repeat(32);
+        assert_eq!(resolve_vault_key(Some(&encoded), false), Ok([0xab; 32]));
+    }
 
     #[test]
     fn nonblank_treats_empty_and_whitespace_as_none() {
@@ -262,14 +366,6 @@ mod tests {
             nonblank(Some("  pad  ".to_string())).as_deref(),
             Some("  pad  ")
         );
-    }
-
-    #[test]
-    fn sha256_is_64_hex_chars_and_deterministic() {
-        let digest = sha256_hex("OpsWarden");
-        assert_eq!(digest.len(), 64);
-        assert!(digest.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(digest, sha256_hex("OpsWarden"));
     }
 
     #[test]

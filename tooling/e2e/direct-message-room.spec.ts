@@ -8,7 +8,7 @@ import {
 } from "@playwright/test";
 
 const API_URL = process.env.OPSWARDEN_API_URL ?? "http://localhost:8080";
-const TEAM_ID = "39aa8884-22cc-4764-a9e7-7df7c7619ba6";
+const TEAM_ID = "50000000-0000-4000-8000-000000000001";
 const MEMBERS_URL = `/en/teams/${TEAM_ID}/team#members`;
 
 async function login(page: Page, email: string) {
@@ -152,7 +152,7 @@ test("the transcript owns scrolling on a narrow viewport", async ({ page }) => {
   ).toBeLessThanOrEqual(1);
 });
 
-test("a rich direct message supports a file, reaction and edit", async ({ page }) => {
+test("a rich direct message supports a file and edit without reactions", async ({ page }) => {
   await login(page, "manager@opswarden.local");
   const room = await openConversation(page, "responder@opswarden.local");
   const original = `DM parity ${Date.now()}`;
@@ -169,9 +169,7 @@ test("a rich direct message supports a file, reaction and edit", async ({ page }
   const item = room.getByRole("listitem").filter({ hasText: original }).last();
   await expect(item.getByText("runbook.txt")).toBeVisible();
   await item.hover();
-  await item.getByRole("button", { name: "Add reaction" }).click();
-  await item.getByRole("button", { name: "✅ (0)" }).click();
-  await expect(item.getByRole("button", { name: "✅ (1)" })).toBeVisible();
+  await expect(item.getByRole("button", { name: "Add reaction" })).toHaveCount(0);
 
   await item.getByRole("button", { name: "Edit" }).click();
   await item.getByRole("textbox", { name: "Edit message" }).fill(edited);

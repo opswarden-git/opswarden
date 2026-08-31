@@ -57,6 +57,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignUpPayload {
     pub email: String,
     pub password: String,
@@ -94,6 +95,7 @@ pub async fn sign_up(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignInPayload {
     pub email: String,
     pub password: String,
@@ -113,7 +115,7 @@ pub async fn sign_in(
     // account the credentials are being guessed against. Lowercased and trimmed
     // so neither casing nor padding buys a fresh budget.
     let account_key = format!("account:{}", payload.email.trim().to_lowercase());
-    let now = chrono::Utc::now();
+    let now = state.clock.now();
 
     if let crate::adapters::rate_limit::Decision::Deny { .. } =
         state.account_rate_limiter.peek(&account_key, now)
@@ -177,6 +179,7 @@ pub async fn get_me(
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateLocalePayload {
     pub locale: String,
 }
@@ -206,12 +209,13 @@ pub async fn delete_me(
     State(state): State<AppState>,
     Extension(session): Extension<AuthenticatedSession>,
 ) -> Result<StatusCode, DomainError> {
-    let use_case = DeleteAccountUseCase::new(state.users.clone(), state.teams.clone());
+    let use_case = DeleteAccountUseCase::new(state.users.clone());
     use_case
         .delete_account(DeleteAccountCommand {
             user_id: session.user_id,
         })
         .await?;
+    state.events.disconnect_user(session.user_id);
     let logout = LogoutUseCase::new(state.token_revocations.clone());
     logout
         .logout(LogoutCommand {
@@ -235,6 +239,7 @@ pub async fn logout(
             expires_at: session.expires_at,
         })
         .await?;
+    state.events.disconnect_user(session.user_id);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -259,15 +264,16 @@ pub async fn google_start(
     let state_token = format!("{}:{locale}", Uuid::new_v4());
     let auth_url = state.oauth.authorization_url(&state_token)?;
     let secure = oauth_cookie_secure_suffix(&state.config.google_oauth_redirect_uri);
-
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_str(&format!(
-            "opswarden_oauth_state={state_token}; HttpOnly; SameSite=Lax; \
-             Path=/api/auth/google; Max-Age=600{secure}"
-        ))
-        .map_err(|_| DomainError::OAuthFailed)?,
+        oauth_cookie_header(
+            "opswarden_oauth_state",
+            &state_token,
+            "/api/auth/google",
+            600,
+            secure == "; Secure",
+        )?,
     );
     disable_oauth_response_caching(&mut response);
     Ok(response)
@@ -324,11 +330,13 @@ pub async fn google_callback(
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_str(&format!(
-            "opswarden_oauth_state=; HttpOnly; SameSite=Lax; \
-             Path=/api/auth/google; Max-Age=0{secure}"
-        ))
-        .map_err(|_| DomainError::OAuthFailed)?,
+        oauth_cookie_header(
+            "opswarden_oauth_state",
+            "",
+            "/api/auth/google",
+            0,
+            secure == "; Secure",
+        )?,
     );
     disable_oauth_response_caching(&mut response);
     Ok(response)
@@ -353,11 +361,13 @@ pub async fn github_start(
     let mut response = Redirect::temporary(&auth_url).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_str(&format!(
-            "opswarden_github_auth_state={state_token}; HttpOnly; SameSite=Lax; \
-             Path=/api/auth/github; Max-Age=600{secure}"
-        ))
-        .map_err(|_| DomainError::OAuthFailed)?,
+        oauth_cookie_header(
+            "opswarden_github_auth_state",
+            &state_token,
+            "/api/auth/github",
+            600,
+            secure == "; Secure",
+        )?,
     );
     disable_oauth_response_caching(&mut response);
     Ok(response)
@@ -405,14 +415,30 @@ pub async fn github_callback(
     let mut response = Redirect::temporary(&target).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_str(&format!(
-            "opswarden_github_auth_state=; HttpOnly; SameSite=Lax; \
-             Path=/api/auth/github; Max-Age=0{secure}"
-        ))
-        .map_err(|_| DomainError::OAuthFailed)?,
+        oauth_cookie_header(
+            "opswarden_github_auth_state",
+            "",
+            "/api/auth/github",
+            0,
+            secure == "; Secure",
+        )?,
     );
     disable_oauth_response_caching(&mut response);
     Ok(response)
+}
+
+fn oauth_cookie_header(
+    name: &str,
+    value: &str,
+    path: &str,
+    max_age: u32,
+    is_secure: bool,
+) -> Result<HeaderValue, DomainError> {
+    let secure = if is_secure { "; Secure" } else { "" };
+    HeaderValue::from_str(&format!(
+        "{name}={value}; HttpOnly; SameSite=Lax; Path={path}; Max-Age={max_age}{secure}"
+    ))
+    .map_err(|_| DomainError::OAuthFailed)
 }
 
 fn read_cookie(headers: &HeaderMap, name: &str) -> Option<String> {

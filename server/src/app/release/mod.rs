@@ -7,13 +7,15 @@
 // `release_state_changed` event — including the auto-unblock triggered from
 // `ChangeIncidentStatus` when the last active linked incident resolves.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
 use crate::domain::event::DomainEvent;
-use crate::domain::release::{effective_release_state, Release, ReleaseState};
+use crate::domain::incident::{Incident, IncidentStatus, Severity};
+use crate::domain::incident_event::IncidentEvent;
+use crate::domain::release::{effective_release_state, Release, ReleaseBaseState, ReleaseState};
 use crate::ports::{EventPublisher, ReleaseRepo};
 
 pub mod cancel_release;
@@ -29,9 +31,7 @@ pub use get_release::{GetReleaseCommand, GetReleaseUseCase};
 pub use link_incident::{
     LinkIncidentCommand, LinkIncidentUseCase, UnlinkIncidentCommand, UnlinkIncidentUseCase,
 };
-pub use list_releases::{
-    ListReleasesCommand, ListReleasesUseCase, ReleaseBlocker, ReleaseListItem,
-};
+pub use list_releases::{ListReleasesCommand, ListReleasesUseCase, ReleaseListItem};
 pub use validate_release_step::{ValidateReleaseStepCommand, ValidateReleaseStepUseCase};
 
 /// A release plus the read-only facts derived from its links: the effective
@@ -41,6 +41,84 @@ pub struct ReleaseDetail {
     pub release: Release,
     pub effective_state: ReleaseState,
     pub linked_incident_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReleaseIncident {
+    pub incident_id: Uuid,
+    pub title: String,
+    pub status: IncidentStatus,
+    pub severity: Severity,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReleaseIncidentProjection {
+    pub linked: Vec<ReleaseIncident>,
+    pub blockers: Vec<ReleaseIncident>,
+    pub linkable: Vec<ReleaseIncident>,
+}
+
+pub(crate) fn release_step_incident_events(
+    release: &Release,
+    actor_id: Uuid,
+    step: &str,
+    linked_incident_ids: &[Uuid],
+) -> Vec<IncidentEvent> {
+    linked_incident_ids
+        .iter()
+        .map(|incident_id| {
+            IncidentEvent::release_step_validated(
+                *incident_id,
+                actor_id,
+                release.id,
+                &release.title,
+                step,
+            )
+        })
+        .collect()
+}
+
+pub fn project_release_incidents(
+    linked_incident_ids: &[Uuid],
+    incidents_by_id: &HashMap<Uuid, Incident>,
+) -> ReleaseIncidentProjection {
+    let linked: Vec<_> = linked_incident_ids
+        .iter()
+        .filter_map(|id| incidents_by_id.get(id))
+        .map(release_incident)
+        .collect();
+    let blockers = linked
+        .iter()
+        .filter(|incident| incident.status != IncidentStatus::Resolved)
+        .cloned()
+        .collect();
+    let mut linkable: Vec<_> = incidents_by_id
+        .values()
+        .filter(|incident| {
+            incident.status != IncidentStatus::Resolved
+                && !linked_incident_ids.contains(&incident.id)
+        })
+        .map(release_incident)
+        .collect();
+    linkable.sort_by(|left, right| {
+        left.title
+            .cmp(&right.title)
+            .then(left.incident_id.cmp(&right.incident_id))
+    });
+    ReleaseIncidentProjection {
+        linked,
+        blockers,
+        linkable,
+    }
+}
+
+fn release_incident(incident: &Incident) -> ReleaseIncident {
+    ReleaseIncident {
+        incident_id: incident.id,
+        title: incident.title.clone(),
+        status: incident.status,
+        severity: incident.severity,
+    }
 }
 
 /// Enrich a release with its effective state and linked incidents for a read.
@@ -83,7 +161,7 @@ pub(crate) async fn emit_if_state_changed(
 pub(crate) async fn snapshot_linked_releases(
     releases: &Arc<dyn ReleaseRepo>,
     incident_id: Uuid,
-) -> Result<Vec<(Uuid, Uuid, ReleaseState, ReleaseState)>, DomainError> {
+) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState, ReleaseState)>, DomainError> {
     let linked = releases
         .list_release_states_linked_to_incident(incident_id)
         .await?;
@@ -105,7 +183,7 @@ pub(crate) async fn snapshot_linked_releases(
 pub(crate) async fn emit_release_state_changes(
     releases: &Arc<dyn ReleaseRepo>,
     events: &Arc<dyn EventPublisher>,
-    snapshot: Vec<(Uuid, Uuid, ReleaseState, ReleaseState)>,
+    snapshot: Vec<(Uuid, Uuid, ReleaseBaseState, ReleaseState)>,
 ) -> Result<(), DomainError> {
     for (release_id, team_id, base, old_eff) in snapshot {
         let has_active = releases.count_active_linked_incidents(release_id).await? > 0;
@@ -125,7 +203,7 @@ pub(crate) mod tests {
     use uuid::Uuid;
 
     use crate::domain::error::DomainError;
-    use crate::domain::release::{Release, ReleaseState};
+    use crate::domain::release::{Release, ReleaseBaseState};
     use crate::ports::ReleaseRepo;
 
     /// In-memory release repo for use-case tests. `active_incidents` marks which
@@ -136,8 +214,10 @@ pub(crate) mod tests {
     pub struct MockReleaseRepo {
         pub releases: Mutex<HashMap<Uuid, Release>>,
         pub links: Mutex<Vec<(Uuid, Uuid)>>,
+        pub incident_events: Mutex<Vec<crate::domain::incident_event::IncidentEvent>>,
         pub active_incidents: Mutex<HashSet<Uuid>>,
         pub scripted_counts: Mutex<HashMap<Uuid, VecDeque<u64>>>,
+        pub reject_update: bool,
     }
 
     impl MockReleaseRepo {
@@ -153,6 +233,12 @@ pub(crate) mod tests {
                 .unwrap()
                 .insert(release_id, counts.into());
         }
+        pub fn reject_updates() -> Self {
+            Self {
+                reject_update: true,
+                ..Self::default()
+            }
+        }
     }
 
     #[async_trait]
@@ -160,6 +246,25 @@ pub(crate) mod tests {
         async fn save_release(&self, release: &Release) -> Result<(), DomainError> {
             self.seed_release(release.clone());
             Ok(())
+        }
+
+        async fn create_release(
+            &self,
+            release: &Release,
+            _delivery_id: &str,
+            _event: &crate::domain::automation::ExternalEvent,
+        ) -> Result<(), DomainError> {
+            self.save_release(release).await
+        }
+
+        async fn create_blocking_incident(
+            &self,
+            release_id: Uuid,
+            _expected_updated_at: chrono::DateTime<chrono::Utc>,
+            incident: &crate::domain::incident::Incident,
+            _event: &crate::domain::incident_event::IncidentEvent,
+        ) -> Result<(), DomainError> {
+            self.link_incident(release_id, incident.id).await
         }
 
         async fn find_release_by_id(
@@ -180,8 +285,29 @@ pub(crate) mod tests {
                 .collect())
         }
 
-        async fn update_release(&self, release: &Release) -> Result<(), DomainError> {
+        async fn update_release(
+            &self,
+            release: &Release,
+            _expected_updated_at: chrono::DateTime<chrono::Utc>,
+        ) -> Result<(), DomainError> {
+            if self.reject_update {
+                return Err(DomainError::ConcurrentModification);
+            }
             self.seed_release(release.clone());
+            Ok(())
+        }
+
+        async fn update_release_with_incident_events(
+            &self,
+            release: &Release,
+            expected_updated_at: chrono::DateTime<chrono::Utc>,
+            events: &[crate::domain::incident_event::IncidentEvent],
+        ) -> Result<(), DomainError> {
+            self.update_release(release, expected_updated_at).await?;
+            self.incident_events
+                .lock()
+                .unwrap()
+                .extend(events.iter().cloned());
             Ok(())
         }
 
@@ -252,7 +378,7 @@ pub(crate) mod tests {
         async fn list_release_states_linked_to_incident(
             &self,
             incident_id: Uuid,
-        ) -> Result<Vec<(Uuid, Uuid, ReleaseState)>, DomainError> {
+        ) -> Result<Vec<(Uuid, Uuid, ReleaseBaseState)>, DomainError> {
             let releases = self.releases.lock().unwrap();
             Ok(self
                 .links

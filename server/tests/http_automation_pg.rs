@@ -11,27 +11,30 @@ use opswarden_server::adapters::pg::automation::rule::PgAutomationRuleRepo;
 use opswarden_server::adapters::pg::automation::service_connection::{
     PgConnectionCredentialVault, PgServiceConnectionRepo,
 };
+use opswarden_server::adapters::pg::automation::webhook_job::PgWebhookJobRepo;
 use opswarden_server::adapters::pg::incident::PgIncidentRepo;
 use opswarden_server::adapters::pg::release::PgReleaseRepo;
 use opswarden_server::adapters::pg::team::PgTeamRepo;
 use opswarden_server::adapters::pg::user::PgUserRepo;
 use opswarden_server::adapters::webhook::generic::GenericParser;
 use opswarden_server::adapters::webhook::github::GithubParser;
+use opswarden_server::adapters::webhook::CompositeWebhookParser;
 use opswarden_server::adapters::ws::WsHub;
 use opswarden_server::app::automation::{
-    release_created_event, DispatchInternalAutomationCommand, DispatchInternalAutomationUseCase,
-    IngestTeamWebhookCommand, IngestTeamWebhookUseCase, InternalAutomationDependencies,
-    TeamWebhookDependencies,
+    DurableTeamWebhookIngress, IngestTeamWebhookCommand, IngestTeamWebhookUseCase,
+    TeamWebhookDependencies, TeamWebhookIngress, WebhookWorker,
 };
+use opswarden_server::domain::automation::release_created_event;
 use opswarden_server::domain::automation_config::{
-    AutomationRule, AutomationRunStatus, CredentialKind, ServiceConnection,
+    AutomationRule, AutomationRun, AutomationRunStatus, CredentialKind, ServiceConnection,
+    WebhookDelivery,
 };
 use opswarden_server::domain::release::Release;
-use opswarden_server::domain::team::{Role, Team};
+use opswarden_server::domain::team::Team;
 use opswarden_server::domain::user::{Email, User};
 use opswarden_server::ports::{
     AutomationRuleRepo, AutomationRunRepo, ConnectionCredentialVault, IncidentRepo, ReleaseRepo,
-    ServiceConnectionRepo, TeamRepo, UserRepo,
+    ServiceConnectionRepo, TeamRepo, UserRepo, WebhookDeliveryRepo,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -65,7 +68,10 @@ async fn postgres_chain_persists_one_http_run_and_deduplicates_the_delivery(pool
     );
     users.save(&user).await.unwrap();
     let team = Team::new("HTTP automation PG").unwrap();
-    teams.save_team(&team).await.unwrap();
+    teams
+        .create_team_with_manager(&team, user.id)
+        .await
+        .unwrap();
 
     let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
     let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));
@@ -158,9 +164,8 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     );
     users.save(&manager).await.unwrap();
     let team = Team::new("Native OpsWarden PG").unwrap();
-    teams.save_team(&team).await.unwrap();
     teams
-        .add_member(team.id, manager.id, Role::Manager)
+        .create_team_with_manager(&team, manager.id)
         .await
         .unwrap();
 
@@ -191,41 +196,35 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     rule.set_enabled(true);
     rules.insert_rule(&rule).await.unwrap();
     let release = Release::new(team.id, "v1.2.0", vec!["build".into()]).unwrap();
-    releases.save_release(&release).await.unwrap();
-
-    let use_case = DispatchInternalAutomationUseCase::new(InternalAutomationDependencies {
-        connections,
-        credentials,
-        deliveries,
-        rules,
-        runs: runs.clone(),
-        incidents: incidents.clone(),
-        releases,
-        notifier: Arc::new(common::DummyNotifier::default()),
-        events: Arc::new(WsHub::new()),
-        email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
-    });
     let event = release_created_event(&release);
     let delivery_id = format!("release:{}:created", release.id);
-    let first = use_case
-        .dispatch(DispatchInternalAutomationCommand {
-            team_id: team.id,
-            delivery_id: delivery_id.clone(),
-            event: event.clone(),
-        })
+    releases
+        .create_release(&release, &delivery_id, &event)
         .await
         .unwrap();
-    assert!(!first.duplicate);
-    assert_eq!(first.rules_triggered, 1);
-    let duplicate = use_case
-        .dispatch(DispatchInternalAutomationCommand {
-            team_id: team.id,
-            delivery_id,
-            event,
-        })
-        .await
-        .unwrap();
-    assert!(duplicate.duplicate);
+
+    let jobs = Arc::new(PgWebhookJobRepo::new(pool.clone()));
+    let worker = WebhookWorker::new(
+        TeamWebhookDependencies {
+            connections: connections.clone(),
+            credentials: credentials.clone(),
+            verifier: Arc::new(HmacSha256Verifier),
+            parser: Arc::new(CompositeWebhookParser::new()),
+            deliveries: deliveries.clone(),
+            rules: rules.clone(),
+            runs: runs.clone(),
+            incidents: incidents.clone(),
+            releases: releases.clone(),
+            notifier: Arc::new(common::DummyNotifier::default()),
+            events: Arc::new(WsHub::new()),
+            email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
+        },
+        jobs,
+    );
+    let first = worker.tick().await.unwrap();
+    assert_eq!(first.claimed, 1);
+    assert_eq!(first.completed, 1);
+    assert_eq!(worker.tick().await.unwrap().claimed, 0);
     let persisted_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
     assert_eq!(persisted_runs.len(), 1);
     assert_eq!(persisted_runs[0].status, AutomationRunStatus::Succeeded);
@@ -235,6 +234,76 @@ async fn postgres_internal_release_event_creates_one_incident_and_one_durable_ru
     assert_eq!(
         persisted_runs[0].incident_id,
         Some(persisted_incidents[0].id)
+    );
+
+    let mut second_rule = AutomationRule::new(
+        team.id,
+        "Second release rule",
+        opswarden.id,
+        "release_created",
+        serde_json::json!({}),
+        "create_incident",
+        None,
+        serde_json::json!({"severity": "critical", "title": "must not replay"}),
+        manager.id,
+    )
+    .unwrap();
+    second_rule.set_enabled(true);
+    rules.insert_rule(&second_rule).await.unwrap();
+    let interrupted_release = Release::new(team.id, "v1.2.1", vec!["build".into()]).unwrap();
+    let interrupted_event = release_created_event(&interrupted_release);
+    let interrupted_delivery_id = format!("release:{}:created", interrupted_release.id);
+    releases
+        .create_release(
+            &interrupted_release,
+            &interrupted_delivery_id,
+            &interrupted_event,
+        )
+        .await
+        .unwrap();
+    let delivery =
+        WebhookDelivery::new(opswarden.id, interrupted_delivery_id, "release_created").unwrap();
+    let delivery_claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
+    let mut recovered_run = AutomationRun::new(delivery_claim.delivery_id, rule.id);
+    runs.reserve_run(&recovered_run, delivery_claim)
+        .await
+        .unwrap();
+    recovered_run.mark_succeeded(None).unwrap();
+    assert!(runs.update_run(&recovered_run).await.unwrap());
+    let abandoned_run = AutomationRun::new(delivery_claim.delivery_id, second_rule.id);
+    runs.reserve_run(&abandoned_run, delivery_claim)
+        .await
+        .unwrap();
+    assert!(rules.delete_rule(team.id, second_rule.id).await.unwrap());
+    sqlx::query(
+        "UPDATE webhook_deliveries SET claim_expires_at = now() - interval '1 second' WHERE id = $1",
+    )
+    .bind(delivery_claim.delivery_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let resumed = worker.tick().await.unwrap();
+    assert_eq!(resumed.completed, 1);
+    let all_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
+    let recovered = all_runs
+        .iter()
+        .find(|run| run.id == recovered_run.id)
+        .unwrap();
+    assert_eq!(recovered.status, AutomationRunStatus::Succeeded);
+    let interrupted = all_runs
+        .iter()
+        .find(|run| run.id == abandoned_run.id)
+        .unwrap();
+    assert_eq!(interrupted.status, AutomationRunStatus::Failed);
+    assert_eq!(interrupted.error_code.as_deref(), Some("interrupted"));
+    assert_eq!(
+        incidents
+            .list_incidents_for_team(team.id)
+            .await
+            .unwrap()
+            .len(),
+        1
     );
 }
 
@@ -248,7 +317,10 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
     );
     users.save(&user).await.unwrap();
     let team = Team::new("Generic automation PG").unwrap();
-    teams.save_team(&team).await.unwrap();
+    teams
+        .create_team_with_manager(&team, user.id)
+        .await
+        .unwrap();
 
     let connections = Arc::new(PgServiceConnectionRepo::new(pool.clone()));
     let credentials = Arc::new(PgConnectionCredentialVault::new(pool.clone(), KEY));
@@ -281,20 +353,23 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
     rule.set_enabled(true);
     rules.insert_rule(&rule).await.unwrap();
 
-    let use_case = IngestTeamWebhookUseCase::new(TeamWebhookDependencies {
+    let dependencies = TeamWebhookDependencies {
         connections: connections.clone(),
-        credentials,
+        credentials: credentials.clone(),
         verifier: Arc::new(HmacSha256Verifier),
         parser: Arc::new(GenericParser),
-        deliveries,
-        rules,
+        deliveries: deliveries.clone(),
+        rules: rules.clone(),
         runs: runs.clone(),
         incidents: incidents.clone(),
         releases: Arc::new(PgReleaseRepo::new(pool.clone())),
         notifier: Arc::new(common::DummyNotifier::default()),
         events: Arc::new(WsHub::new()),
         email_sender: Arc::new(opswarden_server::adapters::email::SmtpEmailSender::new()),
-    });
+    };
+    let jobs = Arc::new(PgWebhookJobRepo::new(pool.clone()));
+    let ingress = DurableTeamWebhookIngress::new(dependencies.clone(), jobs.clone());
+    let worker = WebhookWorker::new(dependencies, jobs);
     let command = || IngestTeamWebhookCommand {
         connection_id: generic.id,
         expected_service: "generic",
@@ -303,11 +378,24 @@ async fn postgres_generic_delivery_creates_one_incident_and_deduplicates(pool: P
         signature: Some(SIGNING_SECRET.into()),
         body: GENERIC_BODY.to_vec(),
     };
-    let first = use_case.ingest(command()).await.unwrap();
+    let first = ingress.accept(command()).await.unwrap();
     assert!(!first.duplicate);
-    assert_eq!(first.rules_triggered, 1);
-    let duplicate = use_case.ingest(command()).await.unwrap();
+    assert_eq!(first.rules_triggered, 0);
+    assert!(incidents
+        .list_incidents_for_team(team.id)
+        .await
+        .unwrap()
+        .is_empty());
+    let duplicate = ingress.accept(command()).await.unwrap();
     assert!(duplicate.duplicate);
+    assert_eq!(
+        worker.tick().await.unwrap(),
+        opswarden_server::app::automation::WebhookTickResult {
+            claimed: 1,
+            completed: 1,
+            retried: 0,
+        }
+    );
 
     let persisted_runs = runs.list_runs_for_team(team.id, 10).await.unwrap();
     assert_eq!(persisted_runs.len(), 1);

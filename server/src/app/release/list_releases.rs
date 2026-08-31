@@ -5,19 +5,10 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::domain::error::DomainError;
-use crate::domain::incident::{IncidentStatus, Severity};
 use crate::domain::release::ReleaseStep;
 use crate::ports::{IncidentRepo, ReleaseRepo, TeamRepo};
 
-use super::{load_detail, ReleaseDetail};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReleaseBlocker {
-    pub incident_id: Uuid,
-    pub title: String,
-    pub status: IncidentStatus,
-    pub severity: Severity,
-}
+use super::{load_detail, project_release_incidents, ReleaseDetail, ReleaseIncident};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReleaseListItem {
@@ -25,7 +16,7 @@ pub struct ReleaseListItem {
     pub completed_steps: usize,
     pub total_steps: usize,
     pub next_step: Option<ReleaseStep>,
-    pub blockers: Vec<ReleaseBlocker>,
+    pub blockers: Vec<ReleaseIncident>,
 }
 
 pub struct ListReleasesCommand {
@@ -85,22 +76,7 @@ impl ListReleasesUseCase {
                 .cloned();
             let detail = load_detail(&self.releases, release).await?;
             let blockers =
-                if detail.effective_state == crate::domain::release::ReleaseState::Blocked {
-                    detail
-                        .linked_incident_ids
-                        .iter()
-                        .filter_map(|incident_id| incidents_by_id.get(incident_id))
-                        .filter(|incident| incident.status != IncidentStatus::Resolved)
-                        .map(|incident| ReleaseBlocker {
-                            incident_id: incident.id,
-                            title: incident.title.clone(),
-                            status: incident.status,
-                            severity: incident.severity,
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                };
+                project_release_incidents(&detail.linked_incident_ids, &incidents_by_id).blockers;
             out.push(ReleaseListItem {
                 detail,
                 completed_steps,

@@ -1,6 +1,6 @@
 import { notifyDesktop, shouldShowDesktopNotification } from "@/lib/desktopNotify";
 import { playNotificationSound, type NotificationSound } from "@/lib/notificationSounds";
-import type { WsServerEvent } from "@/lib/ws";
+import type { WsServerEvent } from "@/lib/wsEvents";
 
 type NotificationEvent = Extract<
   WsServerEvent,
