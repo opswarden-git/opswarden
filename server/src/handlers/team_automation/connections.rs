@@ -22,7 +22,7 @@ use crate::app::automation::{
 };
 use crate::domain::error::DomainError;
 use crate::handlers::middleware::AuthenticatedSession;
-use crate::handlers::{disable_oauth_response_caching, oauth_cookie_secure_suffix};
+use crate::handlers::auth::{disable_oauth_response_caching, oauth_cookie_secure_suffix};
 use crate::AppState;
 
 #[derive(Deserialize)]
