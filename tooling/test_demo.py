@@ -45,6 +45,30 @@ class DemoCliTests(unittest.TestCase):
             ["-v", "team_id=one", "-v", "manager_id=two"],
         )
 
+    def test_presentation_delivery_ids_are_stable_and_provider_safe(self) -> None:
+        self.assertEqual(
+            demo.DEMO_DELIVERY_IDS["github"],
+            "opswarden-demo-github-ci-failure-v1",
+        )
+        self.assertEqual(
+            demo.DEMO_DELIVERY_IDS["alertmanager"],
+            "sha256:d3acde02ddffbdb72461e544f436c5f6448d2c9a26aacedc53256310498722ff",
+        )
+        self.assertTrue(all(len(delivery_id) <= 255 for delivery_id in demo.DEMO_DELIVERY_IDS.values()))
+
+    def test_wait_for_demo_runs_requires_every_rule_to_finish(self) -> None:
+        class FakeDatabase:
+            def __init__(self) -> None:
+                self.responses = iter([["2"], ["running=1"], ["succeeded=2"]])
+
+            def query(self, _sql: str, _variables: dict[str, str]) -> list[str]:
+                return next(self.responses)
+
+        self.assertEqual(
+            demo.wait_for_demo_runs(FakeDatabase(), "team-1", timeout_seconds=1),
+            {"succeeded": 2},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
