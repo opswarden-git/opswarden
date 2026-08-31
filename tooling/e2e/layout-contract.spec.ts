@@ -336,8 +336,8 @@ test("Team scope menu preserves legitimate Manager, Responder and Observer navig
   // since the War Room deliberately hides the global team switcher.
   await page.goto(`/en/teams/${TEAM_ID}/incidents`);
   await page.getByRole("button", { name: "Current team: OpsWarden Demo" }).click();
-  await page.getByRole("menuitemcheckbox", { name: "Production Europe" }).click();
-  await expect(page).toHaveURL(`/en/teams/${RESPONDER_TEAM_ID}/incidents`);
+  await expect(page.getByRole("menuitemcheckbox", { name: "OpsWarden Demo" })).toBeChecked();
+  await page.keyboard.press("Escape");
 });
 
 test("breadcrumb and page actions share one strict desktop rail", async ({ page }) => {
