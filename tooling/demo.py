@@ -210,6 +210,14 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     configured_team = value(config, f"DEMO_{target.upper()}_TEAM_ID") or value(config, "DEMO_TEAM_ID")
     if configured_team:
         teams = [team for team in teams if team == configured_team]
+    if len(teams) == 0 and target == "local":
+        team_id = str(uuid4())
+        database.query(
+            """insert into teams (id, name, created_at, updated_at) values (:'team_id'::uuid, :'team_name', now(), now());
+               insert into team_members (team_id, user_id, role, joined_at) values (:'team_id'::uuid, :'manager_id'::uuid, 'manager', now());""",
+            {"team_id": team_id, "team_name": team_name, "manager_id": variables["manager_id"]},
+        )
+        teams = [team_id]
     if len(teams) != 1:
         raise DemoError(
             f"Expected one managed Team named {team_name!r}; found {len(teams)}. "
