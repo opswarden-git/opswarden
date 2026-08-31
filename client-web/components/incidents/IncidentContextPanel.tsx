@@ -87,7 +87,7 @@ export function IncidentContextPanel({
 
         {commands || dangerCommands ? (
           <PaneSection
-            defaultOpen={true}
+            defaultOpen={false}
             title={
               <SectionTitle
                 label={t("moreActions")}
@@ -104,7 +104,7 @@ export function IncidentContextPanel({
         ) : null}
 
         <PaneSection
-          defaultOpen={true}
+          defaultOpen={false}
           title={
             <SectionTitle
               label={t("colAssignee")}

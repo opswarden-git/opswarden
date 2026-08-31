@@ -22,6 +22,7 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(OPEN_INCIDENT_ID));
 
     await expect(page.locator('[data-system-event="created"]')).toBeVisible();
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("button", { name: "Acknowledge", exact: true }).click();
     await expect(page.getByText("Acknowledged", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Escalate", exact: true })).toBeVisible();
@@ -101,12 +102,14 @@ test.describe("Incident detail", () => {
     await login(page, "manager@opswarden.local");
     await page.goto(incidentUrl(UNASSIGNED_INCIDENT_ID));
 
+    await page.getByRole("button", { name: "Assignee", exact: true }).click();
     await page.getByLabel("Change assignee").selectOption({ label: "responder@opswarden.local" });
     await page.getByRole("button", { name: "Assign", exact: true }).click();
     await expect(page.getByLabel("Change assignee").locator("option:checked")).toHaveText(
       "responder@opswarden.local",
     );
 
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page.getByRole("button", { name: "Delete incident" }).click();
     await expect(page.getByRole("dialog", { name: "Delete incident" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Cancel" })).toBeFocused();
