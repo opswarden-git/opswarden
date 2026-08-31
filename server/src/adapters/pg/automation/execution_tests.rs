@@ -158,8 +158,7 @@ async fn runs_persist_terminal_state_and_remain_team_scoped(pool: PgPool) {
     let (team_a, connection_a, rule_a) = setup_rule(&pool, "run-a").await;
     let (team_b, _, _) = setup_rule(&pool, "run-b").await;
     let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
-    let delivery =
-        WebhookDelivery::new(connection_a.id, "run-delivery", "workflow_run").unwrap();
+    let delivery = WebhookDelivery::new(connection_a.id, "run-delivery", "workflow_run").unwrap();
     let claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
 
     let runs = PgAutomationRunRepo::new(pool);
@@ -190,8 +189,7 @@ async fn run_cannot_pair_delivery_with_rule_from_another_connection(pool: PgPool
     let (_, connection_a, _) = setup_rule(&pool, "run-cross-a").await;
     let (_, _, rule_b) = setup_rule(&pool, "run-cross-b").await;
     let deliveries = PgWebhookDeliveryRepo::new(pool.clone());
-    let delivery =
-        WebhookDelivery::new(connection_a.id, "cross-delivery", "workflow_run").unwrap();
+    let delivery = WebhookDelivery::new(connection_a.id, "cross-delivery", "workflow_run").unwrap();
     let claim = deliveries.claim_delivery(&delivery).await.unwrap().unwrap();
 
     let runs = PgAutomationRunRepo::new(pool);

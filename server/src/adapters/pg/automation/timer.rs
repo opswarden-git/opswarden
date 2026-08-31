@@ -11,10 +11,10 @@ use crate::domain::automation_timer::{ClaimedTimerOccurrence, TimerSchedule};
 use crate::domain::error::DomainError;
 use crate::ports::AutomationTimerRepo;
 
-#[path = "timer_rows.rs"]
-mod timer_rows;
 #[path = "timer_ops.rs"]
 mod timer_ops;
+#[path = "timer_rows.rs"]
+mod timer_rows;
 
 use timer_rows::{stored_schedule, DueScheduleRow, UnstartedClaimRow};
 

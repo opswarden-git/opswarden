@@ -451,7 +451,8 @@ impl TeamRepo for PgTeamRepo {
         ban: &TeamBan,
         requester_id: Uuid,
     ) -> Result<bool, DomainError> {
-        self.ban_member_and_clear_assignments_impl(ban, requester_id).await
+        self.ban_member_and_clear_assignments_impl(ban, requester_id)
+            .await
     }
 
     async fn find_ban(&self, team_id: Uuid, user_id: Uuid) -> Result<Option<TeamBan>, DomainError> {

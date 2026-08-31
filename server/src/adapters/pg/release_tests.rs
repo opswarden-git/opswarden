@@ -48,8 +48,7 @@ async fn it_saves_loads_and_validates_a_release(pool: PgPool) {
     let repo = PgReleaseRepo::new(pool.clone());
     let (team_id, user_id) = seed_team(&pool).await;
 
-    let mut release =
-        Release::new(team_id, "v1.0.0", vec!["build".into(), "prod".into()]).unwrap();
+    let mut release = Release::new(team_id, "v1.0.0", vec!["build".into(), "prod".into()]).unwrap();
     repo.save_release(&release).await.unwrap();
 
     let loaded = repo.find_release_by_id(release.id).await.unwrap().unwrap();
@@ -127,12 +126,8 @@ async fn release_validation_rolls_back_when_incident_history_fails(pool: PgPool)
     );
 
     assert_eq!(
-        repo.update_release_with_incident_events(
-            &release,
-            expected_updated_at,
-            &[invalid_event],
-        )
-        .await,
+        repo.update_release_with_incident_events(&release, expected_updated_at, &[invalid_event],)
+            .await,
         Err(DomainError::Storage)
     );
 
@@ -276,8 +271,7 @@ async fn linked_active_incident_blocks_and_resolving_unblocks(pool: PgPool) {
     let expected_updated_at = incident.updated_at;
     let previous_status = incident.status;
     incident.resolve().unwrap();
-    let event =
-        IncidentEvent::status_changed(incident.id, user, previous_status, incident.status);
+    let event = IncidentEvent::status_changed(incident.id, user, previous_status, incident.status);
     incidents
         .update_incident_with_event(&incident, &event, expected_updated_at)
         .await

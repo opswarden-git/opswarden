@@ -22,8 +22,13 @@ const TeamScopeContext = React.createContext<TeamScopeValue | null>(null);
 const NO_TEAMS: Team[] = [];
 
 export function TeamScopeProvider({ children }: { children: React.ReactNode }) {
-  const pathname = routing.usePathname?.() ?? "";
-  const router = routing.useRouter?.() ?? { push: () => {}, replace: () => {} };
+  const rawPathname = routing.usePathname?.() ?? "";
+  const rawRouter = routing.useRouter?.();
+  const router = React.useMemo(
+    () => rawRouter ?? { push: () => {}, replace: () => {} },
+    [rawRouter],
+  );
+  const pathname = rawPathname;
   const { data, isLoading, error } = useTeams();
   const teams = data ?? NO_TEAMS;
   const route = React.useMemo(() => parseTeamPath(pathname), [pathname]);
@@ -61,16 +66,19 @@ export function TeamScopeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTeamScope(): TeamScopeValue {
   const value = React.useContext(TeamScopeContext);
-  if (value) return value;
-
-  return useFallbackTeamScope();
+  const fallback = useFallbackTeamScope();
+  return value ?? fallback;
 }
 
 function useFallbackTeamScope(): TeamScopeValue {
   const teamsQuery = useTeams();
   const rawPathname = routing.usePathname?.() ?? "";
-  const router = routing.useRouter?.() ?? { push: () => {}, replace: () => {} };
-  const pathname = rawPathname ?? "";
+  const rawRouter = routing.useRouter?.();
+  const router = React.useMemo(
+    () => rawRouter ?? { push: () => {}, replace: () => {} },
+    [rawRouter],
+  );
+  const pathname = rawPathname;
 
   const route = React.useMemo(() => parseTeamPath(pathname), [pathname]);
   const fallbackTeams = teamsQuery.data ?? NO_TEAMS;
