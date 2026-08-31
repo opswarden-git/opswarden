@@ -53,10 +53,10 @@ def value(config: dict[str, str], name: str, default: str = "") -> str:
 
 DEFAULT_DEMO_VALUES = {
     "PASSWORD": "OpsWarden",
-    "MANAGER_EMAIL": "manager.demo@opswarden.local",
-    "RESPONDER_EMAIL": "responder.demo@opswarden.local",
-    "OBSERVER_EMAIL": "observer.demo@opswarden.local",
-    "CONTRACTOR_EMAIL": "contractor.demo@opswarden.local",
+    "MANAGER_EMAIL": "manager@opswarden.local",
+    "RESPONDER_EMAIL": "responder@opswarden.local",
+    "OBSERVER_EMAIL": "observer@opswarden.local",
+    "CONTRACTOR_EMAIL": "contractor@opswarden.local",
     "TEAM_NAME": "OpsWarden",
 }
 
