@@ -57,7 +57,7 @@ DEFAULT_DEMO_VALUES = {
     "RESPONDER_EMAIL": "responder@opswarden.local",
     "OBSERVER_EMAIL": "observer@opswarden.local",
     "CONTRACTOR_EMAIL": "contractor@opswarden.local",
-    "TEAM_NAME": "OpsWarden",
+    "TEAM_NAME": "OpsWarden Demo",
 }
 
 
@@ -221,7 +221,7 @@ def identity_variables(config: dict[str, str], database: Database, target: str) 
     if configured_team:
         teams = [team for team in teams if team == configured_team]
     if len(teams) == 0 and target == "local":
-        team_id = str(uuid4())
+        team_id = "50000000-0000-4000-8000-000000000001"
         database.execute(
             """begin;
                insert into teams (id, name, invitation_code, created_at) values (:'team_id'::uuid, :'team_name', 'DEMO-' || upper(substring(md5(random()::text) from 1 for 6)), now());
