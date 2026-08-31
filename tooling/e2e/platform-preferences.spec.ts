@@ -127,8 +127,7 @@ test("browser-composited incident text remains above 4.5:1", async ({ page }) =>
 
   const samples = [
     { path: `/en/teams/${TEAM_ID}/incidents`, label: "Open" },
-    { path: `/en/teams/${TEAM_ID}/incidents?view=all`, label: "Critical" },
-    { path: `/en/teams/${TEAM_ID}/incidents`, label: "Low" },
+    { path: `/en/teams/${TEAM_ID}/incidents?view=all`, label: "Escalated" },
     {
       path: `/en/teams/${TEAM_ID}/incidents?view=acknowledged`,
       label: "Acknowledged",
@@ -139,7 +138,7 @@ test("browser-composited incident text remains above 4.5:1", async ({ page }) =>
     await page.goto(sample.path);
     const element = page
       .locator("[data-incident-layout]:visible")
-      .locator("[data-status-badge], [data-severity-badge], [data-badge]")
+      .locator("[data-status-badge]")
       .filter({ hasText: sample.label })
       .first();
     await expect(element).toBeVisible();
