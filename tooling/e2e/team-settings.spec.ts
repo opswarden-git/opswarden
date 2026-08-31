@@ -22,7 +22,7 @@ test.describe("Team", () => {
     await expect(page.getByRole("heading", { name: "Active members", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Inactive members" })).toBeVisible();
     await expect(page.getByLabel("Roles")).toBeAttached();
-    await expect(page.getByRole("heading", { name: "Banned members" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Banned members" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Danger", level: 2 })).toBeVisible();
   });
 

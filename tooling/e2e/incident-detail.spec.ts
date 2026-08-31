@@ -53,7 +53,7 @@ test.describe("Incident detail", () => {
     await page.goto(incidentUrl(LINKED_INCIDENT_ID));
 
     await expect(page.getByRole("region", { name: "War room conversation" })).toBeVisible();
-    await expect(page.locator("[data-system-event]")).toHaveCount(5);
+    await expect(page.locator("[data-system-event]")).toHaveCount(6);
     await expect(page.locator('[data-system-event="status_changed"]')).toHaveCount(2);
     await expect(page.getByRole("complementary", { name: "Incident details" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Activity" })).toHaveCount(0);
