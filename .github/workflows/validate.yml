@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install zizmor
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           tool: zizmor
       - name: Install actionlint
@@ -155,7 +155,7 @@ jobs:
       - name: Lint without warnings
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Install cargo-audit
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           tool: cargo-audit
       - name: Audit Rust dependencies
@@ -166,7 +166,7 @@ jobs:
       - name: Audit desktop dependencies
         run: cargo audit --file client-desktop/src-tauri/Cargo.lock
       - name: Install cargo-deny
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           tool: cargo-deny@0.19.7
       - name: Enforce dependency and license policy
@@ -200,7 +200,7 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: Install sqlx-cli
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           tool: sqlx-cli
       - name: Configure test database
@@ -247,7 +247,7 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: Install coverage and database tools
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           tool: cargo-tarpaulin,sqlx-cli
       - name: Configure test database
