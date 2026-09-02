@@ -1,3 +1,12 @@
+> [!NOTE]
+> **Project status: paused**
+>
+> OpsWarden was developed as an academic project, and its assessment is now
+> complete. Active development and the public cloud deployment are therefore
+> paused for the time being. This is not necessarily a permanent shutdown:
+> substantial changes are planned, and OpsWarden may reopen in a new form.
+> Until then, the source remains available—feel free to fork it.
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/wiki/opswarden-git/opswarden/assets/opswarden-ops/heroicon.png" alt="OpsWarden" width="120" />
   <h1>OpsWarden</h1>
