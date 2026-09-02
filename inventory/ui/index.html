@@ -1,0 +1,1313 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Technical and product documentation for the OpsWarden incident management platform.">
+      
+      
+      
+        <link rel="canonical" href="https://opswarden-git.github.io/opswarden/inventory/ui/">
+      
+      
+        <link rel="prev" href="../../design/design-system/">
+      
+      
+        <link rel="next" href="../i18n/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Primitives and tokens - Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Wiki" class="md-header__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Primitives and tokens
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Wiki" class="md-nav__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Wiki
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations and demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Product
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data and lifecycles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events and realtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/websocket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP routes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/ui-guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primitives and tokens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Copy budget
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DOM contracts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Overview
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../design/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Interface
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<div class="inventory-doc">
+  <header class="inventory-heading">
+    <h1>Primitives and tokens</h1>
+    <p class="intro">The components in components/ui and the axes each accepts, plus the design tokens declared on :root. This is the base every product board reuses.</p>
+  </header>
+
+<div class="summary"><div><strong>16</strong><span>primitives</span></div><div><strong>11</strong><span>with a test</span></div><div><strong>25</strong><span>variants</span></div><div><strong>57</strong><span>tokens</span></div><div><strong>13</strong><span>token families</span></div></div>
+<section>
+  <div class="section-head"><h2>Interface primitives</h2></div>
+  <div class="capture-grid single">
+    <article class="capture-card wide">
+  <div class="card-head"><h3>components/ui</h3><code>client-web/components/ui — 16</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:19%" /><col style="width:58%" /><col style="width:9%" /><col style="width:14%" /></colgroup>
+<thead><tr><th>Component</th><th>Axes</th><th>Test</th><th>Lines</th></tr></thead>
+<tbody><tr><td class="key strong">ActionMenu</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">85</td></tr><tr><td class="key strong">Alert</td><td><span class="muted">tone</span> <span class="pill ghost">info</span> <span class="pill ghost">success</span> <span class="pill ghost">warning</span> <span class="pill ghost">danger</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">36</td></tr><tr><td class="key strong">Button</td><td><span class="muted">variant</span> <span class="pill ghost">primary</span> <span class="pill ghost">secondary</span> <span class="pill ghost">danger</span> <span class="pill ghost">ghost</span><br /><span class="muted">size</span> <span class="pill ghost">xs</span> <span class="pill ghost">sm</span> <span class="pill ghost">md</span> <span class="pill ghost">lg</span><br /><span class="muted">tone</span> <span class="pill ghost">neutral</span> <span class="pill ghost">accent</span> <span class="pill ghost">danger</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">137</td></tr><tr><td class="key strong">CollectionControls</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">168</td></tr><tr><td class="key strong">ConfirmDialog</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">117</td></tr><tr><td class="key strong">CopyButton</td><td><span class="muted">—</span></td><td><span class="mark no" title="no">&#8212;</span></td><td class="muted">82</td></tr><tr><td class="key strong">Dialog</td><td><span class="muted">size</span> <span class="pill ghost">sm</span> <span class="pill ghost">md</span> <span class="pill ghost">lg</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">172</td></tr><tr><td class="key strong">EmptyState</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">28</td></tr><tr><td class="key strong">FormField</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">80</td></tr><tr><td class="key strong">MediaButton</td><td><span class="muted">—</span></td><td><span class="mark no" title="no">&#8212;</span></td><td class="muted">25</td></tr><tr><td class="key strong">OperationalTable</td><td><span class="muted">cellDensityClasses</span> <span class="pill ghost">compact</span> <span class="pill ghost">normal</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">134</td></tr><tr><td class="key strong">PaneSection</td><td><span class="muted">—</span></td><td><span class="mark no" title="no">&#8212;</span></td><td class="muted">65</td></tr><tr><td class="key strong">ReactionToggle</td><td><span class="muted">—</span></td><td><span class="mark no" title="no">&#8212;</span></td><td class="muted">46</td></tr><tr><td class="key strong">Skeleton</td><td><span class="muted">—</span></td><td><span class="mark no" title="no">&#8212;</span></td><td class="muted">14</td></tr><tr><td class="key strong">StatusBadge</td><td><span class="muted">tone</span> <span class="pill ghost">neutral</span> <span class="pill ghost">info</span> <span class="pill ghost">warning</span> <span class="pill ghost">danger</span> <span class="pill ghost">success</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">51</td></tr><tr><td class="key strong">ToggleButton</td><td><span class="muted">—</span></td><td><span class="mark yes" title="yes">&#10003;</span></td><td class="muted">25</td></tr></tbody>
+</table></div>
+</article>
+  </div>
+</section>
+<section>
+  <div class="section-head"><h2>Design tokens</h2>
+  <p>Declared on :root in globals.css</p></div>
+  <div class="capture-grid">
+    <article class="capture-card">
+  <div class="card-head"><h3>ow</h3><code>11</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--ow-border-muted</td><td><span class="tokenchip" style="background:rgb(255 255 255 / 5%)"></span><span class="muted">rgb(255 255 255 / 5%)</span></td></tr><tr><td class="key strong">--ow-border</td><td><span class="tokenchip" style="background:rgb(255 255 255 / 8%)"></span><span class="muted">rgb(255 255 255 / 8%)</span></td></tr><tr><td class="key strong">--ow-border-emphasis</td><td><span class="tokenchip" style="background:rgb(255 255 255 / 12%)"></span><span class="muted">rgb(255 255 255 / 12%)</span></td></tr><tr><td class="key strong">--ow-border-width</td><td><span class="muted">1px</span></td></tr><tr><td class="key strong">--ow-border-width-thick</td><td><span class="muted">2px</span></td></tr><tr><td class="key strong">--ow-radius-sm</td><td><span class="muted">3px</span></td></tr><tr><td class="key strong">--ow-radius-md</td><td><span class="muted">6px</span></td></tr><tr><td class="key strong">--ow-radius-lg</td><td><span class="muted">12px</span></td></tr><tr><td class="key strong">--ow-radius-full</td><td><span class="muted">9999px</span></td></tr><tr><td class="key strong">--ow-shadow-floating</td><td><span class="muted">0 0 0 1px rgb(0 0 0 / 45%)</span></td></tr><tr><td class="key strong">--ow-muted</td><td><span class="tokenchip" style="background:#989ba1"></span><span class="muted">#989ba1</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>action</h3><code>10</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--action-primary</td><td><span class="muted">var(--gold)</span></td></tr><tr><td class="key strong">--action-primary-hover</td><td><span class="muted">var(--gold-hover)</span></td></tr><tr><td class="key strong">--action-primary-ink</td><td><span class="muted">var(--gold-ink)</span></td></tr><tr><td class="key strong">--action-secondary</td><td><span class="muted">var(--panel)</span></td></tr><tr><td class="key strong">--action-secondary-hover</td><td><span class="muted">var(--panel-2)</span></td></tr><tr><td class="key strong">--action-secondary-border</td><td><span class="muted">var(--ow-border)</span></td></tr><tr><td class="key strong">--action-secondary-ink</td><td><span class="muted">var(--text)</span></td></tr><tr><td class="key strong">--action-danger</td><td><span class="muted">var(--danger)</span></td></tr><tr><td class="key strong">--action-danger-hover</td><td><span class="muted">var(--danger-hover)</span></td></tr><tr><td class="key strong">--action-danger-ink</td><td><span class="muted">var(--danger-ink)</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>rel</h3><code>5</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--rel-created</td><td><span class="muted">var(--ow-muted)</span></td></tr><tr><td class="key strong">--rel-progress</td><td><span class="tokenchip" style="background:#2dd4bf"></span><span class="muted">#2dd4bf</span></td></tr><tr><td class="key strong">--rel-blocked</td><td><span class="muted">var(--feedback-danger)</span></td></tr><tr><td class="key strong">--rel-completed</td><td><span class="muted">var(--feedback-success)</span></td></tr><tr><td class="key strong">--rel-cancelled</td><td><span class="muted">var(--ow-muted-2)</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>status</h3><code>5</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--status-neutral</td><td><span class="tokenchip" style="background:#57606a"></span><span class="muted">#57606a</span></td></tr><tr><td class="key strong">--status-info</td><td><span class="tokenchip" style="background:#0969da"></span><span class="muted">#0969da</span></td></tr><tr><td class="key strong">--status-warning</td><td><span class="tokenchip" style="background:#9a6700"></span><span class="muted">#9a6700</span></td></tr><tr><td class="key strong">--status-danger</td><td><span class="tokenchip" style="background:#cf222e"></span><span class="muted">#cf222e</span></td></tr><tr><td class="key strong">--status-success</td><td><span class="tokenchip" style="background:#1a7f37"></span><span class="muted">#1a7f37</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>danger</h3><code>4</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--danger</td><td><span class="tokenchip" style="background:#c62828"></span><span class="muted">#c62828</span></td></tr><tr><td class="key strong">--danger-hover</td><td><span class="tokenchip" style="background:#b71c1c"></span><span class="muted">#b71c1c</span></td></tr><tr><td class="key strong">--danger-ink</td><td><span class="tokenchip" style="background:#fff"></span><span class="muted">#fff</span></td></tr><tr><td class="key strong">--danger-text</td><td><span class="tokenchip" style="background:#f55"></span><span class="muted">#f55</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>gold</h3><code>4</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--gold</td><td><span class="tokenchip" style="background:#fbc02d"></span><span class="muted">#fbc02d</span></td></tr><tr><td class="key strong">--gold-hover</td><td><span class="tokenchip" style="background:#f9a825"></span><span class="muted">#f9a825</span></td></tr><tr><td class="key strong">--gold-dim</td><td><span class="tokenchip" style="background:#fbc02d"></span><span class="muted">#fbc02d</span></td></tr><tr><td class="key strong">--gold-ink</td><td><span class="tokenchip" style="background:#1a1405"></span><span class="muted">#1a1405</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>sev</h3><code>4</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--sev-low</td><td><span class="tokenchip" style="background:#5798f5"></span><span class="muted">#5798f5</span></td></tr><tr><td class="key strong">--sev-medium</td><td><span class="muted">var(--feedback-warning)</span></td></tr><tr><td class="key strong">--sev-high</td><td><span class="tokenchip" style="background:#fb7d3c"></span><span class="muted">#fb7d3c</span></td></tr><tr><td class="key strong">--sev-critical</td><td><span class="muted">var(--feedback-danger)</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>st</h3><code>4</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--st-open</td><td><span class="tokenchip" style="background:#f55"></span><span class="muted">#f55</span></td></tr><tr><td class="key strong">--st-ack</td><td><span class="tokenchip" style="background:#5798f5"></span><span class="muted">#5798f5</span></td></tr><tr><td class="key strong">--st-esc</td><td><span class="tokenchip" style="background:#c084fc"></span><span class="muted">#c084fc</span></td></tr><tr><td class="key strong">--st-res</td><td><span class="muted">var(--feedback-success)</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>feedback</h3><code>3</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--feedback-success</td><td><span class="tokenchip" style="background:#22c55e"></span><span class="muted">#22c55e</span></td></tr><tr><td class="key strong">--feedback-warning</td><td><span class="tokenchip" style="background:#f59e0b"></span><span class="muted">#f59e0b</span></td></tr><tr><td class="key strong">--feedback-danger</td><td><span class="tokenchip" style="background:#f55"></span><span class="muted">#f55</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>panel</h3><code>3</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--panel</td><td><span class="tokenchip" style="background:#1c1d22"></span><span class="muted">#1c1d22</span></td></tr><tr><td class="key strong">--panel-2</td><td><span class="tokenchip" style="background:#25262d"></span><span class="muted">#25262d</span></td></tr><tr><td class="key strong">--panel-2</td><td><span class="muted">at #878b93 the pair fell to 4.41:1. */
+    --ow-muted-2: #8f939b</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>bg</h3><code>2</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--bg</td><td><span class="tokenchip" style="background:#15161a"></span><span class="muted">#15161a</span></td></tr><tr><td class="key strong">--bg-2</td><td><span class="tokenchip" style="background:#121317"></span><span class="muted">#121317</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>text</h3><code>1</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--text</td><td><span class="tokenchip" style="background:#e7e7ea"></span><span class="muted">#e7e7ea</span></td></tr></tbody>
+</table></div>
+</article><article class="capture-card">
+  <div class="card-head"><h3>workspace</h3><code>1</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:52%" /><col style="width:48%" /></colgroup>
+<thead><tr><th>Token</th><th>Value</th></tr></thead>
+<tbody><tr><td class="key strong">--workspace-max</td><td><span class="muted">90rem</span></td></tr></tbody>
+</table></div>
+</article>
+  </div>
+</section>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.path", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/force-dark.js"></script>
+      
+    
+  </body>
+</html>

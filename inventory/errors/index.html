@@ -1,0 +1,1253 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Technical and product documentation for the OpsWarden incident management platform.">
+      
+      
+      
+        <link rel="canonical" href="https://opswarden-git.github.io/opswarden/inventory/errors/">
+      
+      
+        <link rel="prev" href="../api/">
+      
+      
+        <link rel="next" href="../../design/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Error catalogue - Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Wiki" class="md-header__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Error catalogue
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Wiki" class="md-nav__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Wiki
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations and demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Product
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data and lifecycles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events and realtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/websocket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP routes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/ui-guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primitives and tokens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Copy budget
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DOM contracts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Overview
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../reference/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    API reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<div class="inventory-doc">
+  <header class="inventory-heading">
+    <h1>Error catalogue</h1>
+    <p class="intro">Every DomainError variant, its stable code, the HTTP status it produces and how it reads in both locales. The list is complete by construction: it is read from an exhaustive match the compiler guarantees.</p>
+  </header>
+
+<div class="summary"><div><strong>75</strong><span>server errors</span></div><div><strong>11</strong><span>HTTP statuses</span></div><div><strong>38</strong><span>client codes</span></div><div><strong>0</strong><span>untranslated</span></div><div><strong>1</strong><span>orphan keys</span></div></div>
+<section>
+  <div class="section-head"><h2>Split by status</h2></div>
+  <div class="capture-grid single">
+    <article class="capture-card wide">
+  <div class="card-head"><h3>into_response()</h3><code>server/src/handlers/error.rs</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:26%" /><col style="width:12%" /><col style="width:62%" /></colgroup>
+<thead><tr><th>Status</th><th>Errors</th><th></th></tr></thead>
+<tbody><tr><td><span class="pill warning">400 bad request</span></td><td>30</td><td><div class="bar"><i style="width:40%"></i></div></td></tr><tr><td><span class="pill warning">409 conflict</span></td><td>11</td><td><div class="bar"><i style="width:15%"></i></div></td></tr><tr><td><span class="pill warning">404 not found</span></td><td>9</td><td><div class="bar"><i style="width:12%"></i></div></td></tr><tr><td><span class="pill danger">502 bad gateway</span></td><td>9</td><td><div class="bar"><i style="width:12%"></i></div></td></tr><tr><td><span class="pill warning">403 forbidden</span></td><td>6</td><td><div class="bar"><i style="width:8%"></i></div></td></tr><tr><td><span class="pill warning">401 unauthorized</span></td><td>3</td><td><div class="bar"><i style="width:4%"></i></div></td></tr><tr><td><span class="pill danger">500 internal server error</span></td><td>2</td><td><div class="bar"><i style="width:3%"></i></div></td></tr><tr><td><span class="pill danger">503 service unavailable</span></td><td>2</td><td><div class="bar"><i style="width:3%"></i></div></td></tr><tr><td><span class="pill warning">429 too many requests</span></td><td>1</td><td><div class="bar"><i style="width:1%"></i></div></td></tr><tr><td><span class="pill warning">422 unprocessable entity</span></td><td>1</td><td><div class="bar"><i style="width:1%"></i></div></td></tr><tr><td><span class="pill danger">504 gateway timeout</span></td><td>1</td><td><div class="bar"><i style="width:1%"></i></div></td></tr></tbody>
+</table></div>
+</article>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><h2>Full catalogue</h2></div>
+  <div class="capture-grid single">
+    <article class="capture-card wide">
+  <div class="card-head"><h3>DomainError</h3><code>server/src/domain/error.rs</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:25%" /><col style="width:15%" /><col style="width:30%" /><col style="width:30%" /></colgroup>
+<thead><tr><th>Code</th><th>Status</th><th>EN</th><th>FR</th></tr></thead>
+<tbody><tr><td class="key strong">invalid_email</td><td><span class="pill warning">400 bad request</span></td><td>Invalid email address.</td><td>Adresse email invalide.</td></tr><tr><td class="key strong">invalid_locale</td><td><span class="pill warning">400 bad request</span></td><td>Language must be English or French.</td><td>La langue doit être le français ou l’anglais.</td></tr><tr><td class="key strong">user_already_exists</td><td><span class="pill warning">409 conflict</span></td><td>An account with this email already exists.</td><td>Un compte existe déjà avec cet email.</td></tr><tr><td class="key strong">invalid_credentials</td><td><span class="pill warning">401 unauthorized</span></td><td>Invalid email or password.</td><td>Email ou mot de passe invalide.</td></tr><tr><td class="key strong">too_many_attempts</td><td><span class="pill warning">429 too many requests</span></td><td>Too many sign-in attempts. Please try again later.</td><td>Trop de tentatives de connexion. Réessayez plus tard.</td></tr><tr><td class="key strong">invalid_token</td><td><span class="pill warning">401 unauthorized</span></td><td>Your session has expired. Please log in again.</td><td>Votre session a expiré. Veuillez vous reconnecter.</td></tr><tr><td class="key strong">invalid_team_name</td><td><span class="pill warning">400 bad request</span></td><td>Team name cannot be empty.</td><td>Le nom de l’équipe ne peut pas être vide.</td></tr><tr><td class="key strong">invalid_team_image</td><td><span class="pill warning">400 bad request</span></td><td>Use a valid PNG, JPEG or WebP image within the size limit.</td><td>Utilisez une image PNG, JPEG ou WebP valide respectant la taille maximale.</td></tr><tr><td class="key strong">team_image_not_found</td><td><span class="pill warning">404 not found</span></td><td>Team image not found.</td><td>Image d’équipe introuvable.</td></tr><tr><td class="key strong">invalid_incident_title</td><td><span class="pill warning">400 bad request</span></td><td>Incident title cannot be empty.</td><td>Le titre de l’incident ne peut pas être vide.</td></tr><tr><td class="key strong">invalid_incident_status</td><td><span class="pill warning">400 bad request</span></td><td>Invalid incident status.</td><td>Statut d’incident invalide.</td></tr><tr><td class="key strong">invalid_severity</td><td><span class="pill warning">400 bad request</span></td><td>Invalid incident severity.</td><td>Sévérité d’incident invalide.</td></tr><tr><td class="key strong">invalid_incident_transition</td><td><span class="pill warning">400 bad request</span></td><td>Invalid incident transition.</td><td>Transition d’incident invalide.</td></tr><tr><td class="key strong">invalid_timeline_entry</td><td><span class="pill warning">400 bad request</span></td><td>Timeline entry content is invalid.</td><td>Le contenu de l’entrée de timeline est invalide.</td></tr><tr><td class="key strong">invalid_timeline_attachment</td><td><span class="pill warning">400 bad request</span></td><td>Invalid attachment</td><td>Fichier invalide</td></tr><tr><td class="key strong">invalid_reaction</td><td><span class="pill warning">400 bad request</span></td><td>Invalid reaction.</td><td>Réaction invalide.</td></tr><tr><td class="key strong">invalid_private_message</td><td><span class="pill warning">400 bad request</span></td><td>Message is empty or too long</td><td>Message vide ou trop long</td></tr><tr><td class="key strong">invalid_private_message_attachment</td><td><span class="pill warning">400 bad request</span></td><td>Invalid attachment</td><td>Pièce jointe invalide</td></tr><tr><td class="key strong">no_shared_team</td><td><span class="pill warning">403 forbidden</span></td><td>You can only message members you share a team with</td><td>Vous ne pouvez écrire qu’aux membres d’une équipe que vous partagez</td></tr><tr><td class="key strong">invalid_release_title</td><td><span class="pill warning">400 bad request</span></td><td>Release title cannot be empty</td><td>Le titre de la release ne peut pas être vide</td></tr><tr><td class="key strong">invalid_release_steps</td><td><span class="pill warning">400 bad request</span></td><td>A release needs at least one distinct, non-empty step</td><td>Une release nécessite au moins une étape distincte et non vide</td></tr><tr><td class="key strong">release_not_found</td><td><span class="pill warning">404 not found</span></td><td>Release not found</td><td>Release introuvable</td></tr><tr><td class="key strong">invalid_release_step</td><td><span class="pill warning">409 conflict</span></td><td>Steps must be validated in order</td><td>Les étapes doivent être validées dans l’ordre</td></tr><tr><td class="key strong">release_blocked</td><td><span class="pill warning">409 conflict</span></td><td>The release is blocked by an active linked incident</td><td>La release est bloquée par un incident actif lié</td></tr><tr><td class="key strong">invalid_release_transition</td><td><span class="pill warning">409 conflict</span></td><td>Invalid release transition</td><td>Transition de release invalide</td></tr><tr><td class="key strong">team_not_found</td><td><span class="pill warning">404 not found</span></td><td>No team matches this invitation code.</td><td>Aucune équipe ne correspond à ce code d’invitation.</td></tr><tr><td class="key strong">incident_not_found</td><td><span class="pill warning">404 not found</span></td><td>Incident not found.</td><td>Incident introuvable.</td></tr><tr><td class="key strong">already_member</td><td><span class="pill warning">409 conflict</span></td><td>Account already belongs to this team.</td><td>Ce compte appartient déjà à l’équipe.</td></tr><tr><td class="key strong">member_not_found</td><td><span class="pill warning">404 not found</span></td><td>This user is not a member of the team.</td><td>Cet utilisateur n’est pas membre de l’équipe.</td></tr><tr><td class="key strong">user_not_found</td><td><span class="pill warning">404 not found</span></td><td>User account not found.</td><td>Compte utilisateur introuvable.</td></tr><tr><td class="key strong">not_manager</td><td><span class="pill warning">403 forbidden</span></td><td>Only the team Manager may perform this action.</td><td>Seul le Manager de l’équipe peut effectuer cette action.</td></tr><tr><td class="key strong">already_manager</td><td><span class="pill warning">409 conflict</span></td><td>This user is already the team Manager.</td><td>Cet utilisateur est déjà Manager de l’équipe.</td></tr><tr><td class="key strong">invalid_role</td><td><span class="pill warning">400 bad request</span></td><td>Role must be Observer or Responder.</td><td>Le rôle doit être Observateur ou Intervenant.</td></tr><tr><td class="key strong">cannot_change_manager_role</td><td><span class="pill warning">409 conflict</span></td><td>The Manager role can only change through a transfer.</td><td>Le rôle Manager ne peut changer que par un transfert.</td></tr><tr><td class="key strong">cannot_moderate_self</td><td><span class="pill warning">403 forbidden</span></td><td>You cannot moderate yourself.</td><td>Vous ne pouvez pas vous modérer vous-même.</td></tr><tr><td class="key strong">cannot_moderate_manager</td><td><span class="pill warning">403 forbidden</span></td><td>The team manager cannot be kicked or banned.</td><td>Le Manager de l&#39;équipe ne peut pas être expulsé ou banni.</td></tr><tr><td class="key strong">user_banned</td><td><span class="pill warning">403 forbidden</span></td><td>Account is banned from this team.</td><td>Ce compte est banni de cette équipe.</td></tr><tr><td class="key strong">invalid_ban_expiry</td><td><span class="pill warning">400 bad request</span></td><td>A temporary ban must expire in the future.</td><td>Un bannissement temporaire doit expirer dans le futur.</td></tr><tr><td class="key strong">invalid_ban_kind</td><td><span class="pill warning">400 bad request</span></td><td>Ban kind must be temporary or permanent.</td><td>Le type de bannissement doit être temporaire ou permanent.</td></tr><tr><td class="key strong">assignee_not_responder</td><td><span class="pill warning">422 unprocessable entity</span></td><td>The assignee must be a Responder or Manager of the team.</td><td>L’assigné doit être Responder ou Manager de l’équipe.</td></tr><tr><td class="key strong">manager_cannot_leave</td><td><span class="pill warning">409 conflict</span></td><td>The Manager cannot leave; transfer the role or delete the team.</td><td>Le Manager ne peut pas partir ; transférez le rôle ou supprimez l’équipe.</td></tr><tr><td class="key strong">must_transfer_manager_first</td><td><span class="pill warning">409 conflict</span></td><td>Transfer the Manager role (or delete the team) before deleting your account.</td><td>Transférez le rôle Manager (ou supprimez l’équipe) avant de supprimer votre compte.</td></tr><tr><td class="key strong">forbidden</td><td><span class="pill warning">403 forbidden</span></td><td>You are not allowed to perform this action.</td><td>Vous n’êtes pas autorisé à effectuer cette action.</td></tr><tr><td class="key strong">concurrent_modification</td><td><span class="pill warning">409 conflict</span></td><td>This resource changed while you were editing it. Please retry.</td><td>Cette ressource a changé pendant votre modification. Veuillez réessayer.</td></tr><tr><td class="key strong">invalid_signature</td><td><span class="pill warning">401 unauthorized</span></td><td>Invalid webhook signature.</td><td>Signature de webhook invalide.</td></tr><tr><td class="key strong">unknown_service</td><td><span class="pill warning">404 not found</span></td><td>Unknown webhook service.</td><td>Service de webhook inconnu.</td></tr><tr><td class="key strong">invalid_service_secret</td><td><span class="pill warning">400 bad request</span></td><td>Service secret cannot be empty.</td><td>Le secret du service ne peut pas être vide.</td></tr><tr><td class="key strong">invalid_service_connection</td><td><span class="pill warning">400 bad request</span></td><td>Service connection settings are invalid.</td><td>La configuration de la connexion au service est invalide.</td></tr><tr><td class="key strong">service_connection_not_found</td><td><span class="pill warning">404 not found</span></td><td>Service connection not found.</td><td>Connexion au service introuvable.</td></tr><tr><td class="key strong">invalid_automation_rule</td><td><span class="pill warning">400 bad request</span></td><td>Automation rule settings are invalid.</td><td>La configuration de la règle d’automatisation est invalide.</td></tr><tr><td class="key strong">invalid_timer_schedule</td><td><span class="pill warning">400 bad request</span></td><td>Timer schedule is invalid.</td><td>La planification du minuteur est invalide.</td></tr><tr><td class="key strong">automation_rule_not_found</td><td><span class="pill warning">404 not found</span></td><td>Automation rule not found.</td><td>Règle d’automatisation introuvable.</td></tr><tr><td class="key strong">invalid_automation_run</td><td><span class="pill warning">400 bad request</span></td><td>Automation run data is invalid.</td><td>Les données de l’exécution sont invalides.</td></tr><tr><td class="key strong">invalid_webhook_delivery</td><td><span class="pill warning">400 bad request</span></td><td>Webhook delivery is invalid.</td><td>La livraison du webhook est invalide.</td></tr><tr><td class="key strong">invalid_automation_transition</td><td><span class="pill warning">409 conflict</span></td><td>Automation run transition is invalid.</td><td>La transition de l’exécution est invalide.</td></tr><tr><td class="key strong">crypto_error</td><td><span class="pill danger">500 internal server error</span></td><td>A cryptographic error occurred.</td><td>Une erreur cryptographique est survenue.</td></tr><tr><td class="key strong">reaction_failed</td><td><span class="pill danger">502 bad gateway</span></td><td>The automation reaction failed.</td><td>La réaction d’automatisation a échoué.</td></tr><tr><td class="key strong">invalid_reaction_endpoint</td><td><span class="pill warning">400 bad request</span></td><td>The reaction endpoint URL is invalid.</td><td>L’URL de destination de la REAction est invalide.</td></tr><tr><td class="key strong">unsafe_reaction_target</td><td><span class="pill warning">400 bad request</span></td><td>The reaction target must be a public network address.</td><td>La destination de la REAction doit être une adresse réseau publique.</td></tr><tr><td class="key strong">reaction_timeout</td><td><span class="pill danger">504 gateway timeout</span></td><td>The reaction timed out.</td><td>La REAction a dépassé le délai autorisé.</td></tr><tr><td class="key strong">reaction_response_too_large</td><td><span class="pill danger">502 bad gateway</span></td><td>The reaction response exceeded the size limit.</td><td>La réponse de la REAction dépasse la taille maximale.</td></tr><tr><td class="key strong">reaction_payload_too_large</td><td><span class="pill warning">400 bad request</span></td><td>The reaction payload exceeded the size limit.</td><td>Le contenu de la REAction dépasse la taille maximale.</td></tr><tr><td class="key strong">reaction_redirect_refused</td><td><span class="pill danger">502 bad gateway</span></td><td>The reaction endpoint returned a redirect, which is not allowed.</td><td>La destination a renvoyé une redirection, ce qui n’est pas autorisé.</td></tr><tr><td class="key strong">reaction_http_4xx</td><td><span class="pill danger">502 bad gateway</span></td><td>The reaction endpoint rejected the request.</td><td>La destination de la REAction a refusé la requête.</td></tr><tr><td class="key strong">reaction_http_5xx</td><td><span class="pill danger">502 bad gateway</span></td><td>The reaction endpoint failed to process the request.</td><td>La destination de la REAction n’a pas pu traiter la requête.</td></tr><tr><td class="key strong">reaction_network_error</td><td><span class="pill danger">502 bad gateway</span></td><td>The reaction endpoint could not be reached securely.</td><td>La destination de la REAction n’a pas pu être jointe de manière sécurisée.</td></tr><tr><td class="key strong">invalid_email_recipient</td><td><span class="pill warning">400 bad request</span></td><td>The recipient email address is invalid.</td><td>L’adresse email du destinataire est invalide.</td></tr><tr><td class="key strong">invalid_email_sender</td><td><span class="pill warning">400 bad request</span></td><td>The sender email address is invalid.</td><td>L’adresse email de l’expéditeur est invalide.</td></tr><tr><td class="key strong">email_transport_error</td><td><span class="pill danger">502 bad gateway</span></td><td>The email could not be sent.</td><td>L’email n’a pas pu être envoyé.</td></tr><tr><td class="key strong">oauth_not_configured</td><td><span class="pill danger">503 service unavailable</span></td><td>This OAuth connection is not available right now.</td><td>Cette connexion OAuth n’est pas disponible pour le moment.</td></tr><tr><td class="key strong">oauth_failed</td><td><span class="pill danger">502 bad gateway</span></td><td>Google sign-in failed. Please try again.</td><td>La connexion Google a échoué. Veuillez réessayer.</td></tr><tr><td class="key strong">giphy_not_configured</td><td><span class="pill danger">503 service unavailable</span></td><td>GIF search is not available right now</td><td>La recherche de GIF n’est pas disponible pour le moment</td></tr><tr><td class="key strong">external_service_unavailable</td><td><span class="pill danger">502 bad gateway</span></td><td>The GIF service is temporarily unavailable</td><td>Le service de GIF est temporairement indisponible</td></tr><tr><td class="key strong">invalid_gif_query</td><td><span class="pill warning">400 bad request</span></td><td>Please enter a shorter search term</td><td>Veuillez saisir un terme de recherche plus court</td></tr><tr><td class="key strong">storage_error</td><td><span class="pill danger">500 internal server error</span></td><td>A storage error occurred.</td><td>Une erreur de stockage est survenue.</td></tr></tbody>
+</table></div>
+</article>
+  </div>
+</section>
+<section>
+  <div class="section-head"><h2>Codes raised by the client</h2>
+  <p>Transport failures the server never names</p></div>
+  <div class="capture-grid single">
+    <article class="capture-card wide">
+  <div class="card-head"><h3>Client codes</h3><code>client-web/lib/queries/</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:34%" /><col style="width:33%" /><col style="width:33%" /></colgroup>
+<thead><tr><th>Code</th><th>EN</th><th>FR</th></tr></thead>
+<tbody><tr><td class="key strong">activity_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">add_member_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">assign_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">ban_member_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">create_incident_failed</td><td class="muted">The incident could not be created.</td><td class="muted">L’incident n’a pas pu être créé.</td></tr><tr><td class="key strong">create_team_failed</td><td class="muted">The team could not be created.</td><td class="muted">L’équipe n’a pas pu être créée.</td></tr><tr><td class="key strong">delete_incident_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">delete_team_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">delete_team_image_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">download_attachment_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">edit_private_message_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">edit_timeline_entry_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">gif_search_failed</td><td class="muted">GIF search failed</td><td class="muted">Échec de la recherche de GIF</td></tr><tr><td class="key strong">incident_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">incident_read_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">incidents_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">invitation_code_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">join_team_failed</td><td class="muted">The invitation code is invalid or the team could not be joined.</td><td class="muted">Le code d’invitation est invalide ou l’équipe n’a pas pu être rejointe.</td></tr><tr><td class="key strong">kick_member_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">leave_team_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">list_bans_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">locale_update_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">mark_private_message_read_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">members_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">private_messages_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">profile_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">reactions_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">release_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">releases_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">send_private_message_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">set_member_role_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">status_update_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">teams_load_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">timeline_entry_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">toggle_reaction_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">transfer_manager_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">unban_member_failed</td><td class="muted">—</td><td class="muted">—</td></tr><tr><td class="key strong">update_team_image_failed</td><td class="muted">—</td><td class="muted">—</td></tr></tbody>
+</table></div><p class="note">These codes share the errors namespace. A missing translation is deliberate here: components test tErr.has(code) and fall back to a generic label.</p>
+</article>
+  </div>
+</section>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.path", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/force-dark.js"></script>
+      
+    
+  </body>
+</html>

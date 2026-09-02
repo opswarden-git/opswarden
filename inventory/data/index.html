@@ -1,0 +1,1253 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Technical and product documentation for the OpsWarden incident management platform.">
+      
+      
+      
+        <link rel="canonical" href="https://opswarden-git.github.io/opswarden/inventory/data/">
+      
+      
+        <link rel="prev" href="../../reference/data-model/">
+      
+      
+        <link rel="next" href="../events/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Data and lifecycles - Wiki</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Wiki" class="md-header__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Wiki
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Data and lifecycles
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Wiki" class="md-nav__button md-logo" aria-label="Wiki" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    Wiki
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations and demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Product
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data and lifecycles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events and realtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/websocket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP routes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/ui-guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primitives and tokens
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Copy budget
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DOM contracts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Overview
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../architecture/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<div class="inventory-doc">
+  <header class="inventory-heading">
+    <h1>Data and lifecycles</h1>
+    <p class="intro">The migration ledger with the phase each one declares, and the states the domain recognises. The policy is forward-only: a shipped migration is never rewritten.</p>
+  </header>
+
+<div class="summary"><div><strong>34</strong><span>migrations</span></div><div><strong>6</strong><span>expand phase</span></div><div><strong>4</strong><span>incident states</span></div><div><strong>4</strong><span>severities</span></div><div><strong>5</strong><span>release states</span></div></div>
+<section>
+  <div class="section-head"><h2>Lifecycles</h2></div>
+  <div class="capture-grid">
+    <article class="capture-card">
+  <div class="card-head"><h3>Incident</h3><code>server/src/domain/incident.rs</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:100%" /></colgroup>
+<thead><tr><th>Status</th></tr></thead>
+<tbody><tr><td class="key strong">open</td></tr><tr><td class="key strong">acknowledged</td></tr><tr><td class="key strong">escalated</td></tr><tr><td class="key strong">resolved</td></tr></tbody>
+</table></div>
+</article>
+    <article class="capture-card">
+  <div class="card-head"><h3>Severity</h3><code>server/src/domain/incident.rs</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:100%" /></colgroup>
+<thead><tr><th>Level</th></tr></thead>
+<tbody><tr><td class="key strong">low</td></tr><tr><td class="key strong">medium</td></tr><tr><td class="key strong">high</td></tr><tr><td class="key strong">critical</td></tr></tbody>
+</table></div>
+</article>
+    <article class="capture-card wide">
+  <div class="card-head"><h3>Release</h3><code>server/src/domain/release.rs</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:100%" /></colgroup>
+<thead><tr><th>State</th></tr></thead>
+<tbody><tr><td class="key strong">created</td></tr><tr><td class="key strong">in_progress</td></tr><tr><td class="key strong">blocked</td></tr><tr><td class="key strong">completed</td></tr><tr><td class="key strong">cancelled</td></tr></tbody>
+</table></div>
+</article>
+  </div>
+</section>
+<section>
+  <div class="section-head"><h2>Migration ledger</h2></div>
+  <div class="capture-grid single">
+    <article class="capture-card wide">
+  <div class="card-head"><h3>server/migrations</h3><code>34 fichiers</code></div>
+  <div class="table-wrap"><table><colgroup><col style="width:6%" /><col style="width:26%" /><col style="width:11%" /><col style="width:11%" /><col style="width:46%" /></colgroup>
+<thead><tr><th>No.</th><th>File</th><th>Phase</th><th>Statements</th><th>Intent</th></tr></thead>
+<tbody><tr><td class="key strong">0001</td><td class="key">users.sql</td><td><span class="muted">—</span></td><td>1</td><td class="muted">Users — authentication identities (see `domain::user`).</td></tr><tr><td class="key strong">0002</td><td class="key">teams_rbac.sql</td><td><span class="muted">—</span></td><td>3</td><td class="muted">Teams &amp; RBAC — teams and their role-scoped membership. Storage-level guard for the single-Manager invariant.</td></tr><tr><td class="key strong">0003</td><td class="key">auth_sessions.sql</td><td><span class="muted">—</span></td><td>2</td><td class="muted">Auth sessions — revoked bearer tokens kept until natural expiration.</td></tr><tr><td class="key strong">0004</td><td class="key">incidents.sql</td><td><span class="muted">—</span></td><td>2</td><td class="muted">Incidents — lifecycle state tracked inside a team workspace.</td></tr><tr><td class="key strong">0005</td><td class="key">timeline.sql</td><td><span class="muted">—</span></td><td>2</td><td class="muted">Incident timeline — timestamped entries authored by team members.</td></tr><tr><td class="key strong">0006</td><td class="key">external_secrets.sql</td><td><span class="muted">—</span></td><td>1</td><td class="muted">External secrets — encrypted third-party credentials. AES-256-GCM: only the per-row nonce and ciphertext are stored, so </td></tr><tr><td class="key strong">0007</td><td class="key">timeline_edit_reactions.sql</td><td><span class="muted">—</span></td><td>3</td><td class="muted">Timeline edit + reactions. Timeline editing — mark an entry as edited while preserving created_at. Timeline reactions — </td></tr><tr><td class="key strong">0008</td><td class="key">team_bans.sql</td><td><span class="muted">—</span></td><td>2</td><td class="muted">Team moderation — per-team bans that block rejoining. One ban row per (team, user). A NULL expires_at means a permanent </td></tr><tr><td class="key strong">0009</td><td class="key">private_messages.sql</td><td><span class="muted">—</span></td><td>3</td><td class="muted">Private messages — bilateral 1-to-1 direct messages. Not tied to an incident, release, or team. Authorization is enforce</td></tr><tr><td class="key strong">0010</td><td class="key">releases.sql</td><td><span class="muted">—</span></td><td>5</td><td class="muted">Releases — planned deployments coordinated in real time. `base_state` is the stored lifecycle (created/in_progress/compl</td></tr><tr><td class="key strong">0011</td><td class="key">incident_activity.sql</td><td><span class="muted">—</span></td><td>12</td><td class="muted">Durable incident detail and reconstructible system activity. Operational notes outlive user accounts. Their content rema</td></tr><tr><td class="key strong">0012</td><td class="key">backfill_incident_created_events.sql</td><td><span class="muted">—</span></td><td>1</td><td class="muted">Give pre-R5 incidents the same reconstructible starting point as new ones.</td></tr><tr><td class="key strong">0013</td><td class="key">release_freshness.sql</td><td><span class="muted">—</span></td><td>5</td><td class="muted">R8 overview needs honest Release freshness rather than creation age.</td></tr><tr><td class="key strong">0014</td><td class="key">team_automation.sql</td><td><span class="muted">—</span></td><td>11</td><td class="muted">R9.1 — Team-scoped service connections and durable automation. This migration is deliberately additive. The legacy `exte</td></tr><tr><td class="key strong">0015</td><td class="key">connection_delivery_status.sql</td><td><span class="muted">—</span></td><td>1</td><td class="muted">R9.3 — durable provider-verification and delivery health. A signed provider request (including GitHub `ping`) verifies t</td></tr><tr><td class="key strong">0016</td><td class="key">remove_legacy_automation.sql</td><td><span class="muted">—</span></td><td>1</td><td class="muted">R9.6 — the Team-owned connection/rule engine is now the only automation path. A legacy secret has no Team ownership colu</td></tr><tr><td class="key strong">0017</td><td class="key">user_locale.sql</td><td><span class="muted">—</span></td><td>4</td><td class="muted">—</td></tr><tr><td class="key strong">0018</td><td class="key">vigil_internal_automation.sql</td><td><span class="muted">—</span></td><td>5</td><td class="muted">Every Team owns one credential-free internal VIGIL connection. It lets native product events use the same durable delive</td></tr><tr><td class="key strong">0019</td><td class="key">opswarden_native_automation.sql</td><td><span class="muted">—</span></td><td>7</td><td class="muted">Native OpsWarden events use the durable delivery/rule/run chain without requiring a user-configurable external connectio</td></tr><tr><td class="key strong">0020</td><td class="key">timer_automation.sql</td><td><span class="muted">—</span></td><td>9</td><td class="muted">Durable Timer schedules and occurrence claims.</td></tr><tr><td class="key strong">0021</td><td class="key">email_credential_kinds.sql</td><td><span class="muted">—</span></td><td>3</td><td class="muted">Allow the SMTP credential kinds of the Email REAction. The Email vertical shipped in v1.0.7 with five new `CredentialKin</td></tr><tr><td class="key strong">0022</td><td class="key">channels.sql</td><td><span class="muted">—</span></td><td>2</td><td class="muted">Channels — Real-time chat instances scoped to a team.</td></tr><tr><td class="key strong">0023</td><td class="key">drop_channels.sql</td><td><span class="pill ghost">contract</span></td><td>1</td><td class="muted">Drop the standalone Channel object. Channels were built to satisfy the RTC chat grid literally. VIGIL never asks for the</td></tr><tr><td class="key strong">0024</td><td class="key">private_message_parity.sql</td><td><span class="pill ghost">expand</span></td><td>5</td><td class="muted">Rich bilateral messaging. Attachments remain deliberately bounded and live with the message so authorization, deletion a</td></tr><tr><td class="key strong">0025</td><td class="key">timeline_entry_attachments.sql</td><td><span class="pill ghost">expand</span></td><td>2</td><td class="muted">Incident-room attachments remain bounded and inherit the lifetime of their operational note. Downloads are authorized th</td></tr><tr><td class="key strong">0026</td><td class="key">release_step_incident_events.sql</td><td><span class="pill ghost">contract</span></td><td>3</td><td class="muted">Record release progress on the incidents a release is blocked by. Validating a release step already publishes `ReleaseSt</td></tr><tr><td class="key strong">0027</td><td class="key">incident_channel_reads.sql</td><td><span class="pill ghost">expand</span></td><td>2</td><td class="muted">Per-user read position for incident War Room channels. The position belongs to the server so unread state survives refre</td></tr><tr><td class="key strong">0028</td><td class="key">team_images.sql</td><td><span class="pill ghost">expand</span></td><td>1</td><td class="muted">A Team image is a bounded, authorization-gated identity resource. Keeping the binary out of `teams` prevents directory r</td></tr><tr><td class="key strong">0029</td><td class="key">private_message_reads.sql</td><td><span class="pill ghost">expand</span></td><td>2</td><td class="muted">Per-user read position for bilateral direct messages. The position belongs to the server so unread state survives refres</td></tr><tr><td class="key strong">0030</td><td class="key">incident_only_reactions.sql</td><td><span class="pill ghost">contract</span></td><td>1</td><td class="muted">VIGIL scopes emoji reactions to Incident timeline entries. Private messages remain editable and support attachments, but</td></tr><tr><td class="key strong">0031</td><td class="key">team_exactly_one_manager.sql</td><td><span class="pill ghost">contract</span></td><td>3</td><td class="muted">A team must have exactly one Manager at every transaction boundary. Deferred checks allow an atomic demote/promote trans</td></tr><tr><td class="key strong">0032</td><td class="key">webhook_delivery_leases.sql</td><td><span class="pill ghost">backfill</span></td><td>2</td><td class="muted">Permit a crashed webhook attempt to be retried without allowing the stale worker to finalize a delivery after its lease </td></tr><tr><td class="key strong">0033</td><td class="key">webhook_jobs.sql</td><td><span class="pill ghost">expand</span></td><td>2</td><td class="muted">—</td></tr><tr><td class="key strong">0034</td><td class="key">team_boundaries.sql</td><td><span class="pill ghost">contract</span></td><td>18</td><td class="muted">Enforce tenant boundaries in PostgreSQL. Historical authors and validators may outlive membership, so those relationship</td></tr></tbody>
+</table></div><p class="note">Number 0018 does not exist: a gap in the sequence is harmless to sqlx, which orders by number rather than by continuity.</p>
+</article>
+  </div>
+</section>
+</div>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "navigation.path", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/force-dark.js"></script>
+      
+    
+  </body>
+</html>
